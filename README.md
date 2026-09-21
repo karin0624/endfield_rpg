@@ -19,4 +19,4 @@
 
 文書のみを整備した段階。ゲーム本体、開発環境、テスト、CI、素材の取り込みは未実装。
 
-次は[Issue #3：開発・テスト環境](https://github.com/karin0624/endfield_rpg/issues/3)に着手する。現時点では`package.json`も実行・ビルド・テストコマンドもない。導入したIssueで、実際に動作確認した手順をこのREADMEと`AGENTS.md`に追記する。
+次は[Issue #3：開発・テスト環境](https://github.com/karin0624/endfield_rpg/issues/3)に着手する。現時点では`package.json`も実行・ビルド・テストコマンドもない。導入したIssueで、実際に動作確認した手順をこのREADMEに追記する。
