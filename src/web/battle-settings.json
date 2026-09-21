@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "cameraX": -0.1,
+  "cameraY": 6.6,
+  "cameraZ": 12.5,
+  "targetX": 0,
+  "targetY": 2,
+  "targetZ": -15,
+  "fovDegrees": 41.9,
+  "groundScale": 1,
+  "backdropScale": 0.67,
+  "backdropX": 0,
+  "backdropY": 8.2,
+  "backdropZ": -8.8
+}
