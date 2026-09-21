@@ -57,21 +57,21 @@
 | 依頼 | 依頼1本。成功後の報告で固定報酬を1回だけ得る。失敗時は報酬なしで再受注可。帰還時に全回復する | [#16](https://github.com/karin0624/endfield_rpg/issues/16) |
 | 保存 | 街の通常画面で1スロット保存。会話・戦闘・探索途中の保存はしない | [#17](https://github.com/karin0624/endfield_rpg/issues/17) |
 | 会話表示 | 本文は一括表示。バックログ、既読管理、オート再生、ボイスは初期範囲に含めない | [#12](https://github.com/karin0624/endfield_rpg/issues/12)、[#13](https://github.com/karin0624/endfield_rpg/issues/13) |
-| カメラ | 固定アングルを基本に、寄りと小移動まで。床と背景板の接合部は構図や遮蔽物で隠す | [#4](https://github.com/karin0624/endfield_rpg/issues/4)、[#5](https://github.com/karin0624/endfield_rpg/issues/5) |
+| カメラ・構図 | 地面モデルと遠景画像の組み合わせごとに、初期カメラ・倍率・重なりの固有設定を持つ。現在は1フィールド分を開発用画面で調整・保存する。別フィールドの追加時に設定も分け、既存の採用値を保持する。操作UIは配布画面に含めない | [#4](https://github.com/karin0624/endfield_rpg/issues/4)、[#5](https://github.com/karin0624/endfield_rpg/issues/5)、[画面仕様](visuals.md) |
 
 ## 素材の状況
 
-この文書の追加時点では、以下の「用意済み」はユーザーの説明に基づく。実ファイルはまだリポジトリに配置されておらず、形式・見た目・読み込み・利用条件は未確認。
+Issue #4・#5で提供済みファイルを確認し、実際の戦闘画面へ取り込んだ。配置・確認画面は[visuals.md](visuals.md)、出典と利用条件の確認状況は[素材メモ](../art-src/README.md)を参照する。
 
 | 素材 | 状況と初期の扱い |
 | --- | --- |
-| 主人公 | 正面、左右側面、背面、斜め左前の画像を用意済み。まず戦闘用の斜め左前1枚を使う |
-| 地面 | ChatGPTで作った画像を元にTripoで生成済み。実行用はGLBを基本とし、実ファイル確認後に必要な変換だけ行う |
-| 遠景 | GPT Imagesの2D背景画像を使う。改めて3D背景を調達しない |
-| 敵 | 未確定。2Dフリー素材1種の流用、または明示した仮シルエットから始める |
+| 主人公 | 提供PNG5方向の白背景をユーザーの指定で透過化。斜め左前1枚を使用し、他4方向を`art-src/`に保管 |
+| 地面 | TripoのGLB（約56 MiB・テクスチャ内包）を使用。26倍で配置し、Git LFSで管理 |
+| 遠景 | 提供された2138×736のGPT Images背景を垂直な板に貼り、地面の奥に重ねて配置 |
+| 敵 | Issue #4・#5と合わせてKenneyのCC0ブルースライムを先行導入。仮敵1体として表示 |
 | 追加の味方・NPC・街背景 | 素材の用意は未確認。必要な箇所だけ仮表示にする |
 
-取り込みと画面確認は[Issue #5](https://github.com/karin0624/endfield_rpg/issues/5)、敵素材の導入と出典・利用条件の記録は[Issue #10](https://github.com/karin0624/endfield_rpg/issues/10)で行う。これらの待ち時間にゲーム本体の開発を止めない。将来の素材配置先や編集元の管理方法は、取り込み時に実ファイルに合わせて決める。
+敵素材の導入・出典記録は先行実施したが、[Issue #10](https://github.com/karin0624/endfield_rpg/issues/10)自体の完了判定は今回行わない。追加の素材待ちでゲーム本体の開発を止めない。実行用は`public/assets/`、未使用の方向画像は`art-src/`に置く。
 
 ## 未決定・後回し
 
@@ -81,4 +81,4 @@
 
 ## 詳細仕様の追加先
 
-`battle.md`、`adventure.md`、`dungeon.md`、`quest.md`、`save.md`、`visuals.md`は、それぞれ該当Issueに着手して具体的な判断が必要になったときだけ`specs/`に追加する。現時点ではこれらのファイルを作らない。
+`visuals.md`はIssue #4・#5で追加済み。`battle.md`、`adventure.md`、`dungeon.md`、`quest.md`、`save.md`は、それぞれ該当Issueに着手して具体的な判断が必要になったときだけ`specs/`に追加する。

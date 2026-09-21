@@ -30,7 +30,7 @@ Issue #20・#21は後続計画を決めるタスクであり、それらを閉�
 | M1 | [#7 通常攻撃・勝敗](https://github.com/karin0624/endfield_rpg/issues/7) | #6 |
 | M1 | [#8 敵行動・戦闘ループ](https://github.com/karin0624/endfield_rpg/issues/8) | #7 |
 | M1 | [#9 戦闘UI・最小演出](https://github.com/karin0624/endfield_rpg/issues/9) | #4、#8。#5とは並行可 |
-| M1 | [#10 仮敵素材](https://github.com/karin0624/endfield_rpg/issues/10) | 取り込みは#4後。選定は並行可。他のゲーム本体タスクを待たせない |
+| M1 | [#10 仮敵素材](https://github.com/karin0624/endfield_rpg/issues/10) | #4・#5でCC0スライム1種の導入と出典記録を先行実施。Issue自体の完了判定は別途行う。他のゲーム本体タスクを待たせない |
 | M1 | [#11 最小ブラウザテスト](https://github.com/karin0624/endfield_rpg/issues/11) | #9 |
 | M2a | [#12 街・会話のゲーム本体](https://github.com/karin0624/endfield_rpg/issues/12) | #3。戦闘側と並行可 |
 | M2a | [#13 街・会話の画面](https://github.com/karin0624/endfield_rpg/issues/13) | #12、#11 |
