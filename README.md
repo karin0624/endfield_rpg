@@ -8,7 +8,7 @@
 
 | 文書 | 役割 |
 | --- | --- |
-| [AGENTS.md](AGENTS.md) | 実装者向けの作業規約・検証方針 |
+| [AGENTS.md](AGENTS.md) | 常時適用する短い作業規約と、必要な文書への案内 |
 | [specs/overview.md](specs/overview.md) | 合意済みの要件、技術構成、暫定案、未決定事項 |
 | [specs/milestones.md](specs/milestones.md) | 段階ごとの完了条件とタスクの依存順 |
 | [全体ロードマップ（Issue #1）](https://github.com/karin0624/endfield_rpg/issues/1) | GitHub上の進捗の入口 |
