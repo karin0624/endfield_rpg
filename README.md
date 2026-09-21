@@ -15,8 +15,36 @@
 
 ゲーム仕様の正本は`specs/`、Issueは変更単位と受入条件、`AGENTS.md`は作業規約とする。
 
+## 必要な環境
+
+- Node.js 24（`.nvmrc`あり）
+- npm 11
+
+## セットアップと実行
+
+新規チェックアウト後に依存関係を固定済みのlockfileからインストールする。
+
+```sh
+nvm use
+npm ci
+```
+
+| コマンド | 用途 |
+| --- | --- |
+| `npm run dev` | Viteの開発サーバーを起動する |
+| `npm run check` | TypeScriptの型チェックとNode環境のVitestを1回実行する |
+| `npm run build` | 型チェック後に配布用ファイルを`dist/`へ生成する |
+
+`check`はwatchモードを使わず、結果を終了コードで返す。ゲーム本体のテストにはブラウザ、DOM、Babylon.js、WebGLを必要としない。
+
+## ソース構成
+
+| ディレクトリ | 責務 |
+| --- | --- |
+| `src/game/` | 状態とゲームルール。ブラウザ固有機能から独立させる |
+| `src/content/` | ゲーム本体へ渡す型付きの定義データ |
+| `src/web/` | ブラウザ表示と入力。`src/game/`と同じコア関数を使う |
+
 ## 現在の状態
 
-文書のみを整備した段階。ゲーム本体、開発環境、テスト、CI、素材の取り込みは未実装。
-
-次は[Issue #3：開発・テスト環境](https://github.com/karin0624/endfield_rpg/issues/3)に着手する。現時点では`package.json`も実行・ビルド・テストコマンドもない。導入したIssueで、実際に動作確認した手順をこのREADMEに追記する。
+[Issue #3](https://github.com/karin0624/endfield_rpg/issues/3)の最小開発環境があり、街から始まる初期状態をNodeテストとブラウザの双方から生成できる。戦闘・会話・探索、Babylon.js、実素材の取り込みは後続Issueで実装する。
