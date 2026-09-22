@@ -29,7 +29,8 @@
 - `outcome`: `ongoing`、`victory`、`defeat`のいずれか。
 
 戦闘開始時の数値は型付きの定義データ（`BattleCombatantDefinition`）から作る。
-最初のデータは[`src/content/initialBattle.ts`](../src/content/initialBattle.ts)に置く。
+Issue #8の初期編成は[`src/content/initialBattle.ts`](../src/content/initialBattle.ts)に置く固定2対2
+（`player`、`gilberta`、`slime`、`slime-2`）で、配列順を戦闘者の固定順・同時刻の優先順として扱う。
 
 ## 操作
 
@@ -62,6 +63,12 @@
   新しい状態とともに返す。継続時だけ行動を完了して次の行動者を選ぶ。
 - `getBattleUpcomingActions(state, count)`: 戦闘終了後は空配列を返し、それ以外は
   タイムラインの予測を返す。
+
+敵行動を含む同期ループは`advanceBattleToNextAllyInput(state)`で扱う。開始時または味方の
+行動後に次の行動者を選び、敵なら固定順で最初に生存している味方へ
+`performBasicAttack`を繰り返す。次の味方入力待ち、または勝敗確定で停止し、敵の攻撃イベントを
+実行順に返す。`performBasicAttackAndAdvanceToAllyInput`は味方の通常攻撃と直後の敵行動を
+連結する補助操作である。敵AI・乱数・実時間待ち・アニメーションは参照しない。
 
 通常攻撃の結果は`{accepted, state, events}`で返す。無効な操作は
 `accepted: false`と理由を返し、元の状態をそのまま返す。行動順外の行動、存在しない

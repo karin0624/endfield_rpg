@@ -80,6 +80,11 @@ export interface BasicAttackRejected {
 
 export type BasicAttackResult = BasicAttackSuccess | BasicAttackRejected;
 
+export interface BattleLoopResult {
+  readonly state: BattleState;
+  readonly events: BattleEvent[];
+}
+
 const BATTLE_TEAMS: readonly BattleTeam[] = ["ally", "enemy"];
 
 function isBattleTeam(value: unknown): value is BattleTeam {
@@ -110,6 +115,15 @@ function findCombatant(
   id: string,
 ): BattleCombatant | undefined {
   return state.combatants.find((combatant) => combatant.id === id);
+}
+
+function findFirstLivingCombatant(
+  state: BattleState,
+  team: BattleTeam,
+): BattleCombatant | undefined {
+  return state.combatants.find(
+    (combatant) => combatant.team === team && combatant.isAlive,
+  );
 }
 
 function determineOutcome(state: Pick<BattleState, "combatants">): BattleOutcome {
@@ -330,5 +344,69 @@ export function performBasicAttack(
     accepted: true,
     state: nextState,
     events,
+  };
+}
+
+/**
+ * 開始時または味方の行動後に、次の味方入力待ちまで敵行動を同期的に解決する。
+ * 敵は戦闘開始時の配列順で、最初に生存している味方を通常攻撃する。
+ */
+export function advanceBattleToNextAllyInput(
+  state: BattleState,
+): BattleLoopResult {
+  if (state.outcome !== "ongoing") {
+    return { state, events: [] };
+  }
+
+  let current = state;
+  const events: BattleEvent[] = [];
+  if (current.currentActorId === null) {
+    current = advanceBattleToNextActor(current);
+  }
+
+  while (current.outcome === "ongoing") {
+    if (current.currentActorId === null) {
+      current = advanceBattleToNextActor(current);
+    }
+    const actorId = current.currentActorId;
+    if (actorId === null) {
+      throw new Error("継続中の戦闘に次の行動者が存在しません");
+    }
+    const actor = findCombatant(current, actorId);
+    if (actor === undefined) {
+      throw new Error(`現在の行動者が存在しません: ${actorId}`);
+    }
+    if (actor.team === "ally") return { state: current, events };
+
+    const target = findFirstLivingCombatant(current, "ally");
+    if (target === undefined) {
+      throw new Error("敵行動の対象となる生存した味方が存在しません");
+    }
+    const result = performBasicAttack(current, actor.id, target.id);
+    if (!result.accepted) {
+      throw new Error(`敵の通常攻撃を実行できません: ${result.reason}`);
+    }
+    events.push(...result.events);
+    current = result.state;
+  }
+
+  return { state: current, events };
+}
+
+/** 味方の行動と、その直後に必要な敵行動を一度に解決する補助関数。 */
+export function performBasicAttackAndAdvanceToAllyInput(
+  state: BattleState,
+  actorId: string,
+  targetId: string,
+): BasicAttackResult {
+  const attack = performBasicAttack(state, actorId, targetId);
+  if (!attack.accepted || state.combatants.find(candidate => candidate.id === actorId)?.team !== "ally") {
+    return attack;
+  }
+  const loop = advanceBattleToNextAllyInput(attack.state);
+  return {
+    accepted: true,
+    state: loop.state,
+    events: [...attack.events, ...loop.events],
   };
 }

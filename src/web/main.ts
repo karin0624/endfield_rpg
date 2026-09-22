@@ -10,7 +10,7 @@ document.body.classList.toggle("editing", editing);
 app.innerHTML = `
   <main class="battle-screen">
     <section class="stage" aria-label="荒野の戦闘画面">
-      <canvas aria-label="3Dの地面に立つロッシと青いスライム"></canvas>
+      <canvas aria-label="3Dの地面に立つロッシ、ギルベルタ、青いスライム2体"></canvas>
       <div class="loading" role="status" data-status>戦闘画面を読み込んでいます…</div>
     </section>
   </main>

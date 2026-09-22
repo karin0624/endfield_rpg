@@ -14,7 +14,7 @@ test("配布画面は保存済みの構図だけを表示し、リサイズで�
   await expect(page.locator("canvas")).toHaveAttribute("data-ready", "true", { timeout: 60_000 });
   await expect(page.locator("input, button, aside, header")).toHaveCount(0);
   expect([...assets].sort()).toEqual([
-    "/assets/backgrounds/landscape1.png", "/assets/characters/rossi/front-left.png",
+    "/assets/backgrounds/landscape1.png", "/assets/characters/gilberta/front-left.png", "/assets/characters/rossi/front-left.png",
     "/assets/enemies/slime-blue.png", "/assets/ground/ground1.glb",
   ]);
   for (const width of [1440, 390, 320, 1920]) {

@@ -5,6 +5,8 @@ import {
   createBattleState,
   getBattleUpcomingActions,
   performBasicAttack,
+  performBasicAttackAndAdvanceToAllyInput,
+  advanceBattleToNextAllyInput,
   type BattleCombatantDefinition,
 } from "./battle";
 
@@ -292,5 +294,80 @@ describe("battle", () => {
         definitions[2],
       ]),
     ).toThrow("攻撃力");
+  });
+
+  it("開始時と味方の行動後に、連続する敵ターンを同期して解決する", () => {
+    const loopDefinitions: readonly BattleCombatantDefinition[] = [
+      { id: "hero", team: "ally", speed: 100, hp: 20, attackPower: 1 },
+      { id: "companion", team: "ally", speed: 60, hp: 20, attackPower: 1 },
+      { id: "first-enemy", team: "enemy", speed: 80, hp: 20, attackPower: 3 },
+      { id: "second-enemy", team: "enemy", speed: 70, hp: 20, attackPower: 2 },
+    ];
+    const opening = advanceBattleToNextAllyInput(createBattleState(loopDefinitions));
+    expect(opening.events).toEqual([]);
+    expect(opening.state.currentActorId).toBe("hero");
+
+    const heroAction = performBasicAttack(opening.state, "hero", "first-enemy");
+    expect(heroAction.accepted).toBe(true);
+    if (!heroAction.accepted) return;
+    const afterCompanion = advanceBattleToNextAllyInput(heroAction.state);
+    expect(afterCompanion.state.currentActorId).toBe("companion");
+    expect(afterCompanion.events).toEqual([
+      expect.objectContaining({ type: "attack", actorId: "first-enemy", targetId: "hero" }),
+      expect.objectContaining({ type: "attack", actorId: "second-enemy", targetId: "hero" }),
+    ]);
+
+    const companionAction = performBasicAttack(afterCompanion.state, "companion", "first-enemy");
+    expect(companionAction.accepted).toBe(true);
+    if (!companionAction.accepted) return;
+    const enemyTurns = advanceBattleToNextAllyInput(companionAction.state);
+    expect(enemyTurns.state.currentActorId).toBe("hero");
+    expect(enemyTurns.events).toEqual([]);
+    expect(enemyTurns.state.combatants.find(combatant => combatant.id === "hero")?.hp).toBe(15);
+  });
+
+  it("固定操作列で勝利し、勝敗確定後の追撃を行わず、再戦を初期化する", () => {
+    const victoryDefinitions: readonly BattleCombatantDefinition[] = [
+      { id: "hero", team: "ally", speed: 100, hp: 20, attackPower: 20 },
+      { id: "companion", team: "ally", speed: 90, hp: 20, attackPower: 20 },
+      { id: "first-enemy", team: "enemy", speed: 80, hp: 5, attackPower: 0 },
+      { id: "second-enemy", team: "enemy", speed: 70, hp: 5, attackPower: 0 },
+    ];
+    let state = advanceBattleToNextAllyInput(createBattleState(victoryDefinitions)).state;
+    const events: string[] = [];
+    while (state.outcome === "ongoing") {
+      const actor = state.combatants.find(combatant => combatant.id === state.currentActorId);
+      if (actor?.team !== "ally") throw new Error("味方入力待ちになっていません");
+      const target = state.combatants.find(combatant => combatant.team === "enemy" && combatant.isAlive);
+      if (target === undefined) throw new Error("攻撃対象が存在しません");
+      const result = performBasicAttackAndAdvanceToAllyInput(state, actor.id, target.id);
+      expect(result.accepted).toBe(true);
+      if (!result.accepted) return;
+      events.push(...result.events.map(event => event.type));
+      state = result.state;
+    }
+    expect(state.outcome).toBe("victory");
+    expect(events.filter(type => type === "battle-ended")).toHaveLength(1);
+    expect(advanceBattleToNextAllyInput(state)).toEqual({ state, events: [] });
+
+    const rematch = createBattleState(victoryDefinitions);
+    expect(rematch.outcome).toBe("ongoing");
+    expect(rematch.logicalTime).toBe(0);
+    expect(rematch.combatants).toEqual(createBattleState(victoryDefinitions).combatants);
+  });
+
+  it("敗北用データでは敵の同じルールで敗北し、後続の敵は追撃しない", () => {
+    const defeatDefinitions: readonly BattleCombatantDefinition[] = [
+      { id: "hero", team: "ally", speed: 100, hp: 1, attackPower: 1 },
+      { id: "first-enemy", team: "enemy", speed: 80, hp: 20, attackPower: 3 },
+      { id: "second-enemy", team: "enemy", speed: 70, hp: 20, attackPower: 2 },
+    ];
+    const state = advanceBattleToNextAllyInput(createBattleState(defeatDefinitions)).state;
+    const result = performBasicAttackAndAdvanceToAllyInput(state, "hero", "first-enemy");
+    expect(result.accepted).toBe(true);
+    if (!result.accepted) return;
+    expect(result.state.outcome).toBe("defeat");
+    expect(result.events.filter(event => event.type === "attack" && event.actorId !== "hero")).toHaveLength(1);
+    expect(result.events.at(-1)).toEqual({ type: "battle-ended", outcome: "defeat" });
   });
 });
