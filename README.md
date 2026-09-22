@@ -11,6 +11,7 @@
 | [AGENTS.md](AGENTS.md) | 常時適用する短い作業規約と、必要な文書への案内 |
 | [specs/overview.md](specs/overview.md) | 合意済みの要件、技術構成、暫定案、未決定事項 |
 | [specs/milestones.md](specs/milestones.md) | 段階ごとの完了条件とタスクの依存順 |
+| [specs/battle.md](specs/battle.md) | M1タイムライン戦闘の状態・操作・受入例 |
 | [specs/visuals.md](specs/visuals.md) | 戦闘画面の配置・カメラ範囲・確認画面 |
 | [素材メモ](art-src/README.md) | 使用素材の出典・透過処理・Git LFS運用 |
 | [全体ロードマップ（Issue #1）](https://github.com/karin0624/endfield_rpg/issues/1) | GitHub上の進捗の入口 |

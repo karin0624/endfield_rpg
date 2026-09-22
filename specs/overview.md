@@ -81,4 +81,6 @@ Issue #4・#5で提供済みファイルを確認し、実際の戦闘画面へ�
 
 ## 詳細仕様の追加先
 
-`visuals.md`はIssue #4・#5で追加済み。`battle.md`、`adventure.md`、`dungeon.md`、`quest.md`、`save.md`は、それぞれ該当Issueに着手して具体的な判断が必要になったときだけ`specs/`に追加する。
+`visuals.md`はIssue #4・#5で追加済み、`battle.md`はIssue #6で追加した。`adventure.md`、
+`dungeon.md`、`quest.md`、`save.md`は、それぞれ該当Issueに着手して具体的な判断が必要に
+なったときだけ`specs/`に追加する。
