@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "cameraX": -0.1,
   "cameraY": 6.6,
   "cameraZ": 12.5,
@@ -11,5 +11,13 @@
   "backdropScale": 0.67,
   "backdropX": 0,
   "backdropY": 8.2,
-  "backdropZ": -8.8
+  "backdropZ": -8.8,
+  "allyCenterX": 3.3,
+  "allyCenterZ": 1.5,
+  "allyStepX": -1.2,
+  "allyStepZ": -1.7,
+  "enemyCenterX": -3.5,
+  "enemyCenterZ": 0.8,
+  "enemyStepX": 2.1,
+  "enemyStepZ": 1.5
 }

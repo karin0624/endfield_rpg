@@ -30,6 +30,10 @@ h1 { margin: 0; font-size: 22px; font-weight: 500; }
 .save-panel { padding: 18px; border-bottom: 1px solid #304249; background: #1c2d34; }
 .primary { width: 100%; color: #13251f; background: #afd2c4; border-color: #afd2c4; font-weight: 600; }
 .primary:hover { background: #c3e4d8; }
+.preview-counts { display: flex; align-items: center; gap: 6px; margin-top: 16px; color: #dcece7; font-size: 12px; }
+.preview-counts label { display: inline-flex; align-items: center; gap: 4px; }
+.preview-counts select { min-height: 30px; padding: 3px 6px; border: 1px solid #48616b; border-radius: 4px; background: #101c23; color: #e7edf1; font: inherit; }
+.preview-count-help { margin: 8px 0 0; }
 .editor-message { min-height: 3em; margin: 12px 0; color: #b1c7ce; font-size: 12px; line-height: 1.7; }
 .error { color: #ffb8a3; }
 .secondary-actions { display: flex; gap: 8px; }

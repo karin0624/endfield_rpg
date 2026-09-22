@@ -28,6 +28,22 @@ test("構図を調整・一時保存・標準保存し、通常表示に反映�
   await expect(page.locator("#groundScale-number")).toHaveValue("1.1");
   await expect(page.locator("[data-message]")).toContainText("復元");
 
+  // 確認人数は設定値・下書きと独立した表示状態として、4通りを切り替える。
+  await page.locator("[data-preview-ally-count]").selectOption("2");
+  await page.locator("[data-preview-enemy-count]").selectOption("2");
+  await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  const countTwoByTwo = await page.locator("canvas").screenshot();
+  for (const [ally, enemy] of [["1", "1"], ["1", "2"], ["2", "1"], ["2", "2"]]) {
+    await page.locator("[data-preview-ally-count]").selectOption(ally);
+    await page.locator("[data-preview-enemy-count]").selectOption(enemy);
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    await expect(page.locator("[data-preview-ally-count]")).toHaveValue(ally);
+    await expect(page.locator("[data-preview-enemy-count]")).toHaveValue(enemy);
+    if (ally === "1" && enemy === "1") {
+      expect((await page.locator("canvas").screenshot()).equals(countTwoByTwo)).toBe(false);
+    }
+  }
+
   await page.getByRole("button", { name: "画面だけで確認", exact: true }).click();
   await expect(page.getByRole("complementary", { name: "構図設定" })).toBeHidden();
   await page.getByRole("button", { name: "設定に戻る", exact: true }).click();
@@ -57,6 +73,11 @@ test("構図を調整・一時保存・標準保存し、通常表示に反映�
   await expect(save).toBeDisabled();
   await page.getByRole("button", { name: "保存済みに戻す" }).click();
   await expect(page.locator("#groundScale-number")).toHaveValue("1.1");
+  await expect(save).toBeEnabled();
+  await page.locator("#allyCenterX-number").fill("15");
+  await expect(save).toBeDisabled();
+  await expect(page.locator("[data-message]")).toContainText("地面の範囲外");
+  await page.getByRole("button", { name: "保存済みに戻す" }).click();
   await expect(save).toBeEnabled();
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

@@ -34,6 +34,13 @@ export function mountBattleEditor(
   panel.innerHTML = `
     <div class="save-panel">
       <button type="button" class="primary" data-save>標準として保存</button>
+      <div class="preview-counts" aria-label="確認人数">
+        <span>確認人数：</span>
+        <label>味方<select data-preview-ally-count aria-label="味方の確認人数"><option value="1">1</option><option value="2" selected>2</option></select></label>
+        <span>・</span>
+        <label>敵<select data-preview-enemy-count aria-label="敵の確認人数"><option value="1">1</option><option value="2" selected>2</option></select></label>
+      </div>
+      <p class="field-help preview-count-help">確認人数を変えても、編集中の配置ルールはその陣営の全人数に適用されます。</p>
       <p class="editor-message" role="status" data-message></p>
       <div class="secondary-actions"><button type="button" data-revert>保存済みに戻す</button><button type="button" data-export>JSONを書き出す</button></div>
     </div>
@@ -47,6 +54,7 @@ export function mountBattleEditor(
           </div>`).join("")}
         ${group === "地面" ? '<p class="field-help">立ち位置は地面上の同じ地点に追従します。立ち絵の大きさは変わりません。</p>' : ""}
         ${group === "遠景" ? '<p class="field-help">高さ・前後で地面との重なりを調整します。縦横比は固定です。前後は小さい値ほど奥へ動きます。</p>' : ""}
+        ${group === "味方の配置" || group === "敵の配置" ? '<p class="field-help">中心を固定し、人数に応じて隣への差分で均等に並べます。高さは地面から自動取得します。</p>' : ""}
       </fieldset>`).join("")}</div>`;
   const previewBack = document.createElement("button");
   previewBack.type = "button";
@@ -62,10 +70,24 @@ export function mountBattleEditor(
   const save = panel.querySelector<HTMLButtonElement>("[data-save]")!;
   const revert = panel.querySelector<HTMLButtonElement>("[data-revert]")!;
   const exporter = panel.querySelector<HTMLButtonElement>("[data-export]")!;
+  const allyCount = panel.querySelector<HTMLSelectElement>("[data-preview-ally-count]")!;
+  const enemyCount = panel.querySelector<HTMLSelectElement>("[data-preview-enemy-count]")!;
   let saving = false;
+  let groundingTimer: number | undefined;
   const setMessage = (text: string, error = false) => {
     message.textContent = text;
     message.classList.toggle("error", error);
+  };
+  const placementMessage = () => battle.getPlacementWarnings().join(" ");
+  const setPlacementAwareMessage = (normal: string) => {
+    const warning = placementMessage();
+    if (warning) {
+      setMessage(`保存できません: ${warning}`, true);
+      save.disabled = true;
+      return;
+    }
+    setMessage(normal);
+    save.disabled = false;
   };
   const syncInputs = (key?: SettingKey, active?: HTMLInputElement) => {
     for (const input of inputs) {
@@ -78,9 +100,31 @@ export function mountBattleEditor(
     try { localStorage.setItem(draftStorageKey, JSON.stringify(current)); }
     catch { storageAvailable = false; }
   };
+  const unsavedMessage = () => storageAvailable
+    ? "未保存の調整です。このブラウザに一時保存しています。"
+    : "未保存の調整です。一時保存が使えないため、閉じる前に標準として保存してください。";
+  const finishGrounding = () => {
+    if (groundingTimer !== undefined) window.clearTimeout(groundingTimer);
+    groundingTimer = undefined;
+    battle.applySettings(current);
+    setPlacementAwareMessage(unsavedMessage());
+  };
+  const scheduleGrounding = () => {
+    if (groundingTimer !== undefined) window.clearTimeout(groundingTimer);
+    groundingTimer = window.setTimeout(finishGrounding, 150);
+  };
   syncInputs();
   battle.applySettings(current);
-  setMessage(initialMessage);
+  setPlacementAwareMessage(initialMessage);
+
+  const updatePreviewCounts = () => {
+    battle.setPreviewCounts({
+      ally: Number(allyCount.value),
+      enemy: Number(enemyCount.value),
+    });
+  };
+  allyCount.addEventListener("change", updatePreviewCounts, { signal: events.signal });
+  enemyCount.addEventListener("change", updatePreviewCounts, { signal: events.signal });
 
   panel.addEventListener("input", event => {
     if (!(event.target instanceof HTMLInputElement) || saving) return;
@@ -93,14 +137,19 @@ export function mountBattleEditor(
     try {
       current = parseBattleSettings(candidate);
       syncInputs(key, event.target);
-      battle.applySettings(current);
+      const groundingRequired = battle.previewSettings(current);
       storeDraft();
-      save.disabled = false;
       exporter.disabled = false;
-      setMessage(storageAvailable
-        ? "未保存の調整です。このブラウザに一時保存しています。"
-        : "未保存の調整です。一時保存が使えないため、閉じる前に標準として保存してください。");
+      if (groundingRequired) {
+        save.disabled = true;
+        setMessage("配置を反映しました。接地を確認しています…");
+        scheduleGrounding();
+      } else {
+        setPlacementAwareMessage(unsavedMessage());
+      }
     } catch (error) {
+      if (groundingTimer !== undefined) window.clearTimeout(groundingTimer);
+      groundingTimer = undefined;
       event.target.setAttribute("aria-invalid", "true");
       save.disabled = true;
       exporter.disabled = true;
@@ -108,17 +157,28 @@ export function mountBattleEditor(
     }
   }, { signal: events.signal });
 
+  panel.addEventListener("change", event => {
+    if (!(event.target instanceof HTMLInputElement) || saving || event.target.getAttribute("aria-invalid") === "true") return;
+    if (groundingTimer !== undefined) finishGrounding();
+  }, { signal: events.signal });
+
   revert.addEventListener("click", () => {
+    if (groundingTimer !== undefined) window.clearTimeout(groundingTimer);
+    groundingTimer = undefined;
     current = { ...saved };
     syncInputs();
     battle.applySettings(current);
     try { localStorage.removeItem(draftStorageKey); } catch { storageAvailable = false; }
-    save.disabled = false;
     exporter.disabled = false;
-    setMessage("保存済みの標準に戻しました。");
+    setPlacementAwareMessage("保存済みの標準に戻しました。");
   }, { signal: events.signal });
 
   save.addEventListener("click", async () => {
+    if (groundingTimer !== undefined) finishGrounding();
+    if (placementMessage()) {
+      setPlacementAwareMessage("配置を調整してから保存してください。");
+      return;
+    }
     saving = true;
     save.disabled = true;
     revert.disabled = true;
@@ -161,6 +221,7 @@ export function mountBattleEditor(
   }, { signal: events.signal });
 
   return () => {
+    if (groundingTimer !== undefined) window.clearTimeout(groundingTimer);
     events.abort();
     header.remove();
     panel.remove();

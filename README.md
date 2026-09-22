@@ -60,7 +60,7 @@ GLBはGit LFS、現在の数MiBのPNG・文書・コードは通常のGitで管�
 
 ## 現在の状態
 
-[Issue #3](https://github.com/karin0624/endfield_rpg/issues/3)のNodeで検証できるゲーム本体に加え、[Issue #4](https://github.com/karin0624/endfield_rpg/issues/4)・[#5](https://github.com/karin0624/endfield_rpg/issues/5)の戦闘画面を実装。通常表示は保存済みの構図で地面GLB・2D遠景・主人公・仮敵だけを表示する。開発用の構図設定は別画面に分けている。
+[Issue #3](https://github.com/karin0624/endfield_rpg/issues/3)のNodeで検証できるゲーム本体に加え、[Issue #4](https://github.com/karin0624/endfield_rpg/issues/4)・[#5](https://github.com/karin0624/endfield_rpg/issues/5)・[#8](https://github.com/karin0624/endfield_rpg/issues/8)の戦闘画面を実装。通常表示は保存済みの構図で地面GLB・2D遠景・味方2人・仮敵2体を表示する。開発用の構図設定は別画面に分けている。
 
 現在の採用設定は`ground1.glb`と`landscape1.png`の組み合わせ専用の暫定標準。別の地面モデル・遠景画像でフィールドを追加する際は、その組み合わせに固有の設定を用意し、既存フィールドの設定も保持する。複数フィールドの設定管理は追加時に実装する。
 
@@ -69,9 +69,9 @@ GLBはGit LFS、現在の数MiBのPNG・文書・コードは通常のGitで管�
 ## 戦闘画面の構図を決める
 
 1. `npm run dev`で起動し、右上の「構図設定」から開く。URLは通常`http://localhost:5173/?edit=1`。
-2. カメラ位置・注視点・画角、地面の倍率、遠景の倍率・左右・高さ・前後を調整する。スライダーと数値入力のどちらも使える。
+2. カメラ位置・注視点・画角、地面の倍率、遠景の倍率・左右・高さ・前後、味方・敵それぞれの隊列中心と隣への左右差・前後差を調整する。スライダーと数値入力のどちらも使える。確認人数は1人／2人を切り替えられ、配置ルールは常に編成全体へ適用される。
 3. 「画面だけで確認」でパネルを隠し、実際の16:9画面を確認する。「設定に戻る」で編集を続けられる。
-4. 「標準として保存」で[`src/web/battle-settings.json`](src/web/battle-settings.json)に書き込む。「保存済みの通常表示」で採用した構図を確認する。次回起動と次回ビルドにも反映されるので、このJSONをコードと一緒にGit管理する。
+4. 「標準として保存」で[`src/web/battle-settings.json`](src/web/battle-settings.json)に書き込む。配置した全キャラが地面上にない場合は警告され、保存できない。「保存済みの通常表示」で採用した構図を確認する。次回起動と次回ビルドにも反映されるので、このJSONをコードと一緒にGit管理する。
 
 編集途中の値は同じブラウザの同じオリジンに一時保存し、設定画面を再読み込みすると復元する。一時保存だけでは通常表示を変更しない。「保存済みに戻す」で編集を破棄でき、「JSONを書き出す」で現在の値を共有・保管できる。
 
