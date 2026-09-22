@@ -1,0 +1,628 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>ENDFIELD RPG｜遠征譚 D.03 UIレビュー</title>
+<link rel="stylesheet" href="endfield-d.css">
+</head>
+<body>
+<svg aria-hidden="true" class="svg-defs" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<symbol id="i-attack" viewBox="0 0 32 32">
+<path d="M11 23 25 5l2 1-3 9-11 11M8 19l9 8M9 25l-5 5M5 26l4 4">
+</path>
+<path d="m14 21 8-10">
+</path>
+</symbol>
+<symbol id="i-skill" viewBox="0 0 32 32">
+<path d="m17 2 9 14-9 14-10-14Z">
+</path>
+<path d="m18 6-6 11h8l-5 9M3 6v5M.5 8.5h5M27 23v5m-2.5-2.5h5">
+</path>
+</symbol>
+<symbol id="i-guard" viewBox="0 0 32 32">
+<path d="M16 3 27 7v9c0 7-11 13-11 13S5 23 5 16V7Z">
+</path>
+<path d="M16 7v17M9 12h14">
+</path>
+</symbol>
+<symbol id="i-item" viewBox="0 0 32 32">
+<path d="M11 5h10v6l4 5v12H7V16l4-5Z">
+</path>
+<path d="M10 4h12M12 18h8M16 14v8">
+</path>
+</symbol>
+<symbol id="i-lock" viewBox="0 0 24 24">
+<rect height="11" rx="1" width="14" x="5" y="10">
+</rect>
+<path d="M8 10V6a4 4 0 0 1 8 0v4M12 14v3">
+</path>
+</symbol>
+<symbol id="i-slime" viewBox="0 0 32 32">
+<path d="M3 25C2 8 10 5 16 5s14 6 13 20Z">
+</path>
+<path d="M12 18h.1M21 18h.1" stroke-width="3">
+</path>
+</symbol>
+<symbol id="i-pause" viewBox="0 0 24 24">
+<path d="M8 5v14M16 5v14">
+</path>
+</symbol>
+<symbol id="i-arrow" viewBox="0 0 24 24">
+<path d="M4 12h15m-6-6 6 6-6 6">
+</path>
+</symbol>
+<symbol id="i-person" viewBox="0 0 32 32">
+<circle cx="16" cy="10" r="5"/>
+<path d="M6 28v-4a10 10 0 0 1 20 0v4"/>
+</symbol>
+<symbol id="i-cross" viewBox="0 0 24 24">
+<path d="m6 6 12 12M18 6 6 18"/>
+</symbol>
+<symbol id="i-play" viewBox="0 0 24 24">
+<path d="m8 5 11 7-11 7Z"/>
+</symbol>
+</defs>
+</svg>
+<header class="masthead">
+<div class="wordmark">ENDFIELD_RPG / DESIGN REVIEW</div>
+<div class="edition">D.03 — EXPEDITION CHRONICLE</div>
+</header>
+<main>
+<div class="intro">
+<div>
+<h1>遠征譚、読みやすく。</h1>
+<p>煤色の窓と鈍い金属。物語の静けさを残しながら、いまの選択を迷わせない。<br>色と配置は維持。四面体は対象選択の1個に絞った、採用ガイドラインの参照モック。</p>
+</div>
+<div class="intro-code">LAYOUT / THEME / SELECTION</div>
+</div>
+<nav class="tabs" role="tablist" aria-label="レビュー内容">
+<button role="tab" id="tab-battle" aria-controls="panel-battle" aria-selected="true" tabindex="0" data-tab="battle">戦闘画面</button>
+<button role="tab" id="tab-theme" aria-controls="panel-theme" aria-selected="false" tabindex="-1" data-tab="theme">テーマ・部品</button>
+</nav>
+<section class="battle-panel" id="panel-battle" role="tabpanel" aria-labelledby="tab-battle">
+<div class="toolbar">
+<div class="control-group">
+<span class="label">背景</span>
+<div class="segments" role="group" aria-label="背景テスト">
+<button data-light="day" aria-pressed="true">元の背景</button>
+<button data-light="dark" aria-pressed="false">暗所</button>
+<button data-light="gray" aria-pressed="false">白黒</button>
+</div>
+</div>
+<div class="control-group">
+<span class="label">一時領域</span>
+<div class="segments" role="group" aria-label="一時領域の表示例">
+<button data-mode="idle" aria-pressed="true">なし</button>
+<button data-mode="skill" aria-pressed="false">スキル説明</button>
+<button data-mode="toast" aria-pressed="false">攻撃通知</button>
+</div>
+</div>
+<div class="control-group">
+<span class="label">味方</span>
+<div class="segments" role="group" aria-label="味方枠の配置確認">
+<button data-party="2" aria-pressed="true">2枠</button>
+<button data-party="4" aria-pressed="false">4枠</button>
+</div>
+</div>
+<button class="motion-toggle" aria-pressed="true" id="motion-toggle">
+<svg class="icon " aria-hidden="true">
+<use href="#i-pause"/>
+</svg>
+<span>回転：オン</span>
+</button>
+</div>
+<div class="viewport">
+<div class="scene-sizer">
+<div class="battle" id="battle" aria-label="戦闘UIのデザインモック">
+<div class="scene-image" style="background-image:url(../screenshots/battle-adopted.jpg)">
+</div>
+<div class="scene-tint">
+</div>
+<div class="edge-shade">
+</div>
+<section class="timeline panel" aria-label="行動順、残り行動値が小さい順">
+<h2>行動順</h2>
+<p class="unit-caption">残り行動値</p>
+<ol class="queue">
+<li class="queue-row current" aria-current="true" aria-label="味方01、残り行動値 0、行動中">
+<span class="queue-portrait">
+<svg class="portrait-photo" viewBox="969 309 104 122" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+<image href="../screenshots/battle-adopted.jpg" width="1308" height="728" preserveAspectRatio="none"/>
+</svg>
+<span class="unit-id">01</span>
+</span>
+<span class="queue-value">
+<b>0</b>
+<small>行動中</small>
+</span>
+</li>
+<li class="queue-row " aria-label="味方02、残り行動値 1.1">
+<span class="queue-portrait">
+<svg class="portrait-photo" viewBox="829 269 90 106" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+<image href="../screenshots/battle-adopted.jpg" width="1308" height="728" preserveAspectRatio="none"/>
+</svg>
+<span class="unit-id">02</span>
+</span>
+<span class="queue-value">
+<b>1.1</b>
+</span>
+</li>
+<li class="queue-row enemy" aria-label="スライム A、残り行動値 2.5">
+<span class="queue-portrait">
+<svg class="icon " aria-hidden="true">
+<use href="#i-slime"/>
+</svg>
+<span class="unit-id">A</span>
+</span>
+<span class="queue-value">
+<b>2.5</b>
+</span>
+</li>
+<li class="queue-row enemy" aria-label="スライム B、残り行動値 4.3">
+<span class="queue-portrait">
+<svg class="icon " aria-hidden="true">
+<use href="#i-slime"/>
+</svg>
+<span class="unit-id">B</span>
+</span>
+<span class="queue-value">
+<b>4.3</b>
+</span>
+</li>
+<li class="queue-row " aria-label="味方01、残り行動値 10.0">
+<span class="queue-portrait">
+<svg class="portrait-photo" viewBox="969 309 104 122" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+<image href="../screenshots/battle-adopted.jpg" width="1308" height="728" preserveAspectRatio="none"/>
+</svg>
+<span class="unit-id">01</span>
+</span>
+<span class="queue-value">
+<b>10.0</b>
+</span>
+</li>
+<li class="queue-row " aria-label="味方02、残り行動値 12.2">
+<span class="queue-portrait">
+<svg class="portrait-photo" viewBox="829 269 90 106" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+<image href="../screenshots/battle-adopted.jpg" width="1308" height="728" preserveAspectRatio="none"/>
+</svg>
+<span class="unit-id">02</span>
+</span>
+<span class="queue-value">
+<b>12.2</b>
+</span>
+</li>
+</ol>
+</section>
+<div class="context-region">
+<aside class="context-panel panel" id="skill-panel" aria-labelledby="skill-title" hidden>
+<button class="close-context" aria-label="説明を閉じる">
+<svg class="icon " aria-hidden="true">
+<use href="#i-cross"/>
+</svg>
+</button>
+<div class="context-top">
+<span class="context-label" id="context-type">スキル</span>
+<span class="divider">
+</span>
+<span class="context-target">敵単体 / <span class="target-copy">スライム A</span>
+</span>
+</div>
+<h2 id="skill-title">踏み込み斬り</h2>
+<p id="skill-desc">敵単体に斬撃を与える。対象を選んでください。</p>
+</aside>
+<aside class="context-panel panel toast-panel" id="toast-panel" hidden>
+<h2>味方01の通常攻撃！</h2>
+<span class="toast-extra target-copy">スライム A</span>
+<button class="close-context" aria-label="通知を閉じる">
+<svg class="icon " aria-hidden="true">
+<use href="#i-cross"/>
+</svg>
+</button>
+</aside>
+</div>
+<button class="enemy-hitbox enemy-a" data-target="A" aria-label="スライム Aを対象に選択" aria-pressed="true">
+</button>
+<button class="enemy-hitbox enemy-b" data-target="B" aria-label="スライム Bを対象に選択" aria-pressed="false">
+</button>
+<div class="target-indicator">
+<span class="target-name">対象 A</span>
+<svg class="tetra " viewBox="0 0 64 64" aria-hidden="true">
+<g class="tetra-mesh">
+</g>
+</svg>
+</div>
+<section class="commands panel" aria-label="コマンド">
+<h2>行動を選択</h2>
+<div class="command-list">
+<button class="command selected" data-command="attack"  aria-pressed="true">
+<svg class="icon " aria-hidden="true">
+<use href="#i-attack"/>
+</svg>
+<span>攻撃</span>
+</button>
+<button class="command " data-command="skill"  aria-pressed="false">
+<svg class="icon " aria-hidden="true">
+<use href="#i-skill"/>
+</svg>
+<span>スキル</span>
+</button>
+<button class="command " data-command="guard"  aria-pressed="false">
+<svg class="icon " aria-hidden="true">
+<use href="#i-guard"/>
+</svg>
+<span>防御</span>
+</button>
+<button class="command " data-command="item" disabled aria-pressed="false">
+<svg class="icon " aria-hidden="true">
+<use href="#i-item"/>
+</svg>
+<span>アイテム</span>
+<svg class="icon lock-icon" aria-hidden="true">
+<use href="#i-lock"/>
+</svg>
+</button>
+</div>
+</section>
+<section class="party" aria-label="味方の状態">
+<div class="ally-card extra ">
+<div class="ally-portrait">
+<svg class="icon " aria-hidden="true">
+<use href="#i-person"/>
+</svg>
+</div>
+<div class="ally-details">
+<div class="ally-heading">
+<strong>追加枠 03</strong>
+<span class="ally-status">配置確認</span>
+</div>
+<div class="hp-line">
+<span>HP</span>
+<div>
+<b>—</b>
+<span> / —</span>
+</div>
+</div>
+<div class="hp-track" aria-hidden="true">
+<span style="width:0.00000000%">
+</span>
+</div>
+</div>
+</div>
+<div class="ally-card extra ">
+<div class="ally-portrait">
+<svg class="icon " aria-hidden="true">
+<use href="#i-person"/>
+</svg>
+</div>
+<div class="ally-details">
+<div class="ally-heading">
+<strong>追加枠 04</strong>
+<span class="ally-status">配置確認</span>
+</div>
+<div class="hp-line">
+<span>HP</span>
+<div>
+<b>—</b>
+<span> / —</span>
+</div>
+</div>
+<div class="hp-track" aria-hidden="true">
+<span style="width:0.00000000%">
+</span>
+</div>
+</div>
+</div>
+<div class="ally-card  active">
+<div class="ally-portrait">
+<svg class="portrait-photo" viewBox="969 309 104 122" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+<image href="../screenshots/battle-adopted.jpg" width="1308" height="728" preserveAspectRatio="none"/>
+</svg>
+</div>
+<div class="ally-details">
+<div class="ally-heading">
+<strong>味方 01</strong>
+<span class="ally-status">行動中</span>
+</div>
+<div class="hp-line">
+<span>HP</span>
+<div>
+<b>16</b>
+<span> / 20</span>
+</div>
+</div>
+<div class="hp-track" role="progressbar" aria-label="味方 01 HP" aria-valuemin="0" aria-valuemax="20" aria-valuenow="16">
+<span style="width:80.00000000%">
+</span>
+</div>
+</div>
+</div>
+<div class="ally-card  ">
+<div class="ally-portrait">
+<svg class="portrait-photo" viewBox="829 269 90 106" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+<image href="../screenshots/battle-adopted.jpg" width="1308" height="728" preserveAspectRatio="none"/>
+</svg>
+</div>
+<div class="ally-details">
+<div class="ally-heading">
+<strong>味方 02</strong>
+<span class="ally-status">待機</span>
+</div>
+<div class="hp-line">
+<span>HP</span>
+<div>
+<b>14</b>
+<span> / 18</span>
+</div>
+</div>
+<div class="hp-track" role="progressbar" aria-label="味方 02 HP" aria-valuemin="0" aria-valuemax="18" aria-valuenow="14">
+<span style="width:77.77777778%">
+</span>
+</div>
+</div>
+</div>
+</section>
+<div class="sr-only" role="status" aria-live="polite" aria-atomic="true" id="live-status">
+</div>
+</div>
+</div>
+</div>
+<p class="scene-note">HTML/CSS/SVGの表示サンプル。スキル・HPは仮表示、行動値は速度100 / 90 / 80 / 70の初回入力時を例示。小数は表示上のみ丸めています。<br>暗所は背景画像のみの明度・彩度を調整したテストです。4枠時の追加カードは配置確認用で、キャラクターや戦闘処理は追加していません。通知は確認用に自動消去しません。</p>
+<div class="revision-summary">
+<div>
+<h3>
+<span class="summary-number">01</span> 明るい塗りに白い文字を置かない</h3>
+<p>面と文字の組み合わせを固定。金属色は細い罫へ移し、強い誘導色には必ず煤色の文字を組み合わせます。</p>
+</div>
+<div>
+<h3>
+<span class="summary-number">02</span> 常設と一時表示を分ける</h3>
+<p>行動順は左、コマンドは右。上中央は説明と通知の共用領域。幅230 × 高さ78pxの味方カードを右寄せし、左に拡張します。</p>
+</div>
+<div>
+<h3>
+<span class="summary-number">03</span> 四面体は対象選択だけに使う</h3>
+<p>行動順・味方・コマンドは枠と文字で示し、回転マーカーを重ねません。本画面は敵の上に1個だけ。全UIを通じて同時2個までです。</p>
+</div>
+</div>
+</section>
+<section class="theme-panel" id="panel-theme" role="tabpanel" aria-labelledby="tab-theme" hidden>
+<div class="theme-sheet" id="theme-sheet">
+<div class="sheet-heading">
+<div>
+<h2>色を増やすより、役割を分ける。</h2>
+<p>煤色と灰白を基礎に、真鍮は質感、ミントはデータ、琥珀は意志。<br>primary / secondary を色の順位ではなく、文字・操作など役割の中で定義する。</p>
+</div>
+<div class="stamp">D.03 / SEMANTIC THEME</div>
+</div>
+<div class="palette-grid">
+<div class="palette-item">
+<div class="color-swatch" style="background:#232825">
+</div>
+<strong>surface.base</strong>
+<small>UIの基調面</small>
+<div class="hex">#232825</div>
+</div>
+<div class="palette-item">
+<div class="color-swatch" style="background:#ECE9DF">
+</div>
+<strong>text.primary</strong>
+<small>本文・コマンド</small>
+<div class="hex">#ECE9DF</div>
+</div>
+<div class="palette-item">
+<div class="color-swatch" style="background:#B8C1B9">
+</div>
+<strong>text.secondary</strong>
+<small>補足・数値の単位</small>
+<div class="hex">#B8C1B9</div>
+</div>
+<div class="palette-item">
+<div class="color-swatch" style="background:#B58A46">
+</div>
+<strong>trim.metal</strong>
+<small>金属罫・選択枠</small>
+<div class="hex">#B58A46</div>
+</div>
+<div class="palette-item">
+<div class="color-swatch" style="background:#91B9A8">
+</div>
+<strong>data.hp</strong>
+<small>HP・穏やかな情報</small>
+<div class="hex">#91B9A8</div>
+</div>
+<div class="palette-item">
+<div class="color-swatch" style="background:#F0B84A">
+</div>
+<strong>action.primary</strong>
+<small>強い誘導・選択の芯</small>
+<div class="hex">#F0B84A</div>
+</div>
+</div>
+<p class="sheet-caption">基本ペアは <code>surface.base ＋ text.primary</code>。選択中も暗い面を維持する。塗りの強い操作は <code>action.primary ＋ on-action.primary (#232825)</code>。真鍮色を文字の下に敷かない。</p>
+<h3 class="sheet-section-title">組み合わせのコントラスト</h3>
+<div class="contrast-grid">
+<div class="contrast-example">
+<small>避ける組み合わせ / 旧パレットの単色同士</small>
+<div class="contrast-sample sample-old">攻撃を選ぶ</div>
+<div class="ratio-row">
+<span>#ECE9DF / #C9B98F</span>
+<b data-ratio="#ECE9DF,#C9B98F">
+</b>
+</div>
+</div>
+<div class="contrast-example">
+<small>改訂 / 暗い選択面＋主文字</small>
+<div class="contrast-sample sample-new">攻撃を選ぶ</div>
+<div class="ratio-row">
+<span>#ECE9DF / #3C463E</span>
+<b data-ratio="#ECE9DF,#3C463E">
+</b>
+</div>
+</div>
+<div class="contrast-example">
+<small>強い誘導 / 琥珀色＋煤色の文字</small>
+<div class="contrast-sample sample-cta">出撃する</div>
+<div class="ratio-row">
+<span>#232825 / #F0B84A</span>
+<b data-ratio="#232825,#F0B84A">
+</b>
+</div>
+</div>
+</div>
+<h3 class="sheet-section-title">同じ部品、異なる状態</h3>
+<div class="states">
+<div class="state-example">
+<p>通常</p>
+<div class="command ">
+<svg class="icon " aria-hidden="true">
+<use href="#i-attack"/>
+</svg>
+<span>攻撃</span>
+</div>
+</div>
+<div class="state-example">
+<p>ホバー</p>
+<div class="command demo-hover">
+<svg class="icon " aria-hidden="true">
+<use href="#i-attack"/>
+</svg>
+<span>攻撃</span>
+</div>
+</div>
+<div class="state-example">
+<p>押下</p>
+<div class="command demo-down">
+<svg class="icon " aria-hidden="true">
+<use href="#i-attack"/>
+</svg>
+<span>攻撃</span>
+</div>
+</div>
+<div class="state-example">
+<p>選択中</p>
+<div class="command selected">
+<svg class="icon " aria-hidden="true">
+<use href="#i-attack"/>
+</svg>
+<span>攻撃</span>
+</div>
+</div>
+<div class="state-example">
+<p>フォーカス</p>
+<div class="command demo-focus">
+<svg class="icon " aria-hidden="true">
+<use href="#i-attack"/>
+</svg>
+<span>攻撃</span>
+</div>
+</div>
+<div class="state-example">
+<p>使用不可</p>
+<div class="command demo-disabled">
+<svg class="icon " aria-hidden="true">
+<use href="#i-attack"/>
+</svg>
+<span>攻撃</span>
+<svg class="icon lock-icon" aria-hidden="true">
+<use href="#i-lock"/>
+</svg>
+</div>
+</div>
+</div>
+<div class="component-bottom">
+<div>
+<h3 class="sheet-section-title">四面体の選択マーカー</h3>
+<div class="marker-examples">
+<div class="marker-preview">
+<svg class="tetra points-right" viewBox="0 0 64 64" aria-hidden="true">
+<g class="tetra-mesh" data-static="true">
+</g>
+</svg>
+<span>項目</span>
+</div>
+<div class="marker-preview target-preview">
+<svg class="tetra " viewBox="0 0 64 64" aria-hidden="true">
+<g class="tetra-mesh" data-static="true">
+</g>
+</svg>
+<svg class="icon " aria-hidden="true">
+<use href="#i-slime"/>
+</svg>
+</div>
+<div class="marker-sizes">
+<div>
+<svg class="tetra size-24" viewBox="0 0 64 64" aria-hidden="true">
+<g class="tetra-mesh" data-static="true">
+</g>
+</svg>
+<span>24px</span>
+</div>
+<div>
+<svg class="tetra size-32" viewBox="0 0 64 64" aria-hidden="true">
+<g class="tetra-mesh" data-static="true">
+</g>
+</svg>
+<span>32px</span>
+</div>
+<div>
+<svg class="tetra size-48" viewBox="0 0 64 64" aria-hidden="true">
+<g class="tetra-mesh" data-static="true">
+</g>
+</svg>
+<span>48px</span>
+</div>
+</div>
+</div>
+<p class="marker-note">ここは形状・サイズの静止見本。実際の選択マーカーは原則1個、同時最大2個。<br>縦の未枠選択は左、横に並ぶ対象は上。枠で十分に識別できる箇所には足さない。</p>
+</div>
+<div>
+<h3 class="sheet-section-title">情報量が少ない場面のアクセント</h3>
+<div class="cta-example">
+<div>
+<strong>遠征の準備が整った。</strong>
+<p>大きな色面は、次の行動を<br>ひとつに絞る場面で。</p>
+</div>
+<button class="cta-button" id="cta-demo">出撃する</button>
+</div>
+<p class="marker-note">戦闘ではミントのHPを維持。琥珀はマーカーの稜線など小面積に留め、<br>拠点・確認画面では、主ボタンの塗りとして使う。</p>
+</div>
+</div>
+</div>
+<div class="theme-notes">
+<section>
+<h3>コントラストの検証範囲</h3>
+<p>文字の基準は通常サイズ4.5:1以上。UIの状態・形状を識別する必要な境界は3:1以上を目安に確認。細い明朝体や縮小表示では、数値だけでなく実際の読みやすさも確認します。</p>
+<p>今回の文字の下地は不透明色に固定。装飾の罫線を含む全色の総当たりではなく、実際に隣接する役割を検証しています。旧HTMLの選択背景は半透明グラデーションであり、上の1.60:1は旧画面全体の測定値ではありません。</p>
+<p>選択・行動中・HPには形や数字も併用。回転は操作で止められ、OSの動きを減らす設定でも止まります。これは配色・状態表現の確認であり、WCAG全項目への適合認証ではありません。</p>
+</section>
+<section>
+<h3>実際のトークン対</h3>
+<table class="token-table">
+<thead>
+<tr>
+<th>役割</th>
+<th>前景 / 下地</th>
+<th>比率</th>
+</tr>
+</thead>
+<tbody id="ratio-table">
+</tbody>
+</table>
+</section>
+</div>
+<div class="sources">基準の参照：<a href="https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html">WCAG 1.4.3 文字</a>
+<a href="https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast.html">1.4.11 非テキスト</a>
+<a href="https://www.w3.org/WAI/WCAG22/Understanding/use-of-color.html">1.4.1 色だけに頼らない</a>
+<a href="https://www.w3.org/WAI/WCAG22/Techniques/css/C39">動きを減らす設定</a>
+<a href="https://www.w3.org/WAI/WCAG22/Understanding/pause-stop-hide.html">回転の停止</a>
+</div>
+</section>
+</main>
+<footer>遠征譚 D.03 — 採用デザインの参照モック。背景と顔アイコンは既存の採用構図スクリーンショットを参照。<br>ゲーム本体へのUI接続は含みません。表示用の数値と選択状態のみを保持し、戦闘処理は実行しません。</footer>
+<script src="endfield-d.js">
+</script>
+</body>
+</html>

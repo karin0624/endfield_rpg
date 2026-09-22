@@ -5,6 +5,7 @@
 - 仕様・責務境界を確認するときは[specs/overview.md](specs/overview.md)を参照する。
 - 実装順・依存関係を確認するときは[specs/milestones.md](specs/milestones.md)を参照する。
 - 環境構築・実行コマンド・ソース構成を確認するときは[README.md](README.md)を参照する。
+- UI・AI生成アセットを追加・変更するときは[specs/design-guidelines.md](specs/design-guidelines.md)を参照する。
 
 - 現在の要求を満たす最小の変更にする。設定・既存機能・信頼できるライブラリを優先し、将来用の機能や抽象化を追加しない。
 - 検証と例外処理は変更の影響と現実的な失敗に見合う範囲にする。ゲーム本体は高速で再現可能なテストを主とし、ブラウザテストは接続確認に使う。
