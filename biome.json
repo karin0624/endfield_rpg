@@ -22,7 +22,8 @@
         "noUndeclaredDependencies": "error"
       },
       "style": {
-        "noParameterAssign": "error"
+        "noParameterAssign": "error",
+        "noDescendingSpecificity": "error"
       },
       "suspicious": {
         "noConsole": {

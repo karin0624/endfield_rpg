@@ -31,17 +31,27 @@ describe("街・会話の進行", () => {
       mode: "conversation",
       currentPlaceId: "guild",
       conversationId: "guild-first",
-      conversationPosition: "greeting",
+      conversationPosition: "approach-guild",
     });
+
+    expect(getCurrentConversationScene(state, initialAdventure)).toMatchObject({
+      type: "line",
+      text: "ロッシは掲示板の前で足を止めた。",
+      presentation: { speakerName: "ロッシ", portraitId: "rossi", position: "left" },
+    });
+    const greeted = advanceConversation(state, initialAdventure);
+    expect(greeted.accepted).toBe(true);
+    if (!greeted.accepted) return;
+    state = greeted.state;
 
     const greeting = getCurrentConversationScene(state, initialAdventure);
     expect(greeting).toMatchObject({
       type: "line",
-      text: "受付係が掲示板の前で会釈した。",
+      text: "ギルベルタが掲示板の前で会釈した。",
       presentation: {
-        speakerName: "受付係",
+        speakerName: "ギルベルタ",
         backgroundId: "guild-hall",
-        portraitId: "receptionist",
+        portraitId: "gilberta",
         expressionId: "smile",
         position: "center",
       },
@@ -102,7 +112,7 @@ describe("街・会話の進行", () => {
     expect(revisited.state.conversationId).toBe("guild-return-quest");
     expect(getCurrentConversationScene(revisited.state, initialAdventure)).toMatchObject({
       type: "line",
-      text: "受付係は前回の話を覚えていた。「街道調査の依頼、詳しい内容をまとめておきました」",
+      text: "ギルベルタは前回の話を覚えていた。「街道調査の依頼、詳しい内容をまとめておきました」",
     });
   });
 
@@ -112,7 +122,10 @@ describe("街・会話の進行", () => {
     expect(started.accepted).toBe(true);
     if (!started.accepted) return;
 
-    const atChoice = advanceConversation(started.state, initialAdventure);
+    const greeting = advanceConversation(started.state, initialAdventure);
+    expect(greeting.accepted).toBe(true);
+    if (!greeting.accepted) return;
+    const atChoice = advanceConversation(greeting.state, initialAdventure);
     expect(atChoice.accepted).toBe(true);
     if (!atChoice.accepted) return;
 
@@ -127,7 +140,7 @@ describe("街・会話の進行", () => {
     expect(revisited.state.conversationId).toBe("guild-return-unselected");
     expect(getCurrentConversationScene(revisited.state, initialAdventure)).toMatchObject({
       type: "line",
-      text: "受付係は顔を覚えていた。「前回は依頼の話をしませんでしたね。今日は何か聞きますか？」",
+      text: "ギルベルタは顔を覚えていた。「前回は依頼の話をしませんでしたね。今日は何か聞きますか？」",
     });
   });
 

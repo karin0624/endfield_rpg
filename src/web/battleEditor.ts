@@ -36,7 +36,7 @@ export function mountBattleEditor(
   const header = document.createElement("header");
   header.className = "editor-header";
   header.innerHTML = `<div><p class="eyebrow">DEVELOPMENT / COMPOSITION</p><h1>戦闘画面の構図</h1></div>
-    <div class="header-actions"><a href="${import.meta.env.BASE_URL}">保存済みの通常表示</a><button type="button" data-preview>画面だけで確認</button></div>`;
+    <div class="header-actions"><a href="${import.meta.env.BASE_URL}?battle=1">保存済みの通常表示</a><button type="button" data-preview>画面だけで確認</button></div>`;
   const panel = document.createElement("aside");
   panel.className = "editor-panel";
   panel.setAttribute("aria-label", "構図設定");
