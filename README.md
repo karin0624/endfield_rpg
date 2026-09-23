@@ -11,6 +11,7 @@
 | [AGENTS.md](AGENTS.md) | 常時適用する短い作業規約と、必要な文書への案内 |
 | [specs/overview.md](specs/overview.md) | 合意済みの要件、技術構成、暫定案、未決定事項 |
 | [specs/milestones.md](specs/milestones.md) | 段階ごとの完了条件とタスクの依存順 |
+| [specs/adventure.md](specs/adventure.md) | 街・会話のゲーム状態、入力、条件、型付き会話データ |
 | [specs/battle.md](specs/battle.md) | M1タイムライン戦闘、通常攻撃、勝敗の状態・操作・受入例 |
 | [specs/visuals.md](specs/visuals.md) | 戦闘画面の配置・カメラ範囲・確認画面 |
 | [specs/design-guidelines.md](specs/design-guidelines.md) | UIの配色、部品、操作状態、マーカー、生成画像の扱い |
@@ -77,7 +78,7 @@ GLBはGit LFS、現在の数MiBのPNG・文書・コードは通常のGitで管�
 
 現在の採用設定は`ground1.glb`と`landscape1.png`の組み合わせ専用の暫定標準。別の地面モデル・遠景画像でフィールドを追加する際は、その組み合わせに固有の設定を用意し、既存フィールドの設定も保持する。複数フィールドの設定管理は追加時に実装する。
 
-現在の画面はゲーム本体の街から始まる初期状態とは独立しており、固定編成の戦闘から始まる。街・会話・探索・画面遷移は後続Issueで接続する。
+ゲーム本体には街・会話の状態遷移を追加済み。現在のブラウザ画面はゲーム本体の初期状態とは独立して固定編成の戦闘から始まり、街・会話画面との接続は後続Issueで行う。
 
 ## 戦闘画面の構図を決める
 

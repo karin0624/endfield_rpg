@@ -7,6 +7,9 @@ describe("createInitialGameState", () => {
   it("街から始まる未進行の状態を作る", () => {
     expect(createInitialGameState(initialGameOptions)).toEqual({
       mode: "town",
+      currentPlaceId: "town-square",
+      conversationId: null,
+      conversationPosition: null,
       flags: [],
     });
   });
@@ -15,7 +18,7 @@ describe("createInitialGameState", () => {
     const first = createInitialGameState(initialGameOptions);
     const second = createInitialGameState(initialGameOptions);
 
-    first.flags.push("visited-town");
+    expect(first.flags).not.toBe(second.flags);
 
     expect(second.flags).toEqual([]);
   });
