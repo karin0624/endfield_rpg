@@ -145,7 +145,8 @@ describe("battle timeline", () => {
       const result: Array<{ id: string; time: number }> = [];
       for (let index = 0; index < 8; index += 1) {
         state = advanceToNextActor(state);
-        result.push({ id: state.currentActorId!, time: state.logicalTime });
+        if (state.currentActorId === null) throw new Error("次の行動者が見つかりません");
+        result.push({ id: state.currentActorId, time: state.logicalTime });
         state = completeCurrentAction(state);
       }
       return result;
@@ -161,7 +162,7 @@ describe("battle timeline", () => {
       { id: "minimum", speed: 20_000 },
     ]);
 
-    expect(state.combatants.map(combatant => combatant.nextActionTime)).toEqual([111, 143, 1]);
+    expect(state.combatants.map((combatant) => combatant.nextActionTime)).toEqual([111, 143, 1]);
   });
 
   it("不正な速度・IDと負の予測数を拒否する", () => {
@@ -173,8 +174,6 @@ describe("battle timeline", () => {
         { id: "A", speed: 50 },
       ]),
     ).toThrow();
-    expect(() =>
-      getUpcomingActions(createBattleTimeline([{ id: "A", speed: 100 }]), -1),
-    ).toThrow();
+    expect(() => getUpcomingActions(createBattleTimeline([{ id: "A", speed: 100 }]), -1)).toThrow();
   });
 });

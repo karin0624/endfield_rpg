@@ -1,22 +1,22 @@
-import { Engine } from "@babylonjs/core/Engines/engine";
-import { Scene } from "@babylonjs/core/scene";
 import { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
-import { Matrix, Vector3 } from "@babylonjs/core/Maths/math.vector";
-import { Color3, Color4 } from "@babylonjs/core/Maths/math.color";
-import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
-import { DirectionalLight } from "@babylonjs/core/Lights/directionalLight";
-import { ImportMeshAsync } from "@babylonjs/core/Loading/sceneLoader";
-import { Mesh } from "@babylonjs/core/Meshes/mesh";
-import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
-import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
-import { CreatePlane } from "@babylonjs/core/Meshes/Builders/planeBuilder";
-import { CreateDisc } from "@babylonjs/core/Meshes/Builders/discBuilder";
-import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
-import { Material } from "@babylonjs/core/Materials/material";
-import { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import { Ray } from "@babylonjs/core/Culling/ray";
+import { Engine } from "@babylonjs/core/Engines/engine";
+import { DirectionalLight } from "@babylonjs/core/Lights/directionalLight";
+import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
+import { ImportMeshAsync } from "@babylonjs/core/Loading/sceneLoader";
+import { Material } from "@babylonjs/core/Materials/material";
+import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
+import { Texture } from "@babylonjs/core/Materials/Textures/texture";
+import { Color3, Color4 } from "@babylonjs/core/Maths/math.color";
+import { Matrix, Vector3 } from "@babylonjs/core/Maths/math.vector";
+import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
+import { CreateDisc } from "@babylonjs/core/Meshes/Builders/discBuilder";
+import { CreatePlane } from "@babylonjs/core/Meshes/Builders/planeBuilder";
+import { Mesh } from "@babylonjs/core/Meshes/mesh";
+import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
+import { Scene } from "@babylonjs/core/scene";
 import "@babylonjs/loaders/glTF/2.0/glTFLoader";
-import { battleLayout, getFormationPositions, type BattleActorLayout } from "./battleLayout";
+import { type BattleActorLayout, battleLayout, getFormationPositions } from "./battleLayout";
 import type { BattleSettings } from "./battleSettings";
 
 const assetUrl = (path: string) => `${import.meta.env.BASE_URL}assets/${path}`;
@@ -77,14 +77,17 @@ export function createBattleScene(canvas: HTMLCanvasElement, initialSettings: Ba
   let backdrop: Mesh | undefined;
   const actors: SceneActor[] = [];
   const actorCounts = battleLayout.actors.reduce<PreviewCounts>(
-    (counts, actor) => ({ ...counts, [actor.team]: counts[actor.team] + 1 }),
+    (counts, actor) => {
+      counts[actor.team] += 1;
+      return counts;
+    },
     { ally: 0, enemy: 0 },
   );
   let previewCounts: PreviewCounts = { ...actorCounts };
   let placementWarnings: string[] = [];
   let groundedPlacement = "";
 
-  const findActor = (id: string) => actors.find(actor => actor.layout.id === id);
+  const findActor = (id: string) => actors.find((actor) => actor.layout.id === id);
 
   const updateCombatantScreenPositions = () => {
     if (actors.length === 0) return;
@@ -100,9 +103,9 @@ export function createBattleScene(canvas: HTMLCanvasElement, initialSettings: Ba
       }
       actor.plane.computeWorldMatrix(true);
       const corners = actor.plane.getBoundingInfo().boundingBox.vectorsWorld;
-      const projected = corners.map(point => Vector3.Project(point, Matrix.Identity(), transform, viewport));
-      const xs = projected.map(point => point.x * scaleX);
-      const ys = projected.map(point => point.y * scaleY);
+      const projected = corners.map((point) => Vector3.Project(point, Matrix.Identity(), transform, viewport));
+      const xs = projected.map((point) => point.x * scaleX);
+      const ys = projected.map((point) => point.y * scaleY);
       const padding = 7;
       const spriteLeft = Math.max(0, Math.min(...xs));
       const spriteTop = Math.max(0, Math.min(...ys));
@@ -128,22 +131,23 @@ export function createBattleScene(canvas: HTMLCanvasElement, initialSettings: Ba
     }
   };
 
-  const placementKey = (value: BattleSettings) => [
-    value.groundScale,
-    value.allyCenterX,
-    value.allyCenterZ,
-    value.allyStepX,
-    value.allyStepZ,
-    value.enemyCenterX,
-    value.enemyCenterZ,
-    value.enemyStepX,
-    value.enemyStepZ,
-  ].join(":");
+  const placementKey = (value: BattleSettings) =>
+    [
+      value.groundScale,
+      value.allyCenterX,
+      value.allyCenterZ,
+      value.allyStepX,
+      value.allyStepZ,
+      value.enemyCenterX,
+      value.enemyCenterZ,
+      value.enemyStepX,
+      value.enemyStepZ,
+    ].join(":");
 
   const applyCameraAndBackdrop = (next: BattleSettings) => {
     camera.position.set(next.cameraX, next.cameraY, next.cameraZ);
     camera.setTarget(new Vector3(next.targetX, next.targetY, next.targetZ));
-    camera.fov = next.fovDegrees * Math.PI / 180;
+    camera.fov = (next.fovDegrees * Math.PI) / 180;
     groundRoot.scaling.setAll(battleLayout.ground.scale * next.groundScale);
     if (backdrop) {
       backdrop.position.set(next.backdropX, next.backdropY, next.backdropZ);
@@ -155,16 +159,10 @@ export function createBattleScene(canvas: HTMLCanvasElement, initialSettings: Ba
     if (groundMeshes.length === 0) return undefined;
     const cacheKey = `${settings.groundScale}:${x}:${z}`;
     if (groundHeightCache.has(cacheKey)) return groundHeightCache.get(cacheKey);
-    const ray = new Ray(
-      new Vector3(x, GROUND_RAY_ORIGIN_Y, z),
-      Vector3.Down(),
-      GROUND_RAY_LENGTH,
-    );
+    const ray = new Ray(new Vector3(x, GROUND_RAY_ORIGIN_Y, z), Vector3.Down(), GROUND_RAY_LENGTH);
     // 複数メッシュを横切る地面でも、レイに最も近い交点を選ぶ。
-    const picked = scene.pickWithRay(ray, mesh => groundMeshes.includes(mesh));
-    const height = picked?.hit === true && picked.pickedPoint !== null
-      ? picked.pickedPoint.y
-      : undefined;
+    const picked = scene.pickWithRay(ray, (mesh) => groundMeshes.includes(mesh));
+    const height = picked?.hit === true && picked.pickedPoint !== null ? picked.pickedPoint.y : undefined;
     groundHeightCache.set(cacheKey, height);
     return height;
   };
@@ -202,16 +200,13 @@ export function createBattleScene(canvas: HTMLCanvasElement, initialSettings: Ba
       }
       const validationX = position.x * settings.groundScale;
       const validationZ = position.z * settings.groundScale;
-      const validationY = updateGroundHeight
-        ? getGroundHeight(validationX, validationZ)
-        : undefined;
+      const validationY = updateGroundHeight ? getGroundHeight(validationX, validationZ) : undefined;
       if (updateGroundHeight && validationY === undefined) {
         placementWarnings.push(`${actor.layout.id}の足元が地面の範囲外です。配置を調整してください。`);
       }
 
-      const displayPosition = actor.order < previewCounts[actor.layout.team]
-        ? previewPositions[actor.layout.team][actor.order]
-        : position;
+      const displayPosition =
+        actor.order < previewCounts[actor.layout.team] ? previewPositions[actor.layout.team][actor.order] : position;
       if (displayPosition === undefined) {
         throw new Error(`確認人数の配置枠が不足しています: ${actor.layout.id}`);
       }
@@ -265,15 +260,20 @@ export function createBattleScene(canvas: HTMLCanvasElement, initialSettings: Ba
   const sun = new DirectionalLight("sun", new Vector3(-0.6, -1, -0.4), scene);
   sun.intensity = 1.7;
 
-  const loadTexture = (path: string) => new Promise<Texture>((resolve, reject) => {
-    const texture = new Texture(assetUrl(path), scene, false, true,
-      Texture.TRILINEAR_SAMPLINGMODE,
-      () => resolve(texture),
-      (_message, error) => reject(new Error(`画像を読み込めません: ${path}`, { cause: error })),
-    );
-    texture.wrapU = Texture.CLAMP_ADDRESSMODE;
-    texture.wrapV = Texture.CLAMP_ADDRESSMODE;
-  });
+  const loadTexture = (path: string) =>
+    new Promise<Texture>((resolve, reject) => {
+      const texture = new Texture(
+        assetUrl(path),
+        scene,
+        false,
+        true,
+        Texture.TRILINEAR_SAMPLINGMODE,
+        () => resolve(texture),
+        (_message, error) => reject(new Error(`画像を読み込めません: ${path}`, { cause: error })),
+      );
+      texture.wrapU = Texture.CLAMP_ADDRESSMODE;
+      texture.wrapV = Texture.CLAMP_ADDRESSMODE;
+    });
 
   const imageMaterial = (name: string, texture: Texture, transparent: boolean) => {
     const material = new StandardMaterial(name, scene);
@@ -295,7 +295,7 @@ export function createBattleScene(canvas: HTMLCanvasElement, initialSettings: Ba
     const [ground, background, ...portraits] = await Promise.all([
       ImportMeshAsync(assetUrl("ground/ground1.glb"), scene),
       loadTexture("backgrounds/landscape1.png"),
-      ...battleLayout.actors.map(actor => loadTexture(actor.image)),
+      ...battleLayout.actors.map((actor) => loadTexture(actor.image)),
     ]);
     if (disposed) return;
     for (const mesh of ground.meshes) {
@@ -303,16 +303,21 @@ export function createBattleScene(canvas: HTMLCanvasElement, initialSettings: Ba
       mesh.isPickable = true;
       groundMeshes.push(mesh);
     }
-    backdrop = CreatePlane("backdrop", {
-      width: battleLayout.backdrop.width, height: battleLayout.backdrop.height,
-    }, scene);
+    backdrop = CreatePlane(
+      "backdrop",
+      {
+        width: battleLayout.backdrop.width,
+        height: battleLayout.backdrop.height,
+      },
+      scene,
+    );
     backdrop.material = imageMaterial("landscape", background, false);
 
     battleLayout.actors.forEach((actor, index) => {
-      const order = actors.filter(candidate => candidate.layout.team === actor.team).length;
+      const order = actors.filter((candidate) => candidate.layout.team === actor.team).length;
       const anchor = new TransformNode(`${actor.id}-feet`, scene);
       const height = actor.height;
-      const width = height * actor.pixels[0] / actor.pixels[1];
+      const width = (height * actor.pixels[0]) / actor.pixels[1];
       const plane = CreatePlane(actor.id, { width, height }, scene);
       plane.parent = anchor;
       // 画像の下端ではなく、実際の靴底・接地位置を原点にする。
@@ -368,14 +373,10 @@ export function createBattleScene(canvas: HTMLCanvasElement, initialSettings: Ba
         if (effect.type === "attack") {
           const emphasis = pulse * 0.07;
           actor.plane.scaling.set(1 + emphasis, 1 + emphasis, 1);
-          actor.material.emissiveColor = Color3.Lerp(
-            Color3.White(), new Color3(1, 0.72, 0.28), pulse * 0.5,
-          );
+          actor.material.emissiveColor = Color3.Lerp(Color3.White(), new Color3(1, 0.72, 0.28), pulse * 0.5);
         } else if (effect.type === "hit") {
           actor.plane.position.x = actor.basePlaneX + Math.sin(progress * Math.PI * 12) * 0.11 * (1 - progress);
-          actor.material.emissiveColor = Color3.Lerp(
-            Color3.White(), new Color3(1, 0.42, 0.32), pulse * 0.8,
-          );
+          actor.material.emissiveColor = Color3.Lerp(Color3.White(), new Color3(1, 0.42, 0.32), pulse * 0.8);
         } else {
           actor.plane.scaling.set(1, 1 - progress * 0.44, 1);
           actor.plane.visibility = 1 - progress * 0.48;
@@ -420,8 +421,14 @@ export function createBattleScene(canvas: HTMLCanvasElement, initialSettings: Ba
       return groundingRequired;
     },
     setPreviewCounts(next: PreviewCounts) {
-      if (!Number.isInteger(next.ally) || next.ally < 1 || next.ally > actorCounts.ally ||
-          !Number.isInteger(next.enemy) || next.enemy < 1 || next.enemy > actorCounts.enemy) {
+      if (
+        !Number.isInteger(next.ally) ||
+        next.ally < 1 ||
+        next.ally > actorCounts.ally ||
+        !Number.isInteger(next.enemy) ||
+        next.enemy < 1 ||
+        next.enemy > actorCounts.enemy
+      ) {
         throw new RangeError("確認人数は1人以上で固定編成の人数以下にしてください");
       }
       previewCounts = { ...next };
@@ -445,10 +452,7 @@ export function createBattleScene(canvas: HTMLCanvasElement, initialSettings: Ba
         const actor = findActor(id);
         if (actor === undefined || actor.layout.team !== "enemy") continue;
         actor.anchor.computeWorldMatrix(true);
-        const depth = Vector3.Dot(
-          actor.anchor.getAbsolutePosition().subtract(cameraRay.origin),
-          cameraRay.direction,
-        );
+        const depth = Vector3.Dot(actor.anchor.getAbsolutePosition().subtract(cameraRay.origin), cameraRay.direction);
         if (depth >= 0 && depth < frontmostDepth) {
           frontmostId = id;
           frontmostDepth = depth;

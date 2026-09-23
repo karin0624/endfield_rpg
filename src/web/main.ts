@@ -1,7 +1,8 @@
-import { createBattleScene } from "./battleScene";
-import { mountBattleUi } from "./battleUi";
 import savedSettings from "./battle-settings.json";
+import { createBattleScene } from "./battleScene";
 import { parseBattleSettings } from "./battleSettings";
+import { mountBattleUi } from "./battleUi";
+import { requiredElement } from "./requiredElement";
 import "./style.css";
 
 const app = document.querySelector<HTMLDivElement>("#app");
@@ -25,9 +26,9 @@ if (import.meta.env.DEV && !editing) {
   link.textContent = "構図設定";
   app.append(link);
 }
-const canvas = app.querySelector("canvas")!;
-const status = app.querySelector<HTMLDivElement>("[data-status]")!;
-const board = app.querySelector<HTMLDivElement>("[data-board]")!;
+const canvas = requiredElement<HTMLCanvasElement>(app, "canvas");
+const status = requiredElement<HTMLDivElement>(app, "[data-status]");
+const board = requiredElement<HTMLDivElement>(app, "[data-board]");
 const events = new AbortController();
 let battle: ReturnType<typeof createBattleScene> | undefined;
 let disposed = false;
@@ -41,9 +42,13 @@ function dispose() {
   disposeBattleUi?.();
   battle?.dispose();
 }
-window.addEventListener("pagehide", event => {
-  if (!event.persisted) dispose();
-}, { signal: events.signal });
+window.addEventListener(
+  "pagehide",
+  (event) => {
+    if (!event.persisted) dispose();
+  },
+  { signal: events.signal },
+);
 if (import.meta.hot) import.meta.hot.dispose(dispose);
 
 try {

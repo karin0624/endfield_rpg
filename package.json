@@ -8,12 +8,15 @@
   },
   "scripts": {
     "dev": "vite",
-    "check": "tsc --noEmit && vitest run",
+    "lint": "biome check .",
+    "format": "biome check --write .",
+    "check": "npm run lint && tsc --noEmit && vitest run",
     "build": "node scripts/check-assets.mjs && tsc --noEmit && vite build",
     "test:e2e": "npm run build && playwright test --project built",
     "test:editor": "PLAYWRIGHT_EDITOR=1 playwright test --project settings"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.5.14",
     "@playwright/test": "^1.63.0",
     "@types/node": "^24.13.6",
     "typescript": "^7.0.2",

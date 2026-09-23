@@ -22,14 +22,20 @@ export const settingsFields = [
   { key: "enemyStepZ", label: "隣への前後差", group: "敵の配置", min: -10, max: 10, step: 0.1 },
 ] as const;
 
-export type SettingKey = typeof settingsFields[number]["key"];
+export type SettingKey = (typeof settingsFields)[number]["key"];
 export type BattleSettings = { version: 2 } & Record<SettingKey, number>;
 export const draftStorageKey = "endfield.battle-settings.draft.v1";
 
 /** 旧形式のJSONへ追加する、今回導入した隊列ルールの既定値。 */
 export type FormationSettingKey =
-  | "allyCenterX" | "allyCenterZ" | "allyStepX" | "allyStepZ"
-  | "enemyCenterX" | "enemyCenterZ" | "enemyStepX" | "enemyStepZ";
+  | "allyCenterX"
+  | "allyCenterZ"
+  | "allyStepX"
+  | "allyStepZ"
+  | "enemyCenterX"
+  | "enemyCenterZ"
+  | "enemyStepX"
+  | "enemyStepZ";
 
 export const formationSettingDefaults: Record<FormationSettingKey, number> = {
   allyCenterX: 3.2,

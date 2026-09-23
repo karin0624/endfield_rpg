@@ -34,10 +34,7 @@ function actionInterval(combatant: Pick<BattleCombatant, "speed">): number {
   return interval;
 }
 
-function assertValidDefinition(
-  definition: BattleCombatantDefinition,
-  ids: ReadonlySet<string>,
-): void {
+function assertValidDefinition(definition: BattleCombatantDefinition, ids: ReadonlySet<string>): void {
   if (definition.id.length === 0) {
     throw new Error("戦闘者のIDは空にできません");
   }
@@ -49,18 +46,11 @@ function assertValidDefinition(
   }
 }
 
-function findCombatant(
-  state: BattleTimelineState,
-  id: string | null,
-): BattleCombatant | undefined {
-  return id === null
-    ? undefined
-    : state.combatants.find((combatant) => combatant.id === id);
+function findCombatant(state: BattleTimelineState, id: string | null): BattleCombatant | undefined {
+  return id === null ? undefined : state.combatants.find((combatant) => combatant.id === id);
 }
 
-function findEarliestLivingCombatant(
-  state: BattleTimelineState,
-): BattleCombatant | undefined {
+function findEarliestLivingCombatant(state: BattleTimelineState): BattleCombatant | undefined {
   let earliest: BattleCombatant | undefined;
 
   for (const combatant of state.combatants) {
@@ -71,8 +61,7 @@ function findEarliestLivingCombatant(
     if (
       earliest === undefined ||
       combatant.nextActionTime < earliest.nextActionTime ||
-      (combatant.nextActionTime === earliest.nextActionTime &&
-        combatant.startOrder < earliest.startOrder)
+      (combatant.nextActionTime === earliest.nextActionTime && combatant.startOrder < earliest.startOrder)
     ) {
       earliest = combatant;
     }
@@ -81,9 +70,7 @@ function findEarliestLivingCombatant(
   return earliest;
 }
 
-export function createBattleTimeline(
-  definitions: readonly BattleCombatantDefinition[],
-): BattleTimelineState {
+export function createBattleTimeline(definitions: readonly BattleCombatantDefinition[]): BattleTimelineState {
   const ids = new Set<string>();
   const combatants = definitions.map((definition, startOrder) => {
     assertValidDefinition(definition, ids);
@@ -106,9 +93,7 @@ export function createBattleTimeline(
   };
 }
 
-export function advanceToNextActor(
-  state: BattleTimelineState,
-): BattleTimelineState {
+export function advanceToNextActor(state: BattleTimelineState): BattleTimelineState {
   const currentActor = findCombatant(state, state.currentActorId);
   if (currentActor?.isAlive === true) {
     return state;
@@ -116,9 +101,7 @@ export function advanceToNextActor(
 
   const nextActor = findEarliestLivingCombatant(state);
   if (nextActor === undefined) {
-    return state.currentActorId === null
-      ? state
-      : { ...state, currentActorId: null };
+    return state.currentActorId === null ? state : { ...state, currentActorId: null };
   }
 
   return {
@@ -128,9 +111,7 @@ export function advanceToNextActor(
   };
 }
 
-export function completeCurrentAction(
-  state: BattleTimelineState,
-): BattleTimelineState {
+export function completeCurrentAction(state: BattleTimelineState): BattleTimelineState {
   const currentActor = findCombatant(state, state.currentActorId);
   if (currentActor === undefined) {
     return state;
@@ -147,18 +128,12 @@ export function completeCurrentAction(
     ...state,
     currentActorId: null,
     combatants: state.combatants.map((combatant) =>
-      combatant.id === currentActor.id
-        ? { ...combatant, nextActionTime }
-        : combatant,
+      combatant.id === currentActor.id ? { ...combatant, nextActionTime } : combatant,
     ),
   };
 }
 
-export function setCombatantAlive(
-  state: BattleTimelineState,
-  id: string,
-  isAlive: boolean,
-): BattleTimelineState {
+export function setCombatantAlive(state: BattleTimelineState, id: string, isAlive: boolean): BattleTimelineState {
   const combatant = state.combatants.find((candidate) => candidate.id === id);
   if (combatant === undefined) {
     throw new Error(`存在しない戦闘者です: ${id}`);
@@ -169,18 +144,12 @@ export function setCombatantAlive(
 
   return {
     ...state,
-    currentActorId:
-      state.currentActorId === id && !isAlive ? null : state.currentActorId,
-    combatants: state.combatants.map((candidate) =>
-      candidate.id === id ? { ...candidate, isAlive } : candidate,
-    ),
+    currentActorId: state.currentActorId === id && !isAlive ? null : state.currentActorId,
+    combatants: state.combatants.map((candidate) => (candidate.id === id ? { ...candidate, isAlive } : candidate)),
   };
 }
 
-export function getUpcomingActions(
-  state: BattleTimelineState,
-  count: number,
-): UpcomingAction[] {
+export function getUpcomingActions(state: BattleTimelineState, count: number): UpcomingAction[] {
   if (!Number.isInteger(count) || count < 0) {
     throw new RangeError("予測する行動数は0以上の整数で指定してください");
   }
@@ -190,10 +159,7 @@ export function getUpcomingActions(
 
   while (actions.length < count) {
     predictedState = advanceToNextActor(predictedState);
-    const currentActor = findCombatant(
-      predictedState,
-      predictedState.currentActorId,
-    );
+    const currentActor = findCombatant(predictedState, predictedState.currentActorId);
     if (currentActor === undefined || !currentActor.isAlive) {
       break;
     }
