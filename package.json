@@ -12,8 +12,10 @@
     "format": "biome check --write .",
     "check": "npm run lint && tsc --noEmit && vitest run",
     "build": "node scripts/check-assets.mjs && tsc --noEmit && vite build",
-    "test:e2e": "npm run build && playwright test --project built",
-    "test:editor": "PLAYWRIGHT_EDITOR=1 playwright test --project settings"
+    "test:e2e": "sh scripts/run-browser-test.sh e2e",
+    "test:e2e:inside": "npm run build && playwright test --project built",
+    "test:editor": "sh scripts/run-browser-test.sh editor",
+    "test:editor:inside": "PLAYWRIGHT_EDITOR=1 playwright test --project settings"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.14",

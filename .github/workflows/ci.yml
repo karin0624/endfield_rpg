@@ -33,7 +33,7 @@ jobs:
         with:
           lfs: true
       - run: npm ci
-      - run: npm run test:e2e
+      - run: npm run test:e2e:inside
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

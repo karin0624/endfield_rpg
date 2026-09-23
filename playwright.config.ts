@@ -1,4 +1,9 @@
+import { existsSync } from "node:fs";
 import { defineConfig } from "@playwright/test";
+
+if (!existsSync("/.dockerenv")) {
+  throw new Error("Playwright tests require the Docker container. Run npm run test:e2e or npm run test:editor.");
+}
 
 const editor = process.env.PLAYWRIGHT_EDITOR === "1";
 
