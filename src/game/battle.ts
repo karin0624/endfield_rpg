@@ -1,9 +1,9 @@
 import {
   advanceToNextActor,
+  type BattleTimelineState,
   completeCurrentAction,
   createBattleTimeline,
   getUpcomingActions,
-  type BattleTimelineState,
   type UpcomingAction,
 } from "./battleTimeline";
 
@@ -91,48 +91,29 @@ function isBattleTeam(value: unknown): value is BattleTeam {
   return BATTLE_TEAMS.includes(value as BattleTeam);
 }
 
-function assertValidDefinition(
-  definition: BattleCombatantDefinition,
-): void {
+function assertValidDefinition(definition: BattleCombatantDefinition): void {
   if (!isBattleTeam(definition.team)) {
     throw new Error(`戦闘者の陣営が不正です: ${definition.id}`);
   }
   if (!Number.isFinite(definition.hp) || definition.hp < 0) {
     throw new Error(`戦闘者のHPは0以上の有限値で指定してください: ${definition.id}`);
   }
-  if (
-    !Number.isFinite(definition.attackPower) ||
-    definition.attackPower < 0
-  ) {
-    throw new Error(
-      `戦闘者の攻撃力は0以上の有限値で指定してください: ${definition.id}`,
-    );
+  if (!Number.isFinite(definition.attackPower) || definition.attackPower < 0) {
+    throw new Error(`戦闘者の攻撃力は0以上の有限値で指定してください: ${definition.id}`);
   }
 }
 
-function findCombatant(
-  state: BattleState,
-  id: string,
-): BattleCombatant | undefined {
+function findCombatant(state: BattleState, id: string): BattleCombatant | undefined {
   return state.combatants.find((combatant) => combatant.id === id);
 }
 
-function findFirstLivingCombatant(
-  state: BattleState,
-  team: BattleTeam,
-): BattleCombatant | undefined {
-  return state.combatants.find(
-    (combatant) => combatant.team === team && combatant.isAlive,
-  );
+function findFirstLivingCombatant(state: BattleState, team: BattleTeam): BattleCombatant | undefined {
+  return state.combatants.find((combatant) => combatant.team === team && combatant.isAlive);
 }
 
 function determineOutcome(state: Pick<BattleState, "combatants">): BattleOutcome {
-  const alliesAlive = state.combatants.some(
-    (combatant) => combatant.team === "ally" && combatant.isAlive,
-  );
-  const enemiesAlive = state.combatants.some(
-    (combatant) => combatant.team === "enemy" && combatant.isAlive,
-  );
+  const alliesAlive = state.combatants.some((combatant) => combatant.team === "ally" && combatant.isAlive);
+  const enemiesAlive = state.combatants.some((combatant) => combatant.team === "enemy" && combatant.isAlive);
 
   if (!enemiesAlive && alliesAlive) {
     return "victory";
@@ -146,14 +127,9 @@ function determineOutcome(state: Pick<BattleState, "combatants">): BattleOutcome
   return "ongoing";
 }
 
-function withTimelineState(
-  state: BattleState,
-  timelineState: BattleTimelineState,
-): BattleState {
+function withTimelineState(state: BattleState, timelineState: BattleTimelineState): BattleState {
   const combatants = timelineState.combatants.map((timelineCombatant) => {
-    const combatant = state.combatants.find(
-      (candidate) => candidate.id === timelineCombatant.id,
-    );
+    const combatant = state.combatants.find((candidate) => candidate.id === timelineCombatant.id);
     if (combatant === undefined) {
       throw new Error(`行動順に存在しない戦闘者です: ${timelineCombatant.id}`);
     }
@@ -170,9 +146,7 @@ function withTimelineState(
   };
 }
 
-export function createBattleState(
-  definitions: readonly BattleCombatantDefinition[],
-): BattleState {
+export function createBattleState(definitions: readonly BattleCombatantDefinition[]): BattleState {
   if (!definitions.some((definition) => definition.team === "ally")) {
     throw new Error("味方の戦闘者が必要です");
   }
@@ -220,10 +194,7 @@ export function advanceBattleToNextActor(state: BattleState): BattleState {
 }
 
 /** 戦闘状態の現在の行動者を確定し、行動順を予測する。 */
-export function getBattleUpcomingActions(
-  state: BattleState,
-  count: number,
-): UpcomingAction[] {
+export function getBattleUpcomingActions(state: BattleState, count: number): UpcomingAction[] {
   if (state.outcome !== "ongoing") {
     if (!Number.isInteger(count) || count < 0) {
       throw new RangeError("予測する行動数は0以上の整数で指定してください");
@@ -233,10 +204,7 @@ export function getBattleUpcomingActions(
   return getUpcomingActions(state, count);
 }
 
-function reject(
-  state: BattleState,
-  reason: BasicAttackRejectionReason,
-): BasicAttackRejected {
+function reject(state: BattleState, reason: BasicAttackRejectionReason): BasicAttackRejected {
   return {
     accepted: false,
     reason,
@@ -249,11 +217,7 @@ function reject(
  * 現在の行動者が指定した敵へ通常攻撃する。
  * 攻撃、HP更新、戦闘不能、勝敗判定はこの同期処理で確定する。
  */
-export function performBasicAttack(
-  state: BattleState,
-  actorId: string,
-  targetId: string,
-): BasicAttackResult {
+export function performBasicAttack(state: BattleState, actorId: string, targetId: string): BasicAttackResult {
   if (state.outcome !== "ongoing") {
     return reject(state, "battle-ended");
   }
@@ -266,9 +230,7 @@ export function performBasicAttack(
     throw new Error(`現在の行動者が存在しません: ${state.currentActorId}`);
   }
   if (!currentActor.isAlive) {
-    throw new Error(
-      `戦闘不能の戦闘者が行動待ちになっています: ${state.currentActorId}`,
-    );
+    throw new Error(`戦闘不能の戦闘者が行動待ちになっています: ${state.currentActorId}`);
   }
   if (state.currentActorId !== actorId) {
     return reject(state, "actor-is-not-current");
@@ -331,14 +293,8 @@ export function performBasicAttack(
     ...stateAfterDamage,
     outcome,
   } satisfies BattleState;
-  const completed = withTimelineState(
-    withOutcome,
-    completeCurrentAction(withOutcome),
-  );
-  const nextState =
-    outcome === "ongoing"
-      ? advanceBattleToNextActor(completed)
-      : completed;
+  const completed = withTimelineState(withOutcome, completeCurrentAction(withOutcome));
+  const nextState = outcome === "ongoing" ? advanceBattleToNextActor(completed) : completed;
 
   return {
     accepted: true,
@@ -351,9 +307,7 @@ export function performBasicAttack(
  * 開始時または味方の行動後に、次の味方入力待ちまで敵行動を同期的に解決する。
  * 敵は戦闘開始時の配列順で、最初に生存している味方を通常攻撃する。
  */
-export function advanceBattleToNextAllyInput(
-  state: BattleState,
-): BattleLoopResult {
+export function advanceBattleToNextAllyInput(state: BattleState): BattleLoopResult {
   if (state.outcome !== "ongoing") {
     return { state, events: [] };
   }
@@ -400,7 +354,7 @@ export function performBasicAttackAndAdvanceToAllyInput(
   targetId: string,
 ): BasicAttackResult {
   const attack = performBasicAttack(state, actorId, targetId);
-  if (!attack.accepted || state.combatants.find(candidate => candidate.id === actorId)?.team !== "ally") {
+  if (!attack.accepted || state.combatants.find((candidate) => candidate.id === actorId)?.team !== "ally") {
     return attack;
   }
   const loop = advanceBattleToNextAllyInput(attack.state);

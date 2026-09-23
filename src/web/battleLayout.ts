@@ -28,11 +28,7 @@ export function calculateFormationPositions(
   });
 }
 
-export function getFormationPositions(
-  settings: BattleSettings,
-  team: BattleTeam,
-  count: number,
-): FormationPosition[] {
+export function getFormationPositions(settings: BattleSettings, team: BattleTeam, count: number): FormationPosition[] {
   return team === "ally"
     ? calculateFormationPositions(
         count,

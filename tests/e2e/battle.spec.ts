@@ -1,12 +1,14 @@
-import { test, expect } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 test("配布画面の実描画を基準画像と比較する", async ({ page }) => {
   const errors: string[] = [];
   const assets = new Set<string>();
-  page.on("pageerror", error => errors.push(error.message));
-  page.on("console", message => { if (message.type() === "error") errors.push(message.text()); });
-  page.on("requestfailed", request => errors.push(request.url()));
-  page.on("response", response => {
+  page.on("pageerror", (error) => errors.push(error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error") errors.push(message.text());
+  });
+  page.on("requestfailed", (request) => errors.push(request.url()));
+  page.on("response", (response) => {
     if (response.status() >= 400) errors.push(`${response.status()} ${response.url()}`);
     if (/\.(glb|png)$/.test(response.url()) && response.ok()) assets.add(new URL(response.url()).pathname);
   });
@@ -16,9 +18,13 @@ test("配布画面の実描画を基準画像と比較する", async ({ page }) 
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page).toHaveScreenshot("battle-mobile.png", { animations: "disabled", fullPage: true });
   expect([...assets].sort()).toEqual([
-    "/assets/backgrounds/landscape1.png", "/assets/characters/gilberta/face.png", "/assets/characters/gilberta/front-left.png",
-    "/assets/characters/rossi/face.png", "/assets/characters/rossi/front-left.png",
-    "/assets/enemies/slime-blue.png", "/assets/ground/ground1.glb",
+    "/assets/backgrounds/landscape1.png",
+    "/assets/characters/gilberta/face.png",
+    "/assets/characters/gilberta/front-left.png",
+    "/assets/characters/rossi/face.png",
+    "/assets/characters/rossi/front-left.png",
+    "/assets/enemies/slime-blue.png",
+    "/assets/ground/ground1.glb",
   ]);
   expect(errors).toEqual([]);
 });
@@ -61,7 +67,9 @@ test("実ボタンから勝利し、再戦で初期状態へ戻る", async ({ pa
 });
 
 test("素材の取得に失敗した理由を画面に表示する", async ({ page }) => {
-  await page.route("**/assets/characters/rossi/front-left.png", route => route.fulfill({ status: 404, body: "missing" }));
+  await page.route("**/assets/characters/rossi/front-left.png", (route) =>
+    route.fulfill({ status: 404, body: "missing" }),
+  );
   await page.goto("/");
   await expect(page.getByRole("status")).toContainText("戦闘画面を読み込めませんでした", { timeout: 30_000 });
 });

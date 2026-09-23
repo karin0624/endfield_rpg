@@ -1,13 +1,14 @@
 import { initialBattleCombatants } from "../content/initialBattle";
 import {
   advanceBattleToNextAllyInput,
+  type BattleEvent,
+  type BattleState,
   createBattleState,
   getBattleUpcomingActions,
   performBasicAttackAndAdvanceToAllyInput,
-  type BattleEvent,
-  type BattleState,
 } from "../game/battle";
 import type { createBattleScene } from "./battleScene";
+import { requiredElement } from "./requiredElement";
 
 const EVENT_TOAST_DURATION_MS = 650;
 const ENEMY_TURN_PAUSE_MS = 360;
@@ -15,10 +16,16 @@ const ENEMY_TURN_PAUSE_MS = 360;
 type Point3 = [number, number, number];
 
 const TETRA_VERTICES: readonly Point3[] = [
-  [0, -0.59, 1], [0.8660254, -0.59, -0.5], [-0.8660254, -0.59, -0.5], [0, 1.13, 0],
+  [0, -0.59, 1],
+  [0.8660254, -0.59, -0.5],
+  [-0.8660254, -0.59, -0.5],
+  [0, 1.13, 0],
 ];
 const TETRA_FACES: readonly (readonly [number, number, number])[] = [
-  [0, 1, 2], [0, 3, 1], [1, 3, 2], [2, 3, 0],
+  [0, 1, 2],
+  [0, 3, 1],
+  [1, 3, 2],
+  [2, 3, 0],
 ];
 const TETRA_FACE_COLORS = ["var(--face-top)", "var(--face-dark)", "var(--face-mid)", "var(--face-light)"];
 
@@ -35,30 +42,41 @@ function createTetraMarkup(angle: number): string {
     return [rotatedX, y * cosTilt - rotatedZ * sinTilt, y * sinTilt + rotatedZ * cosTilt];
   });
   const projected: Point3[] = vertices.map(([x, y, z]) => [32 + x * 22, 29 + y * 24, z]);
-  const coordinates = (ids: readonly number[]) => ids
-    .map(index => `${projected[index]![0].toFixed(3)},${projected[index]![1].toFixed(3)}`)
-    .join(" ");
-  const orderedFaces = TETRA_FACES
-    .map((indices, index) => ({ indices, index, depth: indices.reduce((sum, vertex) => sum + vertices[vertex]![2], 0) / 3 }))
-    .sort((first, second) => first.depth - second.depth);
-  const darkFaces = orderedFaces.map(face =>
-    `<polygon points="${coordinates(face.indices)}" fill="var(--marker-body)" stroke="var(--marker-body)" stroke-width="7" stroke-linejoin="round"/>`,
-  ).join("");
-  const coloredFaces = orderedFaces.map(face => {
-    const engraving = face.index === 0 ? "" : (() => {
-      const tip = projected[3]!;
-      const rim = face.indices.filter(index => index !== 3).map(index => projected[index]!);
-      if (rim.length !== 2) return "";
-      return [0.35, 0.58].map(amount => {
-        const first = rim[0]!.map((value, index) => value * (1 - amount) + tip[index]! * amount);
-        const second = rim[1]!.map((value, index) => value * (1 - amount) + tip[index]! * amount);
-        const middleX = (first[0]! + second[0]!) / 2;
-        const middleY = (first[1]! + second[1]!) / 2;
-        return `<path d="M${first[0]},${first[1]} Q${middleX},${middleY + 2.2} ${second[0]},${second[1]}" fill="none" stroke="var(--text-secondary)" stroke-width=".85" opacity=".4"/>`;
-      }).join("");
-    })();
-    return `<polygon points="${coordinates(face.indices)}" fill="${TETRA_FACE_COLORS[face.index]}" stroke="var(--marker-edge)" stroke-width="1.8" stroke-linejoin="round"/>${engraving}`;
-  }).join("");
+  const coordinates = (ids: readonly number[]) =>
+    ids.map((index) => `${projected[index][0].toFixed(3)},${projected[index][1].toFixed(3)}`).join(" ");
+  const orderedFaces = TETRA_FACES.map((indices, index) => ({
+    indices,
+    index,
+    depth: indices.reduce((sum, vertex) => sum + vertices[vertex][2], 0) / 3,
+  })).sort((first, second) => first.depth - second.depth);
+  const darkFaces = orderedFaces
+    .map(
+      (face) =>
+        `<polygon points="${coordinates(face.indices)}" fill="var(--marker-body)" stroke="var(--marker-body)" stroke-width="7" stroke-linejoin="round"/>`,
+    )
+    .join("");
+  const coloredFaces = orderedFaces
+    .map((face) => {
+      const engraving =
+        face.index === 0
+          ? ""
+          : (() => {
+              const tip = projected[3];
+              const rim = face.indices.filter((index) => index !== 3).map((index) => projected[index]);
+              if (rim.length !== 2) return "";
+              return [0.35, 0.58]
+                .map((amount) => {
+                  const first = rim[0].map((value, index) => value * (1 - amount) + tip[index] * amount);
+                  const second = rim[1].map((value, index) => value * (1 - amount) + tip[index] * amount);
+                  const middleX = (first[0] + second[0]) / 2;
+                  const middleY = (first[1] + second[1]) / 2;
+                  return `<path d="M${first[0]},${first[1]} Q${middleX},${middleY + 2.2} ${second[0]},${second[1]}" fill="none" stroke="var(--text-secondary)" stroke-width=".85" opacity=".4"/>`;
+                })
+                .join("");
+            })();
+      return `<polygon points="${coordinates(face.indices)}" fill="${TETRA_FACE_COLORS[face.index]}" stroke="var(--marker-edge)" stroke-width="1.8" stroke-linejoin="round"/>${engraving}`;
+    })
+    .join("");
   return `${darkFaces}${coloredFaces}`;
 }
 
@@ -110,10 +128,7 @@ function makeBattleMarkup(): string {
   `;
 }
 
-export function mountBattleUi(
-  board: HTMLDivElement,
-  battle: ReturnType<typeof createBattleScene>,
-): () => void {
+export function mountBattleUi(board: HTMLDivElement, battle: ReturnType<typeof createBattleScene>): () => void {
   const stageElement = board.querySelector<HTMLElement>(".stage");
   const canvas = board.querySelector<HTMLCanvasElement>("canvas");
   if (stageElement === null || canvas === null) throw new Error("戦闘画面の表示領域が見つかりません");
@@ -133,25 +148,25 @@ export function mountBattleUi(
   const hud = document.createElement("div");
   hud.innerHTML = makeBattleMarkup();
   board.append(hud);
-  const battleUi = hud.querySelector<HTMLElement>("[data-battle-ui]")!;
-  const timeline = hud.querySelector<HTMLOListElement>("[data-timeline]")!;
-  const party = hud.querySelector<HTMLElement>("[data-party]")!;
-  const attackButton = hud.querySelector<HTMLButtonElement>("[data-attack]")!;
-  const resultPanel = hud.querySelector<HTMLElement>("[data-result]")!;
-  const resultTitle = hud.querySelector<HTMLHeadingElement>("[data-result-title]")!;
-  const resultDetail = hud.querySelector<HTMLParagraphElement>("[data-result-detail]")!;
-  const rematchButton = hud.querySelector<HTMLButtonElement>("[data-rematch]")!;
-  const eventToast = hud.querySelector<HTMLDivElement>("[data-event-toast]")!;
-  const targetIndicator = hud.querySelector<HTMLDivElement>("[data-target-indicator]")!;
-  const tetraMesh = hud.querySelector<SVGGElement>("[data-tetra-mesh]")!;
-  const screenReaderStatus = hud.querySelector<HTMLParagraphElement>("[data-screen-reader-status]")!;
+  const battleUi = requiredElement<HTMLElement>(hud, "[data-battle-ui]");
+  const timeline = requiredElement<HTMLOListElement>(hud, "[data-timeline]");
+  const party = requiredElement<HTMLElement>(hud, "[data-party]");
+  const attackButton = requiredElement<HTMLButtonElement>(hud, "[data-attack]");
+  const resultPanel = requiredElement<HTMLElement>(hud, "[data-result]");
+  const resultTitle = requiredElement<HTMLHeadingElement>(hud, "[data-result-title]");
+  const resultDetail = requiredElement<HTMLParagraphElement>(hud, "[data-result-detail]");
+  const rematchButton = requiredElement<HTMLButtonElement>(hud, "[data-rematch]");
+  const eventToast = requiredElement<HTMLDivElement>(hud, "[data-event-toast]");
+  const targetIndicator = requiredElement<HTMLDivElement>(hud, "[data-target-indicator]");
+  const tetraMesh = requiredElement<SVGGElement>(hud, "[data-tetra-mesh]");
+  const screenReaderStatus = requiredElement<HTMLParagraphElement>(hud, "[data-screen-reader-status]");
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
   const enemyHitAreas = new Map<string, HTMLButtonElement>();
   const enemyNameplates = new Map<string, HTMLDivElement>();
   screenReaderStatus.id = "battle-screen-reader-status";
   stage.append(targetIndicator, eventToast);
 
-  for (const combatant of initialBattleCombatants.filter(candidate => candidate.team === "enemy")) {
+  for (const combatant of initialBattleCombatants.filter((candidate) => candidate.team === "enemy")) {
     const nameplate = document.createElement("div");
     nameplate.className = "enemy-world-label";
     nameplate.dataset.enemyLabel = combatant.id;
@@ -189,13 +204,13 @@ export function mountBattleUi(
   }
 
   function getCombatant(id: string) {
-    return state.combatants.find(combatant => combatant.id === id);
+    return state.combatants.find((combatant) => combatant.id === id);
   }
 
   function getFrontmostLivingEnemyId(source: BattleState): string | null {
     const livingEnemyIds = source.combatants
-      .filter(combatant => combatant.team === "enemy" && combatant.isAlive)
-      .map(combatant => combatant.id);
+      .filter((combatant) => combatant.team === "enemy" && combatant.isAlive)
+      .map((combatant) => combatant.id);
     return battle.getFrontmostEnemyId(livingEnemyIds) ?? null;
   }
 
@@ -209,7 +224,13 @@ export function mountBattleUi(
     const id = selectedTargetId;
     const rect = id === null ? undefined : battle.getCombatantScreenRect(id);
     const nameplate = id === null ? undefined : enemyNameplates.get(id);
-    if (id === null || getCombatant(id)?.isAlive !== true || rect === undefined || nameplate === undefined || nameplate.hidden) {
+    if (
+      id === null ||
+      getCombatant(id)?.isAlive !== true ||
+      rect === undefined ||
+      nameplate === undefined ||
+      nameplate.hidden
+    ) {
       targetIndicator.hidden = true;
       return;
     }
@@ -282,9 +303,10 @@ export function mountBattleUi(
       const row = document.createElement("li");
       row.className = `queue-row${isCurrent ? " current" : ""}${combatant.team === "enemy" ? " enemy" : ""}`;
       if (isCurrent) row.setAttribute("aria-current", "step");
-      row.setAttribute("aria-label", isCurrent
-        ? combatantName(action.id)
-        : `${combatantName(action.id)}、次の行動まで ${ticks} tick`);
+      row.setAttribute(
+        "aria-label",
+        isCurrent ? combatantName(action.id) : `${combatantName(action.id)}、次の行動まで ${ticks} tick`,
+      );
       const icon = document.createElement("span");
       icon.className = "queue-portrait";
       const imagePath = presentation[action.id]?.portrait;
@@ -327,7 +349,7 @@ export function mountBattleUi(
     for (const combatant of state.combatants) {
       if (combatant.team === "enemy") continue;
       const name = combatantName(combatant.id);
-      const maximum = initialBattleCombatants.find(initial => initial.id === combatant.id)?.hp ?? combatant.hp;
+      const maximum = initialBattleCombatants.find((initial) => initial.id === combatant.id)?.hp ?? combatant.hp;
       const status = combatant.isAlive ? "" : "戦闘不能";
       const card = document.createElement("article");
       card.className = `ally-card${combatant.id === state.currentActorId ? " active" : ""}${combatant.isAlive ? "" : " defeated"}`;
@@ -367,19 +389,25 @@ export function mountBattleUi(
     for (const [id, nameplate] of enemyNameplates) {
       const enemy = getCombatant(id);
       if (enemy === undefined) continue;
-      const maximum = initialBattleCombatants.find(initial => initial.id === id)?.hp ?? enemy.hp;
+      const maximum = initialBattleCombatants.find((initial) => initial.id === id)?.hp ?? enemy.hp;
       const defeated = !enemy.isAlive;
-      const status = nameplate.querySelector<HTMLElement>("[data-enemy-state]")!;
-      const hp = nameplate.querySelector<HTMLElement>("[data-enemy-hp]")!;
-      const bar = nameplate.querySelector<HTMLElement>(".enemy-world-track > span")!;
+      const status = requiredElement<HTMLElement>(nameplate, "[data-enemy-state]");
+      const hp = requiredElement<HTMLElement>(nameplate, "[data-enemy-hp]");
+      const bar = requiredElement<HTMLElement>(nameplate, ".enemy-world-track > span");
       nameplate.classList.toggle("defeated", defeated);
       nameplate.classList.toggle("selected", selectedTargetId === id);
-      nameplate.setAttribute("aria-label", `${combatantName(id)}、HP ${enemy.hp}/${maximum}${defeated ? "、戦闘不能" : ""}`);
+      nameplate.setAttribute(
+        "aria-label",
+        `${combatantName(id)}、HP ${enemy.hp}/${maximum}${defeated ? "、戦闘不能" : ""}`,
+      );
       hp.textContent = `${enemy.hp} / ${maximum}`;
       status.textContent = defeated ? "戦闘不能" : "";
       bar.style.width = `${maximum === 0 ? 0 : (enemy.hp / maximum) * 100}%`;
       const button = enemyHitAreas.get(id);
-      button?.setAttribute("aria-label", `${combatantName(id)}、HP ${enemy.hp}/${maximum}${defeated ? "、戦闘不能" : ""}、攻撃対象に選択`);
+      button?.setAttribute(
+        "aria-label",
+        `${combatantName(id)}、HP ${enemy.hp}/${maximum}${defeated ? "、戦闘不能" : ""}、攻撃対象に選択`,
+      );
     }
   }
 
@@ -399,7 +427,7 @@ export function mountBattleUi(
       return;
     }
     if (markerLastTime > 0) {
-      markerAngle += Math.min(time - markerLastTime, 64) / 1000 * (Math.PI * 2 / 6);
+      markerAngle += (Math.min(time - markerLastTime, 64) / 1000) * ((Math.PI * 2) / 6);
     }
     markerLastTime = time;
     tetraMesh.innerHTML = createTetraMarkup(markerAngle);
@@ -442,14 +470,13 @@ export function mountBattleUi(
     resultPanel.hidden = !finished;
     rematchButton.hidden = !finished;
     resultTitle.textContent = state.outcome === "victory" ? "戦闘に勝利しました" : "戦闘に敗北しました";
-    resultDetail.textContent = state.outcome === "victory"
-      ? "敵をすべて倒しました。"
-      : "味方が全員戦闘不能になりました。";
+    resultDetail.textContent =
+      state.outcome === "victory" ? "敵をすべて倒しました。" : "味方が全員戦闘不能になりました。";
   }
 
   function animationWait(durationMs: number): Promise<void> {
     if (reducedMotion.matches) return Promise.resolve();
-    return new Promise(resolve => window.setTimeout(resolve, durationMs));
+    return new Promise((resolve) => window.setTimeout(resolve, durationMs));
   }
 
   function finishDefeatPresentation(combatantId: string) {
@@ -479,7 +506,7 @@ export function mountBattleUi(
     for (const event of confirmedEvents) {
       if (disposed) return;
       if (event.type === "attack") {
-        const actorTeam = initialBattleCombatants.find(combatant => combatant.id === event.actorId)?.team;
+        const actorTeam = initialBattleCombatants.find((combatant) => combatant.id === event.actorId)?.team;
         if (actorTeam === "enemy" && hasReplayedAllyAttack && !hasPausedBeforeEnemyTurn) {
           eventToast.hidden = true;
           await animationWait(ENEMY_TURN_PAUSE_MS);
@@ -495,12 +522,9 @@ export function mountBattleUi(
         screenReaderStatus.textContent = detail;
         await animationWait(EVENT_TOAST_DURATION_MS);
       } else if (event.type === "combatant-defeated") {
-        battle.playCombatantEffect(
-          event.combatantId,
-          "defeat",
-          !reducedMotion.matches,
-          () => { if (!disposed) finishDefeatPresentation(event.combatantId); },
-        );
+        battle.playCombatantEffect(event.combatantId, "defeat", !reducedMotion.matches, () => {
+          if (!disposed) finishDefeatPresentation(event.combatantId);
+        });
         const detail = `${combatantName(event.combatantId)}は戦闘不能になった`;
         message = detail;
         showEventToast(detail, "defeat");
@@ -516,9 +540,12 @@ export function mountBattleUi(
     if (disposed) return;
     eventToast.hidden = true;
     replayingEvents = false;
-    message = state.outcome === "ongoing"
-      ? targetPrompt()
-      : state.outcome === "victory" ? "勝利です。再戦できます。" : "敗北です。再戦できます。";
+    message =
+      state.outcome === "ongoing"
+        ? targetPrompt()
+        : state.outcome === "victory"
+          ? "勝利です。再戦できます。"
+          : "敗北です。再戦できます。";
     render();
   }
 
@@ -555,19 +582,27 @@ export function mountBattleUi(
     void replayEvents(result.events);
   }
 
-  attackButton.addEventListener("click", () => {
-    attackSelectedTarget();
-  }, { signal: eventSignal });
+  attackButton.addEventListener(
+    "click",
+    () => {
+      attackSelectedTarget();
+    },
+    { signal: eventSignal },
+  );
 
-  rematchButton.addEventListener("click", () => {
-    if (state.outcome === "ongoing" || replayingEvents) return;
-    state = createInitialBattle();
-    selectedTargetId = getFrontmostLivingEnemyId(state);
-    replayingEvents = false;
-    message = targetPrompt();
-    battle.resetCombatantPresentation();
-    render();
-  }, { signal: eventSignal });
+  rematchButton.addEventListener(
+    "click",
+    () => {
+      if (state.outcome === "ongoing" || replayingEvents) return;
+      state = createInitialBattle();
+      selectedTargetId = getFrontmostLivingEnemyId(state);
+      replayingEvents = false;
+      message = targetPrompt();
+      battle.resetCombatantPresentation();
+      render();
+    },
+    { signal: eventSignal },
+  );
 
   reducedMotion.addEventListener("change", render, { signal: eventSignal });
   render();

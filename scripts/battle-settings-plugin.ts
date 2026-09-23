@@ -1,7 +1,7 @@
-import { writeFile, rename } from "node:fs/promises";
+import { rename, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import type { Plugin } from "vite";
-import { parseBattleSettings } from "../src/web/battleSettings.ts";
+import { type BattleSettings, parseBattleSettings } from "../src/web/battleSettings.ts";
 
 // npm run dev専用。書き込み先はこの1ファイルに固定し、配布ビルドには含めない。
 export function battleSettingsPlugin(): Plugin {
@@ -27,8 +27,10 @@ export function battleSettingsPlugin(): Plugin {
         };
         if (request.method !== "POST") return reply(405, "POSTのみ使用できます。");
         // 他サイトからローカルの設定を書き換えられないよう同一オリジンだけ許可。
-        if (!["http://", "https://"].some(scheme => request.headers.origin === `${scheme}${request.headers.host}`) ||
-            request.headers["content-type"] !== "application/json") {
+        if (
+          !["http://", "https://"].some((scheme) => request.headers.origin === `${scheme}${request.headers.host}`) ||
+          request.headers["content-type"] !== "application/json"
+        ) {
           return reply(403, "設定画面から保存してください。");
         }
         if (saving) return reply(409, "保存中です。少し待ってから再度保存してください。");
@@ -39,7 +41,7 @@ export function battleSettingsPlugin(): Plugin {
             body += chunk.toString();
             if (Buffer.byteLength(body) > 4096) return reply(413, "設定が大きすぎます。");
           }
-          let settings;
+          let settings: BattleSettings;
           try {
             settings = parseBattleSettings(JSON.parse(body));
           } catch (error) {
@@ -47,7 +49,7 @@ export function battleSettingsPlugin(): Plugin {
           }
           // 書き込み途中のJSONをブラウザやビルドに読ませない。
           const temporaryPath = `${settingsPath}.tmp`;
-          await writeFile(temporaryPath, JSON.stringify(settings, null, 2) + "\n");
+          await writeFile(temporaryPath, `${JSON.stringify(settings, null, 2)}\n`);
           await rename(temporaryPath, settingsPath);
           reply(200, "標準として保存しました。通常表示と次回ビルドに反映されます。");
         } catch (error) {

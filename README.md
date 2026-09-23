@@ -40,12 +40,14 @@ npm ci
 | コマンド | 用途 |
 | --- | --- |
 | `npm run dev` | Viteの開発サーバーを起動する |
-| `npm run check` | TypeScriptの型チェックとNode環境のVitestを1回実行する |
+| `npm run lint` | Biomeで整形・import順・推奨ルールと追加ルールを確認する |
+| `npm run format` | Biomeで整形・import順・安全なlint修正を適用する |
+| `npm run check` | Biome、TypeScriptの型チェック、Node環境のVitestを1回実行する |
 | `npm run build` | 型チェック後に配布用ファイルを`dist/`へ生成する |
 | `npm run test:e2e` | Chromiumで戦闘の実入力・表示・描画を少数ケースで確認する。VRTは固定コンテナで実行する |
 | `npm run test:editor` | 必要時だけ構図設定のVRT・保存操作を確認する |
 
-`check`はwatchモードを使わず、結果を終了コードで返す。ゲーム本体のテストにはブラウザ、DOM、Babylon.js、WebGLを必要としない。
+`lint`と`check`はwatchモードを使わず、結果を終了コードで返す。Biomeの設定は[`biome.json`](biome.json)。`npm run format`はリポジトリ全体を書き換えるため、変更ファイルだけ整えるときは`npx biome check --write path/to/file`を使う。Codexは[`AGENTS.md`](AGENTS.md)の指示に従い、コード変更後に`npm run check`を実行する。ゲーム本体のテストにはブラウザ、DOM、Babylon.js、WebGLを必要としない。
 
 ブラウザテストは固定したPlaywrightコンテナで実行する。基準画像の生成とCIの比較は同じ環境を使う。
 

@@ -9,9 +9,7 @@ export interface GameState {
   flags: string[];
 }
 
-export function createInitialGameState(
-  options: InitialGameOptions,
-): GameState {
+export function createInitialGameState(options: InitialGameOptions): GameState {
   return {
     mode: options.startingMode,
     flags: [],

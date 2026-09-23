@@ -2,12 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import {
   advanceBattleToNextActor,
+  advanceBattleToNextAllyInput,
+  type BattleCombatantDefinition,
   createBattleState,
   getBattleUpcomingActions,
   performBasicAttack,
   performBasicAttackAndAdvanceToAllyInput,
-  advanceBattleToNextAllyInput,
-  type BattleCombatantDefinition,
 } from "./battle";
 
 const definitions: readonly BattleCombatantDefinition[] = [
@@ -69,20 +69,16 @@ describe("battle", () => {
 
   it("HPを0未満にせず、倒れた敵を行動順から除外する", () => {
     const state = advanceBattleToNextActor(
-      createBattleState(
-        [
-          ...definitions.map((definition) =>
-            definition.id === "slime" ? { ...definition, hp: 5 } : definition,
-          ),
-          {
-            id: "other-slime",
-            team: "enemy",
-            speed: 30,
-            hp: 20,
-            attackPower: 2,
-          },
-        ],
-      ),
+      createBattleState([
+        ...definitions.map((definition) => (definition.id === "slime" ? { ...definition, hp: 5 } : definition)),
+        {
+          id: "other-slime",
+          team: "enemy",
+          speed: 30,
+          hp: 20,
+          attackPower: 2,
+        },
+      ]),
     );
     const result = performBasicAttack(state, "hero", "slime");
 
@@ -102,9 +98,7 @@ describe("battle", () => {
       { type: "combatant-defeated", combatantId: "slime" },
     ]);
     expect(result.state.combatants).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ id: "slime", hp: 0, isAlive: false }),
-      ]),
+      expect.arrayContaining([expect.objectContaining({ id: "slime", hp: 0, isAlive: false })]),
     );
     expect(getBattleUpcomingActions(result.state, 12)).not.toContainEqual({
       id: "slime",
@@ -115,9 +109,7 @@ describe("battle", () => {
   it("最後の敵が倒れた時点で勝利し、勝敗イベントを一度だけ返す", () => {
     const state = advanceBattleToNextActor(
       createBattleState(
-        definitions.map((definition) =>
-          definition.id === "slime" ? { ...definition, hp: 8 } : definition,
-        ),
+        definitions.map((definition) => (definition.id === "slime" ? { ...definition, hp: 8 } : definition)),
       ),
     );
     const result = performBasicAttack(state, "hero", "slime");
@@ -207,18 +199,16 @@ describe("battle", () => {
 
   it("戦闘不能の対象への追加入力を拒否する", () => {
     const state = advanceBattleToNextActor(
-      createBattleState(
-        [
-          ...definitions,
-          {
-            id: "dead-slime",
-            team: "enemy",
-            speed: 30,
-            hp: 0,
-            attackPower: 3,
-          },
-        ],
-      ),
+      createBattleState([
+        ...definitions,
+        {
+          id: "dead-slime",
+          team: "enemy",
+          speed: 30,
+          hp: 0,
+          attackPower: 3,
+        },
+      ]),
     );
 
     expect(performBasicAttack(state, "hero", "dead-slime")).toEqual({
@@ -236,9 +226,7 @@ describe("battle", () => {
       currentActorId: "missing-actor",
     };
 
-    expect(() =>
-      performBasicAttack(brokenState, "hero", "slime"),
-    ).toThrow("現在の行動者が存在しません: missing-actor");
+    expect(() => performBasicAttack(brokenState, "hero", "slime")).toThrow("現在の行動者が存在しません: missing-actor");
   });
 
   it("HP0の初期戦闘者から勝敗を一意に決める", () => {
@@ -282,18 +270,8 @@ describe("battle", () => {
   });
 
   it("HPと攻撃力の不正な定義値を拒否する", () => {
-    expect(() =>
-      createBattleState([
-        { ...definitions[0], hp: -1 },
-        definitions[2],
-      ]),
-    ).toThrow("HP");
-    expect(() =>
-      createBattleState([
-        { ...definitions[0], attackPower: Number.NaN },
-        definitions[2],
-      ]),
-    ).toThrow("攻撃力");
+    expect(() => createBattleState([{ ...definitions[0], hp: -1 }, definitions[2]])).toThrow("HP");
+    expect(() => createBattleState([{ ...definitions[0], attackPower: Number.NaN }, definitions[2]])).toThrow("攻撃力");
   });
 
   it("開始時と味方の行動後に、連続する敵ターンを同期して解決する", () => {
@@ -323,7 +301,7 @@ describe("battle", () => {
     const enemyTurns = advanceBattleToNextAllyInput(companionAction.state);
     expect(enemyTurns.state.currentActorId).toBe("hero");
     expect(enemyTurns.events).toEqual([]);
-    expect(enemyTurns.state.combatants.find(combatant => combatant.id === "hero")?.hp).toBe(15);
+    expect(enemyTurns.state.combatants.find((combatant) => combatant.id === "hero")?.hp).toBe(15);
   });
 
   it("固定操作列で勝利し、勝敗確定後の追撃を行わず、再戦を初期化する", () => {
@@ -336,18 +314,18 @@ describe("battle", () => {
     let state = advanceBattleToNextAllyInput(createBattleState(victoryDefinitions)).state;
     const events: string[] = [];
     while (state.outcome === "ongoing") {
-      const actor = state.combatants.find(combatant => combatant.id === state.currentActorId);
+      const actor = state.combatants.find((combatant) => combatant.id === state.currentActorId);
       if (actor?.team !== "ally") throw new Error("味方入力待ちになっていません");
-      const target = state.combatants.find(combatant => combatant.team === "enemy" && combatant.isAlive);
+      const target = state.combatants.find((combatant) => combatant.team === "enemy" && combatant.isAlive);
       if (target === undefined) throw new Error("攻撃対象が存在しません");
       const result = performBasicAttackAndAdvanceToAllyInput(state, actor.id, target.id);
       expect(result.accepted).toBe(true);
       if (!result.accepted) return;
-      events.push(...result.events.map(event => event.type));
+      events.push(...result.events.map((event) => event.type));
       state = result.state;
     }
     expect(state.outcome).toBe("victory");
-    expect(events.filter(type => type === "battle-ended")).toHaveLength(1);
+    expect(events.filter((type) => type === "battle-ended")).toHaveLength(1);
     expect(advanceBattleToNextAllyInput(state)).toEqual({ state, events: [] });
 
     const rematch = createBattleState(victoryDefinitions);
@@ -367,7 +345,7 @@ describe("battle", () => {
     expect(result.accepted).toBe(true);
     if (!result.accepted) return;
     expect(result.state.outcome).toBe("defeat");
-    expect(result.events.filter(event => event.type === "attack" && event.actorId !== "hero")).toHaveLength(1);
+    expect(result.events.filter((event) => event.type === "attack" && event.actorId !== "hero")).toHaveLength(1);
     expect(result.events.at(-1)).toEqual({ type: "battle-ended", outcome: "defeat" });
   });
 });
