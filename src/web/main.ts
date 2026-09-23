@@ -1,4 +1,5 @@
 import { createBattleScene } from "./battleScene";
+import { mountBattleUi } from "./battleUi";
 import savedSettings from "./battle-settings.json";
 import { parseBattleSettings } from "./battleSettings";
 import "./style.css";
@@ -9,10 +10,12 @@ const editing = import.meta.env.DEV && new URLSearchParams(location.search).get(
 document.body.classList.toggle("editing", editing);
 app.innerHTML = `
   <main class="battle-screen">
-    <section class="stage" aria-label="荒野の戦闘画面">
-      <canvas aria-label="3Dの地面に立つロッシ、ギルベルタ、青いスライム2体"></canvas>
-      <div class="loading" role="status" data-status>戦闘画面を読み込んでいます…</div>
-    </section>
+    <div class="game-board" data-board>
+      <section class="stage" aria-label="荒野の戦闘画面">
+        <canvas aria-label="3Dの地面に立つロッシ、ギルベルタ、青いスライム2体"></canvas>
+        <div class="loading" role="status" data-status>戦闘画面を読み込んでいます…</div>
+      </section>
+    </div>
   </main>
 `;
 if (import.meta.env.DEV && !editing) {
@@ -24,15 +27,18 @@ if (import.meta.env.DEV && !editing) {
 }
 const canvas = app.querySelector("canvas")!;
 const status = app.querySelector<HTMLDivElement>("[data-status]")!;
+const board = app.querySelector<HTMLDivElement>("[data-board]")!;
 const events = new AbortController();
 let battle: ReturnType<typeof createBattleScene> | undefined;
 let disposed = false;
 let disposeEditor: (() => void) | undefined;
+let disposeBattleUi: (() => void) | undefined;
 
 function dispose() {
   disposed = true;
   events.abort();
   disposeEditor?.();
+  disposeBattleUi?.();
   battle?.dispose();
 }
 window.addEventListener("pagehide", event => {
@@ -45,13 +51,15 @@ try {
   battle = createBattleScene(canvas, settings);
   await battle.ready;
   if (!disposed) {
+    canvas.dataset.ready = "true";
     status.textContent = "表示準備完了";
     status.classList.add("sr-only");
-    canvas.dataset.ready = "true";
     if (editing) {
       // Viteの配布ビルドでは、この分岐と設定UIのコードを含めない。
       const { mountBattleEditor } = await import("./battleEditor");
       if (!disposed) disposeEditor = mountBattleEditor(app, battle, settings);
+    } else {
+      disposeBattleUi = mountBattleUi(board, battle);
     }
   }
 } catch (error) {

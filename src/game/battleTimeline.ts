@@ -24,10 +24,14 @@ export interface UpcomingAction {
 }
 
 const INITIAL_LOGICAL_TIME = 0;
-const MILLISECONDS_PER_ACTION = 1000;
+const TICKS_PER_ACTION = 10_000;
 
 function actionInterval(combatant: Pick<BattleCombatant, "speed">): number {
-  return MILLISECONDS_PER_ACTION / combatant.speed;
+  const interval = Math.max(1, Math.round(TICKS_PER_ACTION / combatant.speed));
+  if (!Number.isSafeInteger(interval)) {
+    throw new Error("速度から計算した行動間隔が安全な整数tickの範囲外です");
+  }
+  return interval;
 }
 
 function assertValidDefinition(
@@ -136,6 +140,9 @@ export function completeCurrentAction(
   }
 
   const nextActionTime = state.logicalTime + actionInterval(currentActor);
+  if (!Number.isSafeInteger(nextActionTime)) {
+    throw new Error("次の行動時刻が安全な整数tickの範囲外です");
+  }
   return {
     ...state,
     currentActorId: null,

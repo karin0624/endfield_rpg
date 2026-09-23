@@ -64,7 +64,7 @@ describe("battle", () => {
     ]);
     expect(result.state.currentActorId).toBe("hero");
     expect(result.state.outcome).toBe("ongoing");
-    expect(result.state.combatants[0].nextActionTime).toBe(20);
+    expect(result.state.combatants[0].nextActionTime).toBe(200);
   });
 
   it("HPを0未満にせず、倒れた敵を行動順から除外する", () => {

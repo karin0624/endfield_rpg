@@ -1,7 +1,7 @@
 import { Engine } from "@babylonjs/core/Engines/engine";
 import { Scene } from "@babylonjs/core/scene";
 import { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
-import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { Matrix, Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Color3, Color4 } from "@babylonjs/core/Maths/math.color";
 import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
 import { DirectionalLight } from "@babylonjs/core/Lights/directionalLight";
@@ -34,8 +34,29 @@ interface SceneActor {
   readonly layout: BattleActorLayout;
   readonly order: number;
   readonly anchor: TransformNode;
+  readonly plane: Mesh;
   readonly shadow: Mesh;
+  readonly material: StandardMaterial;
+  readonly basePlaneX: number;
+  readonly basePlaneY: number;
+  alive: boolean;
+  effect?: {
+    readonly type: "attack" | "hit" | "defeat";
+    readonly startedAt: number;
+    readonly onComplete?: () => void;
+  };
+  screenRect?: ScreenRect;
   groundY: number | undefined;
+}
+
+export interface ScreenRect {
+  readonly left: number;
+  readonly top: number;
+  readonly width: number;
+  readonly height: number;
+  readonly markerX: number;
+  readonly markerY: number;
+  readonly spriteTop: number;
 }
 
 export function createBattleScene(canvas: HTMLCanvasElement, initialSettings: BattleSettings) {
@@ -62,6 +83,50 @@ export function createBattleScene(canvas: HTMLCanvasElement, initialSettings: Ba
   let previewCounts: PreviewCounts = { ...actorCounts };
   let placementWarnings: string[] = [];
   let groundedPlacement = "";
+
+  const findActor = (id: string) => actors.find(actor => actor.layout.id === id);
+
+  const updateCombatantScreenPositions = () => {
+    if (actors.length === 0) return;
+    const viewport = camera.viewport.toGlobal(engine.getRenderWidth(), engine.getRenderHeight());
+    const transform = scene.getTransformMatrix();
+    const scaleX = canvas.clientWidth / engine.getRenderWidth();
+    const scaleY = canvas.clientHeight / engine.getRenderHeight();
+    for (const actor of actors) {
+      if (actor.layout.team !== "enemy") continue;
+      if (!actor.plane.isEnabled()) {
+        actor.screenRect = undefined;
+        continue;
+      }
+      actor.plane.computeWorldMatrix(true);
+      const corners = actor.plane.getBoundingInfo().boundingBox.vectorsWorld;
+      const projected = corners.map(point => Vector3.Project(point, Matrix.Identity(), transform, viewport));
+      const xs = projected.map(point => point.x * scaleX);
+      const ys = projected.map(point => point.y * scaleY);
+      const padding = 7;
+      const spriteLeft = Math.max(0, Math.min(...xs));
+      const spriteTop = Math.max(0, Math.min(...ys));
+      const spriteRight = Math.min(canvas.clientWidth, Math.max(...xs));
+      const spriteBottom = Math.min(canvas.clientHeight, Math.max(...ys));
+      const left = Math.max(0, spriteLeft - padding);
+      const top = Math.max(0, spriteTop - padding);
+      const right = Math.min(canvas.clientWidth, spriteRight + padding);
+      const bottom = Math.min(canvas.clientHeight, spriteBottom + padding);
+      if (![left, top, right, bottom, spriteTop].every(Number.isFinite) || right <= left || bottom <= top) {
+        actor.screenRect = undefined;
+      } else {
+        actor.screenRect = {
+          left,
+          top,
+          width: right - left,
+          height: bottom - top,
+          markerX: (spriteLeft + spriteRight) / 2,
+          markerY: spriteTop,
+          spriteTop,
+        };
+      }
+    }
+  };
 
   const placementKey = (value: BattleSettings) => [
     value.groundScale,
@@ -108,7 +173,7 @@ export function createBattleScene(canvas: HTMLCanvasElement, initialSettings: Ba
     for (const actor of actors) {
       const visible = actor.order < previewCounts[actor.layout.team];
       actor.anchor.setEnabled(visible);
-      actor.shadow.setEnabled(visible);
+      actor.shadow.setEnabled(visible && actor.alive);
     }
   };
 
@@ -167,7 +232,9 @@ export function createBattleScene(canvas: HTMLCanvasElement, initialSettings: Ba
       }
       actor.shadow.position.x = worldX;
       actor.shadow.position.z = worldZ;
-      if (actor.groundY !== undefined) actor.shadow.position.y = actor.groundY + SHADOW_OFFSET;
+      if (actor.groundY !== undefined) {
+        actor.shadow.position.y = actor.groundY + SHADOW_OFFSET;
+      }
     }
     updateActorVisibility();
   };
@@ -256,7 +323,8 @@ export function createBattleScene(canvas: HTMLCanvasElement, initialSettings: Ba
         portraits[index].uScale = -1;
         portraits[index].uOffset = 1;
       }
-      plane.material = imageMaterial(`${actor.id}-portrait`, portraits[index], true);
+      const portraitMaterial = imageMaterial(`${actor.id}-portrait`, portraits[index], true);
+      plane.material = portraitMaterial;
 
       const shadow = CreateDisc(`${actor.id}-shadow`, { radius: 1, tessellation: 48 }, scene);
       shadow.rotation.x = Math.PI / 2;
@@ -267,18 +335,74 @@ export function createBattleScene(canvas: HTMLCanvasElement, initialSettings: Ba
       shadowMaterial.alpha = 0.25;
       shadowMaterial.backFaceCulling = false;
       shadow.material = shadowMaterial;
-      actors.push({ layout: actor, order, anchor, shadow, groundY: undefined });
+
+      actors.push({
+        layout: actor,
+        order,
+        anchor,
+        plane,
+        shadow,
+        material: portraitMaterial,
+        basePlaneX: plane.position.x,
+        basePlaneY: plane.position.y,
+        alive: true,
+        groundY: undefined,
+      });
     });
     applySettings(settings);
     await scene.whenReadyAsync();
     if (disposed) return;
     engine.resize();
     scene.render();
+    updateCombatantScreenPositions();
     // この画面は静止画。重い地面を操作のないフレームでも描き続けない。
     engine.runRenderLoop(() => {
-      if (!needsRender) return;
+      const now = performance.now();
+      let hasActiveEffects = false;
+      const completedCallbacks: (() => void)[] = [];
+      for (const actor of actors) {
+        const effect = actor.effect;
+        if (effect === undefined) continue;
+        const progress = Math.min(1, (now - effect.startedAt) / 240);
+        const pulse = Math.sin(Math.PI * progress);
+        if (effect.type === "attack") {
+          const emphasis = pulse * 0.07;
+          actor.plane.scaling.set(1 + emphasis, 1 + emphasis, 1);
+          actor.material.emissiveColor = Color3.Lerp(
+            Color3.White(), new Color3(1, 0.72, 0.28), pulse * 0.5,
+          );
+        } else if (effect.type === "hit") {
+          actor.plane.position.x = actor.basePlaneX + Math.sin(progress * Math.PI * 12) * 0.11 * (1 - progress);
+          actor.material.emissiveColor = Color3.Lerp(
+            Color3.White(), new Color3(1, 0.42, 0.32), pulse * 0.8,
+          );
+        } else {
+          actor.plane.scaling.set(1, 1 - progress * 0.44, 1);
+          actor.plane.visibility = 1 - progress * 0.48;
+        }
+        if (progress >= 1) {
+          actor.effect = undefined;
+          actor.plane.position.x = actor.basePlaneX;
+          actor.plane.position.y = actor.basePlaneY;
+          actor.plane.scaling.set(1, actor.alive ? 1 : 0.56, 1);
+          actor.plane.visibility = actor.alive ? 1 : 0.52;
+          actor.material.emissiveColor = Color3.White();
+          if (effect.type === "defeat") {
+            actor.plane.setEnabled(false);
+            actor.shadow.setEnabled(false);
+            actor.screenRect = undefined;
+          }
+          if (effect.onComplete !== undefined) completedCallbacks.push(effect.onComplete);
+          needsRender = true;
+        } else {
+          hasActiveEffects = true;
+        }
+      }
+      if (!needsRender && !hasActiveEffects) return;
       scene.render();
+      updateCombatantScreenPositions();
       needsRender = false;
+      for (const callback of completedCallbacks) callback();
     });
   })();
 
@@ -303,6 +427,87 @@ export function createBattleScene(canvas: HTMLCanvasElement, initialSettings: Ba
       previewCounts = { ...next };
       updateActorPositions(true);
       needsRender = true;
+    },
+    /** キャッシュした敵の画面範囲。全員分を同じ描画フレームで更新する。 */
+    getCombatantScreenRect(id: string): ScreenRect | undefined {
+      const actor = findActor(id);
+      if (actor === undefined || actor.layout.team !== "enemy") return undefined;
+      return actor.screenRect;
+    },
+    /** カメラの前方へ最も近い敵を、現在の3D配置から選ぶ。 */
+    getFrontmostEnemyId(candidateIds: readonly string[]): string | undefined {
+      if (candidateIds.length === 0) return undefined;
+      camera.computeWorldMatrix();
+      const cameraRay = camera.getForwardRay();
+      let frontmostId: string | undefined;
+      let frontmostDepth = Number.POSITIVE_INFINITY;
+      for (const id of candidateIds) {
+        const actor = findActor(id);
+        if (actor === undefined || actor.layout.team !== "enemy") continue;
+        actor.anchor.computeWorldMatrix(true);
+        const depth = Vector3.Dot(
+          actor.anchor.getAbsolutePosition().subtract(cameraRay.origin),
+          cameraRay.direction,
+        );
+        if (depth >= 0 && depth < frontmostDepth) {
+          frontmostId = id;
+          frontmostDepth = depth;
+        }
+      }
+      return frontmostId;
+    },
+    /** サイズ変更時に一度だけ描画して、全敵の投影位置を更新する。 */
+    refreshCombatantScreenPositions() {
+      if (disposed || actors.length === 0) return;
+      engine.resize();
+      scene.render();
+      updateCombatantScreenPositions();
+      needsRender = false;
+    },
+    playCombatantEffect(id: string, type: "attack" | "hit" | "defeat", animate = true, onComplete?: () => void) {
+      const actor = findActor(id);
+      if (actor === undefined) return;
+      if (type === "defeat") {
+        actor.alive = false;
+        actor.plane.isPickable = false;
+      }
+      if (!animate) {
+        actor.effect = undefined;
+        actor.plane.position.x = actor.basePlaneX;
+        actor.plane.position.y = actor.basePlaneY;
+        actor.plane.scaling.set(1, actor.alive ? 1 : 0.56, 1);
+        actor.plane.visibility = actor.alive ? 1 : 0.52;
+        actor.material.emissiveColor = Color3.White();
+        if (type === "defeat") {
+          actor.plane.setEnabled(false);
+          actor.shadow.setEnabled(false);
+          actor.screenRect = undefined;
+        }
+        needsRender = true;
+        onComplete?.();
+        return;
+      }
+      actor.effect = { type, startedAt: performance.now(), onComplete };
+      needsRender = true;
+    },
+    resetCombatantPresentation() {
+      for (const actor of actors) {
+        actor.alive = true;
+        actor.effect = undefined;
+        actor.plane.setEnabled(true);
+        actor.shadow.setEnabled(true);
+        actor.plane.isPickable = false;
+        actor.plane.position.x = actor.basePlaneX;
+        actor.plane.position.y = actor.basePlaneY;
+        actor.plane.scaling.set(1, 1, 1);
+        actor.plane.visibility = 1;
+        actor.material.emissiveColor = Color3.White();
+      }
+      updateActorVisibility();
+      engine.resize();
+      scene.render();
+      updateCombatantScreenPositions();
+      needsRender = false;
     },
     getPlacementWarnings() {
       return [...placementWarnings];

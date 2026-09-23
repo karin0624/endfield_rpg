@@ -13,6 +13,7 @@
 | [specs/milestones.md](specs/milestones.md) | 段階ごとの完了条件とタスクの依存順 |
 | [specs/battle.md](specs/battle.md) | M1タイムライン戦闘、通常攻撃、勝敗の状態・操作・受入例 |
 | [specs/visuals.md](specs/visuals.md) | 戦闘画面の配置・カメラ範囲・確認画面 |
+| [specs/design-guidelines.md](specs/design-guidelines.md) | UIの配色、部品、操作状態、マーカー、生成画像の扱い |
 | [素材メモ](art-src/README.md) | 使用素材の出典・透過処理・Git LFS運用 |
 | [全体ロードマップ（Issue #1）](https://github.com/karin0624/endfield_rpg/issues/1) | GitHub上の進捗の入口 |
 
@@ -60,11 +61,11 @@ GLBはGit LFS、現在の数MiBのPNG・文書・コードは通常のGitで管�
 
 ## 現在の状態
 
-[Issue #3](https://github.com/karin0624/endfield_rpg/issues/3)のNodeで検証できるゲーム本体に加え、[Issue #4](https://github.com/karin0624/endfield_rpg/issues/4)・[#5](https://github.com/karin0624/endfield_rpg/issues/5)・[#8](https://github.com/karin0624/endfield_rpg/issues/8)の戦闘画面を実装。通常表示は保存済みの構図で地面GLB・2D遠景・味方2人・仮敵2体を表示する。開発用の構図設定は別画面に分けている。
+[Issue #3](https://github.com/karin0624/endfield_rpg/issues/3)のNodeで検証できるゲーム本体に加え、[Issue #4](https://github.com/karin0624/endfield_rpg/issues/4)・[#5](https://github.com/karin0624/endfield_rpg/issues/5)・[#8](https://github.com/karin0624/endfield_rpg/issues/8)・[#9](https://github.com/karin0624/endfield_rpg/issues/9)の固定2対2戦闘画面を実装。通常表示では敵をクリックして攻撃対象を切り替え、選択中の敵へ通常攻撃できる。初期対象と対象撃破後の選択はカメラに近い敵から決める。HP・行動順、勝敗・再戦も操作できる。画面は同期的に確定したゲーム本体の結果を表示し、攻撃イベントを再生する。攻撃メッセージは少し長く表示し、敵の反撃前に間を置く。OSの「視差効果を減らす」設定では対象マーカーの回転を止め、イベント再生の待ち時間を省く。開発用の構図設定は別画面に分けている。
 
 現在の採用設定は`ground1.glb`と`landscape1.png`の組み合わせ専用の暫定標準。別の地面モデル・遠景画像でフィールドを追加する際は、その組み合わせに固有の設定を用意し、既存フィールドの設定も保持する。複数フィールドの設定管理は追加時に実装する。
 
-現在の画面はゲーム本体の街から始まる初期状態とは独立している。戦闘ルール・会話・探索・画面遷移は後続Issueで接続する。
+現在の画面はゲーム本体の街から始まる初期状態とは独立しており、固定編成の戦闘から始まる。街・会話・探索・画面遷移は後続Issueで接続する。
 
 ## 戦闘画面の構図を決める
 
