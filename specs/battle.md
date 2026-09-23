@@ -18,8 +18,10 @@
   - `isAlive`: 行動可能な生存者かどうか。
   - `startOrder`: 戦闘開始時の配列順。時刻が同じときの優先順位に使う。
 
-戦闘者の行動間隔は`1000 / speed`である。開始時の`nextActionTime`は行動間隔に
-設定する。速度を戦闘途中で変更する操作は提供しない。
+戦闘者の行動間隔は整数tickの`max(1, round(10000 / speed))`である。開始時の
+`nextActionTime`はこの行動間隔に設定する。速度から安全な整数tickを計算できない定義は拒否する。
+速度を戦闘途中で変更する操作は提供しない。画面の行動値も論理時刻からの残りtickを整数で示し、
+実時間の秒数として扱わない。
 
 `src/game/battle.ts` の `BattleState` はタイムラインへ次の試作用データを加える。
 
@@ -43,7 +45,7 @@ Issue #8の初期編成は[`src/content/initialBattle.ts`](../src/content/initia
   `currentActorId`を設定する。同時刻は`startOrder`の小さい者を選ぶ。
   行動者が入力待ちの間に再度呼んでも状態は進めない。
 - `completeCurrentAction(state)`: 現在の行動者の行動を確定する。
-  `nextActionTime`を`logicalTime + 1000 / speed`に設定し、
+  `nextActionTime`を`logicalTime + max(1, round(10000 / speed))`に設定し、
   `currentActorId`を`null`にする。行動者を選び直す処理はこの操作に含めない。
 - `setCombatantAlive(state, id, isAlive)`: 生存状態を更新する。戦闘不能者は次の
   行動者の候補から除外する。現在の行動者が戦闘不能になった場合は入力待ちを解除する。
@@ -80,12 +82,12 @@ Issue #8の初期編成は[`src/content/initialBattle.ts`](../src/content/initia
 
 ## 受入例
 
-速度100のAを先に、速度50のBを後に開始すると、間隔はそれぞれ10と20になる。
+速度100のAを先に、速度50のBを後に開始すると、間隔はそれぞれ100と200 tickになる。
 初期状態から3回分を予測すると次の通りである。
 
 ```ts
 getUpcomingActions(state, 3)
-// [{ id: "A", time: 10 }, { id: "A", time: 20 }, { id: "B", time: 20 }]
+// [{ id: "A", time: 100 }, { id: "A", time: 200 }, { id: "B", time: 200 }]
 ```
 
 同時刻は開始順で決定し、配列の順を変えずに同じ初期状態と操作列を実行すれば同じ

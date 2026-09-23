@@ -19,14 +19,14 @@ describe("battle timeline", () => {
       {
         id: "A",
         speed: 100,
-        nextActionTime: 10,
+        nextActionTime: 100,
         isAlive: true,
         startOrder: 0,
       },
       {
         id: "B",
         speed: 50,
-        nextActionTime: 20,
+        nextActionTime: 200,
         isAlive: true,
         startOrder: 1,
       },
@@ -34,7 +34,7 @@ describe("battle timeline", () => {
 
     state = advanceToNextActor(state);
     expect({ time: state.logicalTime, id: state.currentActorId }).toEqual({
-      time: 10,
+      time: 100,
       id: "A",
     });
     expect(advanceToNextActor(state)).toBe(state);
@@ -42,14 +42,14 @@ describe("battle timeline", () => {
     state = completeCurrentAction(state);
     state = advanceToNextActor(state);
     expect({ time: state.logicalTime, id: state.currentActorId }).toEqual({
-      time: 20,
+      time: 200,
       id: "A",
     });
 
     state = completeCurrentAction(state);
     state = advanceToNextActor(state);
     expect({ time: state.logicalTime, id: state.currentActorId }).toEqual({
-      time: 20,
+      time: 200,
       id: "B",
     });
   });
@@ -66,7 +66,7 @@ describe("battle timeline", () => {
     state = completeCurrentAction(state);
     state = advanceToNextActor(state);
     expect({ time: state.logicalTime, id: state.currentActorId }).toEqual({
-      time: 20,
+      time: 200,
       id: "second",
     });
   });
@@ -79,7 +79,7 @@ describe("battle timeline", () => {
 
     state = advanceToNextActor(state);
     expect({ time: state.logicalTime, id: state.currentActorId }).toEqual({
-      time: 20,
+      time: 200,
       id: "alive",
     });
 
@@ -105,14 +105,14 @@ describe("battle timeline", () => {
     const before = structuredClone(state);
 
     expect(getUpcomingActions(state, 3)).toEqual([
-      { id: "A", time: 10 },
-      { id: "A", time: 20 },
-      { id: "B", time: 20 },
+      { id: "A", time: 100 },
+      { id: "A", time: 200 },
+      { id: "B", time: 200 },
     ]);
     expect(getUpcomingActions(state, 3)).toEqual([
-      { id: "A", time: 10 },
-      { id: "A", time: 20 },
-      { id: "B", time: 20 },
+      { id: "A", time: 100 },
+      { id: "A", time: 200 },
+      { id: "B", time: 200 },
     ]);
     expect(state).toEqual(before);
   });
@@ -125,12 +125,12 @@ describe("battle timeline", () => {
     state = advanceToNextActor(state);
 
     expect(getUpcomingActions(state, 3)).toEqual([
-      { id: "A", time: 10 },
-      { id: "A", time: 20 },
-      { id: "B", time: 20 },
+      { id: "A", time: 100 },
+      { id: "A", time: 200 },
+      { id: "B", time: 200 },
     ]);
     expect(state.currentActorId).toBe("A");
-    expect(state.logicalTime).toBe(10);
+    expect(state.logicalTime).toBe(100);
   });
 
   it("同じ初期状態と操作列から同じ順序を再現する", () => {
@@ -154,8 +154,19 @@ describe("battle timeline", () => {
     expect(play()).toEqual(play());
   });
 
+  it("行動間隔を整数tickへ丸め、最低1tickにする", () => {
+    const state = createBattleTimeline([
+      { id: "rounded", speed: 90 },
+      { id: "slow-round", speed: 70 },
+      { id: "minimum", speed: 20_000 },
+    ]);
+
+    expect(state.combatants.map(combatant => combatant.nextActionTime)).toEqual([111, 143, 1]);
+  });
+
   it("不正な速度・IDと負の予測数を拒否する", () => {
     expect(() => createBattleTimeline([{ id: "A", speed: 0 }])).toThrow();
+    expect(() => createBattleTimeline([{ id: "too-slow", speed: 1e-100 }])).toThrow();
     expect(() =>
       createBattleTimeline([
         { id: "A", speed: 100 },

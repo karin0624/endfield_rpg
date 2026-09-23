@@ -9,7 +9,9 @@
 | `public/assets/ground/ground1.glb` | `assets/ground/ground1.glb`。ユーザーによればChatGPT画像からTripoで生成。GLBのgeneratorも`Tripo` | 地面。内容は変更せず、描画時に一様26倍 | 生成時のプラン・契約・元画像の権利条件は未確認。商用利用可とは断定しない |
 | `public/assets/backgrounds/landscape1.png` | `assets/landscape/landscape1.png`。ユーザー提供のGPT Images背景 | 2138×736、RGB。画像の変更なし | 生成時の契約・権利条件は未確認 |
 | `public/assets/characters/rossi/front-left.png` | `assets/characters/rossi/ロッシ_左斜め前.png` | 1024×1536。白背景を透過化して戦闘に使用 | ユーザー提供。生成元・キャラクターの権利・利用条件は未確認 |
+| `public/assets/characters/rossi/face.png` | `art-src/characters/rossi/ロッシ_正面.png`（ユーザー提供） | 原画の`x=250, y=0, 幅524, 高さ655`を切り出し、256×320へ縮小。行動順と味方カードの顔アイコン | ユーザー提供。生成元・キャラクターの権利・利用条件は未確認 |
 | `public/assets/characters/gilberta/front-left.png` | `art-src/characters/gilberta/ギルベルタ_左斜め前.png`（ユーザー提供） | 1024×1536。加工せず味方2人目の立ち絵として使用 | ユーザー提供。生成元・キャラクターの権利・利用条件は未確認 |
+| `public/assets/characters/gilberta/face.png` | `art-src/characters/gilberta/ギルベルタ_正面.png`（ユーザー提供） | 原画の`x=328, y=0, 幅368, 高さ460`を切り出し、256×320へ縮小。腕を含めず、行動順と味方カードの顔アイコンに使用 | ユーザー提供。生成元・キャラクターの権利・利用条件は未確認 |
 | `art-src/characters/rossi/ロッシ_{正面,左側面,右側面,背面}_2x.png` | 同名の`assets/characters/rossi/`内PNG | 各2048×3072。白背景を透過化、未使用方向として保管 | 斜め左前と同様に未確認 |
 | `public/assets/enemies/slime-blue.png` | [Kenney Platformer Art Deluxe](https://kenney.nl/assets/platformer-art-deluxe)、ZIP内`Extra animations and enemies/Enemy sprites/slimeBlue.png` | 49×34、RGBA。画像の変更なし。表示時に左右反転 | 配布ページと同梱license.txtでCC0を確認。ライセンス文を`public/assets/enemies/kenney-license.txt`に保存 |
 
