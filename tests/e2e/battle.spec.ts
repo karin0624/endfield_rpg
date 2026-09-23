@@ -35,17 +35,22 @@ test("敵を選んで攻撃すると対象のHPが更新され、演出中は操
   await expect(slimeA).toHaveAttribute("aria-pressed", "true");
   await page.evaluate(() => {
     const toast = document.querySelector<HTMLElement>("[data-event-toast]");
-    if (toast === null) throw new Error("攻撃通知が見つかりません");
-    const record = () => {
+    const button = document.querySelector<HTMLButtonElement>("[data-attack]");
+    if (toast === null || button === null) throw new Error("戦闘演出の要素が見つかりません");
+    const recordToast = () => {
       if (!toast.hidden && toast.textContent?.includes("ロッシの通常攻撃！ スライム Aに8ダメージ")) {
         document.body.dataset.attackToastShown = "true";
       }
     };
-    new MutationObserver(record).observe(toast, { attributes: true, childList: true });
-    record();
+    const recordDisabled = () => {
+      if (button.disabled) document.body.dataset.attackDisabledSeen = "true";
+    };
+    new MutationObserver(recordToast).observe(toast, { attributes: true, childList: true });
+    new MutationObserver(recordDisabled).observe(button, { attributes: true, attributeFilter: ["disabled"] });
+    recordToast();
   });
   await attack.click();
-  await expect(attack).toBeDisabled();
+  await expect.poll(() => page.evaluate(() => document.body.dataset.attackDisabledSeen)).toBe("true");
   await expect.poll(() => page.evaluate(() => document.body.dataset.attackToastShown)).toBe("true");
   await expect(slimeA).toHaveAccessibleName(/スライム A、HP 6\/14/);
   await expect(attack).toBeEnabled();
