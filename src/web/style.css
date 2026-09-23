@@ -316,8 +316,534 @@ input[aria-invalid="true"] {
   }
 }
 
+.adventure-shell {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  background: var(--surface-pressed);
+}
+.adventure-screen {
+  position: relative;
+  width: min(100%, 177.7778dvh);
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  color: var(--text-primary);
+  isolation: isolate;
+  background: #171d19;
+  font-family: "Noto Sans JP", "Yu Gothic", system-ui, sans-serif;
+}
+.town-view[hidden],
+.conversation-view[hidden],
+.conversation-choices[hidden],
+.dialogue-next[hidden] {
+  display: none;
+}
+.adventure-background {
+  position: absolute;
+  z-index: -2;
+  inset: 0;
+  overflow: hidden;
+  background: linear-gradient(135deg, #52675b, #202923 70%);
+}
+.adventure-background img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  filter: saturate(0.78) brightness(0.72);
+}
+.adventure-background::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background: linear-gradient(90deg, #10181388, transparent 58%), linear-gradient(0deg, #101713b8, transparent 67%);
+}
+.adventure-screen[data-background-id="guild-hall"] .adventure-background::after {
+  background: linear-gradient(135deg, #4d3a2580, #1720195c 65%), linear-gradient(0deg, #101713ce, transparent 70%);
+}
+.adventure-screen[data-background-id="town-market"] .adventure-background::after {
+  background: linear-gradient(115deg, #5642255e, #17342c3e 70%), linear-gradient(0deg, #101713c7, transparent 70%);
+}
+.town-view,
+.conversation-view {
+  position: absolute;
+  inset: 0;
+}
+.town-heading {
+  position: absolute;
+  top: 8%;
+  left: 7%;
+  width: min(42%, 540px);
+  text-shadow: 0 2px 14px #1118;
+}
+.adventure-eyebrow {
+  margin: 0 0 11px;
+  color: var(--text-secondary);
+  font: var(--font-size-caption) / 1.4 var(--mono);
+  letter-spacing: 0.04em;
+}
+.town-heading h1 {
+  margin: 0;
+  font: 500 var(--font-size-display) / 1.4 var(--serif);
+  letter-spacing: 0.04em;
+}
+.town-heading > p:last-child {
+  margin: 13px 0 0;
+  color: var(--text-secondary);
+  font-size: var(--font-size-body);
+  line-height: 1.6;
+  letter-spacing: 0.02em;
+}
+.town-places {
+  position: absolute;
+  left: 7%;
+  bottom: 9%;
+  width: min(42%, 490px);
+  display: grid;
+  gap: 8px;
+}
+.adventure-screen .town-place {
+  min-height: 58px;
+  display: grid;
+  grid-template-columns: 38px 1fr 20px;
+  align-items: center;
+  gap: 13px;
+  padding: 8px 15px;
+  border: 1px solid #85978a99;
+  border-left: 2px solid var(--trim-metal);
+  background: #232825ed;
+  color: var(--text-primary);
+  text-align: left;
+  box-shadow:
+    inset 0 0 0 2px #232825,
+    inset 0 0 0 3px #445045;
+}
+.adventure-screen .town-place:hover,
+.adventure-screen .town-place:active {
+  background: var(--surface-hover);
+}
+.town-place-number {
+  color: var(--trim-metal);
+  font: var(--font-size-caption) / 1.3 var(--mono);
+}
+.town-place-label {
+  font: 500 var(--font-size-decision) / 1.4 var(--serif);
+  letter-spacing: 0.04em;
+}
+.town-place-arrow {
+  color: var(--text-secondary);
+  font-size: 24px;
+  line-height: 1;
+  text-align: right;
+}
+.battle-entry {
+  padding: 8px 12px;
+  border: 1px solid var(--border-decorative);
+  background: #232825e8;
+  color: var(--text-secondary);
+  font-size: var(--font-size-caption);
+  text-decoration: none;
+}
+.battle-entry:hover {
+  border-color: var(--trim-metal);
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+.adventure-editor-entry {
+  padding: 8px 12px;
+  border: 1px solid var(--border-decorative);
+  background: #232825ed;
+  color: var(--text-primary);
+  font-size: var(--font-size-caption);
+}
+.adventure-editor-entry {
+  text-decoration: none;
+}
+.town-utility-controls {
+  position: absolute;
+  z-index: 7;
+  top: 16px;
+  right: 20px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  max-width: 52%;
+}
+.conversation-stage {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  cursor: pointer;
+  isolation: isolate;
+}
+.conversation-portraits {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+.conversation-portrait {
+  position: absolute;
+  z-index: 0;
+  bottom: var(--adventure-portraitBottom);
+  height: var(--adventure-portraitHeight);
+  margin: 0;
+  transform: translateX(-50%);
+}
+.conversation-portrait.is-speaking {
+  z-index: 1;
+}
+.conversation-portrait.is-muted {
+  filter: brightness(0.68);
+}
+.conversation-portrait[data-position="left"] {
+  left: var(--adventure-leftX);
+}
+.conversation-portrait[data-position="center"] {
+  left: var(--adventure-centerX);
+}
+.conversation-portrait[data-position="right"] {
+  left: var(--adventure-rightX);
+}
+.conversation-portrait img {
+  display: block;
+  width: auto;
+  height: 100%;
+  object-fit: contain;
+  object-position: bottom;
+  filter: drop-shadow(0 5px 15px #10171366);
+}
+.dialogue-panel {
+  position: absolute;
+  z-index: 3;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  min-height: var(--adventure-panelHeight);
+  padding: var(--adventure-panelPaddingTop) var(--adventure-panelPaddingX) 45px;
+  background: linear-gradient(180deg, #171d1900 0%, #171d19d9 24%, #171d19f5 100%);
+  cursor: pointer;
+  max-height: 80%;
+  overflow-y: auto;
+}
+.dialogue-speaker {
+  min-height: 1.4em;
+  margin-bottom: var(--adventure-speakerGap);
+  color: var(--text-primary);
+  font: 500 var(--font-size-emphasis) / 1.4 var(--serif);
+  letter-spacing: 0.04em;
+  text-shadow: 0 1px 5px #0009;
+}
+.dialogue-divider {
+  height: 1px;
+  background: linear-gradient(90deg, var(--trim-metal), #b58a4633 78%, transparent);
+}
+.dialogue-text {
+  max-width: 84ch;
+  margin: var(--adventure-textGap) 0 0;
+  color: var(--text-primary);
+  font-size: var(--font-size-body);
+  line-height: 1.6;
+  text-shadow: 0 1px 5px #0009;
+  white-space: pre-wrap;
+}
+.dialogue-next {
+  position: absolute;
+  right: var(--adventure-arrowRight);
+  bottom: var(--adventure-arrowBottom);
+  width: 12px;
+  height: 12px;
+  border-right: 2px solid var(--action-primary);
+  border-bottom: 2px solid var(--action-primary);
+  transform: rotate(45deg);
+}
+.conversation-choices {
+  position: absolute;
+  z-index: 4;
+  top: var(--adventure-choicesTop);
+  left: 50%;
+  width: var(--adventure-choicesWidth);
+  max-width: 980px;
+  display: grid;
+  gap: 13px;
+  transform: translate(-50%, -50%);
+  cursor: default;
+  max-height: 58%;
+  overflow-y: auto;
+}
+.adventure-screen .conversation-choice {
+  position: relative;
+  min-height: 66px;
+  display: grid;
+  grid-template-columns: 26px 36px 1fr;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 18px;
+  border: 1px solid #85978a;
+  background: #232825f2;
+  color: var(--text-primary);
+  text-align: center;
+  box-shadow:
+    inset 0 0 0 3px #232825,
+    inset 0 0 0 4px #445045,
+    0 3px 10px #0004;
+}
+.adventure-screen .conversation-choice:hover,
+.adventure-screen .conversation-choice:active {
+  border-color: var(--selection-edge);
+  background: var(--surface-selected);
+}
+.adventure-screen .conversation-choice:focus-visible,
+.adventure-screen .town-place:focus-visible,
+.battle-entry:focus-visible,
+.adventure-editor-entry:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 3px;
+}
+
+.adventure-editing #app {
+  min-height: 100dvh;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 370px);
+  background: var(--surface-pressed);
+}
+.adventure-editing .adventure-shell {
+  min-width: 0;
+}
+.adventure-editor-panel {
+  height: 100dvh;
+  overflow-y: auto;
+  padding: 22px;
+  border-left: 1px solid var(--trim-metal);
+  background: var(--surface-base);
+  color: var(--text-primary);
+}
+.adventure-editor-panel h1 {
+  margin: 0 0 12px;
+  font: 500 var(--font-size-title) / 1.4 var(--serif);
+}
+.adventure-editor-panel header > a {
+  color: var(--text-primary);
+  font-size: var(--font-size-body);
+}
+.adventure-editor-actions {
+  display: grid;
+  gap: 9px;
+  margin: 20px 0;
+}
+.adventure-editor-actions button,
+.adventure-preview-back {
+  min-height: 44px;
+  border: 1px solid var(--border-control);
+  background: var(--surface-selected);
+  color: var(--text-primary);
+  font-size: var(--font-size-body);
+}
+.adventure-editor-actions [data-save] {
+  border-color: var(--trim-metal);
+}
+.adventure-editor-actions p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--font-size-body);
+  line-height: 1.6;
+}
+.adventure-editor-actions [data-message].error {
+  color: var(--status-danger);
+}
+.adventure-editor-fields fieldset {
+  display: grid;
+  gap: 12px;
+  margin: 0 0 20px;
+  padding: 12px;
+  border: 1px solid var(--border-decorative);
+}
+.adventure-editor-fields legend {
+  padding: 0 6px;
+  font-size: var(--font-size-body);
+}
+.adventure-editor-fields .setting-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 80px;
+  gap: 6px 10px;
+  align-items: center;
+}
+.adventure-editor-fields label {
+  font-size: var(--font-size-body);
+}
+.adventure-editor-fields input[type="number"] {
+  width: 100%;
+  min-height: 36px;
+  border: 1px solid var(--border-control);
+  background: var(--surface-pressed);
+  color: var(--text-primary);
+  font-size: var(--font-size-body);
+}
+.adventure-editor-fields input[type="range"] {
+  grid-column: 1 / -1;
+  width: 100%;
+  accent-color: var(--action-primary);
+}
+.adventure-editor-fields [aria-invalid="true"] {
+  border-color: var(--status-danger);
+}
+.adventure-preview-back {
+  position: fixed;
+  z-index: 30;
+  top: 18px;
+  right: 18px;
+  display: none;
+  padding: 8px 16px;
+}
+.adventure-previewing #app {
+  display: block;
+}
+.adventure-previewing .adventure-editor-panel {
+  display: none;
+}
+.adventure-previewing .adventure-preview-back {
+  display: block;
+}
+@media (max-width: 900px) {
+  .adventure-editing #app {
+    display: block;
+  }
+  .adventure-editing .adventure-shell {
+    min-height: auto;
+  }
+  .adventure-editor-panel {
+    height: auto;
+    overflow: visible;
+    border-left: 0;
+    border-top: 1px solid var(--trim-metal);
+  }
+}
+.choice-tetrahedron {
+  width: 25px;
+  height: 25px;
+  opacity: 0;
+}
+.conversation-choice:hover .choice-tetrahedron,
+.conversation-choice:focus-visible .choice-tetrahedron {
+  opacity: 1;
+}
+.choice-number {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border-control);
+  background: #171d19;
+  color: var(--text-primary);
+  font: var(--font-size-caption) / 1.3 var(--mono);
+}
+.choice-label {
+  font: 500 var(--font-size-decision) / 1.4 var(--serif);
+  letter-spacing: 0.04em;
+}
+
+@media (max-aspect-ratio: 1 / 1) {
+  .adventure-screen[data-mode="town"] {
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
+  }
+  .adventure-screen[data-mode="town"] .town-view {
+    position: relative;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+    padding: 16px 8% 9%;
+  }
+  .adventure-screen {
+    width: 100%;
+    height: 100dvh;
+    min-height: 100dvh;
+    aspect-ratio: auto;
+  }
+  .adventure-background img {
+    object-position: 50% 34%;
+    filter: saturate(0.72) brightness(0.62);
+  }
+  .town-heading {
+    position: static;
+    order: 1;
+    width: 100%;
+  }
+  .town-places {
+    position: static;
+    order: 2;
+    width: 100%;
+    gap: 9px;
+    margin-top: auto;
+  }
+  .adventure-screen .town-place {
+    min-height: 58px;
+  }
+  .town-utility-controls {
+    position: static;
+    order: 0;
+    justify-content: flex-start;
+    max-width: none;
+  }
+  .conversation-portrait {
+    bottom: var(--adventure-mobilePortraitBottom);
+    height: var(--adventure-mobilePortraitHeight);
+  }
+  .conversation-portrait[data-position="left"] {
+    left: var(--adventure-mobileLeftX);
+  }
+  .conversation-portrait[data-position="center"] {
+    left: var(--adventure-mobileCenterX);
+  }
+  .conversation-portrait[data-position="right"] {
+    left: var(--adventure-mobileRightX);
+  }
+  .dialogue-panel {
+    min-height: var(--adventure-mobilePanelHeight);
+    padding: var(--adventure-mobilePanelPaddingTop) var(--adventure-mobilePanelPaddingX) 42px;
+    background: linear-gradient(180deg, #171d1900 0%, #171d19df 18%, #171d19f5 100%);
+  }
+  .dialogue-speaker {
+    margin-bottom: var(--adventure-speakerGap);
+  }
+  .dialogue-text {
+    margin-top: var(--adventure-textGap);
+  }
+  .conversation-choices {
+    top: var(--adventure-mobileChoicesTop);
+    width: var(--adventure-mobileChoicesWidth);
+    gap: 9px;
+  }
+  .adventure-screen .conversation-choice {
+    min-height: 58px;
+    grid-template-columns: 19px 32px 1fr;
+    gap: 8px;
+    padding: 8px 10px;
+  }
+  .choice-tetrahedron {
+    width: 20px;
+    height: 20px;
+  }
+  .choice-number {
+    width: 30px;
+    height: 30px;
+  }
+  .choice-label {
+    text-align: left;
+  }
+}
+
 /* Battle UI palette follows the approved design sample. */
 :root {
+  --font-size-caption: 0.875rem;
+  --font-size-body: 1rem;
+  --font-size-decision: 1.125rem;
+  --font-size-emphasis: 1.25rem;
+  --font-size-title: 1.5rem;
+  --font-size-display: 2rem;
   --surface-base: #232825;
   --surface-hover: #313b34;
   --surface-selected: #3c463e;
@@ -415,7 +941,7 @@ input[aria-invalid="true"] {
   position: absolute;
   left: 14px;
   top: 16px;
-  width: 151px;
+  width: 210px;
   padding: 13px 8px 10px;
 }
 .queue {
@@ -700,8 +1226,8 @@ input[aria-invalid="true"] {
   position: absolute;
   z-index: 4;
   width: max-content;
-  min-width: 126px;
-  max-width: min(142px, calc(100vw - 16px));
+  min-width: 170px;
+  max-width: min(200px, calc(100vw - 16px));
   padding: 4px 6px 5px;
   border: 1px solid var(--border-control);
   background: var(--surface-base);
@@ -948,7 +1474,6 @@ input[aria-invalid="true"] {
     aspect-ratio: auto;
   }
 }
-
 @media (prefers-reduced-motion: reduce) {
   .hp-track > span {
     transition: none;
@@ -1012,7 +1537,7 @@ input[aria-invalid="true"] {
   .timeline {
     left: clamp(14px, min(1.07vw, 1.9vh), 28px);
     top: clamp(16px, min(1.23vw, 2.2vh), 32px);
-    width: clamp(151px, min(11.55vw, 20.53vh), 330px);
+    width: clamp(210px, min(15vw, 27vh), 380px);
     padding: clamp(13px, min(0.995vw, 1.769vh), 24px) clamp(8px, min(0.612vw, 1.088vh), 16px)
       clamp(10px, min(0.765vw, 1.36vh), 20px);
   }
@@ -1096,8 +1621,8 @@ input[aria-invalid="true"] {
   }
 
   .enemy-world-label {
-    min-width: clamp(126px, min(9.63vw, 17.19vh), 250px);
-    max-width: min(clamp(142px, min(10.86vw, 19.38vh), 270px), calc(100vw - 16px));
+    min-width: clamp(170px, min(12vw, 21vh), 270px);
+    max-width: min(clamp(200px, min(14vw, 24vh), 300px), calc(100vw - 16px));
     padding: clamp(4px, min(0.31vw, 0.54vh), 8px) clamp(6px, min(0.46vw, 0.82vh), 12px)
       clamp(5px, min(0.38vw, 0.69vh), 10px);
   }
@@ -1141,5 +1666,81 @@ input[aria-invalid="true"] {
   .battle-result .primary {
     min-width: clamp(132px, min(10.09vw, 18.13vh), 220px);
     padding: clamp(10px, min(0.765vw, 1.36vh), 20px) clamp(20px, min(1.53vw, 2.75vh), 40px);
+  }
+}
+
+/* Player text follows the role-based sizes in the design guide at every viewport. */
+.battle-ui h2,
+.queue-name,
+.ally-heading strong,
+.battle-ui .ally-card .ally-status,
+.hp-line > span:last-child,
+.enemy-world-heading strong,
+#app .enemy-world-label .enemy-world-state,
+.battle-result p {
+  font-size: var(--font-size-body);
+  line-height: 1.4;
+}
+.queue-value b,
+.command span:last-child,
+#app .enemy-world-label .enemy-world-hp,
+.battle-result .primary {
+  font-size: var(--font-size-decision);
+  line-height: 1.4;
+}
+.hp-line b,
+.event-toast {
+  font-size: var(--font-size-emphasis);
+  line-height: 1.4;
+}
+.hp-line > span:first-child {
+  font-size: var(--font-size-caption);
+  line-height: 1.4;
+}
+.battle-result h2 {
+  font-size: var(--font-size-display);
+  line-height: 1.4;
+}
+.queue-name,
+.ally-heading strong,
+.enemy-world-heading strong {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+}
+.battle-utility-controls {
+  position: fixed;
+  z-index: 50;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 8px;
+  border: 1px solid var(--border-decorative);
+  background: var(--surface-base);
+  color: var(--text-primary);
+  font-size: var(--font-size-caption);
+}
+#app .battle-utility-controls a {
+  color: var(--text-primary);
+}
+.battle-utility-controls :focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+@media (max-width: 600px) {
+  .battle-ui {
+    grid-template-columns: 1fr;
+  }
+  .timeline .queue {
+    grid-template-columns: 1fr;
+  }
+  .queue-row {
+    min-height: 44px;
+  }
+  .enemy-world-label {
+    min-width: 150px;
+    max-width: min(170px, calc(100vw - 16px));
   }
 }

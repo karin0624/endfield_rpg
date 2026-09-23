@@ -108,3 +108,44 @@ test("保存APIは不正な設定や別サイトからの書き込みを拒否�
   });
   expect(foreign.status()).toBe(403);
 });
+
+test("会話画面の立ち絵と本文位置を調整・保存し、通常表示へ反映する", async ({ page }) => {
+  await page.goto("/?adventureEdit=1");
+  const editor = page.getByRole("complementary", { name: "会話画面の配置設定" });
+  const rightPreview = page.locator('[data-portrait-id="rossi-preview"]');
+  const leftX = editor.getByRole("group", { name: "立ち絵・横画面" }).getByRole("spinbutton", {
+    name: "左の水平位置 (%)",
+  });
+  const rightX = editor.getByRole("group", { name: "立ち絵・横画面" }).getByRole("spinbutton", {
+    name: "右の水平位置 (%)",
+  });
+  const panelHeight = editor.getByRole("group", { name: "本文エリア" }).getByRole("spinbutton", {
+    name: "本文エリアの最小高さ (%)",
+  });
+  await expect(page.getByText("ロッシは掲示板の前で足を止めた。")).toBeVisible();
+  await expect(rightPreview).toHaveAttribute("data-position", "right");
+  await expect(rightPreview.locator("img")).toHaveJSProperty("naturalWidth", 1024);
+  const initialRight = await rightPreview.evaluate((element) => element.getBoundingClientRect().left);
+  const initialRightValue = Number(await rightX.inputValue());
+  const rightMovesFurtherRight = initialRightValue <= 96;
+  await rightX.fill(String(initialRightValue + (rightMovesFurtherRight ? 4 : -4)));
+  const rightPosition = expect.poll(() => rightPreview.evaluate((element) => element.getBoundingClientRect().left));
+  if (rightMovesFurtherRight) await rightPosition.toBeGreaterThan(initialRight);
+  else await rightPosition.toBeLessThan(initialRight);
+  await leftX.fill("32");
+  await panelHeight.fill("35");
+  await expect(page.locator("[data-adventure-screen]")).toHaveCSS("--adventure-leftX", "32%");
+  await expect(page.locator("[data-adventure-screen]")).toHaveCSS("--adventure-panelHeight", "35%");
+  await page.reload();
+  await expect(leftX).toHaveValue("32");
+  await expect(editor.getByRole("status")).toContainText("復元");
+  await editor.getByRole("button", { name: "画面だけで確認" }).click();
+  await expect(editor).toBeHidden();
+  await page.getByRole("button", { name: "設定に戻る" }).click();
+  await editor.getByRole("button", { name: "標準として保存" }).click();
+  await expect(editor.getByRole("status")).toContainText("標準として保存しました");
+  await editor.getByRole("link", { name: "保存済みの通常表示" }).click();
+  await expect(page.getByRole("heading", { name: "街の広場" })).toBeVisible();
+  await expect(page.locator("[data-adventure-screen]")).toHaveCSS("--adventure-leftX", "32%");
+  await expect(page.locator("[data-adventure-screen]")).toHaveCSS("--adventure-panelHeight", "35%");
+});
