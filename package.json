@@ -10,7 +10,7 @@
     "dev": "vite",
     "check": "tsc --noEmit && vitest run",
     "build": "node scripts/check-assets.mjs && tsc --noEmit && vite build",
-    "check:visuals": "npm run build && playwright test"
+    "test:e2e": "npm run build && playwright test"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",

@@ -14,6 +14,7 @@
 | [specs/battle.md](specs/battle.md) | M1タイムライン戦闘、通常攻撃、勝敗の状態・操作・受入例 |
 | [specs/visuals.md](specs/visuals.md) | 戦闘画面の配置・カメラ範囲・確認画面 |
 | [specs/design-guidelines.md](specs/design-guidelines.md) | UIの配色、部品、操作状態、マーカー、生成画像の扱い |
+| [specs/testing.md](specs/testing.md) | Nodeテスト、ブラウザE2E、VRTの責務と実行環境 |
 | [素材メモ](art-src/README.md) | 使用素材の出典・透過処理・Git LFS運用 |
 | [全体ロードマップ（Issue #1）](https://github.com/karin0624/endfield_rpg/issues/1) | GitHub上の進捗の入口 |
 
@@ -41,11 +42,17 @@ npm ci
 | `npm run dev` | Viteの開発サーバーを起動する |
 | `npm run check` | TypeScriptの型チェックとNode環境のVitestを1回実行する |
 | `npm run build` | 型チェック後に配布用ファイルを`dist/`へ生成する |
-| `npm run check:visuals` | Chromiumで通常画面と開発用の構図設定・保存・リサイズを確認する |
+| `npm run test:e2e` | Chromiumで実入力・表示・描画・構図設定を確認する。VRTは固定コンテナで実行する |
 
 `check`はwatchモードを使わず、結果を終了コードで返す。ゲーム本体のテストにはブラウザ、DOM、Babylon.js、WebGLを必要としない。
 
-画面を確認するときだけ、初回に`npx playwright install chromium`（Linuxでライブラリも必要なら`npx playwright install --with-deps chromium`）を実行する。`check:visuals`は配布用をポート4173、設定画面用の一時コピーを4174で起動し、スクリーンショットを`test-results/`へ保存する。保存テストは本来の設定ファイルを上書きしない。通常の`check`やCIではブラウザを起動しない。
+ブラウザテストは固定したPlaywrightコンテナで実行する。基準画像の生成とCIの比較は同じ環境を使う。
+
+```sh
+docker run --rm --init --ipc=host --user "$(id -u):$(id -g)" -v "$PWD:/work" -w /work mcr.microsoft.com/playwright:v1.63.0-noble sh -c 'npm ci && npm run test:e2e'
+```
+
+基準画像を意図的に更新するときだけ、同じコマンドの末尾を`npm run build && npx playwright test --update-snapshots`に変え、生成画像を確認してコミットする。`test:e2e`は配布用をポート4173、設定画面用の一時コピーを4174で起動する。保存テストは本来の設定ファイルを上書きしない。失敗時のスクリーンショットとトレースは`test-results/`に残る。通常の`check`ではブラウザを起動しない。詳しい責務は[テスト設計](specs/testing.md)を参照する。
 
 GLBはGit LFS、現在の数MiBのPNG・文書・コードは通常のGitで管理する。CIもLFSの実体を取得する。`build`は素材のヘッダーを確認し、LFSポインタのままなら配布物を作る前にエラーにする。
 
