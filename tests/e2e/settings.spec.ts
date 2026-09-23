@@ -47,6 +47,7 @@ test("構図を一時保存・標準保存し、通常表示に反映する", as
   await expect(save).toBeEnabled({ timeout: 60_000 });
   await editSettings(page);
   await page.reload();
+  await expect(save).toBeEnabled({ timeout: 60_000 });
   await expect(fieldInput(page, "groundScale")).toHaveValue("1.1");
   await expect(message).toContainText("復元");
   await page.getByRole("button", { name: "画面だけで確認", exact: true }).click();

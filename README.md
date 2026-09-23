@@ -42,7 +42,8 @@ npm ci
 | `npm run dev` | Viteの開発サーバーを起動する |
 | `npm run check` | TypeScriptの型チェックとNode環境のVitestを1回実行する |
 | `npm run build` | 型チェック後に配布用ファイルを`dist/`へ生成する |
-| `npm run test:e2e` | Chromiumで実入力・表示・描画・構図設定を確認する。VRTは固定コンテナで実行する |
+| `npm run test:e2e` | Chromiumで戦闘の実入力・表示・描画を少数ケースで確認する。VRTは固定コンテナで実行する |
+| `npm run test:editor` | 必要時だけ構図設定のVRT・保存操作を確認する |
 
 `check`はwatchモードを使わず、結果を終了コードで返す。ゲーム本体のテストにはブラウザ、DOM、Babylon.js、WebGLを必要としない。
 
@@ -52,7 +53,9 @@ npm ci
 docker run --rm --init --ipc=host --user "$(id -u):$(id -g)" -v "$PWD:/work" -w /work mcr.microsoft.com/playwright:v1.63.0-noble sh -c 'npm ci && npm run test:e2e'
 ```
 
-基準画像を意図的に更新するときだけ、同じコマンドの末尾を`npm run build && npx playwright test --update-snapshots`に変え、生成画像を確認してコミットする。`test:e2e`は配布用をポート4173、設定画面用の一時コピーを4174で起動する。保存テストは本来の設定ファイルを上書きしない。失敗時のスクリーンショットとトレースは`test-results/`に残る。通常の`check`ではブラウザを起動しない。詳しい責務は[テスト設計](specs/testing.md)を参照する。
+基準画像を意図的に更新するときだけ、同じコマンドの末尾を`npm run build && npx playwright test --project built --update-snapshots`に変え、生成画像を確認してコミットする。`test:e2e`は配布用をポート4173で起動する。`test:editor`は設定画面用の一時コピーをポート4174で起動し、本来の設定ファイルを上書きしない。失敗時のスクリーンショットとトレースは`test-results/`に残る。通常の`check`ではブラウザを起動しない。詳しい責務は[テスト設計](specs/testing.md)を参照する。
+
+構図設定を確認するときは、同じコンテナの末尾を`npm ci && npm run test:editor`に変える。構図設定の基準画像更新には`npm ci && PLAYWRIGHT_EDITOR=1 npx playwright test --project settings --update-snapshots`を使う。
 
 GLBはGit LFS、現在の数MiBのPNG・文書・コードは通常のGitで管理する。CIもLFSの実体を取得する。`build`は素材のヘッダーを確認し、LFSポインタのままなら配布物を作る前にエラーにする。
 
