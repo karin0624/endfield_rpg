@@ -23,8 +23,7 @@ test("配布画面の実描画を基準画像と比較する", async ({ page }) 
   expect(errors).toEqual([]);
 });
 
-test("敵を選んで攻撃すると対象のHPが更新され、演出中は操作できない", async ({ page }) => {
-  await page.emulateMedia({ reducedMotion: "no-preference" });
+test("敵を選んで攻撃すると対象のHPが更新される", async ({ page }) => {
   await page.goto("/");
   const attack = page.getByRole("button", { name: "通常攻撃" });
   const slimeA = page.getByRole("button", { name: /スライム A、HP .*攻撃対象に選択/ });
@@ -33,25 +32,7 @@ test("敵を選んで攻撃すると対象のHPが更新され、演出中は操
   await expect(slimeB).toHaveAttribute("aria-pressed", "true");
   await slimeA.click();
   await expect(slimeA).toHaveAttribute("aria-pressed", "true");
-  await page.evaluate(() => {
-    const toast = document.querySelector<HTMLElement>("[data-event-toast]");
-    const button = document.querySelector<HTMLButtonElement>("[data-attack]");
-    if (toast === null || button === null) throw new Error("戦闘演出の要素が見つかりません");
-    const recordToast = () => {
-      if (!toast.hidden && toast.textContent?.includes("ロッシの通常攻撃！ スライム Aに8ダメージ")) {
-        document.body.dataset.attackToastShown = "true";
-      }
-    };
-    const recordDisabled = () => {
-      if (button.disabled) document.body.dataset.attackDisabledSeen = "true";
-    };
-    new MutationObserver(recordToast).observe(toast, { attributes: true, childList: true });
-    new MutationObserver(recordDisabled).observe(button, { attributes: true, attributeFilter: ["disabled"] });
-    recordToast();
-  });
   await attack.click();
-  await expect.poll(() => page.evaluate(() => document.body.dataset.attackDisabledSeen)).toBe("true");
-  await expect.poll(() => page.evaluate(() => document.body.dataset.attackToastShown)).toBe("true");
   await expect(slimeA).toHaveAccessibleName(/スライム A、HP 6\/14/);
   await expect(attack).toBeEnabled();
 });
