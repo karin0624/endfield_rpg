@@ -10,6 +10,7 @@
 | --- | --- |
 | [AGENTS.md](AGENTS.md) | 常時適用する短い作業規約と、必要な文書への案内 |
 | [specs/overview.md](specs/overview.md) | 現在の全体要件と責務境界 |
+| [specs/dungeon.md](specs/dungeon.md) | 固定ルート、ノード進行、戦闘・会話からの復帰 |
 | [docs/milestones.md](docs/milestones.md) | 段階ごとの完了条件とタスクの依存順 |
 | [specs/adventure.md](specs/adventure.md) | 街・会話のゲーム状態、入力、条件、型付き会話データ |
 | [specs/battle.md](specs/battle.md) | タイムライン戦闘、通常攻撃、勝敗の状態・操作・受入例 |
@@ -84,6 +85,8 @@ GLBはGit LFS、現在の数MiBのPNG・文書・コードは通常のGitで管�
 現在の採用設定は`ground1.glb`と`landscape1.png`の組み合わせ専用の暫定標準。別の地面モデル・遠景画像でフィールドを追加する際は、その組み合わせに固有の設定を用意し、既存フィールドの設定も保持する。複数フィールドの設定管理は追加時に実装する。
 
 通常起動では街から場所を選び、会話をクリックまたはSpaceで進める。選択肢はボタンか表示番号の数字キーで選ぶ。戦闘画面は街の「戦闘デモを見る」または`/?battle=1`から開ける。場所の解放・会話分岐・フラグ更新はゲーム本体の`src/game/adventure.ts`が管理し、表示と入力は`src/web/adventureUi.ts`が接続する。
+
+ダンジョンのゲーム本体は`src/game/dungeon.ts`、入口から分岐・合流してボスへ進む固定ルートは`src/content/initialDungeon.ts`で定義する。ルート図と画面接続は別途実装する。
 
 ## 会話画面の配置を決める
 

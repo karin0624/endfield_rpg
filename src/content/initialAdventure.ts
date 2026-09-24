@@ -175,5 +175,45 @@ export const initialAdventure = {
         end: { type: "end" },
       },
     },
+    {
+      id: "dungeon-scouting",
+      startNodeId: "find-tracks",
+      onCompleteFlags: ["scouted-ruins"],
+      nodes: {
+        "find-tracks": {
+          type: "line",
+          text: "道の脇に、遺跡へ続く新しい足跡が残っている。",
+          speakerName: "ロッシ",
+          backgroundId: "roadside",
+          portraitId: "rossi",
+          expressionId: "serious",
+          position: "left",
+          nextNodeId: "choose-route-marking",
+        },
+        "choose-route-marking": {
+          type: "choice",
+          prompt: "足跡を記録する？",
+          speakerName: "ギルベルタ",
+          backgroundId: "roadside",
+          portraitId: "gilberta",
+          expressionId: "neutral",
+          position: "center",
+          options: [
+            {
+              id: "mark-on-map",
+              label: "地図に足跡を記す",
+              nextNodeId: "end",
+              setFlags: ["marked-ruins-route"],
+            },
+            {
+              id: "continue-without-marking",
+              label: "記録せずに先へ進む",
+              nextNodeId: "end",
+            },
+          ],
+        },
+        end: { type: "end" },
+      },
+    },
   ],
 } as const satisfies AdventureDefinition;
