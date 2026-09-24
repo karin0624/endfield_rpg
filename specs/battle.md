@@ -1,4 +1,4 @@
-# 戦闘コア（M1 タイムライン・通常攻撃・勝敗）
+# 戦闘コア（タイムライン・通常攻撃・勝敗）
 
 この文書は、速度と論理時刻で次の行動者を決め、通常攻撃から勝敗までを同期的に
 解決する戦闘コアの仕様である。タイムラインの正本は
@@ -31,7 +31,7 @@
 - `outcome`: `ongoing`、`victory`、`defeat`のいずれか。
 
 戦闘開始時の数値は型付きの定義データ（`BattleCombatantDefinition`）から作る。
-Issue #8の初期編成は[`src/content/initialBattle.ts`](../src/content/initialBattle.ts)に置く固定2対2
+初期編成は[`src/content/initialBattle.ts`](../src/content/initialBattle.ts)に置く固定2対2
 （`player`、`gilberta`、`slime`、`slime-2`）で、配列順を戦闘者の固定順・同時刻の優先順として扱う。
 
 ## 操作

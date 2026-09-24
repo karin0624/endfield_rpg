@@ -1,6 +1,6 @@
 # マイルストーンと実装順
 
-[仕様概要](overview.md)を前提とする。[Issue #1](https://github.com/karin0624/endfield_rpg/issues/1)を進捗の入口とし、この文書では到達点と依存順を管理する。各タスクの詳細な受入条件は対象Issueに置く。
+[仕様概要](../specs/overview.md)を前提とする。[Issue #1](https://github.com/karin0624/endfield_rpg/issues/1)を進捗の入口とし、この文書では到達点と依存順を管理する。各タスクの詳細な受入条件は対象Issueに置く。
 
 ## 段階ごとの完了条件
 

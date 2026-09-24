@@ -1,6 +1,6 @@
 # 街・会話のゲーム本体
 
-Issue [#12](https://github.com/karin0624/endfield_rpg/issues/12)で実装した、街の場所選択と型付き会話データの仕様。全体の境界は[仕様概要](overview.md)、画面側との接続は後続のIssue #13で扱う。
+街の場所選択と型付き会話データを定める。全体の境界は[仕様概要](overview.md)を参照する。
 
 ## 状態
 
@@ -44,8 +44,6 @@ Issue [#12](https://github.com/karin0624/endfield_rpg/issues/12)で実装した�
 ## 初期コンテンツと確認例
 
 初期コンテンツには広場・ギルド・市場を用意した。ギルド初回の選択肢で「掲示板の依頼について聞く」を選ぶと`heard-guild-quest`が立ち、会話完了時に`visited-guild`が立つ。再訪では`visited-guild`と`heard-guild-quest`の両方がある場合に依頼の話を続ける会話を選ぶ。依頼の話を選ばずに会話を終えた場合は`visited-guild`だけが立ち、別の再訪会話になる。未取得の`knows-secret`を条件とする選択肢は一覧から隠れ、直接指定しても拒否される。
-
-ゲーム本体のテストは`npm run check`に含まれるNode環境のVitestで、場所選択から会話終了・再訪分岐・拒否・データ参照の検査まで確認する。ブラウザ画面の表示と入力接続はIssue #13の範囲。
 
 ## ブラウザ画面
 

@@ -3,13 +3,15 @@
 作業に必要な文書だけを参照する。
 
 - 仕様・責務境界を確認するときは[specs/overview.md](specs/overview.md)を参照する。
-- 実装順・依存関係を確認するときは[specs/milestones.md](specs/milestones.md)を参照する。
+- 実装順・依存関係を確認するときは[docs/milestones.md](docs/milestones.md)を参照する。
 - 環境構築・実行コマンド・ソース構成を確認するときは[README.md](README.md)を参照する。
 - UI・AI生成アセットを追加・変更するときは[specs/design-guidelines.md](specs/design-guidelines.md)を参照する。
+- AIでUI用画像を制作するときは[docs/ui-asset-production.md](docs/ui-asset-production.md)を参照する。
+- 文書を追加・変更するときは[docs/documentation.md](docs/documentation.md)の書き分けと更新規則に従う。
 
 - 現在の要求を満たす最小の変更にする。設定・既存機能・信頼できるライブラリを優先し、将来用の機能や抽象化を追加しない。
 - 検証と例外処理は変更の影響と現実的な失敗に見合う範囲にする。ゲーム本体は高速で再現可能なテストを主とし、ブラウザテストは接続確認に使う。
-- テストは仕様で約束した公開の入力・結果・状態遷移だけを検証する。実装を期待値として写したり、内部構造や同じ処理の結果同士を比較したりしない。詳しくは[specs/testing.md](specs/testing.md)を参照する。
+- テストは仕様で約束した公開の入力・結果・状態遷移だけを検証する。実装を期待値として写したり、内部構造や同じ処理の結果同士を比較したりしない。詳しくは[docs/testing.md](docs/testing.md)を参照する。
 - TS・JS・CSS・JSONを変更したら`npm run check`でBiome・型・単体テストを確認する。整形が必要なら`npm run format`を使う。
 - 各タスクの完了時に関連文書の更新要否を確認し、必要なら古くなった記述を修正する。仕様の追加・変更では`specs/`・実装・テストを整合させ、結果と未確認事項を報告する。
 

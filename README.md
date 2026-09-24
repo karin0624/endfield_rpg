@@ -9,17 +9,21 @@
 | 文書 | 役割 |
 | --- | --- |
 | [AGENTS.md](AGENTS.md) | 常時適用する短い作業規約と、必要な文書への案内 |
-| [specs/overview.md](specs/overview.md) | 合意済みの要件、技術構成、暫定案、未決定事項 |
-| [specs/milestones.md](specs/milestones.md) | 段階ごとの完了条件とタスクの依存順 |
+| [specs/overview.md](specs/overview.md) | 現在の全体要件と責務境界 |
+| [docs/milestones.md](docs/milestones.md) | 段階ごとの完了条件とタスクの依存順 |
 | [specs/adventure.md](specs/adventure.md) | 街・会話のゲーム状態、入力、条件、型付き会話データ |
-| [specs/battle.md](specs/battle.md) | M1タイムライン戦闘、通常攻撃、勝敗の状態・操作・受入例 |
-| [specs/visuals.md](specs/visuals.md) | 戦闘画面の配置・カメラ範囲・確認画面 |
-| [specs/design-guidelines.md](specs/design-guidelines.md) | UIの配色、部品、操作状態、マーカー、生成画像の扱い |
-| [specs/testing.md](specs/testing.md) | Nodeテスト、ブラウザE2E、VRTの責務と実行環境 |
+| [specs/battle.md](specs/battle.md) | タイムライン戦闘、通常攻撃、勝敗の状態・操作・受入例 |
+| [specs/visuals.md](specs/visuals.md) | 戦闘画面の配置・構図設定・描画 |
+| [specs/design-guidelines.md](specs/design-guidelines.md) | UIの配色、部品、操作状態、マーカー |
+| [docs/ui-asset-production.md](docs/ui-asset-production.md) | AIによるUI用画像の制作手順 |
+| [docs/testing.md](docs/testing.md) | Nodeテスト、ブラウザE2E、VRTの責務と実行環境 |
+| [docs/documentation.md](docs/documentation.md) | 文書の役割、仕様とADRの書き分け、更新規則 |
+| [docs/adr/](docs/adr/) | 採用した判断とその経緯 |
+| [docs/visual-records/](docs/visual-records/) | 過去の画面記録 |
 | [素材メモ](art-src/README.md) | 使用素材の出典・透過処理・Git LFS運用 |
 | [全体ロードマップ（Issue #1）](https://github.com/karin0624/endfield_rpg/issues/1) | GitHub上の進捗の入口 |
 
-ゲーム仕様の正本は`specs/`、Issueは変更単位と受入条件、`AGENTS.md`は作業規約とする。
+現在のゲーム仕様の正本は`specs/`、判断の経緯は`docs/adr/`、計画とテスト方針は`docs/`、Issueは変更単位と受入条件、`AGENTS.md`は作業規約とする。
 
 ## 必要な環境
 
@@ -57,7 +61,7 @@ npm ci
 npm run test:e2e
 ```
 
-基準画像を意図的に更新するときだけ`npm run test:e2e -- --update-snapshots`を実行し、生成画像を確認してコミットする。`test:e2e`は配布用をポート4173で起動する。`test:editor`は設定画面用の一時コピーをポート4174で起動し、本来の設定ファイルを上書きしない。失敗時のスクリーンショットとトレースは`test-results/`に残る。通常の`check`ではブラウザを起動しない。詳しい責務は[テスト設計](specs/testing.md)を参照する。
+基準画像を意図的に更新するときだけ`npm run test:e2e -- --update-snapshots`を実行し、生成画像を確認してコミットする。`test:e2e`は配布用をポート4173で起動する。`test:editor`は設定画面用の一時コピーをポート4174で起動し、本来の設定ファイルを上書きしない。失敗時のスクリーンショットとトレースは`test-results/`に残る。通常の`check`ではブラウザを起動しない。詳しい責務は[テスト設計](docs/testing.md)を参照する。
 
 構図設定を確認するときは`npm run test:editor`を実行する。構図設定の基準画像更新には`npm run test:editor -- --update-snapshots`を使う。CIのコンテナジョブはDockerを入れ子で起動せず、コンテナ内専用の`npm run test:e2e:inside`を実行する。
 
