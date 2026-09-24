@@ -1,6 +1,17 @@
 import { readFile } from "node:fs/promises";
 import { expect, type Page, test } from "@playwright/test";
-import { parseBattleSettings, type SettingKey, settingsFields } from "../../src/web/battleSettings";
+
+const fields = {
+  cameraY: { group: "カメラの初期位置", label: "カメラ 高さ" },
+  cameraZ: { group: "カメラの初期位置", label: "カメラ 前後" },
+  targetY: { group: "視線の先", label: "注視点 高さ" },
+  fovDegrees: { group: "視線の先", label: "画角（度）" },
+  groundScale: { group: "地面", label: "地面の倍率" },
+  backdropScale: { group: "遠景", label: "遠景の倍率" },
+  backdropY: { group: "遠景", label: "遠景 高さ" },
+  backdropZ: { group: "遠景", label: "遠景 前後" },
+  allyCenterX: { group: "味方の配置", label: "中心 左右" },
+} as const;
 
 const changes = {
   cameraY: 8,
@@ -13,9 +24,8 @@ const changes = {
   backdropZ: -10,
 };
 
-function fieldInput(page: Page, key: SettingKey) {
-  const field = settingsFields.find((item) => item.key === key);
-  if (!field) throw new Error(`設定項目が見つかりません: ${key}`);
+function fieldInput(page: Page, key: keyof typeof fields) {
+  const field = fields[key];
   return page
     .getByRole("complementary", { name: "構図設定" })
     .getByRole("group", { name: field.group })
@@ -24,7 +34,7 @@ function fieldInput(page: Page, key: SettingKey) {
 
 async function editSettings(page: Page) {
   for (const [key, value] of Object.entries(changes)) {
-    const input = fieldInput(page, key as SettingKey);
+    const input = fieldInput(page, key as keyof typeof fields);
     if (key === "groundScale") {
       await input.fill("");
       await input.pressSequentially(String(value));
@@ -69,16 +79,16 @@ test("構図を一時保存・標準保存し、通常表示に反映する", as
   const download = await downloadPromise;
   const downloadPath = await download.path();
   if (downloadPath === null) throw new Error("書き出したJSONが見つかりません");
-  const exported = parseBattleSettings(JSON.parse(await readFile(downloadPath, "utf8")));
-  expect(exported).toMatchObject(changes);
+  const exported = JSON.parse(await readFile(downloadPath, "utf8"));
+  expect(exported).toMatchObject({ version: 2, ...changes });
   await save.click();
   await expect(message).toContainText("標準として保存しました");
   await page.getByRole("link", { name: "保存済みの通常表示" }).click();
-  await expect(page.locator("canvas")).toHaveAttribute("data-ready", "true", { timeout: 60_000 });
+  await expect(page.getByRole("button", { name: "通常攻撃" })).toBeEnabled({ timeout: 60_000 });
   await page.getByRole("link", { name: "構図設定", exact: true }).click();
   await expect(save).toBeEnabled({ timeout: 60_000 });
   for (const [key, value] of Object.entries(changes))
-    await expect(fieldInput(page, key as SettingKey)).toHaveValue(String(value));
+    await expect(fieldInput(page, key as keyof typeof fields)).toHaveValue(String(value));
   await expect(message).not.toContainText("復元");
   await fieldInput(page, "groundScale").fill("0");
   await expect(save).toBeDisabled();

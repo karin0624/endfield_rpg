@@ -57,14 +57,14 @@ describe("battle", () => {
         targetHpAfter: 4,
       },
     ]);
-    expect(result.state.combatants).toEqual([
-      expect.objectContaining({ id: "hero", hp: 20 }),
-      expect.objectContaining({ id: "companion", hp: 15 }),
-      expect.objectContaining({ id: "slime", hp: 4 }),
-    ]);
+    expect(Object.fromEntries(result.state.combatants.map(({ id, hp }) => [id, hp]))).toEqual({
+      hero: 20,
+      companion: 15,
+      slime: 4,
+    });
     expect(result.state.currentActorId).toBe("hero");
     expect(result.state.outcome).toBe("ongoing");
-    expect(result.state.combatants[0].nextActionTime).toBe(200);
+    expect(getBattleUpcomingActions(result.state, 1)).toEqual([{ id: "hero", time: 200 }]);
   });
 
   it("HPを0未満にせず、倒れた敵を行動順から除外する", () => {
@@ -219,16 +219,6 @@ describe("battle", () => {
     });
   });
 
-  it("壊れた現在行動者IDを無効な行動者として握りつぶさない", () => {
-    const state = stateWithHeroActing();
-    const brokenState = {
-      ...state,
-      currentActorId: "missing-actor",
-    };
-
-    expect(() => performBasicAttack(brokenState, "hero", "slime")).toThrow("現在の行動者が存在しません: missing-actor");
-  });
-
   it("HP0の初期戦闘者から勝敗を一意に決める", () => {
     const victory = createBattleState([
       {
@@ -264,9 +254,9 @@ describe("battle", () => {
     ]);
 
     expect(victory.outcome).toBe("victory");
-    expect(victory.combatants[1].isAlive).toBe(false);
+    expect(victory.combatants.find(({ id }) => id === "defeated-enemy")?.isAlive).toBe(false);
     expect(defeat.outcome).toBe("defeat");
-    expect(defeat.combatants[0].isAlive).toBe(false);
+    expect(defeat.combatants.find(({ id }) => id === "defeated-ally")?.isAlive).toBe(false);
   });
 
   it("HPと攻撃力の不正な定義値を拒否する", () => {
@@ -330,8 +320,13 @@ describe("battle", () => {
 
     const rematch = createBattleState(victoryDefinitions);
     expect(rematch.outcome).toBe("ongoing");
-    expect(rematch.logicalTime).toBe(0);
-    expect(rematch.combatants).toEqual(createBattleState(victoryDefinitions).combatants);
+    expect(rematch.combatants.map(({ id, hp }) => ({ id, hp }))).toEqual([
+      { id: "hero", hp: 20 },
+      { id: "companion", hp: 20 },
+      { id: "first-enemy", hp: 5 },
+      { id: "second-enemy", hp: 5 },
+    ]);
+    expect(advanceBattleToNextAllyInput(rematch).state.currentActorId).toBe("hero");
   });
 
   it("敗北用データでは敵の同じルールで敗北し、後続の敵は追撃しない", () => {

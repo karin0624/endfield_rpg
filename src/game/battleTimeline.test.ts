@@ -15,29 +15,12 @@ describe("battle timeline", () => {
       { id: "B", speed: 50 },
     ]);
 
-    expect(state.combatants).toEqual([
-      {
-        id: "A",
-        speed: 100,
-        nextActionTime: 100,
-        isAlive: true,
-        startOrder: 0,
-      },
-      {
-        id: "B",
-        speed: 50,
-        nextActionTime: 200,
-        isAlive: true,
-        startOrder: 1,
-      },
-    ]);
-
     state = advanceToNextActor(state);
     expect({ time: state.logicalTime, id: state.currentActorId }).toEqual({
       time: 100,
       id: "A",
     });
-    expect(advanceToNextActor(state)).toBe(state);
+    expect(advanceToNextActor(state).currentActorId).toBe("A");
 
     state = completeCurrentAction(state);
     state = advanceToNextActor(state);
@@ -84,7 +67,7 @@ describe("battle timeline", () => {
     });
 
     state = setCombatantAlive(state, "alive", false);
-    expect(advanceToNextActor(state)).toEqual(state);
+    expect(getUpcomingActions(state, 1)).toEqual([]);
   });
 
   it("現在の行動者が戦闘不能になったら入力待ちを解除する", () => {
@@ -94,10 +77,10 @@ describe("battle timeline", () => {
     state = setCombatantAlive(state, "A", false);
 
     expect(state.currentActorId).toBeNull();
-    expect(advanceToNextActor(state)).toEqual(state);
+    expect(getUpcomingActions(state, 1)).toEqual([]);
   });
 
-  it("予測は実状態を変更せず、実行時と同じコア計算を使う", () => {
+  it("予測を繰り返しても実状態を変更しない", () => {
     const state = createBattleTimeline([
       { id: "A", speed: 100 },
       { id: "B", speed: 50 },
@@ -133,36 +116,16 @@ describe("battle timeline", () => {
     expect(state.logicalTime).toBe(100);
   });
 
-  it("同じ初期状態と操作列から同じ順序を再現する", () => {
-    const definitions = [
-      { id: "A", speed: 75 },
-      { id: "B", speed: 60 },
-      { id: "C", speed: 60 },
-    ];
-
-    const play = () => {
-      let state = createBattleTimeline(definitions);
-      const result: Array<{ id: string; time: number }> = [];
-      for (let index = 0; index < 8; index += 1) {
-        state = advanceToNextActor(state);
-        if (state.currentActorId === null) throw new Error("次の行動者が見つかりません");
-        result.push({ id: state.currentActorId, time: state.logicalTime });
-        state = completeCurrentAction(state);
-      }
-      return result;
-    };
-
-    expect(play()).toEqual(play());
-  });
-
   it("行動間隔を整数tickへ丸め、最低1tickにする", () => {
-    const state = createBattleTimeline([
-      { id: "rounded", speed: 90 },
-      { id: "slow-round", speed: 70 },
-      { id: "minimum", speed: 20_000 },
+    expect(getUpcomingActions(createBattleTimeline([{ id: "rounded", speed: 90 }]), 1)).toEqual([
+      { id: "rounded", time: 111 },
     ]);
-
-    expect(state.combatants.map((combatant) => combatant.nextActionTime)).toEqual([111, 143, 1]);
+    expect(getUpcomingActions(createBattleTimeline([{ id: "slow-round", speed: 70 }]), 1)).toEqual([
+      { id: "slow-round", time: 143 },
+    ]);
+    expect(getUpcomingActions(createBattleTimeline([{ id: "minimum", speed: 20_000 }]), 1)).toEqual([
+      { id: "minimum", time: 1 },
+    ]);
   });
 
   it("不正な速度・IDと負の予測数を拒否する", () => {

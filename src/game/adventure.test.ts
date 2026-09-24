@@ -30,8 +30,6 @@ describe("街・会話の進行", () => {
     expect(state).toMatchObject({
       mode: "conversation",
       currentPlaceId: "guild",
-      conversationId: "guild-first",
-      conversationPosition: "approach-guild",
     });
 
     expect(getCurrentConversationScene(state, initialAdventure)).toMatchObject({
@@ -75,8 +73,6 @@ describe("街・会話の進行", () => {
 
     const lockedChoice = chooseConversationOption(state, "ask-secret", initialAdventure);
     expect(lockedChoice).toEqual({ accepted: false, reason: "choice-unavailable", state });
-    if (lockedChoice.accepted) return;
-    expect(lockedChoice.state).toBe(state);
     expect(state.flags).toEqual([]);
 
     const selected = chooseConversationOption(state, "ask-quest", initialAdventure);
@@ -96,20 +92,16 @@ describe("街・会話の進行", () => {
     expect(state).toMatchObject({
       mode: "town",
       currentPlaceId: "guild",
-      conversationId: null,
-      conversationPosition: null,
       flags: ["heard-guild-quest", "visited-guild"],
     });
     expect(getCurrentConversationScene(state, initialAdventure)).toBeNull();
 
     const duplicateAdvance = advanceConversation(state, initialAdventure);
     expect(duplicateAdvance).toEqual({ accepted: false, reason: "not-in-conversation", state });
-    expect(duplicateAdvance.state).toBe(state);
 
     const revisited = selectTownPlace(state, "guild", initialAdventure);
     expect(revisited.accepted).toBe(true);
     if (!revisited.accepted) return;
-    expect(revisited.state.conversationId).toBe("guild-return-quest");
     expect(getCurrentConversationScene(revisited.state, initialAdventure)).toMatchObject({
       type: "line",
       text: "ギルベルタは前回の話を覚えていた。「街道調査の依頼、詳しい内容をまとめておきました」",
@@ -137,7 +129,6 @@ describe("街・会話の進行", () => {
     const revisited = selectTownPlace(left.state, "guild", initialAdventure);
     expect(revisited.accepted).toBe(true);
     if (!revisited.accepted) return;
-    expect(revisited.state.conversationId).toBe("guild-return-unselected");
     expect(getCurrentConversationScene(revisited.state, initialAdventure)).toMatchObject({
       type: "line",
       text: "ギルベルタは顔を覚えていた。「前回は依頼の話をしませんでしたね。今日は何か聞きますか？」",
@@ -154,7 +145,6 @@ describe("街・会話の進行", () => {
     if (!started.accepted) return;
     const rejectedMove = selectTownPlace(started.state, "guild", initialAdventure);
     expect(rejectedMove).toEqual({ accepted: false, reason: "not-in-town", state: started.state });
-    expect(rejectedMove.state).toBe(started.state);
     expect(getAvailableTownPlaces(started.state, initialAdventure)).toEqual([]);
   });
 

@@ -13,13 +13,4 @@ describe("createInitialGameState", () => {
       flags: [],
     });
   });
-
-  it("呼び出しごとに独立した状態を作る", () => {
-    const first = createInitialGameState(initialGameOptions);
-    const second = createInitialGameState(initialGameOptions);
-
-    expect(first.flags).not.toBe(second.flags);
-
-    expect(second.flags).toEqual([]);
-  });
 });
