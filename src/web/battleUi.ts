@@ -1,6 +1,7 @@
 import { initialBattleCombatants } from "../content/initialBattle";
 import {
   advanceBattleToNextAllyInput,
+  type BattleCombatantDefinition,
   type BattleEvent,
   type BattleState,
   createBattleState,
@@ -87,8 +88,18 @@ const presentation: Record<string, { name: string; portrait?: string }> = {
   "slime-2": { name: "スライム B", portrait: "enemies/slime-blue.png" },
 };
 
-function combatantName(id: string): string {
-  return presentation[id]?.name ?? id;
+export type BattleUiAttackResult =
+  | { readonly accepted: true; readonly state: BattleState; readonly events: readonly BattleEvent[] }
+  | { readonly accepted: false; readonly reason: string };
+
+export interface BattleUiOptions {
+  readonly initialState?: BattleState;
+  readonly combatants?: readonly BattleCombatantDefinition[];
+  readonly displayNames?: Readonly<Record<string, string>>;
+  readonly attack?: (state: BattleState, actorId: string, targetId: string) => BattleUiAttackResult;
+  readonly onFinish?: () => void;
+  readonly finishButtonLabel?: string;
+  readonly finishButtonAriaLabel?: string;
 }
 
 function createInitialBattle(): BattleState {
@@ -128,7 +139,16 @@ function makeBattleMarkup(): string {
   `;
 }
 
-export function mountBattleUi(board: HTMLDivElement, battle: ReturnType<typeof createBattleScene>): () => void {
+export function mountBattleUi(
+  board: HTMLDivElement,
+  battle: ReturnType<typeof createBattleScene>,
+  options: BattleUiOptions = {},
+): () => void {
+  const initialCombatants = options.combatants ?? initialBattleCombatants;
+  const combatantName = (id: string) => options.displayNames?.[id] ?? presentation[id]?.name ?? id;
+  const portraitFor = (id: string) => presentation[id]?.portrait;
+  const findInitialCombatant = (id: string) => initialCombatants.find((initial) => initial.id === id);
+  const teamFor = (id: string) => findInitialCombatant(id)?.team;
   const stageElement = board.querySelector<HTMLElement>(".stage");
   const canvas = board.querySelector<HTMLCanvasElement>("canvas");
   if (stageElement === null || canvas === null) throw new Error("戦闘画面の表示領域が見つかりません");
@@ -136,7 +156,7 @@ export function mountBattleUi(board: HTMLDivElement, battle: ReturnType<typeof c
 
   const events = new AbortController();
   const eventSignal = events.signal;
-  let state = createInitialBattle();
+  let state = options.initialState ?? createInitialBattle();
   let selectedTargetId = getFrontmostLivingEnemyId(state);
   let replayingEvents = false;
   let message = targetPrompt();
@@ -163,10 +183,12 @@ export function mountBattleUi(board: HTMLDivElement, battle: ReturnType<typeof c
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
   const enemyHitAreas = new Map<string, HTMLButtonElement>();
   const enemyNameplates = new Map<string, HTMLDivElement>();
+  rematchButton.textContent = options.finishButtonLabel ?? "再戦する";
+  rematchButton.setAttribute("aria-label", options.finishButtonAriaLabel ?? "戦闘を再戦する");
   screenReaderStatus.id = "battle-screen-reader-status";
   stage.append(targetIndicator, eventToast);
 
-  for (const combatant of initialBattleCombatants.filter((candidate) => candidate.team === "enemy")) {
+  for (const combatant of initialCombatants.filter((candidate) => candidate.team === "enemy")) {
     const nameplate = document.createElement("div");
     nameplate.className = "enemy-world-label";
     nameplate.dataset.enemyLabel = combatant.id;
@@ -309,7 +331,7 @@ export function mountBattleUi(board: HTMLDivElement, battle: ReturnType<typeof c
       );
       const icon = document.createElement("span");
       icon.className = "queue-portrait";
-      const imagePath = presentation[action.id]?.portrait;
+      const imagePath = portraitFor(action.id);
       if (imagePath !== undefined) {
         const image = document.createElement("img");
         image.alt = "";
@@ -349,7 +371,7 @@ export function mountBattleUi(board: HTMLDivElement, battle: ReturnType<typeof c
     for (const combatant of state.combatants) {
       if (combatant.team === "enemy") continue;
       const name = combatantName(combatant.id);
-      const maximum = initialBattleCombatants.find((initial) => initial.id === combatant.id)?.hp ?? combatant.hp;
+      const maximum = findInitialCombatant(combatant.id)?.hp ?? combatant.hp;
       const status = combatant.isAlive ? "" : "戦闘不能";
       const card = document.createElement("article");
       card.className = `ally-card${combatant.id === state.currentActorId ? " active" : ""}${combatant.isAlive ? "" : " defeated"}`;
@@ -358,7 +380,7 @@ export function mountBattleUi(board: HTMLDivElement, battle: ReturnType<typeof c
       const image = document.createElement("img");
       image.className = "ally-portrait";
       image.alt = "";
-      image.src = `${import.meta.env.BASE_URL}assets/${presentation[combatant.id]?.portrait ?? ""}`;
+      image.src = `${import.meta.env.BASE_URL}assets/${portraitFor(combatant.id) ?? ""}`;
       const details = document.createElement("div");
       details.className = "ally-details";
       const heading = document.createElement("div");
@@ -389,7 +411,7 @@ export function mountBattleUi(board: HTMLDivElement, battle: ReturnType<typeof c
     for (const [id, nameplate] of enemyNameplates) {
       const enemy = getCombatant(id);
       if (enemy === undefined) continue;
-      const maximum = initialBattleCombatants.find((initial) => initial.id === id)?.hp ?? enemy.hp;
+      const maximum = findInitialCombatant(id)?.hp ?? enemy.hp;
       const defeated = !enemy.isAlive;
       const status = requiredElement<HTMLElement>(nameplate, "[data-enemy-state]");
       const hp = requiredElement<HTMLElement>(nameplate, "[data-enemy-hp]");
@@ -506,7 +528,7 @@ export function mountBattleUi(board: HTMLDivElement, battle: ReturnType<typeof c
     for (const event of confirmedEvents) {
       if (disposed) return;
       if (event.type === "attack") {
-        const actorTeam = initialBattleCombatants.find((combatant) => combatant.id === event.actorId)?.team;
+        const actorTeam = teamFor(event.actorId);
         if (actorTeam === "enemy" && hasReplayedAllyAttack && !hasPausedBeforeEnemyTurn) {
           eventToast.hidden = true;
           await animationWait(ENEMY_TURN_PAUSE_MS);
@@ -566,7 +588,8 @@ export function mountBattleUi(board: HTMLDivElement, battle: ReturnType<typeof c
     const target = getCombatant(targetId);
     if (target === undefined || target.team !== "enemy" || !target.isAlive) return;
     replayingEvents = true;
-    const result = performBasicAttackAndAdvanceToAllyInput(state, actorId, targetId);
+    const result =
+      options.attack?.(state, actorId, targetId) ?? performBasicAttackAndAdvanceToAllyInput(state, actorId, targetId);
     if (!result.accepted) {
       replayingEvents = false;
       message = `攻撃できませんでした：${result.reason}`;
@@ -594,6 +617,10 @@ export function mountBattleUi(board: HTMLDivElement, battle: ReturnType<typeof c
     "click",
     () => {
       if (state.outcome === "ongoing" || replayingEvents) return;
+      if (options.onFinish !== undefined) {
+        options.onFinish();
+        return;
+      }
       state = createInitialBattle();
       selectedTargetId = getFrontmostLivingEnemyId(state);
       replayingEvents = false;

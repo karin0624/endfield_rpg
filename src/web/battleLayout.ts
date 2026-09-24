@@ -1,5 +1,5 @@
 import { initialBattleCombatants } from "../content/initialBattle";
-import type { BattleTeam } from "../game/battle";
+import type { BattleCombatantDefinition, BattleTeam } from "../game/battle";
 import type { BattleSettings } from "./battleSettings";
 
 // 描画専用の配置。ゲーム状態・戦闘ルールには持ち込まない。
@@ -93,14 +93,28 @@ const actorVisuals: Record<string, Omit<BattleActorLayout, "id" | "team">> = {
 };
 
 // 通常画面の人数・順序はゲーム側の固定編成から導出し、描画側に重複して持たない。
-export const battleLayout = {
-  ground: { scale: 26 },
-  backdrop: { width: 50, height: (50 * 736) / 2138 },
-  actors: initialBattleCombatants.map((combatant) => {
-    const visual = actorVisuals[combatant.id];
-    if (visual === undefined) {
-      throw new Error(`戦闘者の描画素材がありません: ${combatant.id}`);
-    }
-    return { id: combatant.id, team: combatant.team, ...visual } satisfies BattleActorLayout;
-  }),
-} as const;
+export interface BattleLayout {
+  readonly ground: { readonly scale: number };
+  readonly backdrop: { readonly width: number; readonly height: number };
+  readonly actors: readonly BattleActorLayout[];
+}
+
+const ground = { scale: 26 } as const;
+const backdrop = { width: 50, height: (50 * 736) / 2138 } as const;
+
+/** Build the scene actors from the battle being shown; unknown enemies use the existing placeholder sprite. */
+export function createBattleLayout(combatants: readonly BattleCombatantDefinition[]): BattleLayout {
+  return {
+    ground,
+    backdrop,
+    actors: combatants.map((combatant) => {
+      const visual = actorVisuals[combatant.id] ?? (combatant.team === "enemy" ? actorVisuals.slime : undefined);
+      if (visual === undefined) {
+        throw new Error(`戦闘者の描画素材がありません: ${combatant.id}`);
+      }
+      return { id: combatant.id, team: combatant.team, ...visual } satisfies BattleActorLayout;
+    }),
+  };
+}
+
+export const battleLayout = createBattleLayout(initialBattleCombatants);

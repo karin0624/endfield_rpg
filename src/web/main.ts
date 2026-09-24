@@ -10,12 +10,15 @@ if (app === null) throw new Error("#app が見つかりません");
 const query = new URLSearchParams(location.search);
 const editing = import.meta.env.DEV && query.get("edit") === "1";
 const adventureEditing = import.meta.env.DEV && query.get("adventureEdit") === "1";
+const dungeonMode = query.get("dungeon") === "1";
 const battleMode = editing || query.get("battle") === "1";
 document.body.classList.toggle("editing", editing);
 document.body.classList.toggle("adventure-editing", adventureEditing && !battleMode);
+document.body.classList.toggle("dungeon-mode", dungeonMode && !battleMode);
 
 let battle: ReturnType<typeof createBattleScene> | undefined;
 let disposeAdventure: (() => void) | undefined;
+let disposeDungeon: (() => void) | undefined;
 let disposeAdventureEditor: (() => void) | undefined;
 let disposeEditor: (() => void) | undefined;
 let disposeBattleUi: (() => void) | undefined;
@@ -27,6 +30,7 @@ function dispose() {
   events.abort();
   disposeAdventureEditor?.();
   disposeAdventure?.();
+  disposeDungeon?.();
   disposeEditor?.();
   disposeBattleUi?.();
   battle?.dispose();
@@ -41,7 +45,7 @@ window.addEventListener(
 );
 if (import.meta.hot) import.meta.hot.dispose(dispose);
 
-if (!battleMode) {
+if (!battleMode && !dungeonMode) {
   const { mountAdventureUi } = await import("./adventureUi");
   if (!disposed) {
     const adventureSettings = parseAdventureSettings(savedAdventureSettings);
@@ -52,6 +56,9 @@ if (!battleMode) {
       if (!disposed) disposeAdventureEditor = mountAdventureEditor(app, adventure, adventureSettings);
     }
   }
+} else if (dungeonMode && !battleMode) {
+  const { mountDungeonUi } = await import("./dungeonUi");
+  if (!disposed) disposeDungeon = mountDungeonUi(app);
 } else {
   app.innerHTML = `
     <main class="battle-screen">

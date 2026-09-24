@@ -16,7 +16,9 @@ import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import { Scene } from "@babylonjs/core/scene";
 import "@babylonjs/loaders/glTF/2.0/glTFLoader";
-import { type BattleActorLayout, battleLayout, getFormationPositions } from "./battleLayout";
+import { initialBattleCombatants } from "../content/initialBattle";
+import type { BattleCombatantDefinition } from "../game/battle";
+import { type BattleActorLayout, createBattleLayout, getFormationPositions } from "./battleLayout";
 import type { BattleSettings } from "./battleSettings";
 
 const assetUrl = (path: string) => `${import.meta.env.BASE_URL}assets/${path}`;
@@ -59,7 +61,12 @@ export interface ScreenRect {
   readonly spriteTop: number;
 }
 
-export function createBattleScene(canvas: HTMLCanvasElement, initialSettings: BattleSettings) {
+export function createBattleScene(
+  canvas: HTMLCanvasElement,
+  initialSettings: BattleSettings,
+  combatants: readonly BattleCombatantDefinition[] = initialBattleCombatants,
+) {
+  const layout = createBattleLayout(combatants);
   const engine = new Engine(canvas, true);
   // 高DPIの端末でも地面の描画負荷を際限なく増やさない。
   engine.setHardwareScalingLevel(1 / Math.min(window.devicePixelRatio, 1.5));
@@ -76,7 +83,7 @@ export function createBattleScene(canvas: HTMLCanvasElement, initialSettings: Ba
   const groundHeightCache = new Map<string, number | undefined>();
   let backdrop: Mesh | undefined;
   const actors: SceneActor[] = [];
-  const actorCounts = battleLayout.actors.reduce<PreviewCounts>(
+  const actorCounts = layout.actors.reduce<PreviewCounts>(
     (counts, actor) => {
       counts[actor.team] += 1;
       return counts;
@@ -148,7 +155,7 @@ export function createBattleScene(canvas: HTMLCanvasElement, initialSettings: Ba
     camera.position.set(next.cameraX, next.cameraY, next.cameraZ);
     camera.setTarget(new Vector3(next.targetX, next.targetY, next.targetZ));
     camera.fov = (next.fovDegrees * Math.PI) / 180;
-    groundRoot.scaling.setAll(battleLayout.ground.scale * next.groundScale);
+    groundRoot.scaling.setAll(layout.ground.scale * next.groundScale);
     if (backdrop) {
       backdrop.position.set(next.backdropX, next.backdropY, next.backdropZ);
       backdrop.scaling.setAll(next.backdropScale);
@@ -295,7 +302,7 @@ export function createBattleScene(canvas: HTMLCanvasElement, initialSettings: Ba
     const [ground, background, ...portraits] = await Promise.all([
       ImportMeshAsync(assetUrl("ground/ground1.glb"), scene),
       loadTexture("backgrounds/landscape1.png"),
-      ...battleLayout.actors.map((actor) => loadTexture(actor.image)),
+      ...layout.actors.map((actor) => loadTexture(actor.image)),
     ]);
     if (disposed) return;
     for (const mesh of ground.meshes) {
@@ -306,14 +313,14 @@ export function createBattleScene(canvas: HTMLCanvasElement, initialSettings: Ba
     backdrop = CreatePlane(
       "backdrop",
       {
-        width: battleLayout.backdrop.width,
-        height: battleLayout.backdrop.height,
+        width: layout.backdrop.width,
+        height: layout.backdrop.height,
       },
       scene,
     );
     backdrop.material = imageMaterial("landscape", background, false);
 
-    battleLayout.actors.forEach((actor, index) => {
+    layout.actors.forEach((actor, index) => {
       const order = actors.filter((candidate) => candidate.layout.team === actor.team).length;
       const anchor = new TransformNode(`${actor.id}-feet`, scene);
       const height = actor.height;

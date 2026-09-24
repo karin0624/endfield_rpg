@@ -99,7 +99,13 @@ export type DungeonRejectionReason =
   | `adventure:${AdventureRejectionReason}`;
 
 export type DungeonActionResult =
-  | { readonly accepted: true; readonly state: DungeonState; readonly events: BattleEvent[] }
+  | {
+      readonly accepted: true;
+      readonly state: DungeonState;
+      readonly events: BattleEvent[];
+      /** Final battle state for the screen result after the activity returns to the route. */
+      readonly battleState?: BattleState;
+    }
   | {
       readonly accepted: false;
       readonly reason: DungeonRejectionReason;
@@ -482,7 +488,8 @@ export function performDungeonBasicAttack(
       accepted: true,
       state: completeNode(updated, node.id, node.type, attack.state.outcome),
       events: attack.events,
+      battleState: attack.state,
     };
   }
-  return { accepted: true, state: updated, events: attack.events };
+  return { accepted: true, state: updated, events: attack.events, battleState: attack.state };
 }

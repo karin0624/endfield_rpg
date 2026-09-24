@@ -21,7 +21,7 @@ export default defineConfig({
     launchOptions: { args: ["--enable-unsafe-swiftshader"] },
   },
   projects: [
-    { name: "built", testMatch: "battle.spec.ts" },
+    { name: "built", testMatch: ["battle.spec.ts", "dungeon.spec.ts"] },
     { name: "settings", testMatch: "settings.spec.ts", use: { baseURL: "http://127.0.0.1:4174" } },
   ],
   webServer: editor

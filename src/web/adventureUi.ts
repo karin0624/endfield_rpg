@@ -76,6 +76,7 @@ export function mountAdventureUi(
           </header>
           <nav class="town-places" data-town-places aria-label="街の場所"></nav>
           <div class="town-utility-controls">
+            <a class="dungeon-entry" href="?dungeon=1">探索ルートを見る</a>
             <a class="battle-entry" href="?battle=1">戦闘デモを見る</a>
             ${import.meta.env.DEV ? '<a class="adventure-editor-entry" href="?adventureEdit=1">会話画面の配置設定</a>' : ""}
           </div>
