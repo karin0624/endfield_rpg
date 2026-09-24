@@ -14,12 +14,7 @@ test("配布画面の実描画を基準画像と比較する", async ({ page }) 
   await expect(page.getByRole("button", { name: "通常攻撃" })).toBeEnabled({ timeout: 60_000 });
   await expect(page).toHaveScreenshot("battle-desktop.png", { animations: "disabled" });
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.evaluate(
-    () =>
-      new Promise<void>((resolve) => {
-        requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
-      }),
-  );
+  await expect(page.getByRole("button", { name: "通常攻撃" })).toBeEnabled();
   await expect(page).toHaveScreenshot("battle-mobile.png", { animations: "disabled", fullPage: true });
   expect(errors).toEqual([]);
 });

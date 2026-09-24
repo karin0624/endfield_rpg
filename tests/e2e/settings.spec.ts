@@ -135,11 +135,13 @@ test("会話画面の立ち絵と本文位置を調整・保存し、通常表�
   await expect(page.getByText("ロッシは掲示板の前で足を止めた。")).toBeVisible();
   await expect(rightPreview).toHaveAttribute("data-position", "right");
   await expect(rightPreview.locator("img")).toHaveJSProperty("naturalWidth", 1024);
-  const initialRight = await rightPreview.evaluate((element) => element.getBoundingClientRect().left);
+  const initialRightBounds = await rightPreview.boundingBox();
+  if (initialRightBounds === null) throw new Error("右側の立ち絵プレビューが表示されていません");
+  const initialRight = initialRightBounds.x;
   const initialRightValue = Number(await rightX.inputValue());
   const rightMovesFurtherRight = initialRightValue <= 96;
   await rightX.fill(String(initialRightValue + (rightMovesFurtherRight ? 4 : -4)));
-  const rightPosition = expect.poll(() => rightPreview.evaluate((element) => element.getBoundingClientRect().left));
+  const rightPosition = expect.poll(async () => (await rightPreview.boundingBox())?.x ?? initialRight);
   if (rightMovesFurtherRight) await rightPosition.toBeGreaterThan(initialRight);
   else await rightPosition.toBeLessThan(initialRight);
   await leftX.fill("32");

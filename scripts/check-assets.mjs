@@ -6,6 +6,13 @@ const assets = [
   ["backgrounds/landscape1.png", "89504e470d0a1a0a"],
   ["characters/rossi/front-left.png", "89504e470d0a1a0a"],
   ["enemies/slime-blue.png", "89504e470d0a1a0a"],
+  ["backgrounds/dungeon-route.png", "89504e470d0a1a0a"],
+  ["dungeon-nodes/focus/battle.png", "89504e470d0a1a0a"],
+  ["dungeon-nodes/focus/encounter.png", "89504e470d0a1a0a"],
+  ["dungeon-nodes/focus/boss.png", "89504e470d0a1a0a"],
+  ["dungeon-nodes/unfocus/battle.png", "89504e470d0a1a0a"],
+  ["dungeon-nodes/unfocus/encounter.png", "89504e470d0a1a0a"],
+  ["dungeon-nodes/unfocus/boss.png", "89504e470d0a1a0a"],
 ];
 for (const [path, magic] of assets) {
   const file = await open(new URL(`../public/assets/${path}`, import.meta.url));
