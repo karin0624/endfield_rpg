@@ -1,21 +1,29 @@
 import { expect, type Page, test } from "@playwright/test";
 
-async function expectCurrentEnemyOverlays(page: Page) {
+async function expectCurrentEnemyOverlays(page: Page, expectedViewport?: { width: number; height: number }) {
   await expect
-    .poll(async () => {
-      const [stage, label, marker] = await Promise.all([
-        page.locator(".stage").boundingBox(),
-        page.locator(".enemy-world-label.selected").boundingBox(),
-        page.locator("[data-target-indicator]").boundingBox(),
-      ]);
-      if (!stage || !label || !marker) return false;
-      return (
-        [stage, label, marker].every((box) => Object.values(box).every(Number.isFinite)) &&
-        marker.y + marker.height <= label.y - 3 &&
-        label.y >= stage.y &&
-        label.y + label.height <= stage.y + stage.height
-      );
-    })
+    .poll(
+      async () => {
+        const [stage, label, marker] = await Promise.all([
+          page.locator(".stage").boundingBox(),
+          page.locator(".enemy-world-label.selected").boundingBox(),
+          page.locator("[data-target-indicator]").boundingBox(),
+        ]);
+        if (!stage || !label || !marker) return false;
+        return (
+          [stage, label, marker].every((box) => Object.values(box).every(Number.isFinite)) &&
+          (!expectedViewport ||
+            (page.viewportSize()?.width === expectedViewport.width &&
+              page.viewportSize()?.height === expectedViewport.height &&
+              Math.abs(stage.width - expectedViewport.width) < 1 &&
+              Math.abs(stage.height - (expectedViewport.width * 9) / 16) < 1)) &&
+          marker.y + marker.height <= label.y - 3 &&
+          label.y >= stage.y &&
+          label.y + label.height <= stage.y + stage.height
+        );
+      },
+      { timeout: 60_000, message: "指定画面寸法と敵札・選択マーカーの配置が整合する" },
+    )
     .toBe(true);
 }
 
@@ -64,10 +72,8 @@ test("敵札の文字寸法と画面サイズの変更に追従し、離脱後�
     { width: 390, height: 844 },
     { width: 1440, height: 1080 },
   ]) {
-    const previousWidth = (await page.locator(".stage").boundingBox())?.width;
     await page.setViewportSize(viewport);
-    await expect.poll(async () => (await page.locator(".stage").boundingBox())?.width).not.toBe(previousWidth);
-    await expectCurrentEnemyOverlays(page);
+    await expectCurrentEnemyOverlays(page, viewport);
   }
   const attack = page.getByRole("button", { name: "通常攻撃" });
   for (let turn = 0; turn < 4; turn++) await attack.click();
