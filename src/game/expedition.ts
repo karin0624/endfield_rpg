@@ -12,18 +12,29 @@ import {
 } from "./dungeon";
 import {
   type CharacterDefinition,
+  characterById,
   departureRejection,
   getPartyCombatants,
   type PartyRejection,
   type PartyState,
   setPartySlot,
 } from "./party";
+import {
+  applyIncapacity,
+  applyStagedStatus,
+  effectiveMaxHp,
+  healthyStatus,
+  recoverTownStep,
+  type StagedStatusKind,
+} from "./status";
 
 /** The browser keeps one session in memory. Save/restore and return recovery belong to later milestones. */
 export interface ExpeditionGame {
   readonly adventure: GameState;
   readonly party: PartyState;
   readonly dungeon: DungeonState | null;
+  readonly randomState?: number;
+  readonly lastTownRecoverySignal?: number;
 }
 export type ExpeditionRejection = PartyRejection | "not-in-town" | "not-on-route";
 export type ExpeditionResult =
@@ -54,6 +65,7 @@ export function departOnExpedition(
     adventure,
     getPartyCombatants(state.party, characters),
     state.adventure.flags,
+    state.randomState ?? 1,
   );
   return { accepted: true, state: { ...state, dungeon } };
 }
@@ -93,11 +105,12 @@ export function actInExpedition(
     state: {
       ...state,
       dungeon,
+      randomState: dungeon.randomState,
       party: {
         ...state.party,
         members: state.party.members.map((member) => {
           const participant = dungeon.party.find(({ id }) => id === member.id);
-          return participant === undefined ? member : { ...member, hp: participant.hp };
+          return participant === undefined ? member : { ...member, hp: participant.hp, status: participant.status };
         }),
       },
       adventure: { ...state.adventure, flags: dungeon.flags },
@@ -111,4 +124,56 @@ export function leaveExpedition(state: ExpeditionGame): ExpeditionResult {
   if (state.dungeon === null || state.dungeon.activity !== null)
     return { accepted: false, state, reason: "not-on-route" };
   return { accepted: true, state: { ...state, dungeon: null } };
+}
+
+/** Town integration supplies a monotonically increasing signal; duplicate delivery is a no-op. */
+export function receiveTownRecoverySignal(
+  state: ExpeditionGame,
+  signal: number,
+  characters: readonly CharacterDefinition[],
+): ExpeditionGame {
+  if (!Number.isSafeInteger(signal) || signal < 0) throw new RangeError("回復signalは非負の整数です");
+  if (signal <= (state.lastTownRecoverySignal ?? -1)) return state;
+  // Consume ineligible deliveries too, so delayed replay cannot recover dungeon time.
+  if (state.dungeon !== null || state.adventure.mode !== "town") return { ...state, lastTownRecoverySignal: signal };
+  return {
+    ...state,
+    lastTownRecoverySignal: signal,
+    party: {
+      ...state.party,
+      members: state.party.members.map((member) => {
+        const status = recoverTownStep(member.status ?? healthyStatus());
+        return {
+          ...member,
+          status,
+          hp: Math.min(member.hp, effectiveMaxHp(characterById(characters, member.id).maxHp, status)),
+        };
+      }),
+    },
+  };
+}
+/** Onset hook for town events; numeric mental fatigue and event selection live outside this core. */
+export function applyPartyStatus(
+  state: ExpeditionGame,
+  id: string,
+  kind: StagedStatusKind | "incapacity",
+  characters: readonly CharacterDefinition[],
+): ExpeditionGame {
+  if (state.dungeon !== null || !state.party.members.some((member) => member.id === id)) return state;
+  return {
+    ...state,
+    party: {
+      ...state.party,
+      members: state.party.members.map((member) => {
+        if (member.id !== id) return member;
+        const previous = member.status ?? healthyStatus();
+        const status = kind === "incapacity" ? applyIncapacity(previous) : applyStagedStatus(previous, kind);
+        return {
+          ...member,
+          status,
+          hp: Math.min(member.hp, effectiveMaxHp(characterById(characters, id).maxHp, status)),
+        };
+      }),
+    },
+  };
 }

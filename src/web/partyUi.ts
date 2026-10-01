@@ -1,6 +1,8 @@
 import type { ExpeditionRejection, ExpeditionResult } from "../game/expedition";
 import { type CharacterDefinition, characterById, departureRejection, type PartyState } from "../game/party";
 
+import { canParticipate, effectiveMaxHp, healthyStatus } from "../game/status";
+
 const portraits: Readonly<Record<string, string>> = {
   player: "characters/rossi/expressions/neutral.png",
   gilberta: "characters/gilberta/expressions/neutral.png",
@@ -11,7 +13,7 @@ const rejectionText: Record<ExpeditionRejection, string> = {
   "not-joined": "加入済みの仲間を選んでください。",
   "duplicate-member": "同じ仲間は複数の枠に配置できません。先に元の枠を空けてください。",
   "empty-party": "出撃する仲間を1人以上選んでください。",
-  "no-living-member": "出撃できる仲間がいません。HPの残っている仲間を編成してください。",
+  "no-living-member": "出撃できる仲間がいません。行動できる仲間を編成してください。",
   "not-in-town": "編成と出撃は街で行ってください。",
   "not-on-route": "街へ戻れるのはルート選択中か探索終了後です。",
 };
@@ -78,7 +80,7 @@ export function mountPartyUi(root: HTMLElement, options: PartyUiOptions, back: (
         option.text =
           candidate.id === id
             ? character.name
-            : `${character.name} — HP ${candidate.hp}/${character.maxHp}${candidate.hp === 0 ? "・戦闘不能" : ""}`;
+            : `${character.name} — HP ${candidate.hp}/${effectiveMaxHp(character.maxHp, candidate.status ?? healthyStatus())}${!canParticipate(candidate.hp, candidate.status) ? "・戦闘不能" : ""}`;
       }
       card.classList.toggle("is-occupied", id !== null);
       portrait.replaceChildren();
@@ -95,7 +97,9 @@ export function mountPartyUi(root: HTMLElement, options: PartyUiOptions, back: (
         } else {
           portrait.textContent = character.name;
         }
-        hp.textContent = member.hp === 0 ? "戦闘不能 · HP 0" : `HP ${member.hp} / ${character.maxHp}`;
+        hp.textContent = !canParticipate(member.hp, member.status)
+          ? `戦闘不能 · HP ${member.hp}`
+          : `HP ${member.hp} / ${effectiveMaxHp(character.maxHp, member.status ?? healthyStatus())}`;
         hp.classList.toggle("is-defeated", member.hp === 0);
       } else {
         hp.textContent = "";

@@ -1,14 +1,17 @@
 import type { BattleCombatantDefinition } from "./battle";
+import { type CharacterStatus, canParticipate, healthyStatus } from "./status";
 
 export interface CharacterDefinition {
   readonly id: string;
   readonly name: string;
   readonly maxHp: number;
+  readonly hitRate?: number;
   readonly speed: number;
   readonly attackPower: number;
 }
 
 export interface PartyMember {
+  readonly status?: CharacterStatus;
   readonly id: string;
   readonly hp: number;
 }
@@ -41,6 +44,8 @@ export function createParty(definitions: readonly CharacterDefinition[], joinedI
       !definition.name.trim() ||
       !Number.isFinite(definition.maxHp) ||
       definition.maxHp <= 0 ||
+      (definition.hitRate !== undefined &&
+        (!Number.isFinite(definition.hitRate) || definition.hitRate < 0 || definition.hitRate > 1)) ||
       !Number.isFinite(definition.speed) ||
       definition.speed <= 0 ||
       !Number.isFinite(definition.attackPower) ||
@@ -82,13 +87,25 @@ export function getPartyCombatants(
     const member = state.members.find((candidate) => candidate.id === id);
     if (member === undefined) throw new Error(`未加入のキャラクターです: ${id}`);
     const definition = characterById(definitions, id);
-    return [{ id, team: "ally" as const, hp: member.hp, speed: definition.speed, attackPower: definition.attackPower }];
+    return [
+      {
+        maxHp: definition.maxHp,
+        hitRate: definition.hitRate,
+        status: member.status ?? healthyStatus(),
+        id,
+        team: "ally" as const,
+        hp: member.hp,
+        speed: definition.speed,
+        attackPower: definition.attackPower,
+      },
+    ];
   });
 }
 
 export function departureRejection(state: PartyState): PartyRejection | null {
   const selected = state.slots.filter((id) => id !== null);
   if (selected.length === 0) return "empty-party";
-  if (!state.members.some((member) => selected.includes(member.id) && member.hp > 0)) return "no-living-member";
+  if (!state.members.some((member) => selected.includes(member.id) && canParticipate(member.hp, member.status)))
+    return "no-living-member";
   return null;
 }

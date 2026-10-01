@@ -31,7 +31,7 @@
 - `outcome`: `ongoing`、`victory`、`defeat`のいずれか。
 
 戦闘開始時の数値は型付きの定義データ（`BattleCombatantDefinition`）から作る。
-本編の味方は入場時の1〜4人の[PT](party.md)から作り、現在HPを次戦へ引き継ぐ。配列順を戦闘者の固定順・同時刻の優先順として扱う。
+本編の味方は入場時の1〜4人の[PT](party.md)から作り、現在HP・基礎最大HP・基礎命中率・[状態異常](status.md)とゲーム乱数を次戦へ引き継ぐ。配列順を戦闘者の固定順・同時刻の優先順として扱う。
 [`src/content/initialBattle.ts`](../src/content/initialBattle.ts)の固定2対2（`player`、`gilberta`、`slime`、`slime-2`）は独立した戦闘デモ用で、本編の人数を制限しない。
 
 ## 操作
@@ -70,7 +70,7 @@
 行動後に次の行動者を選び、敵なら固定順で最初に生存している味方へ
 `performBasicAttack`を繰り返す。次の味方入力待ち、または勝敗確定で停止し、敵の攻撃イベントを
 実行順に返す。`performBasicAttackAndAdvanceToAllyInput`は味方の通常攻撃と直後の敵行動を
-連結する補助操作である。敵AI・乱数・実時間待ち・アニメーションは参照しない。
+連結する補助操作である。敵AI・実時間待ち・アニメーションは参照しない。命中判定だけはseed付きゲーム乱数を使用する。
 
 通常攻撃の結果は`{accepted, state, events}`で返す。無効な操作は
 `accepted: false`と理由を返し、元の状態をそのまま返す。行動順外の行動、存在しない
@@ -91,11 +91,11 @@ getUpcomingActions(state, 3)
 ```
 
 同時刻は開始順で決定し、配列の順を変えずに同じ初期状態と操作列を実行すれば同じ
-順序になる。`isAlive: false`の戦闘者は予測・選択から除外する。予測や表示用の
+順序になる。`isAlive: false`の戦闘者は予測・選択から除外する。HPが正でも戦闘不能状態が残る者は`isAlive: false`とする。予測や表示用の
 行動順を繰り返し参照しても、元の`logicalTime`、`currentActorId`、各戦闘者の
 `nextActionTime`は変化しない。
 
-通常攻撃では、指定した対象のHPだけが`attackPower`分減る。HPが0になった対象は
+通常攻撃が命中したとき、指定した対象のHPだけが`attackPower`分減る。失敗はHPを減らさず行動を完了する。HPが0になった対象は
 `isAlive: false`となり、以後の行動順から除外する。敵が全滅した時点で`victory`、
 味方が全滅した時点で`defeat`を確定し、同じ勝敗イベントを重複して返さない。
 
@@ -105,6 +105,7 @@ getUpcomingActions(state, 3)
 
 ```ts
 { type: "attack", actorId, targetId, damage, targetHpBefore, targetHpAfter }
+{ type: "miss", actorId, targetId }
 { type: "combatant-defeated", combatantId }
 { type: "battle-ended", outcome: "victory" | "defeat" }
 ```
@@ -116,4 +117,6 @@ HPが0にならない攻撃は`attack`だけを返す。戦闘不能になった
 ## 対象外
 
 戦闘中の速度変更、遅延・割込・追加ターン、ラウンド、実時間ATB、技、回復、防御、
-逃走、状態異常、装備、報酬、敵AI、演出はこの仕様に含めない。
+逃走、装備、報酬、敵AI、演出はこの仕様に含めない。
+
+状態異常の暫定係数・回復signal・基礎命中率と乱数消費の境界は[状態異常](status.md)を参照する。技の命中規則は未確定。

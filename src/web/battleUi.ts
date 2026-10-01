@@ -533,7 +533,13 @@ export function mountBattleUi(
     let hasPausedBeforeEnemyTurn = false;
     for (const event of confirmedEvents) {
       if (disposed) return;
-      if (event.type === "attack") {
+      if (event.type === "miss") {
+        const detail = `${combatantName(event.actorId)}の通常攻撃は外れた`;
+        message = detail;
+        showEventToast(detail, "attack");
+        screenReaderStatus.textContent = detail;
+        await animationWait(EVENT_TOAST_DURATION_MS);
+      } else if (event.type === "attack") {
         const actorTeam = teamFor(event.actorId);
         if (actorTeam === "enemy" && hasReplayedAllyAttack && !hasPausedBeforeEnemyTurn) {
           eventToast.hidden = true;

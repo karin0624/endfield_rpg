@@ -44,7 +44,7 @@ function act(state: ExpeditionGame, command: Parameters<typeof actInExpedition>[
 describe("仲間と出撃編成", () => {
   it("ロッシだけの新規ゲームから3枠空けて出撃する", () => {
     const state = newGame();
-    expect(state.party.members).toEqual([{ id: "player", hp: 20 }]);
+    expect(state.party.members.map(({ id, hp }) => ({ id, hp }))).toEqual([{ id: "player", hp: 20 }]);
     expect(state.party.slots).toEqual(["player", null, null, null]);
     const entered = act(depart(state), { type: "enter", nodeId: "battle-a" });
     expect(entered.dungeon?.party).toMatchObject([{ id: "player", hp: 20 }]);
@@ -104,21 +104,21 @@ describe("仲間と出撃編成", () => {
     let state = depart(newGame(["player", "gilberta"]));
     state = act(state, { type: "enter", nodeId: "battle-a" });
     state = act(state, { type: "attack", actorId: "player", targetId: "slime-2" });
-    expect(state.party.members).toEqual([
+    expect(state.party.members.map(({ id, hp }) => ({ id, hp }))).toEqual([
       { id: "player", hp: 13 },
       { id: "gilberta", hp: 18 },
     ]);
     expect(leaveExpedition(state)).toMatchObject({ accepted: false, reason: "not-on-route" });
     for (const targetId of ["slime-2", "slime", "slime"])
       state = act(state, { type: "attack", actorId: "player", targetId });
-    expect(state.party.members).toEqual([
+    expect(state.party.members.map(({ id, hp }) => ({ id, hp }))).toEqual([
       { id: "player", hp: 5 },
       { id: "gilberta", hp: 18 },
     ]);
     state = accepted(leaveExpedition(state));
     state = accepted(editExpeditionParty(state, 0, "gilberta"));
     expect(state.party.slots).toEqual(["gilberta", null, null, null]);
-    expect(state.party.members).toEqual([
+    expect(state.party.members.map(({ id, hp }) => ({ id, hp }))).toEqual([
       { id: "player", hp: 5 },
       { id: "gilberta", hp: 18 },
     ]);
@@ -165,7 +165,7 @@ describe("仲間と出撃編成", () => {
     expect(state.dungeon?.outcome).toBe("cleared");
     state = accepted(leaveExpedition(state));
     expect(state.dungeon).toBeNull();
-    expect(state.party.members).toEqual([{ id: "player", hp: 5 }]);
+    expect(state.party.members.map(({ id, hp }) => ({ id, hp }))).toEqual([{ id: "player", hp: 5 }]);
     expect(state.adventure.flags).toEqual(["marked-ruins-route", "scouted-ruins"]);
     expect(leaveExpedition(state)).toMatchObject({ accepted: false, reason: "not-on-route" });
   });
@@ -180,7 +180,7 @@ describe("仲間と出撃編成", () => {
     state = accepted(leaveExpedition(state));
     state = accepted(editExpeditionParty(state, 0, null));
     state = accepted(editExpeditionParty(state, 3, "player"));
-    expect(state.party.members).toEqual([{ id: "player", hp: 0 }]);
+    expect(state.party.members.map(({ id, hp }) => ({ id, hp }))).toEqual([{ id: "player", hp: 0 }]);
     expect(departOnExpedition(state, companions, initialDungeon, initialAdventure)).toMatchObject({
       accepted: false,
       reason: "no-living-member",

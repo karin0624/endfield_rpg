@@ -7,15 +7,28 @@ import {
   type UpcomingAction,
 } from "./battleTimeline";
 
+import { createGameRandom, nextGameRandom } from "./gameRandom";
+import {
+  applyIncapacity,
+  type CharacterStatus,
+  canParticipate,
+  effectiveHitRate,
+  effectiveMaxHp,
+  healthyStatus,
+} from "./status";
+
 export type BattleTeam = "ally" | "enemy";
 
 export type BattleOutcome = "ongoing" | "victory" | "defeat";
 
 /**
  * 戦闘開始時に固定する試作用の戦闘者データ。
- * 命中率・防御力など、今回の戦闘で使わない数値は持たせない。
+ * 最大HP・命中率を省略した既存定義も受け付ける。
  */
 export interface BattleCombatantDefinition {
+  readonly maxHp?: number;
+  readonly hitRate?: number;
+  readonly status?: CharacterStatus;
   readonly id: string;
   readonly team: BattleTeam;
   readonly speed: number;
@@ -24,6 +37,9 @@ export interface BattleCombatantDefinition {
 }
 
 export interface BattleCombatant {
+  readonly maxHp: number;
+  readonly hitRate: number;
+  readonly status: CharacterStatus;
   readonly id: string;
   readonly team: BattleTeam;
   readonly speed: number;
@@ -37,9 +53,11 @@ export interface BattleCombatant {
 export interface BattleState extends Omit<BattleTimelineState, "combatants"> {
   readonly combatants: readonly BattleCombatant[];
   readonly outcome: BattleOutcome;
+  readonly randomState: number;
 }
 
 export type BattleEvent =
+  | { readonly type: "miss"; readonly actorId: string; readonly targetId: string }
   | {
       readonly type: "attack";
       readonly actorId: string;
@@ -92,6 +110,13 @@ function isBattleTeam(value: unknown): value is BattleTeam {
 }
 
 function assertValidDefinition(definition: BattleCombatantDefinition): void {
+  if (
+    definition.hitRate !== undefined &&
+    (!Number.isFinite(definition.hitRate) || definition.hitRate < 0 || definition.hitRate > 1)
+  )
+    throw new Error(`命中率が不正です: ${definition.id}`);
+  if (definition.maxHp !== undefined && (!Number.isFinite(definition.maxHp) || definition.maxHp <= 0))
+    throw new Error(`最大HPが不正です: ${definition.id}`);
   if (!isBattleTeam(definition.team)) {
     throw new Error(`戦闘者の陣営が不正です: ${definition.id}`);
   }
@@ -140,13 +165,17 @@ function withTimelineState(state: BattleState, timelineState: BattleTimelineStat
   });
 
   return {
+    ...state,
     ...timelineState,
     combatants,
     outcome: state.outcome,
   };
 }
 
-export function createBattleState(definitions: readonly BattleCombatantDefinition[]): BattleState {
+export function createBattleState(
+  definitions: readonly BattleCombatantDefinition[],
+  randomState = createGameRandom(),
+): BattleState {
   if (!definitions.some((definition) => definition.team === "ally")) {
     throw new Error("味方の戦闘者が必要です");
   }
@@ -155,17 +184,34 @@ export function createBattleState(definitions: readonly BattleCombatantDefinitio
   }
 
   definitions.forEach(assertValidDefinition);
+  const normalized = definitions.map((definition) => {
+    const status =
+      definition.hp === 0 && definition.status === undefined
+        ? applyIncapacity(healthyStatus())
+        : (definition.status ?? healthyStatus());
+    const maxHp = definition.maxHp ?? Math.max(1, definition.hp);
+    return {
+      ...definition,
+      status,
+      maxHp,
+      hitRate: definition.hitRate ?? 1,
+      hp: Math.min(definition.hp, effectiveMaxHp(maxHp, status)),
+    };
+  });
   const timeline = createBattleTimeline(
-    definitions.map((definition) => ({
+    normalized.map((definition) => ({
       id: definition.id,
       speed: definition.speed,
-      isAlive: definition.hp > 0,
+      isAlive: canParticipate(definition.hp, definition.status),
     })),
   );
   const combatants = timeline.combatants.map((combatant, index) => {
-    const definition = definitions[index];
+    const definition = normalized[index];
     return {
       ...combatant,
+      status: definition.status,
+      maxHp: definition.maxHp,
+      hitRate: definition.hitRate,
       team: definition.team,
       hp: definition.hp,
       attackPower: definition.attackPower,
@@ -173,6 +219,7 @@ export function createBattleState(definitions: readonly BattleCombatantDefinitio
   });
 
   const stateWithoutOutcome = {
+    randomState: createGameRandom(randomState),
     ...timeline,
     combatants,
   } satisfies Omit<BattleState, "outcome">;
@@ -248,33 +295,40 @@ export function performBasicAttack(state: BattleState, actorId: string, targetId
     return reject(state, "target-is-defeated");
   }
 
+  const hitRate = effectiveHitRate(actor.hitRate, actor.status);
+  const draw = actor.attackPower > 0 && hitRate > 0 && hitRate < 1 ? nextGameRandom(state.randomState) : null;
+  const hit = hitRate === 1 || (hitRate > 0 && (draw === null || draw.value < hitRate));
   const targetHpBefore = target.hp;
-  const targetHpAfter = Math.max(0, targetHpBefore - actor.attackPower);
+  const targetHpAfter = Math.max(0, targetHpBefore - (hit ? actor.attackPower : 0));
   const targetWasDefeated = targetHpAfter === 0;
   const combatants = state.combatants.map((combatant) =>
     combatant.id === target.id
       ? {
           ...combatant,
           hp: targetHpAfter,
+          status: targetWasDefeated ? applyIncapacity(combatant.status) : combatant.status,
           isAlive: !targetWasDefeated,
         }
       : combatant,
   );
   const stateAfterDamage = {
     ...state,
+    randomState: draw?.state ?? state.randomState,
     combatants,
   } satisfies BattleState;
   const outcome = determineOutcome(stateAfterDamage);
-  const events: BattleEvent[] = [
-    {
-      type: "attack",
-      actorId,
-      targetId,
-      damage: actor.attackPower,
-      targetHpBefore,
-      targetHpAfter,
-    },
-  ];
+  const events: BattleEvent[] = hit
+    ? [
+        {
+          type: "attack",
+          actorId,
+          targetId,
+          damage: actor.attackPower,
+          targetHpBefore,
+          targetHpAfter,
+        },
+      ]
+    : [{ type: "miss", actorId, targetId }];
 
   if (targetWasDefeated) {
     events.push({

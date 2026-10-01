@@ -11,6 +11,7 @@ import {
   leaveExpedition,
 } from "../game/expedition";
 import { characterById, createParty, getPartyCombatants } from "../game/party";
+import { effectiveMaxHp, healthyStatus } from "../game/status";
 import savedAdventureSettings from "./adventure-settings.json";
 import { parseAdventureSettings } from "./adventureSettings";
 import savedSettings from "./battle-settings.json";
@@ -111,7 +112,7 @@ if (!battleMode) {
       initialState: game.dungeon,
       combatants: getPartyCombatants(game.party, characters).map((member) => ({
         ...member,
-        hp: characterById(characters, member.id).maxHp,
+        hp: effectiveMaxHp(characterById(characters, member.id).maxHp, member.status ?? healthyStatus()),
       })),
       displayNames: Object.fromEntries(characters.map(({ id, name }) => [id, name])),
       dispatch: (command) => {
