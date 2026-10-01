@@ -8,9 +8,10 @@ import {
   getCurrentConversationScene,
   selectTownPlace,
 } from "../game/adventure";
-import { createInitialGameState } from "../game/createInitialGameState";
+import { createInitialGameState, type GameState } from "../game/createInitialGameState";
 import savedAdventureSettings from "./adventure-settings.json";
 import { type AdventureSettings, applyAdventureSettings, parseAdventureSettings } from "./adventureSettings";
+import { mountPartyUi, type PartyUiOptions } from "./partyUi";
 import { requiredElement } from "./requiredElement";
 
 const assetUrl = (path: string) => `${import.meta.env.BASE_URL}assets/${path}`;
@@ -61,6 +62,7 @@ function createTetrahedron(): SVGSVGElement {
 export function mountAdventureUi(
   root: HTMLDivElement,
   initialSettings = parseAdventureSettings(savedAdventureSettings),
+  options?: { initialState: GameState; onChange: (state: GameState) => void; party: PartyUiOptions },
 ) {
   root.innerHTML = `
     <main class="adventure-shell">
@@ -76,10 +78,11 @@ export function mountAdventureUi(
           </header>
           <nav class="town-places" data-town-places aria-label="街の場所"></nav>
           <div class="town-utility-controls">
-            <a class="dungeon-entry" href="?dungeon=1">探索ルートを見る</a>
+            ${options ? '<a class="dungeon-entry" href="#party-editor">出撃編成を見る</a>' : ""}
             <a class="battle-entry" href="?battle=1">戦闘デモを見る</a>
             ${import.meta.env.DEV ? '<a class="adventure-editor-entry" href="?adventureEdit=1">会話画面の配置設定</a>' : ""}
           </div>
+          <section id="party-editor" class="party-editor" aria-label="出撃編成" data-party-editor></section>
         </section>
         <section class="conversation-view" data-conversation-view aria-label="会話" hidden>
           <div class="conversation-stage" data-conversation-stage>
@@ -110,7 +113,27 @@ export function mountAdventureUi(
   const nextIndicator = requiredElement<HTMLSpanElement>(root, "[data-dialogue-next]");
   const status = requiredElement<HTMLParagraphElement>(root, "[data-adventure-status]");
   const events = new AbortController();
-  let state = createInitialGameState(initialGameOptions);
+  let state = options?.initialState ?? createInitialGameState(initialGameOptions);
+  const partyEditor = requiredElement<HTMLElement>(root, "[data-party-editor]");
+  const partyEntry = root.querySelector<HTMLAnchorElement>(".dungeon-entry");
+  function setPartyOpen(open: boolean) {
+    screen.classList.toggle("party-editing", open);
+    partyEditor.hidden = !open;
+    if (open) townView.removeAttribute("aria-labelledby");
+    else townView.setAttribute("aria-labelledby", "town-title");
+    if (open) partyEditor.querySelector<HTMLButtonElement>("[data-party-back]")?.focus();
+    else partyEntry?.focus();
+  }
+  const disposeParty = options ? mountPartyUi(partyEditor, options.party, () => setPartyOpen(false)) : undefined;
+  partyEditor.hidden = true;
+  partyEntry?.addEventListener(
+    "click",
+    (event) => {
+      event.preventDefault();
+      setPartyOpen(true);
+    },
+    { signal: events.signal },
+  );
   let disposed = false;
   applyAdventureSettings(screen, initialSettings);
 
@@ -122,6 +145,7 @@ export function mountAdventureUi(
   ): void {
     if (result.accepted) {
       state = result.state;
+      options?.onChange(state);
       render();
     }
   }
@@ -304,6 +328,7 @@ export function mountAdventureUi(
     dispose() {
       disposed = true;
       events.abort();
+      disposeParty?.();
     },
   };
 }

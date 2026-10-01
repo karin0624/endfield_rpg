@@ -71,8 +71,8 @@ test("街の場所から会話を送り、選択後の再訪でも進行を保�
   await expect(page.locator("body")).not.toContainText(/AUTO|MENU|Space/);
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(page.locator("[data-adventure-screen]")).toHaveCSS("height", "844px");
   await page.getByRole("button", { name: "冒険者ギルド" }).click();
+  await expect(page.locator("[data-adventure-screen]")).toHaveCSS("height", "844px");
   await expect(page.getByText("ロッシは掲示板の前で足を止めた。")).toBeVisible();
   await expect(page.locator('[data-portrait-id="rossi"]')).toBeVisible();
   await expect(page.locator('[data-portrait-id="rossi"] img')).toHaveJSProperty("naturalWidth", 1024);

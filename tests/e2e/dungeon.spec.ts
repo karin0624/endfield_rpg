@@ -93,7 +93,7 @@ test("390pxのダンジョン戦闘でコマンドまでスクロールして攻
   await expect(slimeB).toHaveAccessibleName(/スライム B、HP 6\/14/);
 });
 
-test("戦闘ノードの勝利後にボスへ進み、探索結果を表示する", async ({ page }) => {
+test("単独で戦闘分岐のHPを持ち越し、ボスで全滅して街へ戻る", async ({ page }) => {
   await page.goto("/?dungeon=1");
   await page.getByRole("button", { name: "戦闘、選択可能" }).click();
 
@@ -124,13 +124,87 @@ test("戦闘ノードの勝利後にボスへ進み、探索結果を表示す�
   await expect(attack).toBeEnabled({ timeout: 60_000 });
   await expect(warden).toHaveAccessibleName(/遺跡の守り手、HP 28\/28/);
   await attack.click();
-  await expect(warden).toHaveAccessibleName(/HP 20\/28/);
-  await attack.click();
-  await expect(warden).toHaveAccessibleName(/HP 14\/28/);
-  await attack.click();
-  await expect(warden).toHaveAccessibleName(/HP 6\/28/);
-  await attack.click();
+  await expect(page.getByRole("heading", { name: "戦闘に敗北しました" })).toBeVisible();
+  await page.getByRole("button", { name: "戦闘を終えてルートへ戻る" }).click();
+  await expect(page.getByRole("heading", { name: "探索に失敗しました" })).toBeVisible();
+  await page.getByRole("button", { name: "街へ戻る", exact: true }).click();
+  await page.getByRole("link", { name: "出撃編成を見る" }).click();
+  await expect(page.locator(".party-slot-hp").first()).toHaveText("戦闘不能 · HP 0");
+  await expect(page.getByRole("button", { name: "出撃" })).toBeDisabled();
+});
+
+test("編成だけを表示し、キーボードで戻っても編集内容を保持する", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/");
+  const entry = page.getByRole("link", { name: "出撃編成を見る" });
+  const party = page.getByRole("region", { name: "出撃編成", exact: true });
+  const back = page.getByRole("button", { name: "戻る", exact: true });
+  await expect(party).toBeHidden();
+  await entry.focus();
+  await page.keyboard.press("Enter");
+  await expect(party).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "街の場所" })).toBeHidden();
+  await expect(page.getByRole("heading", { name: "街の広場" })).toBeHidden();
+  await expect(back).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(party.getByLabel("枠 1", { exact: true })).toBeFocused();
+  await party.getByLabel("枠 1", { exact: true }).selectOption("");
+  await party.getByLabel("枠 4", { exact: true }).selectOption("player");
+  for (let reopen = 0; reopen < 2; reopen++) {
+    await back.focus();
+    await page.keyboard.press("Enter");
+    await expect(party).toBeHidden();
+    await expect(page.getByRole("navigation", { name: "街の場所" })).toBeVisible();
+    await expect(entry).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(party.getByLabel("枠 4", { exact: true })).toHaveValue("player");
+    await expect(party.getByLabel("枠 1", { exact: true })).toHaveValue("");
+    await expect(back).toBeFocused();
+  }
+});
+
+test("街の4枠を編集して単独出撃し、会話分岐のボス撃破後もHPを保持する", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  page.on("response", (response) => {
+    if (response.url().includes("/assets/") && !response.ok()) errors.push(`${response.status()} ${response.url()}`);
+  });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/");
+  await page.getByRole("link", { name: "出撃編成を見る" }).click();
+  const party = page.getByRole("region", { name: "出撃編成", exact: true });
+  await expect(party.getByRole("combobox")).toHaveCount(4);
+  await party.getByLabel("枠 1", { exact: true }).selectOption("");
+  const depart = page.getByRole("button", { name: "出撃" });
+  await expect(depart).toBeDisabled();
+  await expect(party.getByRole("status")).toContainText("出撃する仲間を1人以上");
+  await party.getByLabel("枠 4", { exact: true }).selectOption("player");
+  await party.getByLabel("枠 2", { exact: true }).selectOption("player");
+  await expect(party.getByLabel("枠 2", { exact: true })).toHaveValue("");
+  await expect(party.getByRole("status")).toContainText("同じ仲間は複数の枠に配置できません");
+  await expect(page.locator(".party-slot-hp").nth(3)).toHaveText("HP 20 / 20");
+  await depart.scrollIntoViewIfNeeded();
+  await expect(depart).toBeInViewport();
+  await depart.click();
+  await page.getByRole("button", { name: "思わぬ遭遇、選択可能" }).click();
+  await page.locator("[data-conversation-stage]").click();
+  await page.getByRole("button", { name: "地図に足跡を記す" }).click();
+  await page.getByRole("button", { name: "ボス、選択可能" }).click();
+  const attack = page.getByRole("button", { name: "通常攻撃" });
+  await expect(attack).toBeEnabled({ timeout: 60_000 });
+  await expect(page.getByRole("region", { name: "味方の状態" }).getByRole("article")).toHaveCount(1);
+  for (let turn = 0; turn < 4; turn++) await attack.click();
   await expect(page.getByRole("heading", { name: "戦闘に勝利しました" })).toBeVisible();
   await page.getByRole("button", { name: "戦闘を終えてルートへ戻る" }).click();
   await expect(page.getByRole("heading", { name: "探索を完了しました" })).toBeVisible();
+  await page.getByRole("button", { name: "街へ戻る", exact: true }).click();
+  await page.getByRole("link", { name: "出撃編成を見る" }).click();
+  await expect(page.locator(".party-slot-hp").nth(3)).toHaveText("HP 5 / 20");
+  await party.getByLabel("枠 4", { exact: true }).selectOption("");
+  await expect(
+    party.getByLabel("枠 1", { exact: true }).getByRole("option", { name: "ロッシ — HP 5/20", exact: true }),
+  ).toHaveCount(1);
+  await party.getByLabel("枠 1", { exact: true }).selectOption("player");
+  await expect(page.locator(".party-slot-hp").first()).toHaveText("HP 5 / 20");
+  expect(errors).toEqual([]);
 });

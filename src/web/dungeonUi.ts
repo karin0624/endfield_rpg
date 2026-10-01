@@ -3,16 +3,12 @@ import { initialDungeon } from "../content/initialDungeon";
 import type { ConversationPresentation } from "../game/adventure";
 import type { BattleCombatantDefinition, BattleState } from "../game/battle";
 import {
-  advanceDungeonConversation,
-  chooseDungeonConversationOption,
-  createDungeonState,
   type DungeonActionResult,
   type DungeonState,
-  enterNextDungeonNode,
   getAvailableDungeonNodes,
   getCurrentDungeonConversationScene,
-  performDungeonBasicAttack,
 } from "../game/dungeon";
+import type { DungeonCommand } from "../game/expedition";
 import savedAdventureSettings from "./adventure-settings.json";
 import { applyAdventureSettings, parseAdventureSettings } from "./adventureSettings";
 import savedBattleSettings from "./battle-settings.json";
@@ -93,14 +89,23 @@ function toBattleDefinitions(state: BattleState): readonly BattleCombatantDefini
   }));
 }
 
-export function mountDungeonUi(root: HTMLDivElement): () => void {
+export function mountDungeonUi(
+  root: HTMLDivElement,
+  options: {
+    initialState: DungeonState;
+    combatants: readonly BattleCombatantDefinition[];
+    displayNames: Readonly<Record<string, string>>;
+    dispatch: (command: DungeonCommand) => DungeonActionResult;
+    onReturn: () => void;
+  },
+): () => void {
   root.innerHTML = `
     <main class="dungeon-app" data-dungeon-app>
       <section class="dungeon-route-screen" data-route-screen aria-label="遺跡の進路">
         <div class="dungeon-route-background" data-route-background aria-hidden="true">
           <img src="${assetUrl("backgrounds/dungeon-route.png")}" alt="" />
         </div>
-        <a class="dungeon-town-link" href="${import.meta.env.BASE_URL}">街へ戻る</a>
+        <button type="button" class="dungeon-town-link" data-return-town>街へ戻る</button>
         <div class="dungeon-route-viewport" data-route-viewport tabindex="0" aria-label="横へドラッグして移動できる遺跡ルート">
           <div class="dungeon-route-world" data-route-world>
             <svg class="dungeon-route-edges" data-route-edges viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true"></svg>
@@ -137,7 +142,7 @@ export function mountDungeonUi(root: HTMLDivElement): () => void {
         <p class="dungeon-eyebrow">EXPEDITION RESULT</p>
         <h1 id="dungeon-outcome-title" data-outcome-title></h1>
         <p data-outcome-detail></p>
-        <a class="dungeon-outcome-return" href="${import.meta.env.BASE_URL}">街へ戻る</a>
+        <button type="button" class="dungeon-outcome-return" data-return-town>街へ戻る</button>
       </section>
       <p class="sr-only" data-dungeon-status role="status" aria-live="polite"></p>
     </main>
@@ -166,11 +171,14 @@ export function mountDungeonUi(root: HTMLDivElement): () => void {
   const outcomeDetail = requiredElement<HTMLParagraphElement>(root, "[data-outcome-detail]");
   const status = requiredElement<HTMLParagraphElement>(root, "[data-dungeon-status]");
   const events = new AbortController();
+  for (const button of root.querySelectorAll<HTMLButtonElement>("[data-return-town]")) {
+    button.addEventListener("click", options.onReturn, { signal: events.signal });
+  }
   const settings = parseBattleSettings(savedBattleSettings);
   const conversationSettings = parseAdventureSettings(savedAdventureSettings);
   applyAdventureSettings(conversationScreen, conversationSettings);
   outcomeScreen.style.backgroundImage = `linear-gradient(180deg, #171d19d9, #171d19ee), url("${assetUrl("backgrounds/dungeon-route.png")}")`;
-  let dungeonState = createDungeonState(initialDungeon, initialAdventure);
+  let dungeonState = options.initialState;
   let routeOffset = 0;
   let hasUserPannedRoute = false;
   let activePointerId: number | undefined;
@@ -354,7 +362,7 @@ export function mountDungeonUi(root: HTMLDivElement): () => void {
             suppressNextNodeClick = false;
             return;
           }
-          const result = enterNextDungeonNode(dungeonState, node.id, initialDungeon, initialAdventure);
+          const result = options.dispatch({ type: "enter", nodeId: node.id });
           applyDungeonResult(result);
         },
         { signal: events.signal },
@@ -416,7 +424,7 @@ export function mountDungeonUi(root: HTMLDivElement): () => void {
         "click",
         (event) => {
           event.stopPropagation();
-          applyDungeonResult(chooseDungeonConversationOption(dungeonState, option.id, initialAdventure));
+          applyDungeonResult(options.dispatch({ type: "choose", optionId: option.id }));
         },
         { signal: events.signal },
       );
@@ -476,7 +484,7 @@ export function mountDungeonUi(root: HTMLDivElement): () => void {
     const definitions = toBattleDefinitions(activity.state);
     const node = initialDungeon.nodes.find((candidate) => candidate.id === state.activeNodeId);
     const labelDefinitions = [
-      ...initialDungeon.party,
+      ...options.combatants,
       ...(node?.type === "battle" || node?.type === "boss" ? node.enemies : []),
     ];
     battleStatus.hidden = false;
@@ -494,16 +502,11 @@ export function mountDungeonUi(root: HTMLDivElement): () => void {
         disposeBattleUi = mountBattleUi(battleBoard, currentScene, {
           initialState: activity.state,
           combatants: labelDefinitions,
-          displayNames: combatantNames,
+          displayNames: { ...combatantNames, ...options.displayNames },
           finishButtonLabel: "ルートへ戻る",
           finishButtonAriaLabel: "戦闘を終えてルートへ戻る",
           attack: (_battleState, actorId, targetId) => {
-            const result: DungeonActionResult = performDungeonBasicAttack(
-              dungeonState,
-              actorId,
-              targetId,
-              initialDungeon,
-            );
+            const result = options.dispatch({ type: "attack", actorId, targetId });
             if (!result.accepted) return { accepted: false, reason: result.reason };
             dungeonState = result.state;
             if (result.battleState === undefined) {
@@ -549,7 +552,7 @@ export function mountDungeonUi(root: HTMLDivElement): () => void {
     (event) => {
       if ((event.target as Element).closest("button") !== null) return;
       const scene = getCurrentDungeonConversationScene(dungeonState, initialAdventure);
-      if (scene?.type === "line") applyDungeonResult(advanceDungeonConversation(dungeonState, initialAdventure));
+      if (scene?.type === "line") applyDungeonResult(options.dispatch({ type: "advance" }));
     },
     { signal: events.signal },
   );
@@ -569,10 +572,10 @@ export function mountDungeonUi(root: HTMLDivElement): () => void {
         const option = scene.options[Number(event.code.at(-1)) - 1];
         if (option === undefined) return;
         event.preventDefault();
-        applyDungeonResult(chooseDungeonConversationOption(dungeonState, option.id, initialAdventure));
+        applyDungeonResult(options.dispatch({ type: "choose", optionId: option.id }));
       } else if (scene.type === "line" && event.code === "Space") {
         event.preventDefault();
-        applyDungeonResult(advanceDungeonConversation(dungeonState, initialAdventure));
+        applyDungeonResult(options.dispatch({ type: "advance" }));
       }
     },
     { signal: events.signal },

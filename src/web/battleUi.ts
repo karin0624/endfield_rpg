@@ -145,8 +145,14 @@ export function mountBattleUi(
   options: BattleUiOptions = {},
 ): () => void {
   const initialCombatants = options.combatants ?? initialBattleCombatants;
-  const combatantName = (id: string) => options.displayNames?.[id] ?? presentation[id]?.name ?? id;
-  const portraitFor = (id: string) => presentation[id]?.portrait;
+  const combatantName = (id: string) => {
+    const name = options.displayNames?.[id] ?? presentation[id]?.name ?? id;
+    return presentation[id] === undefined &&
+      initialCombatants.some((member) => member.id === id && member.team === "ally")
+      ? `${name}（仮表示）`
+      : name;
+  };
+  const portraitFor = (id: string) => presentation[id]?.portrait ?? "enemies/slime-blue.png";
   const findInitialCombatant = (id: string) => initialCombatants.find((initial) => initial.id === id);
   const teamFor = (id: string) => findInitialCombatant(id)?.team;
   const stageElement = board.querySelector<HTMLElement>(".stage");

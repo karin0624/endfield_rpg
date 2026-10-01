@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { initialAdventure } from "../content/initialAdventure";
+import { initialBattleCombatants } from "../content/initialBattle";
 import { initialDungeon } from "../content/initialDungeon";
 import {
   advanceDungeonConversation,
@@ -14,6 +15,8 @@ import {
   getCurrentDungeonConversationScene,
   performDungeonBasicAttack,
 } from "./dungeon";
+
+const demoParty = initialBattleCombatants.filter((member) => member.team === "ally");
 
 function finishBattle(state: DungeonState, definition: DungeonDefinition): DungeonState {
   let current = state;
@@ -57,9 +60,9 @@ function finishConversation(state: DungeonState): DungeonState {
 
 describe("固定ダンジョンの進行", () => {
   it("入口の2分岐を別々に通り、共通のボスを倒すとクリアする", () => {
-    expect(() => assertValidDungeonDefinition(initialDungeon, initialAdventure)).not.toThrow();
+    expect(() => assertValidDungeonDefinition(initialDungeon, initialAdventure, demoParty)).not.toThrow();
 
-    let battleRoute = createDungeonState(initialDungeon, initialAdventure);
+    let battleRoute = createDungeonState(initialDungeon, initialAdventure, demoParty);
     expect(getAvailableDungeonNodes(battleRoute, initialDungeon).map(({ id }) => id)).toEqual([
       "battle-a",
       "conversation-b",
@@ -94,7 +97,7 @@ describe("固定ダンジョンの進行", () => {
       outcome: "cleared",
     });
 
-    const initialConversationRoute = createDungeonState(initialDungeon, initialAdventure);
+    const initialConversationRoute = createDungeonState(initialDungeon, initialAdventure, demoParty);
     const conversationStart = enterNextDungeonNode(
       initialConversationRoute,
       "conversation-b",
@@ -149,10 +152,10 @@ describe("固定ダンジョンの進行", () => {
           nextNodeIds: [],
         },
       ],
-    } as const satisfies DungeonDefinition;
+    } as const satisfies DungeonDefinition & { party: readonly import("./battle").BattleCombatantDefinition[] };
 
     const firstStart = enterNextDungeonNode(
-      createDungeonState(definition, initialAdventure),
+      createDungeonState(definition, initialAdventure, definition.party),
       "first",
       definition,
       initialAdventure,
@@ -205,9 +208,9 @@ describe("固定ダンジョンの進行", () => {
           nextNodeIds: [],
         },
       ],
-    } as const satisfies DungeonDefinition;
+    } as const satisfies DungeonDefinition & { party: readonly import("./battle").BattleCombatantDefinition[] };
     const start = enterNextDungeonNode(
-      createDungeonState(definition, initialAdventure),
+      createDungeonState(definition, initialAdventure, definition.party),
       "first",
       definition,
       initialAdventure,
@@ -267,9 +270,9 @@ describe("固定ダンジョンの進行", () => {
           nextNodeIds: [],
         },
       ],
-    } as const satisfies DungeonDefinition;
+    } as const satisfies DungeonDefinition & { party: readonly import("./battle").BattleCombatantDefinition[] };
     const start = enterNextDungeonNode(
-      createDungeonState(definition, initialAdventure),
+      createDungeonState(definition, initialAdventure, definition.party),
       "battle",
       definition,
       initialAdventure,
@@ -295,12 +298,14 @@ describe("固定ダンジョンの進行", () => {
         node.id === "entrance" ? { ...node, nextNodeIds: ["missing"] } : node,
       ),
     };
-    expect(() => assertValidDungeonDefinition(invalid, initialAdventure)).toThrow("接続先ノードが存在しません");
+    expect(() => assertValidDungeonDefinition(invalid, initialAdventure, demoParty)).toThrow(
+      "接続先ノードが存在しません",
+    );
   });
 
   it("returns to the same route node after a conversation instead of exposing a town state", () => {
     const start = enterNextDungeonNode(
-      createDungeonState(initialDungeon, initialAdventure),
+      createDungeonState(initialDungeon, initialAdventure, demoParty),
       "conversation-b",
       initialDungeon,
       initialAdventure,
@@ -309,7 +314,10 @@ describe("固定ダンジョンの進行", () => {
     if (!start.accepted) return;
     const noBattle = performDungeonBasicAttack(start.state, "player", "slime", initialDungeon);
     expect(noBattle).toMatchObject({ accepted: false, reason: "not-in-battle" });
-    const noChoice = advanceDungeonConversation(createDungeonState(initialDungeon, initialAdventure), initialAdventure);
+    const noChoice = advanceDungeonConversation(
+      createDungeonState(initialDungeon, initialAdventure, demoParty),
+      initialAdventure,
+    );
     expect(noChoice).toMatchObject({ accepted: false, reason: "not-in-conversation" });
 
     const state = finishConversation(start.state);
