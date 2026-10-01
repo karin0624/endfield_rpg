@@ -76,6 +76,7 @@ export interface DungeonState {
   readonly activity: DungeonActivity | null;
   /** Ally definitions with their current HP, carried between battles. */
   readonly party: readonly BattleCombatantDefinition[];
+  readonly randomState: number;
   readonly flags: readonly string[];
 }
 
@@ -251,6 +252,7 @@ export function createDungeonState(
   adventure: AdventureDefinition,
   party: readonly BattleCombatantDefinition[],
   initialFlags: readonly string[] = [],
+  randomState = 1,
 ): DungeonState {
   assertValidDungeonDefinition(definition, adventure, party);
   const entry = getNode(definition, definition.entryNodeId);
@@ -258,6 +260,7 @@ export function createDungeonState(
     throw new Error(`入口ノードが存在しません: ${definition.entryNodeId}`);
   }
   return {
+    randomState,
     dungeonId: definition.id,
     currentNodeId: entry.id,
     activeNodeId: null,
@@ -323,7 +326,13 @@ function updatePartyFromBattle(state: DungeonState, battle: BattleState): readon
     if (combatant === undefined || combatant.team !== "ally") {
       throw new Error(`戦闘に味方が存在しません: ${member.id}`);
     }
-    return { ...member, hp: combatant.hp };
+    return {
+      ...member,
+      maxHp: combatant.maxHp,
+      hitRate: combatant.hitRate,
+      hp: combatant.hp,
+      status: combatant.status,
+    };
   });
 }
 
@@ -331,11 +340,12 @@ function startBattleNode(
   state: DungeonState,
   node: DungeonBattleNodeDefinition | DungeonBossNodeDefinition,
 ): DungeonActionResult {
-  const battle = createBattleState([...state.party, ...node.enemies]);
+  const battle = createBattleState([...state.party, ...node.enemies], state.randomState);
   const loop = advanceBattleToNextAllyInput(battle);
   const started: DungeonState = {
     ...state,
     activeNodeId: node.id,
+    randomState: loop.state.randomState,
     activity: { type: "battle", state: loop.state },
     party: updatePartyFromBattle(state, loop.state),
   };
@@ -484,6 +494,7 @@ export function performDungeonBasicAttack(
   }
   const updated: DungeonState = {
     ...state,
+    randomState: attack.state.randomState,
     party: updatePartyFromBattle(state, attack.state),
     activity: { type: "battle", state: attack.state },
   };
