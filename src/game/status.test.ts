@@ -43,6 +43,10 @@ function member(state: ExpeditionGame, id = "player") {
   return found;
 }
 describe("状態異常", () => {
+  it("省略された基礎命中率は100%で、朦朧の段階を同じように反映する", () => {
+    expect(effectiveHitRate(undefined, healthyStatus())).toBe(1);
+    expect(effectiveHitRate(undefined, { ...healthyStatus(), haze: 3 })).toBeCloseTo(0.7);
+  });
   it("最大HP200を150/100/50、命中80%を72/64/56%へ独立して変更する", () => {
     let status = healthyStatus();
     for (const [maxHp, hitRate] of [

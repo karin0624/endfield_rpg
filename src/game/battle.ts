@@ -194,7 +194,7 @@ export function createBattleState(
       ...definition,
       status,
       maxHp,
-      hitRate: definition.hitRate ?? 1,
+      hitRate: effectiveHitRate(definition.hitRate, healthyStatus()),
       hp: Math.min(definition.hp, effectiveMaxHp(maxHp, status)),
     };
   });

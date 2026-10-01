@@ -322,6 +322,79 @@ test("街探索から加入・編成・ボス帰還・再訪まで同じセッ�
   await expect(page.locator("[data-calendar]")).toHaveText("2日目 · 夜");
 });
 
+test("キャラ詳細の閲覧だけでは編成・保存内容を変えず、元の操作へ戻る", async ({ page }, testInfo) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "同行者を探す（仮）", exact: true }).click();
+  await page.keyboard.press("Space");
+  await page.getByRole("button", { name: "仲間に迎える" }).click();
+  const entry = page.getByRole("link", { name: "出撃編成を見る" });
+  await entry.click();
+  await page.getByRole("combobox", { name: "枠 2" }).selectOption("gilberta");
+  await page.getByRole("button", { name: "戻る", exact: true }).click();
+  await page.getByRole("button", { name: "保存", exact: true }).click();
+  const saved = await page.evaluate(() => localStorage.getItem("endfield-rpg-game-save"));
+  await entry.click();
+  const rossi = page.getByRole("button", { name: "ロッシの詳細" });
+  const gilberta = page.getByRole("button", { name: "ギルベルタの詳細" });
+  await rossi.focus();
+  await page.keyboard.press("Enter");
+  let details = page.getByRole("dialog", { name: "ロッシ", exact: true });
+  await expect(details).toBeVisible();
+  await expect(details.getByRole("img", { name: "ロッシ", exact: true })).toBeVisible();
+  await expect(details.getByRole("img", { name: "ロッシ", exact: true })).not.toHaveJSProperty("naturalWidth", 0);
+  await expect(details).toContainText("20 / 20");
+  await expect(details.locator("dd").nth(1)).toHaveText("8");
+  await expect(details.locator("dd").nth(2)).toHaveText("100");
+  await expect(details.locator("dd").nth(3)).toHaveText("100%");
+  await expect(details).not.toContainText("レベル");
+  await expect(details).not.toContainText("習得");
+  await expect(details.getByRole("button", { name: "編成へ戻る" })).toBeFocused();
+  await page.screenshot({ path: testInfo.outputPath("details-rossi-1920.png") });
+  await page.keyboard.press("Tab");
+  await expect(details.getByRole("region", { name: "能力と状態" })).toBeFocused();
+  await page.keyboard.press("Shift+Tab");
+  await expect(details.getByRole("button", { name: "編成へ戻る" })).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(rossi).toBeFocused();
+  await gilberta.dblclick();
+  details = page.getByRole("dialog", { name: "ギルベルタ", exact: true });
+  await expect(details.getByRole("img", { name: "ギルベルタ", exact: true })).toBeVisible();
+  await expect(details.getByRole("img", { name: "ギルベルタ", exact: true })).not.toHaveJSProperty("naturalWidth", 0);
+  await expect(details).toContainText("18 / 18");
+  await expect(details.locator("dd").nth(1)).toHaveText("6");
+  await expect(details.locator("dd").nth(2)).toHaveText("90");
+  await page.screenshot({ path: testInfo.outputPath("details-gilberta-1920.png") });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(details.getByRole("heading", { name: "ギルベルタ", exact: true })).toBeInViewport();
+  await expect(details.getByRole("button", { name: "編成へ戻る" })).toBeInViewport();
+  await expect(details.getByText("命中率", { exact: true })).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath("details-gilberta-390.png") });
+  await details.getByRole("button", { name: "編成へ戻る" }).click();
+  await expect(gilberta).toBeFocused();
+  const second = page.getByRole("combobox", { name: "枠 2" });
+  const before = await second.boundingBox();
+  if (!before) throw new Error("元の枠が表示されていません");
+  for (let count = 0; count < 3; count++) {
+    await page.keyboard.press("Enter");
+    await expect(details).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(gilberta).toBeFocused();
+  }
+  await expect
+    .poll(async () => Math.abs(((await second.boundingBox())?.y ?? Number.POSITIVE_INFINITY) - before.y))
+    .toBeLessThan(1);
+  await expect(page.getByRole("combobox", { name: "枠 1" })).toHaveValue("player");
+  await expect(page.getByRole("combobox", { name: "枠 2" })).toHaveValue("gilberta");
+  await expect(page.locator("[data-party-calendar]")).toHaveText("1日目 · 夜");
+  await page.getByRole("button", { name: "戻る", exact: true }).click();
+  await page.getByRole("button", { name: "保存", exact: true }).click();
+  expect(await page.evaluate(() => localStorage.getItem("endfield-rpg-game-save"))).toBe(saved);
+  expect(errors).toEqual([]);
+});
+
 test("初期症状の試験データから実操作で段階回復・全滅帰還・保存再開をつなぐ", async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1920, height: 1080 });
   // Setup only: use the public core to prepare a street save with moderate ailments.
@@ -340,6 +413,18 @@ test("初期症状の試験データから実操作で段階回復・全滅帰�
   await page.goto("/");
   await page.evaluate((data) => localStorage.setItem("endfield-rpg-game-save", data), encoded.data);
   await page.getByRole("button", { name: "読込", exact: true }).click();
+  await page.getByRole("link", { name: "出撃編成を見る" }).click();
+  await page.getByRole("button", { name: "ロッシの詳細" }).click();
+  const details = page.getByRole("dialog", { name: "ロッシ", exact: true });
+  await expect(details).toContainText("10 / 10");
+  await expect(details).toContainText("基礎最大HP 20 · 肉体疲労による低下");
+  await expect(details).toContainText("80%");
+  await expect(details).toContainText("基礎 100% · 朦朧による低下");
+  await expect(details).toContainText("肉体疲労・中度");
+  await expect(details).toContainText("朦朧・中度");
+  await page.screenshot({ path: testInfo.outputPath("details-ailments-1920.png") });
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "戻る", exact: true }).click();
   await page.getByRole("button", { name: "市場", exact: true }).click();
   await page.keyboard.press("Space");
   await expect(page.locator("[data-town-recovery]")).toContainText("肉体疲労：中度 → 軽度");
@@ -352,6 +437,10 @@ test("初期症状の試験データから実操作で段階回復・全滅帰�
   await expect(page.locator(".party-slot").first()).toContainText("HP 10 / 15");
   await expect(page.locator(".party-slot").first()).toContainText("肉体疲労・軽度");
   await expect(page.locator(".party-slot").first()).toContainText("朦朧・軽度");
+  await page.getByRole("button", { name: "ロッシの詳細" }).click();
+  await expect(details).toContainText("10 / 15");
+  await expect(details.getByText("90%", { exact: true })).toBeVisible();
+  await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "出撃", exact: true }).click();
   await page.getByRole("button", { name: "思わぬ遭遇、選択可能" }).click();
   await page.keyboard.press("Space");
@@ -368,6 +457,11 @@ test("初期症状の試験データから実操作で段階回復・全滅帰�
   await expect(page.locator(".party-slot").first()).toContainText("HP 15 / 15");
   await expect(page.locator(".party-slot").first()).toContainText("肉体疲労・軽度");
   await expect(page.locator(".party-slot").first()).toContainText("あと街探索6回");
+  await page.getByRole("button", { name: "ロッシの詳細" }).click();
+  await expect(details).toContainText("15 / 15");
+  await expect(details).toContainText("戦闘に参加できません");
+  await expect(details).toContainText("戦闘不能（あと街探索6回）");
+  await page.keyboard.press("Escape");
   await page.screenshot({ path: testInfo.outputPath("m2c-returned-ailments-1920.png") });
   await page.getByRole("button", { name: "戻る", exact: true }).click();
   await page.getByRole("button", { name: "市場", exact: true }).click();
@@ -378,6 +472,11 @@ test("初期症状の試験データから実操作で段階回復・全滅帰�
   await page.getByRole("link", { name: "出撃編成を見る" }).click();
   await expect(page.locator(".party-slot").first()).toContainText("HP 15 / 20");
   await expect(page.locator(".party-slot").first()).not.toContainText("肉体疲労");
+  await page.getByRole("button", { name: "ロッシの詳細" }).click();
+  await expect(details).toContainText("15 / 20");
+  await expect(details.getByText("100%", { exact: true })).toBeVisible();
+  await expect(details).not.toContainText("基礎最大HP");
+  await page.keyboard.press("Escape");
   await expect(page.getByRole("button", { name: "出撃", exact: true })).toBeDisabled();
 });
 

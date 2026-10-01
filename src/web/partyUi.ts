@@ -2,12 +2,9 @@ import type { ExpeditionRejection, ExpeditionResult } from "../game/expedition";
 import { type CharacterDefinition, characterById, departureRejection, type PartyState } from "../game/party";
 
 import { canParticipate, effectiveMaxHp, healthyStatus } from "../game/status";
+import { mountCharacterDetailsUi } from "./characterDetailsUi";
+import { characterPortraitUrl } from "./characterPortrait";
 import { symptomLabel } from "./sessionFeedback";
-
-const portraits: Readonly<Record<string, string>> = {
-  player: "characters/rossi/expressions/neutral.png",
-  gilberta: "characters/gilberta/expressions/neutral.png",
-};
 
 const rejectionText: Record<ExpeditionRejection, string> = {
   "invalid-slot": "編成枠を選び直してください。",
@@ -40,6 +37,7 @@ export function mountPartyUi(root: HTMLElement, options: PartyUiOptions, back: (
   const backButton = root.querySelector<HTMLButtonElement>("[data-party-back]");
   if (!slots || !status || !depart || !backButton) throw new Error("編成画面を作成できませんでした");
   const events = new AbortController();
+  const details = mountCharacterDetailsUi(root, options.characters, options.getParty);
   backButton.addEventListener("click", back, { signal: events.signal });
   const selects = Array.from({ length: 4 }, (_, slot) => {
     const card = document.createElement("div");
@@ -56,6 +54,17 @@ export function mountPartyUi(root: HTMLElement, options: PartyUiOptions, back: (
     const symptoms = document.createElement("p");
     symptoms.className = "party-slot-symptoms";
     const select = document.createElement("select");
+    const detail = document.createElement("button");
+    detail.type = "button";
+    detail.className = "party-detail";
+    detail.textContent = "詳細";
+    detail.addEventListener(
+      "click",
+      () => {
+        if (select.value) details.open(select.value, detail);
+      },
+      { signal: events.signal },
+    );
     select.id = label.htmlFor;
     select.add(new Option("空き枠", ""));
     for (const member of options.getParty().members)
@@ -68,16 +77,16 @@ export function mountPartyUi(root: HTMLElement, options: PartyUiOptions, back: (
       },
       { signal: events.signal },
     );
-    card.append(label, portrait, hp, select, symptoms);
+    card.append(label, portrait, hp, select, symptoms, detail);
     slots.append(card);
-    return { select, card, portrait, hp, symptoms };
+    return { select, card, portrait, hp, symptoms, detail };
   });
   function render(message = "") {
     if (!status || !depart) return;
     const party = options.getParty();
     const calendar = root.querySelector<HTMLElement>("[data-party-calendar]");
     if (calendar) calendar.textContent = options.getCalendarLabel();
-    selects.forEach(({ select, card, portrait, hp, symptoms }, slot) => {
+    selects.forEach(({ select, card, portrait, hp, symptoms, detail }, slot) => {
       const id = party.slots[slot];
       select.replaceChildren(
         new Option("空き枠", ""),
@@ -98,20 +107,23 @@ export function mountPartyUi(root: HTMLElement, options: PartyUiOptions, back: (
       const member = party.members.find((candidate) => candidate.id === id);
       if (member) {
         const character = characterById(options.characters, member.id);
-        const path = portraits[member.id];
-        if (path) {
+        const url = characterPortraitUrl(member.id);
+        if (url) {
           const image = document.createElement("img");
           image.className = "party-character-image";
-          image.src = `${import.meta.env.BASE_URL}assets/${path}`;
+          image.src = url;
           image.alt = "";
           portrait.append(image);
         } else {
           portrait.textContent = character.name;
         }
         hp.textContent = `HP ${member.hp} / ${effectiveMaxHp(character.maxHp, member.status ?? healthyStatus())}`;
+        detail.hidden = false;
+        detail.setAttribute("aria-label", `${character.name}の詳細`);
         symptoms.textContent = symptomLabel(member.status ?? healthyStatus());
         hp.classList.toggle("is-defeated", !canParticipate(member.hp, member.status));
       } else {
+        detail.hidden = true;
         hp.textContent = "";
         symptoms.textContent = "";
         hp.classList.remove("is-defeated");
@@ -132,5 +144,11 @@ export function mountPartyUi(root: HTMLElement, options: PartyUiOptions, back: (
     { signal: events.signal },
   );
   render();
-  return { refresh: () => render(), dispose: () => events.abort() };
+  return {
+    refresh: () => render(),
+    dispose: () => {
+      events.abort();
+      details.dispose();
+    },
+  };
 }
