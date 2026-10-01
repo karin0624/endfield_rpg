@@ -2,6 +2,7 @@ import { characters } from "../content/characters";
 import { initialAdventure } from "../content/initialAdventure";
 import { initialDungeon } from "../content/initialDungeon";
 import { initialGameOptions } from "../content/initialGameOptions";
+import { saveDefinitions } from "../content/saveDefinitions";
 import { createInitialGameState } from "../game/createInitialGameState";
 import {
   actInExpedition,
@@ -21,6 +22,7 @@ import savedSettings from "./battle-settings.json";
 import type { createBattleScene } from "./battleScene";
 import { parseBattleSettings } from "./battleSettings";
 import "./style.css";
+import { loadSlot, saveSlot } from "./saveSlot";
 import { calendarLabel, completionFeedback, symptomLabel } from "./sessionFeedback";
 
 const app = document.querySelector<HTMLDivElement>("#app");
@@ -72,8 +74,10 @@ if (!battleMode) {
     dungeon: null,
   };
   let completion: GameActionCompletion | undefined;
-  function showTown() {
+  function showTown(saveMessage = "") {
     if (disposed || app === null) return;
+    disposeAdventure?.();
+    disposeAdventure = undefined;
     disposeDungeon?.();
     disposeDungeon = undefined;
     document.body.classList.remove("dungeon-mode");
@@ -86,6 +90,17 @@ if (!battleMode) {
         : {
             initialState: game.adventure,
             getCalendarLabel: () => calendarLabel(game.clock),
+            saveMessage,
+            save: () => saveSlot(game, saveDefinitions),
+            load: () => {
+              const result = loadSlot(game, saveDefinitions);
+              if (result.state) {
+                game = result.state;
+                completion = undefined;
+                showTown(result.message);
+              }
+              return result.message;
+            },
             getFeedback: () => [
               ...completionFeedback(completion, characters),
               ...(completion?.returnedIds ?? []).flatMap((id) => {

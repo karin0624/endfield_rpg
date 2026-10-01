@@ -95,7 +95,9 @@ test("390pxのダンジョン戦闘でコマンドまでスクロールして攻
 
 test("全滅帰還でHP全回復し、街探索6回で戦闘不能から復帰する", async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1920, height: 1080 });
-  await page.goto("/?dungeon=1");
+  await page.goto("/");
+  await page.getByRole("link", { name: "出撃編成を見る" }).click();
+  await page.getByRole("button", { name: "出撃", exact: true }).click();
   await page.getByRole("button", { name: "戦闘、選択可能" }).click();
 
   const attack = page.getByRole("button", { name: "通常攻撃" });
@@ -144,6 +146,11 @@ test("全滅帰還でHP全回復し、街探索6回で戦闘不能から復帰�
   await page.screenshot({ path: testInfo.outputPath("defeat-party-390.png"), fullPage: true });
   await page.setViewportSize({ width: 1920, height: 1080 });
   await page.getByRole("button", { name: "戻る", exact: true }).click();
+  await page.getByRole("button", { name: "保存", exact: true }).click();
+  await page.reload();
+  await page.getByRole("button", { name: "読込", exact: true }).click();
+  await expect(page.locator("[data-calendar]")).toHaveText("1日目 · 夜");
+  await expect(page.locator("[data-town-recovery]")).toBeHidden();
   for (let step = 1; step <= 6; step++) {
     await page.getByRole("button", { name: "市場", exact: true }).click();
     await page.keyboard.press("Space");
@@ -151,6 +158,11 @@ test("全滅帰還でHP全回復し、街探索6回で戦闘不能から復帰�
     await expect(page.locator("[data-town-recovery]")).toContainText(
       step === 6 ? "戦闘不能から復帰" : `あと街探索${7 - step}回 → ${6 - step}回`,
     );
+    if (step === 5) {
+      await page.getByRole("button", { name: "保存", exact: true }).click();
+      await page.reload();
+      await page.getByRole("button", { name: "読込", exact: true }).click();
+    }
     await page.getByRole("link", { name: "出撃編成を見る" }).click();
     await expect(page.locator(".party-slot-hp").first()).toHaveText("HP 20 / 20");
     if (step < 6) await expect(page.getByRole("button", { name: "出撃" })).toBeDisabled();
@@ -291,4 +303,78 @@ test("街探索から加入・編成・ボス帰還・再訪まで同じセッ�
   await page.getByRole("link", { name: "出撃編成を見る" }).click();
   await expect(second).toHaveValue("gilberta");
   await expect(second.locator('option[value="gilberta"]')).toHaveCount(1);
+});
+
+test("街で保存し、リロード後も加入・編成・時計を読み込み、再読込で進めない", async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "同行者を探す（仮）", exact: true }).click();
+  await expect(page.getByRole("button", { name: "保存", exact: true })).toBeHidden();
+  await page.keyboard.press("Space");
+  await expect(page.getByRole("button", { name: "読込", exact: true })).toBeHidden();
+  await page.getByRole("button", { name: "仲間に迎える" }).click();
+  await page.getByRole("link", { name: "出撃編成を見る" }).click();
+  await page.getByLabel("枠 1", { exact: true }).selectOption("");
+  await page.getByLabel("枠 4", { exact: true }).selectOption("player");
+  await page.getByRole("button", { name: "戻る", exact: true }).click();
+  await page.getByRole("button", { name: "保存", exact: true }).dblclick();
+  await expect(page.locator("[data-save-status]")).toHaveText("保存しました。");
+  await page.reload();
+  await expect(page.locator("[data-calendar]")).toHaveText("1日目 · 昼");
+  await page.getByRole("button", { name: "読込", exact: true }).click();
+  await page.getByRole("button", { name: "読込", exact: true }).click();
+  await expect(page.locator("[data-calendar]")).toHaveText("1日目 · 夜");
+  await expect(page.locator("[data-town-recovery]")).toBeHidden();
+  await expect(page.locator("[data-save-status]")).toHaveText("読み込みました。");
+  await page.screenshot({ path: testInfo.outputPath("save-loaded-town-1920.png") });
+  await page.getByRole("link", { name: "出撃編成を見る" }).click();
+  await expect(page.getByLabel("枠 1", { exact: true })).toHaveValue("");
+  await expect(page.getByLabel("枠 4", { exact: true })).toHaveValue("player");
+  await expect(page.getByLabel("枠 2", { exact: true }).locator('option[value="gilberta"]')).toHaveCount(1);
+  await page.screenshot({ path: testInfo.outputPath("save-loaded-party-1920.png") });
+  await page.getByRole("button", { name: "戻る", exact: true }).click();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.getByRole("button", { name: "保存", exact: true })).toBeInViewport();
+  await expect(page.getByRole("button", { name: "読込", exact: true })).toBeInViewport();
+  await page.screenshot({ path: testInfo.outputPath("save-loaded-town-390.png"), fullPage: true });
+  await page.getByRole("button", { name: "同行者を探す（仮）", exact: true }).click();
+  await expect(page.getByText("ギルベルタは加入済みです。（仮イベント）")).toBeVisible();
+  await page.keyboard.press("Space");
+  await expect(page.locator("[data-calendar]")).toHaveText("2日目 · 昼");
+});
+
+test("壊れた保存とブラウザI/O失敗でもゲームと既存保存を保持する", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "市場", exact: true }).click();
+  await page.keyboard.press("Space");
+  await page.getByRole("button", { name: "保存", exact: true }).click();
+  const saved = await page.evaluate(() => localStorage.getItem("endfield-rpg-game-save"));
+  await page.evaluate(() => {
+    const original = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (key, value) {
+      if (key === "endfield-rpg-game-save") throw new DOMException("quota", "QuotaExceededError");
+      return original.call(this, key, value);
+    };
+  });
+  await page.getByRole("button", { name: "保存", exact: true }).click();
+  await expect(page.locator("[data-save-status]")).toContainText("保存できません");
+  expect(await page.evaluate(() => localStorage.getItem("endfield-rpg-game-save"))).toBe(saved);
+  await page.evaluate(() => {
+    const original = Storage.prototype.getItem;
+    Storage.prototype.getItem = function (key) {
+      if (key === "endfield-rpg-game-save") throw new DOMException("denied", "SecurityError");
+      return original.call(this, key);
+    };
+  });
+  await page.getByRole("button", { name: "読込", exact: true }).click();
+  await expect(page.locator("[data-save-status]")).toContainText("読み込めません");
+  await expect(page.locator("[data-calendar]")).toHaveText("1日目 · 夜");
+  await page.reload();
+  await page.evaluate(() => localStorage.setItem("endfield-rpg-game-save", '{"version":1,"party":{}}'));
+  await page.getByRole("button", { name: "市場", exact: true }).click();
+  await page.keyboard.press("Space");
+  await page.getByRole("button", { name: "読込", exact: true }).click();
+  await expect(page.locator("[data-save-status]")).toContainText("読み込めません");
+  await expect(page.locator("[data-calendar]")).toHaveText("1日目 · 夜");
+  expect(await page.evaluate(() => localStorage.getItem("endfield-rpg-game-save"))).toBe('{"version":1,"party":{}}');
 });

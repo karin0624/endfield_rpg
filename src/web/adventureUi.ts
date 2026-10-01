@@ -72,6 +72,9 @@ export function mountAdventureUi(
     initialState: GameState;
     getCalendarLabel: () => string;
     getFeedback: () => readonly string[];
+    saveMessage: string;
+    save: () => string;
+    load: () => string;
     dispatch: (
       command: TownUiCommand,
       actionId: number | null,
@@ -91,10 +94,12 @@ export function mountAdventureUi(
             <h1 id="town-title">街の広場</h1>
             <p data-town-prompt>行き先を選ぶ</p>
             <div class="town-recovery" data-town-recovery role="status"></div>
+            <p data-save-status role="status" hidden></p>
           </header>
           <nav class="town-places" data-town-places aria-label="街の場所"></nav>
           <div class="town-utility-controls">
             ${options ? '<a class="dungeon-entry" href="#party-editor">出撃編成を見る</a>' : ""}
+            ${options ? '<button type="button" class="battle-entry" data-save>保存</button><button type="button" class="battle-entry" data-load>読込</button>' : ""}
             <a class="battle-entry" href="?battle=1">戦闘デモを見る</a>
             ${import.meta.env.DEV ? '<a class="adventure-editor-entry" href="?adventureEdit=1">会話画面の配置設定</a>' : ""}
           </div>
@@ -153,6 +158,26 @@ export function mountAdventureUi(
     { signal: events.signal },
   );
   let disposed = false;
+  if (options) {
+    const saveStatus = requiredElement<HTMLElement>(root, "[data-save-status]");
+    saveStatus.textContent = options.saveMessage;
+    saveStatus.hidden = !options.saveMessage;
+    for (const [selector, action] of [
+      ["[data-save]", options.save],
+      ["[data-load]", options.load],
+    ] as const) {
+      requiredElement<HTMLButtonElement>(root, selector).addEventListener(
+        "click",
+        () => {
+          const message = action();
+          if (disposed) return;
+          saveStatus.textContent = message;
+          saveStatus.hidden = false;
+        },
+        { signal: events.signal },
+      );
+    }
+  }
   applyAdventureSettings(screen, initialSettings);
 
   function performTownCommand(command: TownUiCommand, sourceActionId = actionId): void {
