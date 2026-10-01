@@ -14,6 +14,7 @@ async function close() {
 try {
   await cp(resolve(project, "src"), join(root, "src"), { recursive: true });
   await cp(resolve(project, "index.html"), join(root, "index.html"));
+  await cp(resolve(project, "tests/fixtures"), join(root, "tests/fixtures"), { recursive: true });
   await mkdir(join(root, "public"));
   await symlink(resolve(project, "public/assets"), join(root, "public/assets"), "dir");
   await symlink(resolve(project, "node_modules"), join(root, "node_modules"), "dir");

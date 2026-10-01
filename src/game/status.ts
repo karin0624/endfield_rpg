@@ -26,8 +26,8 @@ export function recoverTownStep(status: CharacterStatus): CharacterStatus {
 export function effectiveMaxHp(base: number, status: CharacterStatus): number {
   return Math.max(1, Math.floor(base * [1, 0.75, 0.5, 0.25][status.physicalFatigue]));
 }
-export function effectiveHitRate(base: number, status: CharacterStatus): number {
-  return base * [1, 0.9, 0.8, 0.7][status.haze];
+export function effectiveHitRate(base: number | undefined, status: CharacterStatus): number {
+  return (base ?? 1) * [1, 0.9, 0.8, 0.7][status.haze];
 }
 export function canParticipate(hp: number, status: CharacterStatus = healthyStatus()): boolean {
   return hp > 0 && status.incapacityRecoverySteps === null;

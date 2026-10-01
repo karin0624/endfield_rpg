@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ja">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>編成詳細の表示条件テスト</title>
+  <div class="party-editor" id="fixture"></div>
+  <script type="module">
+    import { characters } from "/src/content/characters.ts";
+    import { initialGameOptions } from "/src/content/initialGameOptions.ts";
+    import { createInitialGameState } from "/src/game/createInitialGameState.ts";
+    import { applyPartyStatus, editExpeditionParty } from "/src/game/expedition.ts";
+    import { createParty } from "/src/game/party.ts";
+    import { mountPartyUi } from "/src/web/partyUi.ts";
+    import "/src/web/style.css";
+
+    const definitions = [
+      { ...characters[0], maxHp: 200, name: "ロッシ（長い名前の折返しと読みやすさを確認する表示条件）" },
+      { id: "no-portrait", name: "画像未提供の仲間（表示条件テスト）", maxHp: 200, speed: 100, attackPower: 8 },
+    ];
+    let game = {
+      adventure: createInitialGameState(initialGameOptions),
+      party: createParty(definitions, definitions.map(({ id }) => id)),
+      dungeon: null,
+    };
+    game = editExpeditionParty(game, 1, "no-portrait").state;
+    for (const { id } of definitions) {
+      game = applyPartyStatus(game, id, "physicalFatigue", definitions);
+      game = applyPartyStatus(game, id, "haze", definitions);
+    }
+    mountPartyUi(document.querySelector("#fixture"), {
+      characters: definitions,
+      getParty: () => game.party,
+      getCalendarLabel: () => "表示条件テスト",
+      edit: (slot, id) => {
+        const result = editExpeditionParty(game, slot, id);
+        game = result.state;
+        return result;
+      },
+      depart: () => ({ accepted: false, state: game, reason: "action-in-progress" }),
+    }, () => {});
+  </script>
+</html>

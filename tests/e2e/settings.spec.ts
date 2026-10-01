@@ -1,6 +1,33 @@
 import { readFile } from "node:fs/promises";
 import { expect, type Page, test } from "@playwright/test";
 
+test("詳細は長い名前と複数症状を狭幅で読め、画像未提供でも能力を表示する", async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 320, height: 844 });
+  await page.goto("/tests/fixtures/party-details.html");
+  const opener = page.getByRole("button", { name: /^ロッシ.*の詳細$/ });
+  await opener.click();
+  const details = page.getByRole("dialog");
+  await expect(details.getByRole("heading", { name: /ロッシ（長い名前/ })).toBeInViewport();
+  await expect(details.getByRole("button", { name: "編成へ戻る" })).toBeInViewport();
+  await details.getByText(/肉体疲労・軽度/).scrollIntoViewIfNeeded();
+  await expect(details.getByText(/肉体疲労・軽度/)).toBeInViewport();
+  await expect(details.getByRole("button", { name: "編成へ戻る" })).toBeInViewport();
+  await expect(details.getByText(/朦朧・軽度/)).toBeVisible();
+  const bounds = await details.boundingBox();
+  if (!bounds) throw new Error("詳細が表示されていません");
+  expect(bounds.x).toBeGreaterThanOrEqual(0);
+  expect(bounds.x + bounds.width).toBeLessThanOrEqual(320);
+  await page.screenshot({ path: testInfo.outputPath("details-long-320.png") });
+  await page.keyboard.press("Escape");
+  await expect(opener).toBeFocused();
+  await page.getByRole("button", { name: /^画像未提供.*の詳細$/ }).click();
+  await expect(details.getByRole("heading", { name: /画像未提供の仲間/ })).toBeVisible();
+  await expect(details.getByRole("img")).toHaveCount(0);
+  await expect(details).toContainText("150 / 150");
+  await expect(details).toContainText("90%");
+  await page.keyboard.press("Escape");
+});
+
 const fields = {
   cameraY: { group: "カメラの初期位置", label: "カメラ 高さ" },
   cameraZ: { group: "カメラの初期位置", label: "カメラ 前後" },
