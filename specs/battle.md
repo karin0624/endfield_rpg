@@ -31,8 +31,8 @@
 - `outcome`: `ongoing`、`victory`、`defeat`のいずれか。
 
 戦闘開始時の数値は型付きの定義データ（`BattleCombatantDefinition`）から作る。
-初期編成は[`src/content/initialBattle.ts`](../src/content/initialBattle.ts)に置く固定2対2
-（`player`、`gilberta`、`slime`、`slime-2`）で、配列順を戦闘者の固定順・同時刻の優先順として扱う。
+本編の味方は入場時の1〜4人の[PT](party.md)から作り、現在HPを次戦へ引き継ぐ。配列順を戦闘者の固定順・同時刻の優先順として扱う。
+[`src/content/initialBattle.ts`](../src/content/initialBattle.ts)の固定2対2（`player`、`gilberta`、`slime`、`slime-2`）は独立した戦闘デモ用で、本編の人数を制限しない。
 
 ## 操作
 

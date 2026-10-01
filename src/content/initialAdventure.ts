@@ -193,11 +193,11 @@ export const initialAdventure = {
         "choose-route-marking": {
           type: "choice",
           prompt: "足跡を記録する？",
-          speakerName: "ギルベルタ",
+          speakerName: "ロッシ",
           backgroundId: "roadside",
-          portraitId: "gilberta",
+          portraitId: "rossi",
           expressionId: "neutral",
-          position: "center",
+          position: "left",
           options: [
             {
               id: "mark-on-map",

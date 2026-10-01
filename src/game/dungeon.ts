@@ -56,7 +56,6 @@ export type DungeonNodeDefinition =
 export interface DungeonDefinition {
   readonly id: string;
   readonly entryNodeId: string;
-  readonly party: readonly BattleCombatantDefinition[];
   readonly nodes: readonly DungeonNodeDefinition[];
 }
 
@@ -154,13 +153,17 @@ function assertAcyclicAndReachable(definition: DungeonDefinition): void {
 }
 
 /** Validate the fixed, single-floor graph and all combat and conversation references. */
-export function assertValidDungeonDefinition(definition: DungeonDefinition, adventure: AdventureDefinition): void {
+export function assertValidDungeonDefinition(
+  definition: DungeonDefinition,
+  adventure: AdventureDefinition,
+  party: readonly BattleCombatantDefinition[],
+): void {
   assertNonEmpty(definition.id, "ダンジョンID");
   assertNonEmpty(definition.entryNodeId, `ダンジョン${definition.id}の入口ノードID`);
   if (definition.nodes.length === 0) {
     throw new Error(`ダンジョンにノードがありません: ${definition.id}`);
   }
-  if (definition.party.length === 0 || definition.party.some((member) => member.team !== "ally")) {
+  if (party.length === 0 || party.some((member) => member.team !== "ally")) {
     throw new Error(`ダンジョンには味方の編成が必要です: ${definition.id}`);
   }
 
@@ -207,7 +210,7 @@ export function assertValidDungeonDefinition(definition: DungeonDefinition, adve
   }
 
   const partyIds = new Set<string>();
-  for (const member of definition.party) {
+  for (const member of party) {
     assertNonEmpty(member.id, "味方ID");
     if (partyIds.has(member.id)) {
       throw new Error(`味方IDが重複しています: ${member.id}`);
@@ -235,7 +238,7 @@ export function assertValidDungeonDefinition(definition: DungeonDefinition, adve
       if (node.enemies.length === 0 || node.enemies.some((enemy) => enemy.team !== "enemy")) {
         throw new Error(`戦闘ノードには敵だけの編成が必要です: ${node.id}`);
       }
-      createBattleState([...definition.party, ...node.enemies]);
+      createBattleState([...party, ...node.enemies]);
     }
   }
 
@@ -246,9 +249,10 @@ export function assertValidDungeonDefinition(definition: DungeonDefinition, adve
 export function createDungeonState(
   definition: DungeonDefinition,
   adventure: AdventureDefinition,
+  party: readonly BattleCombatantDefinition[],
   initialFlags: readonly string[] = [],
 ): DungeonState {
-  assertValidDungeonDefinition(definition, adventure);
+  assertValidDungeonDefinition(definition, adventure, party);
   const entry = getNode(definition, definition.entryNodeId);
   if (entry === undefined || entry.type !== "start") {
     throw new Error(`入口ノードが存在しません: ${definition.entryNodeId}`);
@@ -260,7 +264,7 @@ export function createDungeonState(
     resolvedNodeIds: [entry.id],
     outcome: "ongoing",
     activity: null,
-    party: definition.party.map((member) => ({ ...member })),
+    party: party.map((member) => ({ ...member })),
     flags: [...new Set(initialFlags)],
   };
 }

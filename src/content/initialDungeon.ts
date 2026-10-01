@@ -5,7 +5,6 @@ import { initialBattleCombatants } from "./initialBattle";
 export const initialDungeon = {
   id: "roadside-ruins",
   entryNodeId: "entrance",
-  party: initialBattleCombatants.filter((combatant) => combatant.team === "ally"),
   nodes: [
     {
       id: "entrance",

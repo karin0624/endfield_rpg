@@ -102,16 +102,13 @@ export interface BattleLayout {
 const ground = { scale: 26 } as const;
 const backdrop = { width: 50, height: (50 * 736) / 2138 } as const;
 
-/** Build the scene actors from the battle being shown; unknown enemies use the existing placeholder sprite. */
+/** Unprovided characters use an existing sprite as a provisional visual; the UI labels it as such. */
 export function createBattleLayout(combatants: readonly BattleCombatantDefinition[]): BattleLayout {
   return {
     ground,
     backdrop,
     actors: combatants.map((combatant) => {
-      const visual = actorVisuals[combatant.id] ?? (combatant.team === "enemy" ? actorVisuals.slime : undefined);
-      if (visual === undefined) {
-        throw new Error(`戦闘者の描画素材がありません: ${combatant.id}`);
-      }
+      const visual = actorVisuals[combatant.id] ?? actorVisuals.slime;
       return { id: combatant.id, team: combatant.team, ...visual } satisfies BattleActorLayout;
     }),
   };

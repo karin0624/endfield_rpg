@@ -10,11 +10,11 @@
 | `public/assets/backgrounds/landscape1.png` | ユーザー提供のGPT Images背景 | 画像は変更せず、街と会話の背景に使う | 生成時の条件は未確認 |
 | `public/assets/characters/rossi/front-left.png` | `art-src/characters/rossi/ロッシ_左斜め前.png`。ユーザー提供 | 白背景を透過化して戦闘に使う | 生成元と利用条件は未確認 |
 | `public/assets/characters/rossi/face.png` | `art-src/characters/rossi/ロッシ_正面.png`。ユーザー提供 | 原画の`x=250, y=0, 幅524, 高さ655`を切り出し、256×320へ縮小。行動順と味方カードに使う | 生成元と利用条件は未確認 |
-| `public/assets/characters/rossi/expressions/neutral.png` | `art-src/characters/rossi/ロッシ_正面.png`。ユーザー提供 | 透過済み原画をそのままコピーし、会話に使う | 生成元と利用条件は未確認 |
+| `public/assets/characters/rossi/expressions/neutral.png` | `art-src/characters/rossi/ロッシ_正面.png`。ユーザー提供 | 透過済み原画をそのままコピーし、会話と出撃編成に使う | 生成元と利用条件は未確認 |
 | `public/assets/characters/rossi/expressions/smile.png` | `art-src/characters/rossi/正面差分/微笑み.png`。ユーザー提供 | 透過済み原画をそのままコピーし、会話に使う | 生成元と利用条件は未確認 |
 | `public/assets/characters/gilberta/front-left.png` | `art-src/characters/gilberta/ギルベルタ_左斜め前.png`。ユーザー提供 | 画像は変更せず、戦闘に使う | 生成元と利用条件は未確認 |
 | `public/assets/characters/gilberta/face.png` | `art-src/characters/gilberta/ギルベルタ_正面.png`。ユーザー提供 | 原画の`x=328, y=0, 幅368, 高さ460`を切り出し、256×320へ縮小。行動順と味方カードに使う | 生成元と利用条件は未確認 |
-| `public/assets/characters/gilberta/expressions/neutral.png` | `art-src/characters/gilberta/ギルベルタ_正面.png`。ユーザー提供 | 透過済み原画をそのままコピーし、会話に使う | 生成元と利用条件は未確認 |
+| `public/assets/characters/gilberta/expressions/neutral.png` | `art-src/characters/gilberta/ギルベルタ_正面.png`。ユーザー提供 | 透過済み原画をそのままコピーし、会話と出撃編成に使う | 生成元と利用条件は未確認 |
 | `public/assets/characters/gilberta/expressions/smile.png` | `art-src/characters/gilberta/正面差分/微笑み.png`。ユーザー提供 | 透過済み原画をそのままコピーし、会話に使う | 生成元と利用条件は未確認 |
 | `public/assets/enemies/slime-blue.png` | [Kenney Platformer Art Deluxe](https://kenney.nl/assets/platformer-art-deluxe)の`slimeBlue.png` | 画像は変更せず、描画時に左右反転して敵に使う | [同梱ライセンス](../public/assets/enemies/kenney-license.txt)でCC0を確認 |
 | `public/assets/backgrounds/dungeon-route.png` | `art-src/background/dangeon/背景1.png`。ユーザー提供 | 画像はそのままコピー。画面CSSでぼかしと不透明度を調整する | 外部の出典・利用条件は未提示 |
