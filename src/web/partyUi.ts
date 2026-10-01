@@ -15,6 +15,7 @@ const rejectionText: Record<ExpeditionRejection, string> = {
   "empty-party": "出撃する仲間を1人以上選んでください。",
   "no-living-member": "出撃できる仲間がいません。行動できる仲間を編成してください。",
   "not-in-town": "編成と出撃は街で行ってください。",
+  "action-in-progress": "現在の探索を終えてから出撃してください。",
   "not-on-route": "街へ戻れるのはルート選択中か探索終了後です。",
 };
 

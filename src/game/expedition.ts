@@ -1,4 +1,10 @@
-import type { AdventureDefinition } from "./adventure";
+import {
+  type AdventureDefinition,
+  type AdventureRejectionReason,
+  advanceConversation,
+  chooseConversationOption,
+  selectTownPlace,
+} from "./adventure";
 import type { GameState } from "./createInitialGameState";
 import {
   advanceDungeonConversation,
@@ -19,6 +25,7 @@ import {
   type PartyState,
   setPartySlot,
 } from "./party";
+import type { CharacterStatus } from "./status";
 import {
   applyIncapacity,
   applyStagedStatus,
@@ -27,6 +34,14 @@ import {
   recoverTownStep,
   type StagedStatusKind,
 } from "./status";
+import {
+  type ActionClock,
+  type ActionCompletion,
+  beginTimedAction,
+  completeTimedAction,
+  createActionClock,
+  type TimedAction,
+} from "./time";
 
 /** The browser keeps one session in memory. Save/restore and return recovery belong to later milestones. */
 export interface ExpeditionGame {
@@ -35,10 +50,11 @@ export interface ExpeditionGame {
   readonly dungeon: DungeonState | null;
   readonly randomState?: number;
   readonly lastTownRecoverySignal?: number;
+  readonly clock?: ActionClock;
 }
-export type ExpeditionRejection = PartyRejection | "not-in-town" | "not-on-route";
+export type ExpeditionRejection = PartyRejection | "not-in-town" | "not-on-route" | "action-in-progress";
 export type ExpeditionResult =
-  | { readonly accepted: true; readonly state: ExpeditionGame }
+  | { readonly accepted: true; readonly state: ExpeditionGame; readonly completion?: GameActionCompletion }
   | { readonly accepted: false; readonly state: ExpeditionGame; readonly reason: ExpeditionRejection };
 
 export function editExpeditionParty(state: ExpeditionGame, slot: number, id: string | null): ExpeditionResult {
@@ -58,6 +74,8 @@ export function departOnExpedition(
 ): ExpeditionResult {
   if (state.dungeon !== null || state.adventure.mode !== "town")
     return { accepted: false, state, reason: "not-in-town" };
+  const clock = state.clock ?? createActionClock();
+  if (clock.pendingAction !== null) return { accepted: false, state, reason: "action-in-progress" };
   const reason = departureRejection(state.party);
   if (reason) return { accepted: false, state, reason };
   const dungeon = createDungeonState(
@@ -67,7 +85,7 @@ export function departOnExpedition(
     state.adventure.flags,
     state.randomState ?? 1,
   );
-  return { accepted: true, state: { ...state, dungeon } };
+  return { accepted: true, state: { ...state, dungeon, clock: beginTimedAction(clock, "dungeon-expedition") } };
 }
 
 export type DungeonCommand =
@@ -119,11 +137,20 @@ export function actInExpedition(
   };
 }
 
-/** Route/outcome exit retains HP. Full recovery and the half-day cost are integrated in #16. */
-export function leaveExpedition(state: ExpeditionGame): ExpeditionResult {
+/** Route/outcome exit retains HP and accounts the whole run once. HP recovery belongs to return integration. */
+export function leaveExpedition(state: ExpeditionGame, actionId = state.clock?.pendingAction?.id): ExpeditionResult {
   if (state.dungeon === null || state.dungeon.activity !== null)
     return { accepted: false, state, reason: "not-on-route" };
-  return { accepted: true, state: { ...state, dungeon: null } };
+  const clock = state.clock ?? createActionClock();
+  const pending = clock.pendingAction;
+  if (pending?.kind !== "dungeon-expedition" || pending.id !== actionId)
+    return { accepted: false, state, reason: "not-on-route" };
+  const result = completeTimedAction(clock, pending);
+  return {
+    accepted: true,
+    state: { ...state, dungeon: null, clock: result.clock },
+    completion: result.completion === undefined ? undefined : { ...result.completion, recovery: [] },
+  };
 }
 
 /** Town integration supplies a monotonically increasing signal; duplicate delivery is a no-op. */
@@ -176,4 +203,96 @@ export function applyPartyStatus(
       }),
     },
   };
+}
+
+export interface CharacterRecoveryChange {
+  readonly id: string;
+  readonly before: CharacterStatus;
+  readonly after: CharacterStatus;
+  readonly remainingSteps: { readonly physicalFatigue: number; readonly haze: number; readonly incapacity: number };
+}
+export interface GameActionCompletion extends ActionCompletion {
+  readonly recovery: readonly CharacterRecoveryChange[];
+}
+export type TownActionResult =
+  | { readonly accepted: true; readonly state: ExpeditionGame; readonly completion?: GameActionCompletion }
+  | {
+      readonly accepted: false;
+      readonly state: ExpeditionGame;
+      readonly reason: AdventureRejectionReason | "action-in-progress" | "action-not-current";
+    };
+
+/** Nonbattle exploration has no party participation requirement. */
+export function beginTownExploration(
+  state: ExpeditionGame,
+  placeId: string,
+  definition: AdventureDefinition,
+): TownActionResult {
+  if (state.dungeon !== null) return { accepted: false, state, reason: "not-in-town" };
+  const clock = state.clock ?? createActionClock();
+  if (clock.pendingAction !== null) return { accepted: false, state, reason: "action-in-progress" };
+  const result = selectTownPlace(state.adventure, placeId, definition);
+  if (!result.accepted) return { accepted: false, state, reason: result.reason };
+  return {
+    accepted: true,
+    state: { ...state, adventure: result.state, clock: beginTimedAction(clock, "town-exploration") },
+  };
+}
+
+/** Complete only the current action after its conversation has returned to town. */
+export function completeTownExploration(
+  state: ExpeditionGame,
+  action: TimedAction,
+  characters: readonly CharacterDefinition[],
+): TownActionResult {
+  const clock = state.clock ?? createActionClock();
+  if (state.dungeon !== null || state.adventure.mode !== "town")
+    return { accepted: false, state, reason: "not-in-town" };
+  if (action.kind !== "town-exploration") return { accepted: false, state, reason: "action-not-current" };
+  const result = completeTimedAction(clock, action);
+  if (result.completion === undefined) return { accepted: false, state, reason: "action-not-current" };
+  // Recovery notifications have their own watermark, independent of action/calendar IDs.
+  const recovered = receiveTownRecoverySignal(
+    { ...state, clock: result.clock },
+    (state.lastTownRecoverySignal ?? -1) + 1,
+    characters,
+  );
+  const recovery = recovered.party.members.map((member) => {
+    const before = state.party.members.find(({ id }) => id === member.id)?.status ?? healthyStatus();
+    const after = member.status ?? healthyStatus();
+    return {
+      id: member.id,
+      before,
+      after,
+      remainingSteps: {
+        physicalFatigue: after.physicalFatigue,
+        haze: after.haze,
+        incapacity: after.incapacityRecoverySteps ?? 0,
+      },
+    };
+  });
+  return { accepted: true, state: recovered, completion: { ...result.completion, recovery } };
+}
+export type TownCommand = { readonly type: "advance" } | { readonly type: "choose"; readonly optionId: string };
+/** The caller passes the action ID with every command, including retries from an old screen. */
+export function actInTown(
+  state: ExpeditionGame,
+  actionId: number,
+  command: TownCommand,
+  characters: readonly CharacterDefinition[],
+  definition: AdventureDefinition,
+): TownActionResult {
+  const pending = state.clock?.pendingAction;
+  if (pending?.kind !== "town-exploration" || pending.id !== actionId)
+    return { accepted: false, state, reason: "action-not-current" };
+  if (state.dungeon !== null) return { accepted: false, state, reason: "not-in-town" };
+  const result =
+    command.type === "advance"
+      ? advanceConversation(state.adventure, definition)
+      : chooseConversationOption(state.adventure, command.optionId, definition);
+  if (!result.accepted) return { accepted: false, state, reason: result.reason };
+  const updated = { ...state, adventure: result.state };
+  return result.state.mode === "town"
+    ? completeTownExploration(updated, pending, characters)
+    : { accepted: true, state: updated };
 }

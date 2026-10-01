@@ -124,7 +124,7 @@ describe("状態異常", () => {
     expect(left.state.randomState).toBe(2165703038);
   });
 });
-it("省略した基礎最大HPも初戦から固定し、次戦の身体疲労が複利にならない", () => {
+it("省略した基礎最大HPも初戦から固定し、次戦の肉体疲労が複利にならない", () => {
   const route: DungeonDefinition = {
     id: "two",
     entryNodeId: "start",
