@@ -26,7 +26,7 @@ export interface PartyUiOptions {
   readonly depart: () => ExpeditionResult;
 }
 
-export function mountPartyUi(root: HTMLElement, options: PartyUiOptions, back: () => void): () => void {
+export function mountPartyUi(root: HTMLElement, options: PartyUiOptions, back: () => void) {
   root.innerHTML = `<header class="party-heading"><button class="party-back" type="button" data-party-back>戻る</button>
     <h2 id="party-title">出撃編成</h2></header>
     <div class="party-slots" data-party-slots></div>
@@ -73,6 +73,10 @@ export function mountPartyUi(root: HTMLElement, options: PartyUiOptions, back: (
     const party = options.getParty();
     selects.forEach(({ select, card, portrait, hp }, slot) => {
       const id = party.slots[slot];
+      select.replaceChildren(
+        new Option("空き枠", ""),
+        ...party.members.map((member) => new Option(characterById(options.characters, member.id).name, member.id)),
+      );
       select.value = id ?? "";
       for (const option of select.options) {
         const candidate = party.members.find((member) => member.id === option.value);
@@ -121,5 +125,5 @@ export function mountPartyUi(root: HTMLElement, options: PartyUiOptions, back: (
     { signal: events.signal },
   );
   render();
-  return () => events.abort();
+  return { refresh: () => render(), dispose: () => events.abort() };
 }

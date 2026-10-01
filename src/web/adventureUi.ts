@@ -1,6 +1,7 @@
 import { initialAdventure } from "../content/initialAdventure";
 import { initialGameOptions } from "../content/initialGameOptions";
 import {
+  type AdventureActionResult,
   advanceConversation,
   type ConversationPresentation,
   chooseConversationOption,
@@ -13,6 +14,11 @@ import savedAdventureSettings from "./adventure-settings.json";
 import { type AdventureSettings, applyAdventureSettings, parseAdventureSettings } from "./adventureSettings";
 import { mountPartyUi, type PartyUiOptions } from "./partyUi";
 import { requiredElement } from "./requiredElement";
+
+export type TownUiCommand =
+  | { readonly type: "select"; readonly placeId: string }
+  | { readonly type: "advance" }
+  | { readonly type: "choose"; readonly optionId: string };
 
 const assetUrl = (path: string) => `${import.meta.env.BASE_URL}assets/${path}`;
 
@@ -62,7 +68,14 @@ function createTetrahedron(): SVGSVGElement {
 export function mountAdventureUi(
   root: HTMLDivElement,
   initialSettings = parseAdventureSettings(savedAdventureSettings),
-  options?: { initialState: GameState; onChange: (state: GameState) => void; party: PartyUiOptions },
+  options?: {
+    initialState: GameState;
+    dispatch: (
+      command: TownUiCommand,
+      actionId: number | null,
+    ) => AdventureActionResult & { readonly recruitedNames?: readonly string[]; readonly actionId?: number };
+    party: PartyUiOptions;
+  },
 ) {
   root.innerHTML = `
     <main class="adventure-shell">
@@ -74,7 +87,7 @@ export function mountAdventureUi(
           <header class="town-heading">
             <p class="adventure-eyebrow">OUTPOST / TOWN</p>
             <h1 id="town-title">街の広場</h1>
-            <p>行き先を選ぶ</p>
+            <p data-town-prompt>行き先を選ぶ</p>
           </header>
           <nav class="town-places" data-town-places aria-label="街の場所"></nav>
           <div class="town-utility-controls">
@@ -113,10 +126,12 @@ export function mountAdventureUi(
   const nextIndicator = requiredElement<HTMLSpanElement>(root, "[data-dialogue-next]");
   const status = requiredElement<HTMLParagraphElement>(root, "[data-adventure-status]");
   const events = new AbortController();
+  let actionId: number | null = null;
   let state = options?.initialState ?? createInitialGameState(initialGameOptions);
   const partyEditor = requiredElement<HTMLElement>(root, "[data-party-editor]");
   const partyEntry = root.querySelector<HTMLAnchorElement>(".dungeon-entry");
   function setPartyOpen(open: boolean) {
+    if (open) disposeParty?.refresh();
     screen.classList.toggle("party-editing", open);
     partyEditor.hidden = !open;
     if (open) townView.removeAttribute("aria-labelledby");
@@ -137,15 +152,22 @@ export function mountAdventureUi(
   let disposed = false;
   applyAdventureSettings(screen, initialSettings);
 
-  function applyAcceptedState(
-    result:
-      | ReturnType<typeof selectTownPlace>
-      | ReturnType<typeof advanceConversation>
-      | ReturnType<typeof chooseConversationOption>,
-  ): void {
+  function performTownCommand(command: TownUiCommand, sourceActionId = actionId): void {
+    const result: AdventureActionResult & { readonly recruitedNames?: readonly string[]; readonly actionId?: number } =
+      options
+        ? options.dispatch(command, sourceActionId)
+        : command.type === "select"
+          ? selectTownPlace(state, command.placeId, initialAdventure)
+          : command.type === "advance"
+            ? advanceConversation(state, initialAdventure)
+            : chooseConversationOption(state, command.optionId, initialAdventure);
+
     if (result.accepted) {
       state = result.state;
-      options?.onChange(state);
+      const prompt = requiredElement<HTMLElement>(root, "[data-town-prompt]");
+      const names = result.recruitedNames;
+      actionId = result.actionId ?? null;
+      prompt.textContent = names?.length ? `${names.join("・")}が仲間に加わった。` : "行き先を選ぶ";
       render();
     }
   }
@@ -170,7 +192,7 @@ export function mountAdventureUi(
       arrow.setAttribute("aria-hidden", "true");
       arrow.textContent = "›";
       button.append(number, label, arrow);
-      button.addEventListener("click", () => applyAcceptedState(selectTownPlace(state, place.id, initialAdventure)), {
+      button.addEventListener("click", () => performTownCommand({ type: "select", placeId: place.id }), {
         signal: events.signal,
       });
       fragment.append(button);
@@ -232,11 +254,12 @@ export function mountAdventureUi(
       label.className = "choice-label";
       label.textContent = option.label;
       button.append(marker, number, label);
+      const sourceActionId = actionId;
       button.addEventListener(
         "click",
         (event) => {
           event.stopPropagation();
-          applyAcceptedState(chooseConversationOption(state, option.id, initialAdventure));
+          performTownCommand({ type: "choose", optionId: option.id }, sourceActionId);
         },
         { signal: events.signal },
       );
@@ -281,7 +304,8 @@ export function mountAdventureUi(
       conversationView.hidden = true;
       townView.hidden = false;
       renderTown();
-      status.textContent = "街の場所を選べます";
+      const message = requiredElement<HTMLElement>(root, "[data-town-prompt]").textContent;
+      status.textContent = message === "行き先を選ぶ" ? "街の場所を選べます" : message;
       return;
     }
     renderConversation();
@@ -293,7 +317,7 @@ export function mountAdventureUi(
     (event) => {
       if ((event.target as Element).closest("button") !== null) return;
       const scene = getCurrentConversationScene(state, initialAdventure);
-      if (scene?.type === "line") applyAcceptedState(advanceConversation(state, initialAdventure));
+      if (scene?.type === "line") performTownCommand({ type: "advance" });
     },
     { signal: events.signal },
   );
@@ -311,10 +335,10 @@ export function mountAdventureUi(
         const option = scene.options[Number(event.code.at(-1)) - 1];
         if (option === undefined) return;
         event.preventDefault();
-        applyAcceptedState(chooseConversationOption(state, option.id, initialAdventure));
+        performTownCommand({ type: "choose", optionId: option.id });
       } else if (event.code === "Space" && scene.type === "line") {
         event.preventDefault();
-        applyAcceptedState(advanceConversation(state, initialAdventure));
+        performTownCommand({ type: "advance" });
       }
     },
     { signal: events.signal },
@@ -328,7 +352,7 @@ export function mountAdventureUi(
     dispose() {
       disposed = true;
       events.abort();
-      disposeParty?.();
+      disposeParty?.dispose();
     },
   };
 }

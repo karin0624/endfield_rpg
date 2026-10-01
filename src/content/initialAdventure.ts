@@ -27,8 +27,66 @@ export const initialAdventure = {
       label: "市場",
       routes: [{ conversationId: "market" }],
     },
+    {
+      id: "find-companion",
+      label: "同行者を探す（仮）",
+      routes: [
+        { conversationId: "gilberta-already-joined", when: { all: ["joined-gilberta"] } },
+        { conversationId: "gilberta-recruitment-sample" },
+      ],
+    },
   ],
   conversations: [
+    {
+      id: "gilberta-recruitment-sample",
+      startNodeId: "meet",
+      nodes: {
+        meet: {
+          type: "line",
+          text: "ギルベルタに同行を相談する。（仮イベント）",
+          backgroundId: "guild-hall",
+          portraitId: "gilberta",
+          expressionId: "neutral",
+          position: "center",
+          nextNodeId: "invite",
+        },
+        invite: {
+          type: "choice",
+          prompt: "ギルベルタを仲間に迎える？（仮イベント）",
+          backgroundId: "guild-hall",
+          portraitId: "gilberta",
+          expressionId: "neutral",
+          position: "center",
+          options: [
+            { id: "invite-gilberta", label: "仲間に迎える", nextNodeId: "join" },
+            { id: "leave", label: "今は見送る", nextNodeId: "end" },
+          ],
+        },
+        join: {
+          type: "end",
+          recruitments: [
+            { characterId: "gilberta", when: { none: ["joined-gilberta"] }, setFlags: ["joined-gilberta"] },
+          ],
+        },
+        end: { type: "end" },
+      },
+    },
+    {
+      id: "gilberta-already-joined",
+      startNodeId: "joined",
+      nodes: {
+        joined: {
+          type: "line",
+          text: "ギルベルタは加入済みです。（仮イベント）",
+          backgroundId: "guild-hall",
+          portraitId: "gilberta",
+          expressionId: "neutral",
+          position: "center",
+          nextNodeId: "end",
+        },
+        end: { type: "end" },
+      },
+    },
     {
       id: "town-square",
       startNodeId: "look-around",

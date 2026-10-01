@@ -23,6 +23,8 @@ import {
   getPartyCombatants,
   type PartyRejection,
   type PartyState,
+  type RecruitmentRejection,
+  recruitPartyMember,
   setPartySlot,
 } from "./party";
 import type { CharacterStatus } from "./status";
@@ -212,6 +214,7 @@ export interface CharacterRecoveryChange {
   readonly remainingSteps: { readonly physicalFatigue: number; readonly haze: number; readonly incapacity: number };
 }
 export interface GameActionCompletion extends ActionCompletion {
+  readonly recruitedIds?: readonly string[];
   readonly recovery: readonly CharacterRecoveryChange[];
 }
 export type TownActionResult =
@@ -219,7 +222,7 @@ export type TownActionResult =
   | {
       readonly accepted: false;
       readonly state: ExpeditionGame;
-      readonly reason: AdventureRejectionReason | "action-in-progress" | "action-not-current";
+      readonly reason: AdventureRejectionReason | RecruitmentRejection | "action-in-progress" | "action-not-current";
     };
 
 /** Nonbattle exploration has no party participation requirement. */
@@ -291,8 +294,26 @@ export function actInTown(
       ? advanceConversation(state.adventure, definition)
       : chooseConversationOption(state.adventure, command.optionId, definition);
   if (!result.accepted) return { accepted: false, state, reason: result.reason };
-  const updated = { ...state, adventure: result.state };
-  return result.state.mode === "town"
-    ? completeTownExploration(updated, pending, characters)
-    : { accepted: true, state: updated };
+  let updated = { ...state, adventure: result.state };
+  const recruitedIds: string[] = [];
+  for (const effect of result.recruitments ?? []) {
+    const recruited = recruitPartyMember(updated.party, effect, characters, updated.adventure.flags);
+    if (!recruited.accepted) return { accepted: false, state, reason: recruited.reason };
+    if (recruited.added) recruitedIds.push(effect.characterId);
+    updated = {
+      ...updated,
+      party: recruited.state,
+      adventure: {
+        ...updated.adventure,
+        flags: recruited.added
+          ? [...new Set([...updated.adventure.flags, ...(effect.setFlags ?? [])])]
+          : updated.adventure.flags,
+      },
+    };
+  }
+  if (result.state.mode !== "town") return { accepted: true, state: updated };
+  const completed = completeTownExploration(updated, pending, characters);
+  return completed.accepted && completed.completion !== undefined
+    ? { ...completed, completion: { ...completed.completion, recruitedIds } }
+    : completed;
 }
