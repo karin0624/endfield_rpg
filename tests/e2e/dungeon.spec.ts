@@ -208,3 +208,32 @@ test("街の4枠を編集して単独出撃し、会話分岐のボス撃破後�
   await expect(page.locator(".party-slot-hp").first()).toHaveText("HP 5 / 20");
   expect(errors).toEqual([]);
 });
+
+test("仮の街イベントでギルベルタが控えに加入し、編成と再訪でも重複しない", async ({ page }, testInfo) => {
+  await page.goto("/");
+  await page.getByRole("link", { name: "出撃編成を見る" }).click();
+  const second = page.getByRole("combobox", { name: "枠 2" });
+  await expect(second.locator('option[value="gilberta"]')).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "出撃", exact: true })).toBeEnabled();
+  await page.getByRole("button", { name: "戻る", exact: true }).click();
+  await page.getByRole("button", { name: "同行者を探す（仮）", exact: true }).click();
+  await expect(page.getByText("ギルベルタに同行を相談する。（仮イベント）")).toBeVisible();
+  await page.keyboard.press("Space");
+  await page.getByRole("button", { name: "仲間に迎える" }).click();
+  await expect(page.locator("[data-town-prompt]")).toHaveText("ギルベルタが仲間に加わった。");
+  await page.getByRole("link", { name: "出撃編成を見る" }).click();
+  await expect(page.getByRole("combobox", { name: "枠 1" })).toHaveValue("player");
+  await expect(second).toHaveValue("");
+  await expect(second.locator('option[value="gilberta"]')).toHaveText("ギルベルタ — HP 18/18");
+  await second.selectOption("gilberta");
+  await expect(page.locator(".party-slot").nth(1)).toContainText("HP 18 / 18");
+  await expect(page.locator(".party-slot").nth(1).locator("img")).toHaveJSProperty("naturalWidth", 1024);
+  await page.screenshot({ path: testInfo.outputPath("recruitment-party-1440.png"), fullPage: true });
+  await page.getByRole("button", { name: "戻る", exact: true }).click();
+  await page.getByRole("button", { name: "同行者を探す（仮）", exact: true }).click();
+  await expect(page.getByText("ギルベルタは加入済みです。（仮イベント）")).toBeVisible();
+  await page.keyboard.press("Space");
+  await page.getByRole("link", { name: "出撃編成を見る" }).click();
+  await expect(second).toHaveValue("gilberta");
+  await expect(second.locator('option[value="gilberta"]')).toHaveCount(1);
+});

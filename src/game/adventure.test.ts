@@ -21,6 +21,7 @@ describe("街・会話の進行", () => {
       { id: "town-square", label: "街の広場" },
       { id: "guild", label: "冒険者ギルド" },
       { id: "market", label: "市場" },
+      { id: "find-companion", label: "同行者を探す（仮）" },
     ]);
 
     const started = selectTownPlace(state, "guild", initialAdventure);

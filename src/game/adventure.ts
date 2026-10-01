@@ -48,7 +48,13 @@ export interface ConversationChoiceNode extends ConversationPresentation {
   readonly options: readonly ConversationChoiceOption[];
 }
 
+export interface RecruitmentEffect {
+  readonly characterId: string;
+  readonly when?: FlagCondition;
+  readonly setFlags?: readonly string[];
+}
 export interface ConversationEndNode {
+  readonly recruitments?: readonly RecruitmentEffect[];
   readonly type: "end";
 }
 
@@ -98,7 +104,7 @@ export type AdventureRejectionReason =
   | "conversation-progress-invalid";
 
 export type AdventureActionResult =
-  | { readonly accepted: true; readonly state: GameState }
+  | { readonly accepted: true; readonly state: GameState; readonly recruitments?: readonly RecruitmentEffect[] }
   | { readonly accepted: false; readonly reason: AdventureRejectionReason; readonly state: GameState };
 
 function findPlace(definition: AdventureDefinition, placeId: string): TownPlaceDefinition | undefined {
@@ -109,7 +115,7 @@ function findConversation(definition: AdventureDefinition, conversationId: strin
   return definition.conversations.find((conversation) => conversation.id === conversationId);
 }
 
-function hasFlags(flags: readonly string[], condition?: FlagCondition): boolean {
+export function hasFlags(flags: readonly string[], condition?: FlagCondition): boolean {
   if (condition === undefined) {
     return true;
   }
@@ -141,26 +147,26 @@ function enterNodeOrFinish(
   conversation: ConversationDefinition,
   nodeId: string,
   flags: readonly string[] = state.flags,
-): GameState {
+): AdventureActionResult {
   const node = getNode(conversation, nodeId);
   if (node === undefined) {
     throw new Error(`会話の進行先が存在しません: ${conversation.id}/${nodeId}`);
   }
   if (node.type === "end") {
     return {
-      ...state,
-      mode: "town",
-      conversationId: null,
-      conversationPosition: null,
-      flags: withAddedFlags(flags, conversation.onCompleteFlags),
+      accepted: true,
+      state: {
+        ...state,
+        mode: "town",
+        conversationId: null,
+        conversationPosition: null,
+        flags: withAddedFlags(flags, conversation.onCompleteFlags),
+      },
+      ...(node.recruitments === undefined ? {} : { recruitments: node.recruitments }),
     };
   }
 
-  return {
-    ...state,
-    conversationPosition: nodeId,
-    flags: [...flags],
-  };
+  return { accepted: true, state: { ...state, conversationPosition: nodeId, flags: [...flags] } };
 }
 
 function assertNonEmpty(value: string, context: string): void {
@@ -231,6 +237,13 @@ export function assertValidAdventureDefinition(definition: AdventureDefinition):
     }
     for (const [nodeId, node] of nodeEntries) {
       assertNonEmpty(nodeId, `会話${conversation.id}の場面ID`);
+      if (node.type === "end") {
+        for (const effect of node.recruitments ?? []) {
+          assertNonEmpty(effect.characterId, `加入キャラID ${conversation.id}/${nodeId}`);
+          assertValidCondition(effect.when, `加入条件 ${conversation.id}/${nodeId}`);
+          for (const flag of effect.setFlags ?? []) assertNonEmpty(flag, `加入フラグ ${conversation.id}/${nodeId}`);
+        }
+      }
       if (node.type === "line") {
         assertNonEmpty(node.text, `会話${conversation.id}/${nodeId}の本文`);
         assertNonEmpty(node.nextNodeId, `会話${conversation.id}/${nodeId}の進行先`);
@@ -385,10 +398,7 @@ export function advanceConversation(state: GameState, definition: AdventureDefin
     return reject(state, "not-a-line");
   }
 
-  return {
-    accepted: true,
-    state: enterNodeOrFinish(state, conversation, node.nextNodeId),
-  };
+  return enterNodeOrFinish(state, conversation, node.nextNodeId);
 }
 
 /** 選択肢を確定する。表示条件を満たさない選択肢は直接指定しても拒否する。 */
@@ -414,8 +424,5 @@ export function chooseConversationOption(
   }
 
   const flags = withAddedFlags(state.flags, option.setFlags);
-  return {
-    accepted: true,
-    state: enterNodeOrFinish(state, conversation, option.nextNodeId, flags),
-  };
+  return enterNodeOrFinish(state, conversation, option.nextNodeId, flags);
 }

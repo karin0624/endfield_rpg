@@ -5,6 +5,8 @@ import { initialGameOptions } from "../content/initialGameOptions";
 import { createInitialGameState } from "../game/createInitialGameState";
 import {
   actInExpedition,
+  actInTown,
+  beginTownExploration,
   departOnExpedition,
   type ExpeditionGame,
   editExpeditionParty,
@@ -80,8 +82,20 @@ if (!battleMode) {
         ? undefined
         : {
             initialState: game.adventure,
-            onChange: (state) => {
-              game = { ...game, adventure: state };
+            dispatch: (command, actionId) => {
+              const result =
+                command.type === "select"
+                  ? beginTownExploration(game, command.placeId, initialAdventure)
+                  : actInTown(game, actionId ?? -1, command, characters, initialAdventure);
+              game = result.state;
+              return result.accepted
+                ? {
+                    accepted: true,
+                    state: game.adventure,
+                    actionId: game.clock?.pendingAction?.id,
+                    recruitedNames: result.completion?.recruitedIds?.map((id) => characterById(characters, id).name),
+                  }
+                : { accepted: false, state: game.adventure, reason: "conversation-progress-invalid" };
             },
             party: {
               characters,

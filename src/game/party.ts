@@ -1,3 +1,4 @@
+import { hasFlags, type RecruitmentEffect } from "./adventure";
 import type { BattleCombatantDefinition } from "./battle";
 import { type CharacterStatus, canParticipate, healthyStatus } from "./status";
 
@@ -108,4 +109,22 @@ export function departureRejection(state: PartyState): PartyRejection | null {
   if (!state.members.some((member) => selected.includes(member.id) && canParticipate(member.hp, member.status)))
     return "no-living-member";
   return null;
+}
+
+export type RecruitmentRejection = "unknown-character" | "recruitment-unavailable";
+/** Enrollment never edits slots or recreates a previously joined character. */
+export function recruitPartyMember(
+  state: PartyState,
+  effect: RecruitmentEffect,
+  definitions: readonly CharacterDefinition[],
+  flags: readonly string[],
+):
+  | { readonly accepted: true; readonly state: PartyState; readonly added: boolean }
+  | { readonly accepted: false; readonly state: PartyState; readonly reason: RecruitmentRejection } {
+  if (!definitions.some(({ id }) => id === effect.characterId))
+    return { accepted: false, state, reason: "unknown-character" };
+  if (state.members.some(({ id }) => id === effect.characterId)) return { accepted: true, state, added: false };
+  if (!hasFlags(flags, effect.when)) return { accepted: false, state, reason: "recruitment-unavailable" };
+  const member = createParty(definitions, [effect.characterId]).members[0];
+  return { accepted: true, added: true, state: { ...state, members: [...state.members, member] } };
 }
