@@ -1,4 +1,11 @@
 import { expect, test } from "@playwright/test";
+import { characters } from "../../src/content/characters";
+import { initialGameOptions } from "../../src/content/initialGameOptions";
+import { saveDefinitions } from "../../src/content/saveDefinitions";
+import { createInitialGameState } from "../../src/game/createInitialGameState";
+import { applyPartyStatus, type ExpeditionGame } from "../../src/game/expedition";
+import { createParty } from "../../src/game/party";
+import { serializeGame } from "../../src/game/save";
 
 test("ルートを横ドラッグでき、表示領域を変えても選択肢を操作できる", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -303,6 +310,75 @@ test("街探索から加入・編成・ボス帰還・再訪まで同じセッ�
   await page.getByRole("link", { name: "出撃編成を見る" }).click();
   await expect(second).toHaveValue("gilberta");
   await expect(second.locator('option[value="gilberta"]')).toHaveCount(1);
+  await page.getByRole("button", { name: "戻る", exact: true }).click();
+  await page.getByRole("button", { name: "保存", exact: true }).click();
+  await page.reload();
+  await page.getByRole("button", { name: "読込", exact: true }).click();
+  await expect(page.locator("[data-calendar]")).toHaveText("2日目 · 夜");
+  await page.getByRole("link", { name: "出撃編成を見る" }).click();
+  await expect(second).toHaveValue("gilberta");
+  await page.getByRole("button", { name: "出撃", exact: true }).click();
+  await expect(page.getByRole("region", { name: "遺跡の進路" })).toBeVisible();
+  await expect(page.locator("[data-calendar]")).toHaveText("2日目 · 夜");
+});
+
+test("初期症状の試験データから実操作で段階回復・全滅帰還・保存再開をつなぐ", async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  // Setup only: use the public core to prepare a street save with moderate ailments.
+  // Once loaded, all time, combat outcomes and recovery come from player controls.
+  let fixture: ExpeditionGame = {
+    adventure: createInitialGameState(initialGameOptions),
+    party: createParty(characters, ["player"]),
+    dungeon: null,
+  };
+  for (let tier = 0; tier < 2; tier++) {
+    fixture = applyPartyStatus(fixture, "player", "physicalFatigue", characters);
+    fixture = applyPartyStatus(fixture, "player", "haze", characters);
+  }
+  const encoded = serializeGame(fixture, saveDefinitions);
+  if (!encoded.accepted) throw new Error(encoded.reason);
+  await page.goto("/");
+  await page.evaluate((data) => localStorage.setItem("endfield-rpg-game-save", data), encoded.data);
+  await page.getByRole("button", { name: "読込", exact: true }).click();
+  await page.getByRole("button", { name: "市場", exact: true }).click();
+  await page.keyboard.press("Space");
+  await expect(page.locator("[data-town-recovery]")).toContainText("肉体疲労：中度 → 軽度");
+  await expect(page.locator("[data-town-recovery]")).toContainText("朦朧：中度 → 軽度");
+  await page.screenshot({ path: testInfo.outputPath("m2c-staged-recovery-1920.png") });
+  await page.getByRole("button", { name: "保存", exact: true }).click();
+  await page.reload();
+  await page.getByRole("button", { name: "読込", exact: true }).click();
+  await page.getByRole("link", { name: "出撃編成を見る" }).click();
+  await expect(page.locator(".party-slot").first()).toContainText("HP 10 / 15");
+  await expect(page.locator(".party-slot").first()).toContainText("肉体疲労・軽度");
+  await expect(page.locator(".party-slot").first()).toContainText("朦朧・軽度");
+  await page.getByRole("button", { name: "出撃", exact: true }).click();
+  await page.getByRole("button", { name: "思わぬ遭遇、選択可能" }).click();
+  await page.keyboard.press("Space");
+  await page.getByRole("button", { name: "地図に足跡を記す" }).click();
+  await page.getByRole("button", { name: "ボス、選択可能" }).click();
+  const attack = page.getByRole("button", { name: "通常攻撃" });
+  await expect(attack).toBeEnabled({ timeout: 60_000 });
+  await attack.click();
+  await attack.click();
+  await expect(page.getByRole("heading", { name: "戦闘に敗北しました" })).toBeVisible();
+  await page.getByRole("button", { name: "戦闘を終えてルートへ戻る" }).click();
+  await page.getByRole("button", { name: "街へ戻る", exact: true }).click();
+  await page.getByRole("link", { name: "出撃編成を見る" }).click();
+  await expect(page.locator(".party-slot").first()).toContainText("HP 15 / 15");
+  await expect(page.locator(".party-slot").first()).toContainText("肉体疲労・軽度");
+  await expect(page.locator(".party-slot").first()).toContainText("あと街探索6回");
+  await page.screenshot({ path: testInfo.outputPath("m2c-returned-ailments-1920.png") });
+  await page.getByRole("button", { name: "戻る", exact: true }).click();
+  await page.getByRole("button", { name: "市場", exact: true }).click();
+  await page.keyboard.press("Space");
+  await expect(page.locator("[data-calendar]")).toHaveText("2日目 · 夜");
+  await expect(page.locator("[data-town-recovery]")).toContainText("肉体疲労：軽度 → なし");
+  await expect(page.locator("[data-town-recovery]")).toContainText("あと街探索6回 → 5回");
+  await page.getByRole("link", { name: "出撃編成を見る" }).click();
+  await expect(page.locator(".party-slot").first()).toContainText("HP 15 / 20");
+  await expect(page.locator(".party-slot").first()).not.toContainText("肉体疲労");
+  await expect(page.getByRole("button", { name: "出撃", exact: true })).toBeDisabled();
 });
 
 test("街で保存し、リロード後も加入・編成・時計を読み込み、再読込で進めない", async ({ page }, testInfo) => {
