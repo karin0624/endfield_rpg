@@ -2056,6 +2056,7 @@ body.dungeon-mode {
   min-height: 100dvh;
   padding: 64px 8% 40px;
 }
+.party-editing [data-save-status],
 .party-editing .town-heading,
 .party-editing .town-places,
 .party-editing .town-utility-controls,
