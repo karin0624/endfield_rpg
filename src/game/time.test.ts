@@ -97,13 +97,14 @@ describe("生活時計と街回復", () => {
     });
     expect(state.party.members[0].hp).toBe(100);
     state = dungeon(state);
+    expect(state.party.members[0].hp).toBe(150);
     expect(state.party.members[0].status?.physicalFatigue).toBe(1);
     expect(state.party.members[1].status?.haze).toBe(1);
     state = accepted(town(state));
     expect(state.clock).toMatchObject({ elapsedHalfDays: 3, recoverySteps: 2 });
     expect(state.party.members[0].status?.physicalFatigue).toBe(0);
     expect(state.party.members[1].status?.haze).toBe(0);
-    expect(state.party.members[0].hp).toBe(100);
+    expect(state.party.members[0].hp).toBe(150);
     expect(state.randomState).toBe(123);
   });
   it("重度は3街行動で段階と効果を更新し、再発後も現在段階から回復する", () => {

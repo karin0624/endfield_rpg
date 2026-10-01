@@ -108,3 +108,47 @@ test("表示番号の数字キーで会話の選択肢を選べる", async ({ pa
   await page.keyboard.press("Digit1");
   await expect(page.getByText("街道の様子を調べる依頼が出ているそうだ。")).toBeVisible();
 });
+
+test("街と会話の表示をドラッグしても範囲選択せず、移動とキー操作を続けられる", async ({ page }) => {
+  await page.goto("/");
+  const title = page.getByRole("heading", { name: "街の広場" });
+  await expect(title).toBeVisible();
+  const townPlaces = page.getByRole("navigation", { name: "街の場所" });
+  await expect(townPlaces).toHaveText("街の広場›冒険者ギルド›市場›同行者を探す（仮）›");
+  for (const target of [title, page.locator("[data-town-prompt]"), page.locator(".town-place-arrow").first()]) {
+    const bounds = await target.boundingBox();
+    if (bounds === null) throw new Error("街の表示が見つかりません");
+    await page.mouse.move(bounds.x + 2, bounds.y + bounds.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(bounds.x + bounds.width - 2, bounds.y + bounds.height / 2, { steps: 10 });
+    await page.mouse.up();
+    await expect.poll(() => page.evaluate(() => window.getSelection()?.toString())).toBe("");
+  }
+  // Dragging the arrow can navigate to its place; finish that ordinary conversation before opening the guild.
+  if (await page.locator("[data-conversation-view]").isVisible()) await page.keyboard.press("Space");
+  await expect(title).toBeVisible();
+
+  await page.getByRole("button", { name: "冒険者ギルド" }).click();
+  await page.keyboard.press("Space");
+  await page.keyboard.press("Space");
+  await expect(page.getByText("何を聞こう？")).toBeVisible();
+  for (const target of [
+    page.locator("[data-speaker]"),
+    page.locator("[data-dialogue-text]"),
+    page.locator("[data-conversation-portraits] img").first(),
+  ]) {
+    await page.evaluate(() => window.getSelection()?.removeAllRanges());
+    const bounds = await target.boundingBox();
+    if (bounds === null) throw new Error("会話の文字が表示されていません");
+    await page.mouse.move(bounds.x + 2, bounds.y + bounds.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(bounds.x + bounds.width - 2, bounds.y + bounds.height / 2, { steps: 10 });
+    await page.mouse.up();
+    await expect.poll(() => page.evaluate(() => window.getSelection()?.toString())).toBe("");
+  }
+
+  await page.keyboard.press("Digit1");
+  await expect(page.getByText("街道の様子を調べる依頼が出ているそうだ。")).toBeVisible();
+  await page.keyboard.press("Space");
+  await expect(title).toBeVisible();
+});

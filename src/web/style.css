@@ -369,6 +369,13 @@ input[aria-invalid="true"] {
   position: absolute;
   inset: 0;
 }
+.town-view,
+.adventure-background {
+  user-select: none;
+}
+.town-view :is(input, textarea, select, [contenteditable="true"]) {
+  user-select: text;
+}
 .town-heading {
   position: absolute;
   top: 8%;
@@ -405,7 +412,7 @@ input[aria-invalid="true"] {
 .adventure-screen .town-place {
   min-height: 58px;
   display: grid;
-  grid-template-columns: 38px 1fr 20px;
+  grid-template-columns: minmax(0, 1fr) 20px;
   align-items: center;
   gap: 13px;
   padding: 8px 15px;
@@ -421,10 +428,6 @@ input[aria-invalid="true"] {
 .adventure-screen .town-place:hover,
 .adventure-screen .town-place:active {
   background: var(--surface-hover);
-}
-.town-place-number {
-  color: var(--trim-metal);
-  font: var(--font-size-caption) / 1.3 var(--mono);
 }
 .town-place-label {
   font: 500 var(--font-size-decision) / 1.4 var(--serif);
@@ -473,6 +476,7 @@ input[aria-invalid="true"] {
   max-width: 52%;
 }
 .conversation-stage {
+  user-select: none;
   position: absolute;
   inset: 0;
   overflow: hidden;
@@ -517,6 +521,7 @@ input[aria-invalid="true"] {
   filter: drop-shadow(0 5px 15px #10171366);
 }
 .dialogue-panel {
+  user-select: none;
   position: absolute;
   z-index: 3;
   right: 0;
@@ -2072,9 +2077,35 @@ body.dungeon-mode {
 }
 .party-heading {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 24px;
   margin-bottom: 28px;
+}
+.party-calendar {
+  margin: 0 0 0 auto;
+  color: var(--text-secondary);
+  font: var(--font-size-body) / 1.6 var(--mono);
+}
+.party-slot-symptoms,
+.town-recovery {
+  color: var(--text-primary);
+  font-size: var(--font-size-body);
+  line-height: 1.6;
+}
+.town-recovery p {
+  margin: 12px 0 0;
+}
+.dungeon-calendar {
+  position: absolute;
+  top: 24px;
+  left: 24px;
+  z-index: 2;
+  margin: 0;
+  padding: 8px 12px;
+  color: var(--text-primary);
+  background: var(--surface-base);
+  font: var(--font-size-body) / 1.6 var(--mono);
 }
 .party-slots {
   display: grid;
