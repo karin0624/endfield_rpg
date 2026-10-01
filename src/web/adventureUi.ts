@@ -70,6 +70,8 @@ export function mountAdventureUi(
   initialSettings = parseAdventureSettings(savedAdventureSettings),
   options?: {
     initialState: GameState;
+    getCalendarLabel: () => string;
+    getFeedback: () => readonly string[];
     dispatch: (
       command: TownUiCommand,
       actionId: number | null,
@@ -85,9 +87,10 @@ export function mountAdventureUi(
         </div>
         <section class="town-view" data-town-view aria-labelledby="town-title">
           <header class="town-heading">
-            <p class="adventure-eyebrow">OUTPOST / TOWN</p>
+            <p class="adventure-eyebrow" data-calendar>OUTPOST / TOWN</p>
             <h1 id="town-title">街の広場</h1>
             <p data-town-prompt>行き先を選ぶ</p>
+            <div class="town-recovery" data-town-recovery role="status"></div>
           </header>
           <nav class="town-places" data-town-places aria-label="街の場所"></nav>
           <div class="town-utility-controls">
@@ -173,17 +176,26 @@ export function mountAdventureUi(
   }
 
   function renderTown(): void {
+    if (options) {
+      requiredElement<HTMLElement>(root, "[data-calendar]").textContent = options.getCalendarLabel();
+      const feedback = requiredElement<HTMLElement>(root, "[data-town-recovery]");
+      feedback.replaceChildren(
+        ...options.getFeedback().map((text) => {
+          const line = document.createElement("p");
+          line.textContent = text;
+          return line;
+        }),
+      );
+      feedback.hidden = feedback.childElementCount === 0;
+    }
     const fragment = document.createDocumentFragment();
-    for (const [index, place] of getAvailableTownPlaces(state, initialAdventure).entries()) {
+    for (const place of getAvailableTownPlaces(state, initialAdventure)) {
       const button = document.createElement("button");
       button.className = "town-place";
       button.type = "button";
       button.dataset.placeId = place.id;
       button.setAttribute("aria-label", place.label);
 
-      const number = document.createElement("span");
-      number.className = "town-place-number";
-      number.textContent = String(index + 1).padStart(2, "0");
       const label = document.createElement("span");
       label.className = "town-place-label";
       label.textContent = place.label;
@@ -191,7 +203,7 @@ export function mountAdventureUi(
       arrow.className = "town-place-arrow";
       arrow.setAttribute("aria-hidden", "true");
       arrow.textContent = "›";
-      button.append(number, label, arrow);
+      button.append(label, arrow);
       button.addEventListener("click", () => performTownCommand({ type: "select", placeId: place.id }), {
         signal: events.signal,
       });

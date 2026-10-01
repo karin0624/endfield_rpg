@@ -10,6 +10,7 @@ import {
   departOnExpedition,
   type ExpeditionGame,
   editExpeditionParty,
+  type GameActionCompletion,
   leaveExpedition,
 } from "../game/expedition";
 import { characterById, createParty, getPartyCombatants } from "../game/party";
@@ -20,6 +21,7 @@ import savedSettings from "./battle-settings.json";
 import type { createBattleScene } from "./battleScene";
 import { parseBattleSettings } from "./battleSettings";
 import "./style.css";
+import { calendarLabel, completionFeedback, symptomLabel } from "./sessionFeedback";
 
 const app = document.querySelector<HTMLDivElement>("#app");
 if (app === null) throw new Error("#app が見つかりません");
@@ -69,6 +71,7 @@ if (!battleMode) {
     party: createParty(characters, ["player"]),
     dungeon: null,
   };
+  let completion: GameActionCompletion | undefined;
   function showTown() {
     if (disposed || app === null) return;
     disposeDungeon?.();
@@ -82,12 +85,22 @@ if (!battleMode) {
         ? undefined
         : {
             initialState: game.adventure,
+            getCalendarLabel: () => calendarLabel(game.clock),
+            getFeedback: () => [
+              ...completionFeedback(completion, characters),
+              ...(completion?.returnedIds ?? []).flatMap((id) => {
+                const member = game.party.members.find((candidate) => candidate.id === id);
+                const label = symptomLabel(member?.status ?? healthyStatus());
+                return label ? [`${characterById(characters, id).name} · ${label}`] : [];
+              }),
+            ],
             dispatch: (command, actionId) => {
               const result =
                 command.type === "select"
                   ? beginTownExploration(game, command.placeId, initialAdventure)
                   : actInTown(game, actionId ?? -1, command, characters, initialAdventure);
               game = result.state;
+              if (result.accepted) completion = result.completion;
               return result.accepted
                 ? {
                     accepted: true,
@@ -100,6 +113,7 @@ if (!battleMode) {
             party: {
               characters,
               getParty: () => game.party,
+              getCalendarLabel: () => calendarLabel(game.clock),
               edit: (slot, id) => {
                 const result = editExpeditionParty(game, slot, id);
                 game = result.state;
@@ -122,8 +136,10 @@ if (!battleMode) {
     disposeAdventure?.();
     disposeAdventure = undefined;
     document.body.classList.add("dungeon-mode");
+    const actionId = game.clock?.pendingAction?.id;
     disposeDungeon = mountDungeonUi(app, {
       initialState: game.dungeon,
+      calendarLabel: calendarLabel(game.clock),
       combatants: getPartyCombatants(game.party, characters).map((member) => ({
         ...member,
         hp: effectiveMaxHp(characterById(characters, member.id).maxHp, member.status ?? healthyStatus()),
@@ -135,9 +151,12 @@ if (!battleMode) {
         return update.result;
       },
       onReturn: () => {
-        const result = leaveExpedition(game);
+        const result = leaveExpedition(game, actionId);
         game = result.state;
-        if (result.accepted) showTown();
+        if (result.accepted) {
+          completion = result.completion;
+          showTown();
+        }
       },
     });
   }

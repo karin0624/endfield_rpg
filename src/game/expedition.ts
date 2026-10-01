@@ -45,7 +45,7 @@ import {
   type TimedAction,
 } from "./time";
 
-/** The browser keeps one session in memory. Save/restore and return recovery belong to later milestones. */
+/** One shared session survives in-app navigation; persistent saves are separate. */
 export interface ExpeditionGame {
   readonly adventure: GameState;
   readonly party: PartyState;
@@ -139,7 +139,7 @@ export function actInExpedition(
   };
 }
 
-/** Route/outcome exit retains HP and accounts the whole run once. HP recovery belongs to return integration. */
+/** Commit return healing and calendar cost together; symptoms and recovery counters persist. */
 export function leaveExpedition(state: ExpeditionGame, actionId = state.clock?.pendingAction?.id): ExpeditionResult {
   if (state.dungeon === null || state.dungeon.activity !== null)
     return { accepted: false, state, reason: "not-on-route" };
@@ -148,10 +148,25 @@ export function leaveExpedition(state: ExpeditionGame, actionId = state.clock?.p
   if (pending?.kind !== "dungeon-expedition" || pending.id !== actionId)
     return { accepted: false, state, reason: "not-on-route" };
   const result = completeTimedAction(clock, pending);
+  const returnedIds = state.dungeon.party.map(({ id }) => id);
+  const members = state.party.members.map((member) => {
+    const participant = state.dungeon?.party.find(({ id }) => id === member.id);
+    if (participant === undefined) return member;
+    const status = member.status ?? healthyStatus();
+    return { ...member, hp: effectiveMaxHp(participant.maxHp ?? participant.hp, status) };
+  });
   return {
     accepted: true,
-    state: { ...state, dungeon: null, clock: result.clock },
-    completion: result.completion === undefined ? undefined : { ...result.completion, recovery: [] },
+    state: { ...state, party: { ...state.party, members }, dungeon: null, clock: result.clock },
+    completion:
+      result.completion === undefined
+        ? undefined
+        : {
+            ...result.completion,
+            recovery: [],
+            returnedIds,
+            outcome: state.dungeon.outcome,
+          },
   };
 }
 
@@ -214,6 +229,8 @@ export interface CharacterRecoveryChange {
   readonly remainingSteps: { readonly physicalFatigue: number; readonly haze: number; readonly incapacity: number };
 }
 export interface GameActionCompletion extends ActionCompletion {
+  readonly returnedIds?: readonly string[];
+  readonly outcome?: DungeonState["outcome"];
   readonly recruitedIds?: readonly string[];
   readonly recovery: readonly CharacterRecoveryChange[];
 }

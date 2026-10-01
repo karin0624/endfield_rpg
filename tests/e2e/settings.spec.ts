@@ -122,6 +122,21 @@ test("保存APIは不正な設定や別サイトからの書き込みを拒否�
 test("会話画面の立ち絵と本文位置を調整・保存し、通常表示へ反映する", async ({ page }) => {
   await page.goto("/?adventureEdit=1");
   const editor = page.getByRole("complementary", { name: "会話画面の配置設定" });
+  const editorHeading = editor.getByRole("heading", { name: "会話画面の配置", exact: true });
+  await expect(editorHeading).toBeVisible();
+  const headingBounds = await editorHeading.boundingBox();
+  if (headingBounds === null) throw new Error("設定の見出しが表示されていません");
+  await page.mouse.move(headingBounds.x + 2, headingBounds.y + headingBounds.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(headingBounds.x + headingBounds.width - 2, headingBounds.y + headingBounds.height / 2, {
+    steps: 10,
+  });
+  await page.mouse.up();
+  await expect.poll(() => page.evaluate(() => window.getSelection()?.toString())).toBe("会話画面の配置");
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.keyboard.press("ControlOrMeta+C");
+  await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe("会話画面の配置");
+  await page.mouse.click(headingBounds.x, headingBounds.y - 4);
   const rightPreview = page.locator('[data-portrait-id="rossi-preview"]');
   const leftX = editor.getByRole("group", { name: "立ち絵・横画面" }).getByRole("spinbutton", {
     name: "左の水平位置 (%)",
@@ -145,6 +160,9 @@ test("会話画面の立ち絵と本文位置を調整・保存し、通常表�
   if (rightMovesFurtherRight) await rightPosition.toBeGreaterThan(initialRight);
   else await rightPosition.toBeLessThan(initialRight);
   await leftX.fill("32");
+  await leftX.press("ControlOrMeta+A");
+  await leftX.press("ControlOrMeta+C");
+  await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe("32");
   await panelHeight.fill("35");
   await expect(page.locator("[data-adventure-screen]")).toHaveCSS("--adventure-leftX", "32%");
   await expect(page.locator("[data-adventure-screen]")).toHaveCSS("--adventure-panelHeight", "35%");

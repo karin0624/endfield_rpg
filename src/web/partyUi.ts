@@ -2,6 +2,7 @@ import type { ExpeditionRejection, ExpeditionResult } from "../game/expedition";
 import { type CharacterDefinition, characterById, departureRejection, type PartyState } from "../game/party";
 
 import { canParticipate, effectiveMaxHp, healthyStatus } from "../game/status";
+import { symptomLabel } from "./sessionFeedback";
 
 const portraits: Readonly<Record<string, string>> = {
   player: "characters/rossi/expressions/neutral.png",
@@ -13,7 +14,7 @@ const rejectionText: Record<ExpeditionRejection, string> = {
   "not-joined": "加入済みの仲間を選んでください。",
   "duplicate-member": "同じ仲間は複数の枠に配置できません。先に元の枠を空けてください。",
   "empty-party": "出撃する仲間を1人以上選んでください。",
-  "no-living-member": "出撃できる仲間がいません。行動できる仲間を編成してください。",
+  "no-living-member": "出撃できる仲間がいません。街探索で回復を進められます。",
   "not-in-town": "編成と出撃は街で行ってください。",
   "action-in-progress": "現在の探索を終えてから出撃してください。",
   "not-on-route": "街へ戻れるのはルート選択中か探索終了後です。",
@@ -22,13 +23,14 @@ const rejectionText: Record<ExpeditionRejection, string> = {
 export interface PartyUiOptions {
   readonly characters: readonly CharacterDefinition[];
   readonly getParty: () => PartyState;
+  readonly getCalendarLabel: () => string;
   readonly edit: (slot: number, id: string | null) => ExpeditionResult;
   readonly depart: () => ExpeditionResult;
 }
 
 export function mountPartyUi(root: HTMLElement, options: PartyUiOptions, back: () => void) {
   root.innerHTML = `<header class="party-heading"><button class="party-back" type="button" data-party-back>戻る</button>
-    <h2 id="party-title">出撃編成</h2></header>
+    <h2 id="party-title">出撃編成</h2><p class="party-calendar" data-party-calendar></p></header>
     <div class="party-slots" data-party-slots></div>
     <footer class="party-footer"><p data-party-status role="status" aria-live="polite"></p>
     <button class="party-depart" type="button" data-depart>出撃</button></footer>`;
@@ -51,6 +53,8 @@ export function mountPartyUi(root: HTMLElement, options: PartyUiOptions, back: (
     portrait.setAttribute("aria-hidden", "true");
     const hp = document.createElement("p");
     hp.className = "party-slot-hp";
+    const symptoms = document.createElement("p");
+    symptoms.className = "party-slot-symptoms";
     const select = document.createElement("select");
     select.id = label.htmlFor;
     select.add(new Option("空き枠", ""));
@@ -64,14 +68,16 @@ export function mountPartyUi(root: HTMLElement, options: PartyUiOptions, back: (
       },
       { signal: events.signal },
     );
-    card.append(label, portrait, hp, select);
+    card.append(label, portrait, hp, select, symptoms);
     slots.append(card);
-    return { select, card, portrait, hp };
+    return { select, card, portrait, hp, symptoms };
   });
   function render(message = "") {
     if (!status || !depart) return;
     const party = options.getParty();
-    selects.forEach(({ select, card, portrait, hp }, slot) => {
+    const calendar = root.querySelector<HTMLElement>("[data-party-calendar]");
+    if (calendar) calendar.textContent = options.getCalendarLabel();
+    selects.forEach(({ select, card, portrait, hp, symptoms }, slot) => {
       const id = party.slots[slot];
       select.replaceChildren(
         new Option("空き枠", ""),
@@ -102,14 +108,15 @@ export function mountPartyUi(root: HTMLElement, options: PartyUiOptions, back: (
         } else {
           portrait.textContent = character.name;
         }
-        hp.textContent = !canParticipate(member.hp, member.status)
-          ? `戦闘不能 · HP ${member.hp}`
-          : `HP ${member.hp} / ${effectiveMaxHp(character.maxHp, member.status ?? healthyStatus())}`;
-        hp.classList.toggle("is-defeated", member.hp === 0);
+        hp.textContent = `HP ${member.hp} / ${effectiveMaxHp(character.maxHp, member.status ?? healthyStatus())}`;
+        symptoms.textContent = symptomLabel(member.status ?? healthyStatus());
+        hp.classList.toggle("is-defeated", !canParticipate(member.hp, member.status));
       } else {
         hp.textContent = "";
+        symptoms.textContent = "";
         hp.classList.remove("is-defeated");
       }
+      symptoms.hidden = symptoms.textContent.length === 0;
     });
     const reason = departureRejection(party);
     depart.disabled = reason !== null;

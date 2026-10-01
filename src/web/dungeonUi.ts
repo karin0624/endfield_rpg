@@ -93,6 +93,7 @@ export function mountDungeonUi(
   root: HTMLDivElement,
   options: {
     initialState: DungeonState;
+    calendarLabel: string;
     combatants: readonly BattleCombatantDefinition[];
     displayNames: Readonly<Record<string, string>>;
     dispatch: (command: DungeonCommand) => DungeonActionResult;
@@ -106,6 +107,7 @@ export function mountDungeonUi(
           <img src="${assetUrl("backgrounds/dungeon-route.png")}" alt="" />
         </div>
         <button type="button" class="dungeon-town-link" data-return-town>街へ戻る</button>
+        <p class="dungeon-calendar" data-calendar></p>
         <div class="dungeon-route-viewport" data-route-viewport tabindex="0" aria-label="横へドラッグして移動できる遺跡ルート">
           <div class="dungeon-route-world" data-route-world>
             <svg class="dungeon-route-edges" data-route-edges viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true"></svg>
@@ -149,6 +151,7 @@ export function mountDungeonUi(
   `;
 
   const routeScreen = requiredElement<HTMLElement>(root, "[data-route-screen]");
+  requiredElement<HTMLElement>(root, "[data-calendar]").textContent = options.calendarLabel;
   const routeViewport = requiredElement<HTMLDivElement>(root, "[data-route-viewport]");
   const routeWorld = requiredElement<HTMLDivElement>(root, "[data-route-world]");
   const routeBackground = requiredElement<HTMLDivElement>(root, "[data-route-background]");

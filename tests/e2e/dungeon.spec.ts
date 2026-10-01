@@ -93,7 +93,8 @@ test("390pxのダンジョン戦闘でコマンドまでスクロールして攻
   await expect(slimeB).toHaveAccessibleName(/スライム B、HP 6\/14/);
 });
 
-test("単独で戦闘分岐のHPを持ち越し、ボスで全滅して街へ戻る", async ({ page }) => {
+test("全滅帰還でHP全回復し、街探索6回で戦闘不能から復帰する", async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 1920, height: 1080 });
   await page.goto("/?dungeon=1");
   await page.getByRole("button", { name: "戦闘、選択可能" }).click();
 
@@ -127,10 +128,41 @@ test("単独で戦闘分岐のHPを持ち越し、ボスで全滅して街へ戻
   await expect(page.getByRole("heading", { name: "戦闘に敗北しました" })).toBeVisible();
   await page.getByRole("button", { name: "戦闘を終えてルートへ戻る" }).click();
   await expect(page.getByRole("heading", { name: "探索に失敗しました" })).toBeVisible();
-  await page.getByRole("button", { name: "街へ戻る", exact: true }).click();
+  await page.getByRole("button", { name: "街へ戻る", exact: true }).dblclick();
+  await expect(page.locator("[data-calendar]")).toHaveText("1日目 · 夜");
+  await expect(page.locator("[data-town-recovery]")).toContainText("出撃者のHPが全回復しました。");
+  await expect(page.locator("[data-town-recovery]")).toContainText("戦闘不能（あと街探索6回）");
+  await page.screenshot({ path: testInfo.outputPath("defeat-town-1920.png") });
   await page.getByRole("link", { name: "出撃編成を見る" }).click();
-  await expect(page.locator(".party-slot-hp").first()).toHaveText("戦闘不能 · HP 0");
+  await expect(page.locator(".party-slot-hp").first()).toHaveText("HP 20 / 20");
+  await expect(page.locator(".party-slot-symptoms").first()).toHaveText("戦闘不能（あと街探索6回）");
   await expect(page.getByRole("button", { name: "出撃" })).toBeDisabled();
+  await page.screenshot({ path: testInfo.outputPath("defeat-party-1920.png") });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.locator("[data-party-calendar]")).toBeInViewport();
+  await expect(page.getByRole("button", { name: "戻る", exact: true })).toBeInViewport();
+  await page.screenshot({ path: testInfo.outputPath("defeat-party-390.png"), fullPage: true });
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await page.getByRole("button", { name: "戻る", exact: true }).click();
+  for (let step = 1; step <= 6; step++) {
+    await page.getByRole("button", { name: "市場", exact: true }).click();
+    await page.keyboard.press("Space");
+    await expect(page.getByRole("heading", { name: "街の広場" })).toBeVisible();
+    await expect(page.locator("[data-town-recovery]")).toContainText(
+      step === 6 ? "戦闘不能から復帰" : `あと街探索${7 - step}回 → ${6 - step}回`,
+    );
+    await page.getByRole("link", { name: "出撃編成を見る" }).click();
+    await expect(page.locator(".party-slot-hp").first()).toHaveText("HP 20 / 20");
+    if (step < 6) await expect(page.getByRole("button", { name: "出撃" })).toBeDisabled();
+    else await expect(page.getByRole("button", { name: "出撃" })).toBeEnabled();
+    await page.getByRole("button", { name: "戻る", exact: true }).click();
+  }
+  await expect(page.locator("[data-calendar]")).toHaveText("4日目 · 夜");
+  await page.screenshot({ path: testInfo.outputPath("recovered-town-1920.png") });
+  await page.getByRole("link", { name: "出撃編成を見る" }).click();
+  await page.getByRole("button", { name: "出撃" }).click();
+  await expect(page.getByRole("region", { name: "遺跡の進路" })).toBeVisible();
+  await expect(page.locator("[data-calendar]")).toHaveText("4日目 · 夜");
 });
 
 test("編成だけを表示し、キーボードで戻っても編集内容を保持する", async ({ page }) => {
@@ -163,7 +195,7 @@ test("編成だけを表示し、キーボードで戻っても編集内容を�
   }
 });
 
-test("街の4枠を編集して単独出撃し、会話分岐のボス撃破後もHPを保持する", async ({ page }) => {
+test("街の4枠を編集して単独出撃し、ボス帰還の回復HPを編成でも保持する", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   page.on("response", (response) => {
@@ -199,17 +231,18 @@ test("街の4枠を編集して単独出撃し、会話分岐のボス撃破後�
   await expect(page.getByRole("heading", { name: "探索を完了しました" })).toBeVisible();
   await page.getByRole("button", { name: "街へ戻る", exact: true }).click();
   await page.getByRole("link", { name: "出撃編成を見る" }).click();
-  await expect(page.locator(".party-slot-hp").nth(3)).toHaveText("HP 5 / 20");
+  await expect(page.locator(".party-slot-hp").nth(3)).toHaveText("HP 20 / 20");
   await party.getByLabel("枠 4", { exact: true }).selectOption("");
   await expect(
-    party.getByLabel("枠 1", { exact: true }).getByRole("option", { name: "ロッシ — HP 5/20", exact: true }),
+    party.getByLabel("枠 1", { exact: true }).getByRole("option", { name: "ロッシ — HP 20/20", exact: true }),
   ).toHaveCount(1);
   await party.getByLabel("枠 1", { exact: true }).selectOption("player");
-  await expect(page.locator(".party-slot-hp").first()).toHaveText("HP 5 / 20");
+  await expect(page.locator(".party-slot-hp").first()).toHaveText("HP 20 / 20");
   expect(errors).toEqual([]);
 });
 
-test("仮の街イベントでギルベルタが控えに加入し、編成と再訪でも重複しない", async ({ page }, testInfo) => {
+test("街探索から加入・編成・ボス帰還・再訪まで同じセッションで進む", async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 1920, height: 1080 });
   await page.goto("/");
   await page.getByRole("link", { name: "出撃編成を見る" }).click();
   const second = page.getByRole("combobox", { name: "枠 2" });
@@ -221,6 +254,7 @@ test("仮の街イベントでギルベルタが控えに加入し、編成と�
   await page.keyboard.press("Space");
   await page.getByRole("button", { name: "仲間に迎える" }).click();
   await expect(page.locator("[data-town-prompt]")).toHaveText("ギルベルタが仲間に加わった。");
+  await expect(page.locator("[data-calendar]")).toHaveText("1日目 · 夜");
   await page.getByRole("link", { name: "出撃編成を見る" }).click();
   await expect(page.getByRole("combobox", { name: "枠 1" })).toHaveValue("player");
   await expect(second).toHaveValue("");
@@ -228,11 +262,32 @@ test("仮の街イベントでギルベルタが控えに加入し、編成と�
   await second.selectOption("gilberta");
   await expect(page.locator(".party-slot").nth(1)).toContainText("HP 18 / 18");
   await expect(page.locator(".party-slot").nth(1).locator("img")).toHaveJSProperty("naturalWidth", 1024);
-  await page.screenshot({ path: testInfo.outputPath("recruitment-party-1440.png"), fullPage: true });
+  await page.screenshot({ path: testInfo.outputPath("joined-party-1920.png") });
+  await page.getByRole("button", { name: "出撃", exact: true }).click();
+  await expect(page.locator("[data-calendar]")).toHaveText("1日目 · 夜");
+  await page.screenshot({ path: testInfo.outputPath("party-route-1920.png") });
+  await page.getByRole("button", { name: "思わぬ遭遇、選択可能" }).click();
+  await page.keyboard.press("Space");
+  await page.getByRole("button", { name: "地図に足跡を記す" }).click();
+  await page.getByRole("button", { name: "ボス、選択可能" }).click();
+  const attack = page.getByRole("button", { name: "通常攻撃" });
+  await expect(attack).toBeEnabled({ timeout: 60_000 });
+  await page.screenshot({ path: testInfo.outputPath("party-battle-1920.png") });
+  for (let turn = 0; turn < 4; turn++) await attack.click();
+  await expect(page.getByRole("heading", { name: "戦闘に勝利しました" })).toBeVisible();
+  await page.getByRole("button", { name: "戦闘を終えてルートへ戻る" }).click();
+  await page.getByRole("button", { name: "街へ戻る", exact: true }).dblclick();
+  await expect(page.locator("[data-calendar]")).toHaveText("2日目 · 昼");
+  await expect(page.locator("[data-town-recovery]")).toHaveText("出撃者のHPが全回復しました。");
+  await page.screenshot({ path: testInfo.outputPath("victory-town-1920.png") });
+  await page.getByRole("link", { name: "出撃編成を見る" }).click();
+  await expect(page.locator(".party-slot-hp").nth(0)).toHaveText("HP 20 / 20");
+  await expect(page.locator(".party-slot-hp").nth(1)).toHaveText("HP 18 / 18");
   await page.getByRole("button", { name: "戻る", exact: true }).click();
   await page.getByRole("button", { name: "同行者を探す（仮）", exact: true }).click();
   await expect(page.getByText("ギルベルタは加入済みです。（仮イベント）")).toBeVisible();
   await page.keyboard.press("Space");
+  await expect(page.locator("[data-calendar]")).toHaveText("2日目 · 夜");
   await page.getByRole("link", { name: "出撃編成を見る" }).click();
   await expect(second).toHaveValue("gilberta");
   await expect(second.locator('option[value="gilberta"]')).toHaveCount(1);
