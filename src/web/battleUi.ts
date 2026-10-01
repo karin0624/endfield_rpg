@@ -168,6 +168,7 @@ export function mountBattleUi(
   let message = targetPrompt();
   let disposed = false;
   let markerFrame: number | undefined;
+  let overlayFrame: number | undefined;
   let markerLastTime = 0;
   let markerAngle = 0.1;
 
@@ -646,14 +647,23 @@ export function mountBattleUi(
   reducedMotion.addEventListener("change", render, { signal: eventSignal });
   render();
   updateTargetHitAreas();
+  // Projection and intrinsic text dimensions can settle in different layout passes.
+  // Position changes do not resize these boxes; coalesce size notifications into one render.
   const resizeObserver = new ResizeObserver(() => {
-    requestAnimationFrame(updateTargetHitAreas);
+    if (disposed || overlayFrame !== undefined) return;
+    overlayFrame = window.requestAnimationFrame(() => {
+      overlayFrame = undefined;
+      updateTargetHitAreas();
+    });
   });
   resizeObserver.observe(stage);
+  for (const nameplate of enemyNameplates.values()) resizeObserver.observe(nameplate);
+  resizeObserver.observe(targetIndicator);
 
   return () => {
     disposed = true;
     if (markerFrame !== undefined) window.cancelAnimationFrame(markerFrame);
+    if (overlayFrame !== undefined) window.cancelAnimationFrame(overlayFrame);
     resizeObserver.disconnect();
     events.abort();
     for (const button of enemyHitAreas.values()) button.remove();

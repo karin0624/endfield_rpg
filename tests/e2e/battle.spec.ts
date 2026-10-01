@@ -1,4 +1,31 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
+
+async function expectCurrentEnemyOverlays(page: Page, expectedViewport?: { width: number; height: number }) {
+  await expect
+    .poll(
+      async () => {
+        const [stage, label, marker] = await Promise.all([
+          page.locator(".stage").boundingBox(),
+          page.locator(".enemy-world-label.selected").boundingBox(),
+          page.locator("[data-target-indicator]").boundingBox(),
+        ]);
+        if (!stage || !label || !marker) return false;
+        return (
+          [stage, label, marker].every((box) => Object.values(box).every(Number.isFinite)) &&
+          (!expectedViewport ||
+            (page.viewportSize()?.width === expectedViewport.width &&
+              page.viewportSize()?.height === expectedViewport.height &&
+              Math.abs(stage.width - expectedViewport.width) < 1 &&
+              Math.abs(stage.height - (expectedViewport.width * 9) / 16) < 1)) &&
+          marker.y + marker.height <= label.y - 3 &&
+          label.y >= stage.y &&
+          label.y + label.height <= stage.y + stage.height
+        );
+      },
+      { timeout: 60_000, message: "指定画面寸法と敵札・選択マーカーの配置が整合する" },
+    )
+    .toBe(true);
+}
 
 test("配布画面の実描画を基準画像と比較する", async ({ page }) => {
   const errors: string[] = [];
@@ -12,10 +39,50 @@ test("配布画面の実描画を基準画像と比較する", async ({ page }) 
   });
   await page.goto("/?battle=1");
   await expect(page.getByRole("button", { name: "通常攻撃" })).toBeEnabled({ timeout: 60_000 });
+  await expectCurrentEnemyOverlays(page);
   await expect(page).toHaveScreenshot("battle-desktop.png", { animations: "disabled" });
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.getByRole("button", { name: "通常攻撃" })).toBeEnabled();
+  await expectCurrentEnemyOverlays(page);
   await expect(page).toHaveScreenshot("battle-mobile.png", { animations: "disabled", fullPage: true });
+  expect(errors).toEqual([]);
+});
+
+test("敵札の文字寸法と画面サイズの変更に追従し、離脱後に札を表示しない", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error") errors.push(message.text());
+  });
+  await page.goto("/?dungeon=1");
+  await page.getByRole("button", { name: "戦闘、選択可能" }).click();
+  await expect(page.getByRole("button", { name: "通常攻撃" })).toBeEnabled({ timeout: 60_000 });
+  await expectCurrentEnemyOverlays(page);
+  const selected = page.locator(".enemy-world-label.selected");
+  const before = await selected.boundingBox();
+  if (!before) throw new Error("敵札が表示されていません");
+  // Presentation input only: simulate increased text size, leaving game state intact.
+  const textSize = await page.addStyleTag({
+    content: ".enemy-world-heading strong, .enemy-world-hp { font-size: 24px !important; }",
+  });
+  await expect.poll(async () => (await selected.boundingBox())?.height ?? 0).toBeGreaterThan(before.height);
+  await expectCurrentEnemyOverlays(page);
+  await textSize.evaluate((element) => element.parentNode?.removeChild(element));
+  for (const viewport of [
+    { width: 390, height: 844 },
+    { width: 1440, height: 1080 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await expectCurrentEnemyOverlays(page, viewport);
+  }
+  const attack = page.getByRole("button", { name: "通常攻撃" });
+  for (let turn = 0; turn < 4; turn++) await attack.click();
+  await expect(page.getByRole("heading", { name: "戦闘に勝利しました" })).toBeVisible();
+  await page.setViewportSize({ width: 900, height: 900 });
+  await page.getByRole("button", { name: "戦闘を終えてルートへ戻る" }).click();
+  await expect(page.getByRole("region", { name: "遺跡の進路" })).toBeVisible();
+  for (const label of await page.locator(".enemy-world-label").all()) await expect(label).toBeHidden();
+  await expect(page.locator("[data-target-indicator]")).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 
