@@ -103,3 +103,30 @@ test("スキルの予測・回復対象・取消を各画面サイズで操作�
   await page.keyboard.press("Escape");
   await expect(skills).toBeFocused();
 });
+
+test("通常入力の勝利XPから複数3択を完了し次戦へ成長を反映する", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 600 });
+  await page.goto("/tests/fixtures/battle-ui.html?growth=1");
+  await page.getByRole("button", { name: "戦闘、選択可能" }).click();
+  const attack = page.getByRole("button", { name: "通常攻撃" });
+  await expect(attack).toBeEnabled();
+  for (let turn = 0; turn < 4; turn++) await attack.click();
+  await page.getByRole("button", { name: "戦闘を終えてルートへ戻る" }).click();
+  const choice = page.getByRole("region", { name: "レベルアップのスキル選択" });
+  for (const level of [2, 3]) {
+    await expect(choice.getByRole("heading")).toHaveText(`ロッシ · Lv${level} スキル選択`);
+    await expect(choice).toContainText("現在Lv3 · 余剰XP 5");
+    await expect(choice.getByRole("button")).toHaveCount(3);
+    await expect(page.getByRole("button", { name: "ボス、選択可能" })).toBeHidden();
+    await page.keyboard.press("Escape");
+    await expect(choice).toBeVisible();
+    const pick = choice.getByRole("button").first();
+    await pick.scrollIntoViewIfNeeded();
+    await expect(pick).toBeInViewport();
+    await pick.click();
+  }
+  await expect(choice).toBeHidden();
+  await page.getByRole("button", { name: "ボス、選択可能" }).click();
+  await expect(attack).toBeEnabled();
+  await expect(page.getByRole("region", { name: "味方の状態" })).toContainText("28");
+});

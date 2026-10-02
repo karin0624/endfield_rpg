@@ -144,15 +144,17 @@ describe("通常探索から街保存までのスキルループ", () => {
     game = leaveExpedition(game).state;
     expect(fatigue(receiveTownRecoverySignal(game, 1, characters, mentalFatigueDefinition))).toBe(25.5);
   });
-  it("旧version1を疲労0で移行し、version2の端数を精度保持する", () => {
-    const payload = JSON.parse(saved(initial()));
-    payload.version = 1;
-    for (const member of payload.party.members) delete member.mentalFatigue;
-    const legacy = JSON.stringify(payload);
-    const restored = loaded(legacy);
-    expect(fatigue(restored)).toBe(0);
-    expect(JSON.parse(saved(restored)).version).toBe(2);
-    expect(JSON.parse(legacy).party.members[0].mentalFatigue).toBeUndefined();
+  it("旧版を移行せず拒否し、現行版の端数疲労を精度保持する", () => {
+    const restored = initial();
+    for (const version of [1, 2]) {
+      const payload = JSON.parse(saved(initial()));
+      payload.version = version;
+      delete payload.growth;
+      expect(deserializeGame(JSON.stringify(payload), saveDefinitions)).toEqual({
+        accepted: false,
+        reason: "unsupported-version",
+      });
+    }
     const fractional = {
       ...restored,
       party: {

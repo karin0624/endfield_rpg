@@ -2437,3 +2437,49 @@ body.dungeon-mode {
     overflow-y: visible;
   }
 }
+
+.growth-choice {
+  box-sizing: border-box;
+  width: min(44rem, 100%);
+  margin: auto;
+  padding: 1.5rem;
+  background: var(--surface-base);
+  color: var(--text-primary);
+  min-height: 100dvh;
+}
+.growth-choice h1 {
+  font-size: 1.5rem;
+}
+.growth-choice p {
+  font-size: 1rem;
+  line-height: 1.6;
+}
+.growth-choice button {
+  display: grid;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 1rem;
+  margin-block: 1rem;
+  text-align: left;
+  color: var(--text-primary);
+  background: var(--surface-base);
+  border: 1px solid var(--trim-metal);
+  cursor: pointer;
+}
+.growth-choice strong {
+  font-size: 1.125rem;
+}
+.growth-choice-detail {
+  font-size: 1rem;
+  line-height: 1.5;
+}
+.growth-choice button:hover {
+  background: var(--surface-hover);
+}
+.growth-choice button:active {
+  background: var(--surface-pressed);
+}
+.growth-choice button:focus-visible {
+  outline: 2px solid var(--text-primary);
+  outline-offset: 3px;
+}

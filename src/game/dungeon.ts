@@ -91,6 +91,7 @@ export interface DungeonNodeOption {
 }
 
 export type DungeonRejectionReason =
+  | "pending-growth-choice"
   | "wrong-dungeon"
   | "dungeon-ended"
   | "node-in-progress"
@@ -360,6 +361,7 @@ function startBattleNode(
       accepted: true,
       state: completeNode(started, node.id, node.type, loop.state.outcome),
       events: loop.events,
+      battleState: loop.state,
     };
   }
   return { accepted: true, state: started, events: loop.events };

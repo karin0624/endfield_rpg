@@ -1,4 +1,5 @@
 import { characters } from "../content/characters";
+import { growthRules } from "../content/growthRules";
 import { initialAdventure } from "../content/initialAdventure";
 import { initialDungeon } from "../content/initialDungeon";
 import { initialGameOptions } from "../content/initialGameOptions";
@@ -16,6 +17,7 @@ import {
   type GameActionCompletion,
   leaveExpedition,
 } from "../game/expedition";
+import { chooseGrowthSkill, grownCharacters, hasPendingGrowth } from "../game/growthRuntime";
 import { characterById, createParty, getPartyCombatants } from "../game/party";
 import { effectiveMaxHp, healthyStatus } from "../game/status";
 import savedAdventureSettings from "./adventure-settings.json";
@@ -23,13 +25,14 @@ import { parseAdventureSettings } from "./adventureSettings";
 import savedSettings from "./battle-settings.json";
 import type { createBattleScene } from "./battleScene";
 import { parseBattleSettings } from "./battleSettings";
+import { mountGrowthChoice } from "./growthChoiceUi";
 import "./style.css";
 import { loadSlot, saveSlot } from "./saveSlot";
 import { calendarLabel, completionFeedback, mentalFatigueText, symptomLabel } from "./sessionFeedback";
 
 const app = document.querySelector<HTMLDivElement>("#app");
 if (app === null) throw new Error("#app が見つかりません");
-const skillRules = { catalog: skillCatalog, fatigue: mentalFatigueDefinition };
+const skillRules = { catalog: skillCatalog, fatigue: mentalFatigueDefinition, growth: growthRules };
 const query = new URLSearchParams(location.search);
 const editing = import.meta.env.DEV && query.get("edit") === "1";
 const dungeonMode = query.get("dungeon") === "1";
@@ -84,6 +87,20 @@ if (!battleMode) {
     disposeDungeon?.();
     disposeDungeon = undefined;
     document.body.classList.remove("dungeon-mode");
+    if (hasPendingGrowth(game) && game.growth) {
+      disposeAdventure = mountGrowthChoice(
+        app,
+        game.growth,
+        skillCatalog,
+        Object.fromEntries(characters.map(({ id, name }) => [id, name])),
+        (input) => {
+          const result = chooseGrowthSkill(game, input, skillRules);
+          game = result.state;
+          showTown();
+        },
+      );
+      return;
+    }
     const adventureSettings = parseAdventureSettings(savedAdventureSettings);
     const adventure = mountAdventureUi(
       app,
@@ -121,9 +138,18 @@ if (!battleMode) {
               const result =
                 command.type === "select"
                   ? beginTownExploration(game, command.placeId, initialAdventure)
-                  : actInTown(game, actionId ?? -1, command, characters, initialAdventure, mentalFatigueDefinition);
+                  : actInTown(
+                      game,
+                      actionId ?? -1,
+                      command,
+                      characters,
+                      initialAdventure,
+                      mentalFatigueDefinition,
+                      skillRules,
+                    );
               game = result.state;
               if (result.accepted) completion = result.completion;
+              if (hasPendingGrowth(game)) queueMicrotask(() => showTown());
               return result.accepted
                 ? {
                     accepted: true,
@@ -134,7 +160,7 @@ if (!battleMode) {
                 : { accepted: false, state: game.adventure, reason: "conversation-progress-invalid" };
             },
             party: {
-              characters,
+              characters: grownCharacters(game, skillRules),
               getParty: () => game.party,
               getCalendarLabel: () => calendarLabel(game.clock),
               edit: (slot, id) => {
@@ -162,6 +188,12 @@ if (!battleMode) {
     const actionId = game.clock?.pendingAction?.id;
     disposeDungeon = mountDungeonUi(app, {
       initialState: game.dungeon,
+      getGrowth: () => game.growth,
+      chooseGrowth: (input) => {
+        const result = chooseGrowthSkill(game, input, skillRules);
+        game = result.state;
+        return game.dungeon ?? undefined;
+      },
       skillRules,
       calendarLabel: calendarLabel(game.clock),
       combatants: getPartyCombatants(game.party, characters).map((member) => ({
@@ -172,10 +204,15 @@ if (!battleMode) {
       dispatch: (command) => {
         const update = actInExpedition(game, command, initialDungeon, initialAdventure, skillRules);
         game = update.state;
+        if (update.completion) completion = update.completion;
         return update.result;
       },
       onReturn: () => {
-        const result = leaveExpedition(game, actionId);
+        if (game.dungeon === null) {
+          showTown();
+          return;
+        }
+        const result = leaveExpedition(game, actionId, skillRules);
         game = result.state;
         if (result.accepted) {
           completion = result.completion;

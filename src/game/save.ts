@@ -1,9 +1,13 @@
+import type { BattleSkillRules } from "./battle";
 import type { ExpeditionGame } from "./expedition";
+import { growthStats, hasPendingGrowth } from "./growthRuntime";
+import { parseSavedGrowth } from "./growthSave";
 import type { CharacterDefinition, PartyMember, PartySlots } from "./party";
 import { type CharacterStatus, effectiveMaxHp, healthyStatus } from "./status";
 import { ACTION_HALF_DAYS, createActionClock } from "./time";
 
 export interface SaveDefinitions {
+  readonly skills?: BattleSkillRules;
   readonly characters: readonly CharacterDefinition[];
   readonly placeIds: readonly string[];
   readonly recruitmentFlags?: readonly { readonly flag: string; readonly characterId: string }[];
@@ -14,6 +18,7 @@ export type SaveReadResult =
 
 export function canSaveGame(game: ExpeditionGame): boolean {
   return (
+    !hasPendingGrowth(game) &&
     game.adventure.mode === "town" &&
     game.adventure.conversationId === null &&
     game.adventure.conversationPosition === null &&
@@ -59,8 +64,9 @@ export function deserializeGame(data: string, definitions: SaveDefinitions): Sav
     return invalid;
   }
   if (!record(value)) return invalid;
-  if (value.version !== 1 && value.version !== 2) return { accepted: false, reason: "unsupported-version" };
-  if (!keys(value, ["version", "adventure", "party", "clock", "randomState", "lastTownRecoverySignal"])) return invalid;
+  if (value.version !== 3) return { accepted: false, reason: "unsupported-version" };
+  if (!keys(value, ["version", "adventure", "party", "clock", "randomState", "lastTownRecoverySignal", "growth"]))
+    return invalid;
   const { adventure, party, clock, randomState, lastTownRecoverySignal } = value;
   if (
     !record(adventure) ||
@@ -80,20 +86,24 @@ export function deserializeGame(data: string, definitions: SaveDefinitions): Sav
     party.slots.length !== 4
   )
     return invalid;
+  const growth =
+    value.growth !== null && definitions.skills && typeof randomState === "number"
+      ? parseSavedGrowth(value.growth, definitions.skills, randomState)
+      : undefined;
+  if (value.growth !== null && !growth) return invalid;
   const members: PartyMember[] = [];
   const joined = new Set<string>();
   for (const member of party.members) {
     if (
       !record(member) ||
-      !keys(member, value.version === 1 ? ["id", "hp", "status"] : ["id", "hp", "status", "mentalFatigue"]) ||
+      !keys(member, ["id", "hp", "status", "mentalFatigue"]) ||
       typeof member.id !== "string" ||
       joined.has(member.id)
     )
       return invalid;
     const definition = definitions.characters.find(({ id }) => id === member.id);
     const status = parseStatus(member.status);
-    // Version 1 predates fatigue; restore zero without running recovery or changing the saved file.
-    const mentalFatigue = value.version === 1 ? 0 : member.mentalFatigue;
+    const mentalFatigue = member.mentalFatigue;
     if (
       !definition ||
       !status ||
@@ -103,7 +113,11 @@ export function deserializeGame(data: string, definitions: SaveDefinitions): Sav
       typeof member.hp !== "number" ||
       !Number.isFinite(member.hp) ||
       member.hp < 0 ||
-      member.hp > effectiveMaxHp(definition.maxHp, status)
+      member.hp >
+        effectiveMaxHp(
+          definition.maxHp + (definitions.skills ? growthStats(member.id, growth, definitions.skills).maxHp : 0),
+          status,
+        )
     )
       return invalid;
     joined.add(member.id);
@@ -147,6 +161,7 @@ export function deserializeGame(data: string, definitions: SaveDefinitions): Sav
       },
       party: { members, slots: [...party.slots] as unknown as PartySlots },
       dungeon: null,
+      ...(growth ? { growth } : {}),
       clock: {
         elapsedHalfDays: clock.elapsedHalfDays,
         recoverySteps: clock.recoverySteps,
@@ -168,7 +183,8 @@ export function serializeGame(
   if (!canSaveGame(game)) return { accepted: false, reason: "not-in-town" };
   const clock = game.clock ?? createActionClock();
   const data = JSON.stringify({
-    version: 2,
+    version: 3,
+    growth: game.growth ? { ...game.growth, randomState: game.randomState ?? 1 } : null,
     adventure: { currentPlaceId: game.adventure.currentPlaceId, flags: game.adventure.flags },
     party: {
       members: game.party.members.map(({ id, hp, status, mentalFatigue }) => ({

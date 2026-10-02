@@ -9,6 +9,7 @@ import {
   getCurrentDungeonConversationScene,
 } from "../game/dungeon";
 import type { DungeonCommand } from "../game/expedition";
+import type { ExplorationSkills } from "../game/skillAcquisition";
 import savedAdventureSettings from "./adventure-settings.json";
 import { applyAdventureSettings, parseAdventureSettings } from "./adventureSettings";
 import savedBattleSettings from "./battle-settings.json";
@@ -16,6 +17,7 @@ import type { DungeonBattleRenderer, DungeonBattleRendererFactory } from "./batt
 import { createBattleRenderer } from "./battleScene";
 import { parseBattleSettings } from "./battleSettings";
 import { mountBattleUi } from "./battleUi";
+import { mountGrowthChoice } from "./growthChoiceUi";
 import { requiredElement } from "./requiredElement";
 
 const assetUrl = (path: string) => `${import.meta.env.BASE_URL}assets/${path}`;
@@ -94,6 +96,13 @@ export function mountDungeonUi(
   root: HTMLDivElement,
   options: {
     initialState: DungeonState;
+    getGrowth?: () => ExplorationSkills | undefined;
+    chooseGrowth?: (input: {
+      explorationId: string;
+      characterId: string;
+      level: number;
+      skillId: string;
+    }) => DungeonState | undefined;
     skillRules?: BattleSkillRules;
     calendarLabel: string;
     combatants: readonly BattleCombatantDefinition[];
@@ -149,10 +158,13 @@ export function mountDungeonUi(
         <p data-outcome-detail></p>
         <button type="button" class="dungeon-outcome-return" data-return-town>街へ戻る</button>
       </section>
+      <section data-growth-screen hidden></section>
       <p class="sr-only" data-dungeon-status role="status" aria-live="polite"></p>
     </main>
   `;
 
+  const growthScreen = requiredElement<HTMLElement>(root, "[data-growth-screen]");
+  let disposeGrowth: (() => void) | undefined;
   const routeScreen = requiredElement<HTMLElement>(root, "[data-route-screen]");
   requiredElement<HTMLElement>(root, "[data-calendar]").textContent = options.calendarLabel;
   const routeViewport = requiredElement<HTMLDivElement>(root, "[data-route-viewport]");
@@ -200,7 +212,8 @@ export function mountDungeonUi(
   let disposed = false;
   const nodeButtons = new Map<string, HTMLButtonElement>();
 
-  function showView(view: "route" | "conversation" | "battle" | "outcome"): void {
+  function showView(view: "route" | "conversation" | "battle" | "outcome" | "growth"): void {
+    growthScreen.hidden = view !== "growth";
     routeScreen.hidden = view !== "route";
     conversationScreen.hidden = view !== "conversation";
     battleScreen.hidden = view !== "battle";
@@ -471,6 +484,26 @@ export function mountDungeonUi(
     battleScene = undefined;
   }
 
+  function renderGrowth(): boolean {
+    const growth = options.getGrowth?.();
+    if (!growth?.choice || !options.skillRules || !options.chooseGrowth) return false;
+    disposeBattle();
+    showView("growth");
+    disposeGrowth?.();
+    disposeGrowth = mountGrowthChoice(
+      growthScreen,
+      growth,
+      options.skillRules.catalog,
+      options.displayNames,
+      (input) => {
+        const updated = options.chooseGrowth?.(input);
+        if (updated) dungeonState = updated;
+        if (!renderGrowth()) renderRoute();
+      },
+    );
+    return true;
+  }
+
   function renderOutcome(): void {
     disposeBattle();
     showView("outcome");
@@ -540,6 +573,11 @@ export function mountDungeonUi(
           },
           onFinish: () => {
             disposeBattle();
+            if (renderGrowth()) return;
+            if (dungeonState.outcome === "failed") {
+              options.onReturn();
+              return;
+            }
             if (dungeonState.outcome === "ongoing") renderRoute();
             else renderOutcome();
           },
@@ -560,6 +598,11 @@ export function mountDungeonUi(
       return;
     }
     dungeonState = result.state;
+    if (renderGrowth()) return;
+    if (dungeonState.outcome === "failed") {
+      options.onReturn();
+      return;
+    }
     if (dungeonState.outcome !== "ongoing") {
       renderOutcome();
     } else if (dungeonState.activity?.type === "battle") {
@@ -667,8 +710,9 @@ export function mountDungeonUi(
   routeViewport.addEventListener("scroll", scheduleEdgeRefresh, { signal: events.signal });
   window.addEventListener("scroll", scheduleEdgeRefresh, { capture: true, signal: events.signal });
 
-  renderRoute();
+  if (!renderGrowth()) renderRoute();
   return () => {
+    disposeGrowth?.();
     disposed = true;
     disposeBattle();
     battleRenderer?.dispose();

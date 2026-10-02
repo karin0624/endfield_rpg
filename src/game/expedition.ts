@@ -19,6 +19,7 @@ import {
   performDungeonBasicAttack,
   performDungeonSkill,
 } from "./dungeon";
+import { ensureGrowth, grownCharacters, hasPendingGrowth, projectGrowth, rewardGrowth } from "./growthRuntime";
 import { type MentalFatigueDefinition, recoverMentalFatigue } from "./mentalFatigue";
 import {
   type CharacterDefinition,
@@ -31,10 +32,12 @@ import {
   recruitPartyMember,
   setPartySlot,
 } from "./party";
+import { type ExplorationSkills, resetExplorationSkills } from "./skillAcquisition";
 import type { CharacterStatus } from "./status";
 import {
   applyIncapacity,
   applyStagedStatus,
+  canParticipate,
   effectiveMaxHp,
   healthyStatus,
   recoverTownStep,
@@ -51,6 +54,7 @@ import {
 
 /** One shared session survives in-app navigation; persistent saves are separate. */
 export interface ExpeditionGame {
+  readonly growth?: ExplorationSkills;
   readonly adventure: GameState;
   readonly party: PartyState;
   readonly dungeon: DungeonState | null;
@@ -64,6 +68,7 @@ export type ExpeditionResult =
   | { readonly accepted: false; readonly state: ExpeditionGame; readonly reason: ExpeditionRejection };
 
 export function editExpeditionParty(state: ExpeditionGame, slot: number, id: string | null): ExpeditionResult {
+  if (hasPendingGrowth(state)) return { accepted: false, state, reason: "action-in-progress" };
   if (state.dungeon !== null || state.adventure.mode !== "town")
     return { accepted: false, state, reason: "not-in-town" };
   const result = setPartySlot(state.party, slot, id);
@@ -79,12 +84,14 @@ export function departOnExpedition(
   adventure: AdventureDefinition,
   skills?: BattleSkillRules,
 ): ExpeditionResult {
+  if (hasPendingGrowth(state)) return { accepted: false, state, reason: "action-in-progress" };
   if (state.dungeon !== null || state.adventure.mode !== "town")
     return { accepted: false, state, reason: "not-in-town" };
   const clock = state.clock ?? createActionClock();
   if (clock.pendingAction !== null) return { accepted: false, state, reason: "action-in-progress" };
   const reason = departureRejection(state.party);
   if (reason) return { accepted: false, state, reason };
+  const ready = skills?.growth ? ensureGrowth(state, skills) : state;
   const dungeon = createDungeonState(
     route,
     adventure,
@@ -92,14 +99,13 @@ export function departOnExpedition(
     state.adventure.flags,
     state.randomState ?? 1,
   );
-  return {
-    accepted: true,
-    state: {
-      ...state,
-      dungeon: { ...dungeon, expeditionActionId: clock.nextActionId },
-      clock: beginTimedAction(clock, "dungeon-expedition"),
-    },
+  const departed = {
+    ...ready,
+    growth: ready.growth ? { ...ready.growth, explorationId: `expedition:${clock.nextActionId}` } : undefined,
+    dungeon: { ...dungeon, expeditionActionId: clock.nextActionId },
+    clock: beginTimedAction(clock, "dungeon-expedition"),
   };
+  return { accepted: true, state: skills?.growth ? projectGrowth(departed, departed.growth, skills) : departed };
 }
 
 export type DungeonCommand =
@@ -116,8 +122,14 @@ export function actInExpedition(
   route: DungeonDefinition,
   adventure: AdventureDefinition,
   skills?: BattleSkillRules,
-): { readonly state: ExpeditionGame; readonly result: DungeonActionResult } {
+): {
+  readonly state: ExpeditionGame;
+  readonly result: DungeonActionResult;
+  readonly completion?: GameActionCompletion;
+} {
   if (state.dungeon === null) throw new Error("探索を開始していません");
+  if (hasPendingGrowth(state))
+    return { state, result: { accepted: false, state: state.dungeon, reason: "pending-growth-choice", events: [] } };
   let result: DungeonActionResult;
   switch (command.type) {
     case "skill":
@@ -140,33 +152,68 @@ export function actInExpedition(
   }
   if (!result.accepted) return { state, result };
   const dungeon = result.state;
-  return {
-    state: {
-      ...state,
-      dungeon,
-      randomState: dungeon.randomState,
-      party: {
-        ...state.party,
-        members: state.party.members.map((member) => {
-          const participant = dungeon.party.find(({ id }) => id === member.id);
-          return participant === undefined
-            ? member
-            : {
-                ...member,
-                hp: participant.hp,
-                status: participant.status,
-                mentalFatigue: participant.mentalFatigue ?? 0,
-              };
-        }),
-      },
-      adventure: { ...state.adventure, flags: dungeon.flags },
+  let updated: ExpeditionGame = {
+    ...state,
+    dungeon,
+    randomState: dungeon.randomState,
+    party: {
+      ...state.party,
+      members: state.party.members.map((member) => {
+        const participant = dungeon.party.find(({ id }) => id === member.id);
+        return participant === undefined
+          ? member
+          : {
+              ...member,
+              hp: participant.hp,
+              status: participant.status,
+              mentalFatigue: participant.mentalFatigue ?? 0,
+            };
+      }),
     },
-    result,
+    adventure: { ...state.adventure, flags: dungeon.flags },
   };
+  const resolved =
+    !state.dungeon.resolvedNodeIds.includes(dungeon.currentNodeId) &&
+    dungeon.resolvedNodeIds.includes(dungeon.currentNodeId);
+  const node = route.nodes.find(({ id }) => id === dungeon.currentNodeId);
+  if (
+    skills?.growth &&
+    resolved &&
+    dungeon.outcome !== "failed" &&
+    (node?.type === "battle" || node?.type === "conversation")
+  ) {
+    const experience = node.type === "battle" ? skills.growth.battleExperience : skills.growth.eventExperience;
+    const reward = rewardGrowth(
+      updated,
+      {
+        id: `${updated.growth?.explorationId}:${node.id}`,
+        allocations: dungeon.party
+          .filter((member) => canParticipate(member.hp, member.status))
+          .map(({ id }) => ({
+            characterId: id,
+            experience,
+          })),
+      },
+      skills,
+    );
+    if (!reward.accepted) throw new Error(`成長報酬を適用できません: ${reward.reason}`);
+    updated = reward.state;
+  }
+  if (skills?.growth && dungeon.outcome === "failed") {
+    const returned = leaveExpedition(updated, updated.clock?.pendingAction?.id, skills);
+    if (!returned.accepted) throw new Error("敗北帰還を適用できません");
+    return { state: returned.state, result, completion: returned.completion };
+  }
+  return { state: updated, result: { ...result, state: updated.dungeon ?? dungeon } };
 }
 
 /** Commit return healing and calendar cost together; symptoms and recovery counters persist. */
-export function leaveExpedition(state: ExpeditionGame, actionId = state.clock?.pendingAction?.id): ExpeditionResult {
+export function leaveExpedition(
+  state: ExpeditionGame,
+  actionId = state.clock?.pendingAction?.id,
+  skills?: BattleSkillRules,
+): ExpeditionResult {
+  if (hasPendingGrowth(state)) return { accepted: false, state, reason: "action-in-progress" };
   if (state.dungeon === null || state.dungeon.activity !== null)
     return { accepted: false, state, reason: "not-on-route" };
   const clock = state.clock ?? createActionClock();
@@ -174,16 +221,27 @@ export function leaveExpedition(state: ExpeditionGame, actionId = state.clock?.p
   if (pending?.kind !== "dungeon-expedition" || pending.id !== actionId)
     return { accepted: false, state, reason: "not-on-route" };
   const result = completeTimedAction(clock, pending);
-  const returnedIds = state.dungeon.party.map(({ id }) => id);
-  const members = state.party.members.map((member) => {
-    const participant = state.dungeon?.party.find(({ id }) => id === member.id);
+  let resetState = state;
+  if (skills?.growth && state.growth) {
+    const reset = resetExplorationSkills(
+      state.growth,
+      state.growth.explorationId,
+      skills.growth.progression,
+      skills.catalog,
+    );
+    if (!reset.accepted) return { accepted: false, state, reason: "not-on-route" };
+    resetState = projectGrowth({ ...state, growth: reset.state }, state.growth, skills);
+  }
+  const returnedIds = resetState.dungeon?.party.map(({ id }) => id);
+  const members = resetState.party.members.map((member) => {
+    const participant = resetState.dungeon?.party.find(({ id }) => id === member.id);
     if (participant === undefined) return member;
     const status = member.status ?? healthyStatus();
     return { ...member, hp: effectiveMaxHp(participant.maxHp ?? participant.hp, status) };
   });
   return {
     accepted: true,
-    state: { ...state, party: { ...state.party, members }, dungeon: null, clock: result.clock },
+    state: { ...resetState, party: { ...resetState.party, members }, dungeon: null, clock: result.clock },
     completion:
       result.completion === undefined
         ? undefined
@@ -191,7 +249,7 @@ export function leaveExpedition(state: ExpeditionGame, actionId = state.clock?.p
             ...result.completion,
             recovery: [],
             returnedIds,
-            outcome: state.dungeon.outcome,
+            outcome: resetState.dungeon?.outcome,
           },
   };
 }
@@ -278,6 +336,7 @@ export function beginTownExploration(
   placeId: string,
   definition: AdventureDefinition,
 ): TownActionResult {
+  if (hasPendingGrowth(state)) return { accepted: false, state, reason: "action-in-progress" };
   if (state.dungeon !== null) return { accepted: false, state, reason: "not-in-town" };
   const clock = state.clock ?? createActionClock();
   if (clock.pendingAction !== null) return { accepted: false, state, reason: "action-in-progress" };
@@ -336,10 +395,12 @@ export function actInTown(
   characters: readonly CharacterDefinition[],
   definition: AdventureDefinition,
   fatigue?: MentalFatigueDefinition,
+  skills?: BattleSkillRules,
 ): TownActionResult {
   const pending = state.clock?.pendingAction;
   if (pending?.kind !== "town-exploration" || pending.id !== actionId)
     return { accepted: false, state, reason: "action-not-current" };
+  if (hasPendingGrowth(state)) return { accepted: false, state, reason: "action-in-progress" };
   if (state.dungeon !== null) return { accepted: false, state, reason: "not-in-town" };
   const result =
     command.type === "advance"
@@ -364,7 +425,34 @@ export function actInTown(
     };
   }
   if (result.state.mode !== "town") return { accepted: true, state: updated };
-  const completed = completeTownExploration(updated, pending, characters, fatigue);
+  const completed = completeTownExploration(
+    updated,
+    pending,
+    skills?.growth ? grownCharacters(updated, skills) : characters,
+    fatigue,
+  );
+  if (completed.accepted && skills?.growth) {
+    const ready = ensureGrowth(completed.state, skills);
+    const experience = skills.growth.townExperience;
+    if (!ready.growth?.growth.appliedRewardIds.includes("town-exploration")) {
+      const reward = rewardGrowth(
+        ready,
+        {
+          id: "town-exploration",
+          allocations: ready.party.members
+            .filter((member) => canParticipate(member.hp, member.status))
+            .map(({ id }) => ({ characterId: id, experience })),
+        },
+        skills,
+      );
+      if (!reward.accepted) throw new Error(`街の成長報酬を適用できません: ${reward.reason}`);
+      return {
+        ...completed,
+        state: reward.state,
+        completion: completed.completion ? { ...completed.completion, recruitedIds } : undefined,
+      };
+    }
+  }
   return completed.accepted && completed.completion !== undefined
     ? { ...completed, completion: { ...completed.completion, recruitedIds } }
     : completed;
