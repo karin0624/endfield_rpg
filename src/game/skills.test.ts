@@ -17,7 +17,7 @@ const strike: ActiveSkillDefinition = {
   description: "敵1体へ12ダメージ",
   tier: "normal",
   type: "active",
-  effect: { type: "damage", amount: 12 },
+  effect: { type: "damage", amount: 12, scaling: { stat: "attackPower", coefficient: 0.5 } },
   mentalFatigueIncrease: 4,
   scenes: ["battle"],
   target: "single-enemy",
@@ -61,9 +61,9 @@ describe("スキル定義", () => {
         const choices = pool.candidates[tier].map((id) => skillById(skillCatalog, id));
         expect(choices).toHaveLength(3);
         expect(choices.map(({ effect }) => effect)).toEqual([
-          { type: "damage", amount: damage },
-          { type: "hp-recovery", amount: healing },
-          { type: "basic-attack-power-bonus", amount: bonus },
+          { type: "damage", amount: damage, scaling: { stat: "attackPower", coefficient: 0.5 } },
+          { type: "hp-recovery", amount: healing, scaling: { stat: "maxHp", coefficient: 0.5 } },
+          { type: "basic-attack-power-bonus", rankAmounts: [bonus, bonus * 2] },
         ]);
       }
     }
@@ -83,7 +83,7 @@ describe("スキル定義", () => {
           replaceStrike({
             ...strike,
             mentalFatigueIncrease: fatigue,
-            effect: { type: "damage", amount: 12.5 },
+            effect: { type: "damage", amount: 12.5, scaling: { stat: "attackPower", coefficient: 0.5 } },
           }),
           characters,
         ),
@@ -93,7 +93,14 @@ describe("スキル定義", () => {
   it("同種スキルを定義と候補登録で追加できる", () => {
     const catalog: SkillCatalog = {
       ...skillCatalog,
-      skills: [...skillCatalog.skills, { ...strike, id: "extra-strike", effect: { type: "damage", amount: 13 } }],
+      skills: [
+        ...skillCatalog.skills,
+        {
+          ...strike,
+          id: "extra-strike",
+          effect: { type: "damage", amount: 13, scaling: { stat: "attackPower" as const, coefficient: 0.5 } },
+        },
+      ],
       pools: [
         {
           id: "test-shared",
@@ -105,7 +112,7 @@ describe("スキル定義", () => {
       ],
     };
     expect(() => validateSkillCatalog(catalog, characters)).not.toThrow();
-    expect(skillById(catalog, "extra-strike").effect).toEqual({ type: "damage", amount: 13 });
+    expect(skillById(catalog, "extra-strike").effect).toMatchObject({ type: "damage", amount: 13 });
   });
   it("未知スキルIDを拒否する", () => {
     expect(() => skillById(skillCatalog, "missing")).toThrow("スキル定義がありません");
@@ -117,7 +124,7 @@ describe("スキル定義", () => {
         validateSkillCatalog(replaceStrike({ ...strike, mentalFatigueIncrease: amount }), characters),
       ).toThrow("精神疲労増加量");
       expect(() =>
-        validateSkillCatalog(replaceStrike({ ...strike, effect: { type: "damage", amount } }), characters),
+        validateSkillCatalog(replaceStrike({ ...strike, effect: { ...strike.effect, amount } }), characters),
       ).toThrow("効果量");
       expect(() =>
         validateSkillCatalog(
@@ -131,7 +138,7 @@ describe("スキル定義", () => {
                 description: "仮",
                 tier: "normal",
                 type: "passive",
-                effect: { type: "basic-attack-power-bonus", amount },
+                effect: { type: "basic-attack-power-bonus", rankAmounts: [amount] },
               },
             ],
           },
@@ -151,7 +158,7 @@ describe("スキル定義", () => {
     { ...strike, target: "unknown" },
     { ...strike, target: "single-ally" },
     { ...strike, scenes: ["branch"] },
-    { ...strike, effect: { type: "hp-recovery", amount: 8 } },
+    { ...strike, effect: { type: "hp-recovery", amount: 8, scaling: { stat: "attackPower", coefficient: 0.5 } } },
     { ...strike, effect: { type: "fatigue-recovery", amount: 8 } },
     { ...skillCatalog.skills[2], mentalFatigueIncrease: 0 },
     { ...skillCatalog.skills[2], scenes: ["battle"] },

@@ -1,0 +1,255 @@
+import { nextGameRandom } from "./gameRandom";
+import {
+  createExplorationGrowth,
+  type ExperienceReward,
+  type ExplorationGrowth,
+  type GrowthRejection,
+  grantExperience,
+  type ProgressionDefinition,
+  resetCharacterGrowth,
+} from "./progression";
+import { type LearnedSkill, type SkillCatalog, skillById, skillTierForLevel, validateSkillCatalog } from "./skills";
+
+export interface CharacterSkills {
+  readonly characterId: string;
+  readonly learned: readonly LearnedSkill[];
+}
+export interface SkillChoice {
+  readonly characterId: string;
+  readonly level: number;
+  readonly candidateIds: readonly string[];
+  readonly status: "offered" | "insufficient-candidates";
+}
+/** Growth.pendingChoiceLevels is the sole ledger of unconsumed rights.
+ * The single retained offer belongs to its first entry, never a second queue.
+ */
+export interface ExplorationSkills {
+  readonly explorationId: string;
+  readonly closed: boolean;
+  readonly growth: ExplorationGrowth;
+  readonly characters: readonly CharacterSkills[];
+  readonly choice: SkillChoice | null;
+  readonly randomState: number;
+}
+export type AcquisitionResult =
+  | { readonly accepted: true; readonly state: ExplorationSkills }
+  | {
+      readonly accepted: false;
+      readonly state: ExplorationSkills;
+      readonly reason:
+        | GrowthRejection
+        | "wrong-exploration"
+        | "closed-exploration"
+        | "pending-choice"
+        | "wrong-choice"
+        | "candidate-not-offered"
+        | "ineligible-candidate";
+    };
+
+function learn(
+  catalog: SkillCatalog,
+  skillId: string,
+  origin: LearnedSkill["origin"],
+  acquisition: LearnedSkill["acquisition"],
+): LearnedSkill {
+  return skillById(catalog, skillId).type === "active"
+    ? { skillId, type: "active", origin, acquisition }
+    : { skillId, type: "passive", origin, acquisition, rank: 1 };
+}
+function initialSkills(catalog: SkillCatalog, characterId: string): CharacterSkills {
+  const profile = catalog.characters.find((profile) => profile.characterId === characterId);
+  if (!profile || profile.initialSkillIds === null) throw new Error(`初期スキル定義が未接続です: ${characterId}`);
+  return { characterId, learned: profile.initialSkillIds.map((id) => learn(catalog, id, "initial", "initial")) };
+}
+
+/** No product defaults: callers supply resolved initial skills and unlock tables. */
+export function createExplorationSkills(
+  explorationId: string,
+  randomState: number,
+  progression: ProgressionDefinition,
+  catalog: SkillCatalog,
+): ExplorationSkills {
+  if (!explorationId.trim()) throw new Error("探索IDが空です");
+  if (!Number.isInteger(randomState) || randomState < 0 || randomState > 0xffffffff)
+    throw new RangeError("乱数状態はuint32です");
+  const growth = createExplorationGrowth(progression);
+  validateSkillCatalog(
+    catalog,
+    catalog.characters.map(({ characterId }) => ({ id: characterId })),
+  );
+  for (const initial of progression.initial) {
+    const profile = catalog.characters.find(({ characterId }) => characterId === initial.characterId);
+    // Skills available at the initial level must be represented in initialSkillIds.
+    if (profile?.guaranteedUnlocks?.some(({ level }) => level <= initial.level))
+      throw new Error("保証解禁レベルは初期レベルより後です");
+  }
+  return {
+    explorationId,
+    closed: false,
+    growth,
+    characters: growth.characters.map(({ characterId }) => initialSkills(catalog, characterId)),
+    choice: null,
+    randomState,
+  };
+}
+
+function reject(
+  state: ExplorationSkills,
+  reason: Extract<AcquisitionResult, { accepted: false }>["reason"],
+): AcquisitionResult {
+  return { accepted: false, state, reason };
+}
+function sessionRejection(state: ExplorationSkills, explorationId: string): AcquisitionResult | null {
+  if (explorationId !== state.explorationId) return reject(state, "wrong-exploration");
+  return state.closed ? reject(state, "closed-exploration") : null;
+}
+
+/** Generate once, only for the first right in definition character order, then level order.
+ * Shortage consumes neither RNG nor the right. Repeated calls retain an existing offer.
+ */
+export function prepareSkillChoice(state: ExplorationSkills, catalog: SkillCatalog): ExplorationSkills {
+  if (state.closed || state.choice?.status === "offered") return state;
+  const character = state.growth.characters.find(({ pendingChoiceLevels }) => pendingChoiceLevels.length > 0);
+  if (!character) return { ...state, choice: null };
+  const level = character.pendingChoiceLevels[0];
+  const profile = catalog.characters.find(({ characterId }) => characterId === character.characterId);
+  const pool = catalog.pools.find(({ id }) => id === profile?.poolId);
+  const learned = state.characters.find(({ characterId }) => characterId === character.characterId)?.learned;
+  if (!profile || !pool || !learned) throw new Error("スキル対応がありません");
+  const eligible = pool.candidates[skillTierForLevel(level)].filter((id) => {
+    if (profile.guaranteedUnlocks?.some(({ skillId }) => skillId === id)) return false;
+    const definition = skillById(catalog, id);
+    const known = learned.find(({ skillId }) => skillId === id);
+    return (
+      !known ||
+      (known.type === "passive" && definition.type === "passive" && known.rank < definition.effect.rankAmounts.length)
+    );
+  });
+  if (eligible.length < 3)
+    return {
+      ...state,
+      choice: { characterId: character.characterId, level, candidateIds: [], status: "insufficient-candidates" },
+    };
+  let randomState = state.randomState;
+  const remaining = [...eligible];
+  const candidateIds: string[] = [];
+  for (let index = 0; index < 3; index += 1) {
+    const draw = nextGameRandom(randomState);
+    randomState = draw.state;
+    const [id] = remaining.splice(Math.floor(draw.value * remaining.length), 1);
+    candidateIds.push(id);
+  }
+  return {
+    ...state,
+    randomState,
+    choice: { characterId: character.characterId, level, candidateIds, status: "offered" },
+  };
+}
+
+/** Uses the existing atomic XP operation. Guarantees precede drawing and do not
+ * consume a choice. All crossed levels are processed, not just the final level.
+ */
+export function grantSkillExperience(
+  state: ExplorationSkills,
+  explorationId: string,
+  reward: ExperienceReward,
+  progression: ProgressionDefinition,
+  catalog: SkillCatalog,
+): AcquisitionResult {
+  const invalid = sessionRejection(state, explorationId);
+  if (invalid) return invalid;
+  if (state.growth.characters.some(({ pendingChoiceLevels }) => pendingChoiceLevels.length))
+    return reject(state, "pending-choice");
+  const growth = grantExperience(state.growth, reward, progression);
+  if (!growth.accepted) return reject(state, growth.reason);
+  const characters = state.characters.map((character) => {
+    const profile = catalog.characters.find(({ characterId }) => characterId === character.characterId);
+    if (!profile) throw new Error("キャラスキル定義がありません");
+    const learned = [...character.learned];
+    for (const reached of growth.levelsReached.filter(({ characterId }) => characterId === character.characterId)) {
+      for (const unlock of profile.guaranteedUnlocks ?? []) {
+        if (unlock.level === reached.level && !learned.some(({ skillId }) => skillId === unlock.skillId))
+          learned.push(learn(catalog, unlock.skillId, "expedition", "guaranteed"));
+      }
+    }
+    return { ...character, learned };
+  });
+  return { accepted: true, state: prepareSkillChoice({ ...state, growth: growth.state, characters }, catalog) };
+}
+
+export function chooseSkill(
+  state: ExplorationSkills,
+  input: {
+    readonly explorationId: string;
+    readonly characterId: string;
+    readonly level: number;
+    readonly skillId: string;
+  },
+  catalog: SkillCatalog,
+): AcquisitionResult {
+  const invalid = sessionRejection(state, input.explorationId);
+  if (invalid) return invalid;
+  const choice = state.choice;
+  if (choice?.status !== "offered" || choice.characterId !== input.characterId || choice.level !== input.level)
+    return reject(state, "wrong-choice");
+  if (!choice.candidateIds.includes(input.skillId)) return reject(state, "candidate-not-offered");
+  const selected = skillById(catalog, input.skillId);
+  const knownSelection = state.characters
+    .find(({ characterId }) => characterId === input.characterId)
+    ?.learned.find(({ skillId }) => skillId === input.skillId);
+  if (
+    knownSelection &&
+    (knownSelection.type !== "passive" ||
+      selected.type !== "passive" ||
+      knownSelection.rank >= selected.effect.rankAmounts.length)
+  )
+    return reject(state, "ineligible-candidate");
+  const characters = state.characters.map((character) => {
+    if (character.characterId !== input.characterId) return character;
+    const known = character.learned.find(({ skillId }) => skillId === input.skillId);
+    const learned = known
+      ? character.learned.map((entry) =>
+          entry.skillId === input.skillId && entry.type === "passive" ? { ...entry, rank: entry.rank + 1 } : entry,
+        )
+      : [...character.learned, learn(catalog, input.skillId, "expedition", "choice")];
+    return { ...character, learned };
+  });
+  const growth = {
+    ...state.growth,
+    characters: state.growth.characters.map((character) =>
+      character.characterId === input.characterId
+        ? { ...character, pendingChoiceLevels: character.pendingChoiceLevels.slice(1) }
+        : character,
+    ),
+  };
+  return { accepted: true, state: prepareSkillChoice({ ...state, characters, growth, choice: null }, catalog) };
+}
+
+/** Closes this session; new exploration IDs must be unique at the caller boundary.
+ * Keep RNG and reward receipts. This core owns no HP, symptoms, clocks or roster.
+ */
+export function resetExplorationSkills(
+  state: ExplorationSkills,
+  explorationId: string,
+  progression: ProgressionDefinition,
+  catalog: SkillCatalog,
+): AcquisitionResult {
+  const invalid = sessionRejection(state, explorationId);
+  if (invalid) return invalid;
+  const growth = resetCharacterGrowth(
+    state.growth,
+    state.characters.map(({ characterId }) => characterId),
+    progression,
+  );
+  if (!growth.accepted) return reject(state, growth.reason);
+  return {
+    accepted: true,
+    state: {
+      ...state,
+      closed: true,
+      growth: growth.state,
+      characters: state.characters.map(({ characterId }) => initialSkills(catalog, characterId)),
+      choice: null,
+    },
+  };
+}

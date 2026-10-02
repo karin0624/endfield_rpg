@@ -10,9 +10,11 @@ interface SkillIdentity {
   readonly tier: SkillTier;
 }
 
-export type ActiveSkillEffect =
-  | { readonly type: "damage"; readonly amount: number }
-  | { readonly type: "hp-recovery"; readonly amount: number };
+export interface SkillPower {
+  readonly amount: number;
+  readonly scaling: { readonly stat: "attackPower" | "maxHp"; readonly coefficient: number };
+}
+export type ActiveSkillEffect = SkillPower & { readonly type: "damage" | "hp-recovery" };
 
 export interface ActiveSkillDefinition extends SkillIdentity {
   readonly type: "active";
@@ -24,8 +26,9 @@ export interface ActiveSkillDefinition extends SkillIdentity {
 
 export interface PassiveSkillDefinition extends SkillIdentity {
   readonly type: "passive";
-  /** Add to the owner's basic attack power while learned; no activation. */
-  readonly effect: { readonly type: "basic-attack-power-bonus"; readonly amount: number };
+  /** Add to basic attack power without activation. Each entry is the total
+   * effect at that rank; length is the individual cap. */
+  readonly effect: { readonly type: "basic-attack-power-bonus"; readonly rankAmounts: readonly number[] };
   readonly mentalFatigueIncrease?: never;
   readonly scenes?: never;
   readonly target?: never;
@@ -41,16 +44,36 @@ export interface CharacterSkillProfile {
   readonly poolId: string;
   /** null means undecided, distinct from an agreed empty initial set. */
   readonly initialSkillIds: readonly string[] | null;
+  /** Optional until a character's unlock table is authored. Never random candidates. */
+  readonly guaranteedUnlocks?: readonly { readonly skillId: string; readonly level: number }[];
 }
 export interface SkillCatalog {
   readonly skills: readonly SkillDefinition[];
   readonly pools: readonly SkillPoolDefinition[];
   readonly characters: readonly CharacterSkillProfile[];
 }
-/** Initial learning survives return; expedition learning is reset by the return owner. */
-export interface LearnedSkill {
+/** Acquisition route and lifetime are independent. Active records have no rank. */
+export type LearnedSkill = {
   readonly skillId: string;
   readonly origin: "initial" | "expedition";
+  readonly acquisition: "initial" | "guaranteed" | "choice";
+} & ({ readonly type: "active"; readonly rank?: never } | { readonly type: "passive"; readonly rank: number });
+
+/** Unrounded base amount. Fatigue and other modifiers belong to the use owner. */
+export function activeSkillBaseAmount(
+  skill: ActiveSkillDefinition,
+  stats: { readonly attackPower: number; readonly maxHp: number },
+): number {
+  const value = stats[skill.effect.scaling.stat];
+  requireAmount(value, "参照能力値");
+  const amount = skill.effect.amount + value * skill.effect.scaling.coefficient;
+  requireAmount(amount, "効果量");
+  return amount;
+}
+export function passiveSkillAmount(skill: PassiveSkillDefinition, rank: number): number {
+  if (!Number.isSafeInteger(rank) || rank < 1 || rank > skill.effect.rankAmounts.length)
+    throw new RangeError("パッシブランクが上限外です");
+  return skill.effect.rankAmounts[rank - 1];
 }
 
 /** Classification only: candidate drawing and learning belong to separate operations. */
@@ -66,7 +89,7 @@ export function skillById(catalog: SkillCatalog, id: string): SkillDefinition {
   return skill;
 }
 
-/** Only effect.amount is scaled, never the fatigue increase or other parameters.
+/** Only the evaluated base effect is scaled, never the fatigue increase or other parameters.
  * The caller applies B*m(f) with pre-use numeric fatigue f, then adds fatigue,
  * then calculates symptoms. This module supplies no curve or use operation.
  */
@@ -102,8 +125,11 @@ export function validateSkillCatalog(catalog: SkillCatalog, characters: readonly
   for (const skill of catalog.skills) {
     if (!skill.name.trim() || !skill.description.trim() || !tiers.includes(skill.tier))
       throw new Error(`スキルの名称・説明・分類が不正です: ${skill.id}`);
-    requireAmount(skill.effect.amount, "効果量");
     if (skill.type === "active") {
+      requireAmount(skill.effect.amount, "効果量");
+      if (!["attackPower", "maxHp"].includes(skill.effect.scaling.stat)) throw new Error("参照能力値が不正です");
+      if (!Number.isFinite(skill.effect.scaling.coefficient) || skill.effect.scaling.coefficient <= 0)
+        throw new Error("能力値係数は有限の正数です");
       requireAmount(skill.mentalFatigueIncrease, "精神疲労増加量");
       if (
         skill.scenes.length === 0 ||
@@ -125,6 +151,10 @@ export function validateSkillCatalog(catalog: SkillCatalog, characters: readonly
       skill.target !== undefined
     )
       throw new Error(`パッシブ定義が不正です: ${skill.id}`);
+    else {
+      if (!skill.effect.rankAmounts.length) throw new Error("パッシブ上限がありません");
+      for (const amount of skill.effect.rankAmounts) requireAmount(amount, "効果量");
+    }
   }
   for (const pool of catalog.pools) {
     for (const tier of tiers) {
@@ -141,6 +171,20 @@ export function validateSkillCatalog(catalog: SkillCatalog, characters: readonly
       throw new Error(`キャラクター参照がありません: ${profile.characterId}`);
     if (!catalog.pools.some(({ id }) => id === profile.poolId))
       throw new Error(`候補群参照がありません: ${profile.poolId}`);
+    const unlocks = profile.guaranteedUnlocks ?? [];
+    requireUniqueIds(
+      unlocks.map(({ skillId }) => skillId),
+      "保証スキル",
+    );
+    for (const unlock of unlocks) {
+      if (
+        !Number.isSafeInteger(unlock.level) ||
+        unlock.level < 2 ||
+        skillById(catalog, unlock.skillId).type !== "active"
+      )
+        throw new Error("保証解禁はLv2以上のアクティブです");
+      if (profile.initialSkillIds?.includes(unlock.skillId)) throw new Error("初期と保証解禁が重複しています");
+    }
     if (profile.initialSkillIds !== null) {
       requireUniqueIds(profile.initialSkillIds, "初期スキル");
       for (const id of profile.initialSkillIds) skillById(catalog, id);

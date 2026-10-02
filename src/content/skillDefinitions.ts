@@ -1,15 +1,15 @@
 import type { SkillCatalog } from "../game/skills";
 
-/** All names, effect amounts and fatigue increases are provisional test data. */
+/** All names, scaling, rank caps/effects and fatigue increases are provisional test data. */
 export const skillCatalog = {
   skills: [
     {
       id: "test-strike",
       name: "検証用攻撃",
-      description: "生存中の敵1体へ12ダメージ。",
+      description: "生存中の敵1体へ、12＋攻撃力×0.5のダメージ。",
       tier: "normal",
       type: "active",
-      effect: { type: "damage", amount: 12 },
+      effect: { type: "damage", amount: 12, scaling: { stat: "attackPower", coefficient: 0.5 } },
       mentalFatigueIncrease: 4,
       scenes: ["battle"],
       target: "single-enemy",
@@ -17,10 +17,10 @@ export const skillCatalog = {
     {
       id: "test-heal",
       name: "検証用回復",
-      description: "生存中の味方1体のHPを8回復。自分も対象。",
+      description: "生存中の味方1体のHPを8＋最大HP×0.5回復。自分も対象。",
       tier: "normal",
       type: "active",
-      effect: { type: "hp-recovery", amount: 8 },
+      effect: { type: "hp-recovery", amount: 8, scaling: { stat: "maxHp", coefficient: 0.5 } },
       mentalFatigueIncrease: 3,
       scenes: ["battle", "branch"],
       target: "single-ally",
@@ -28,18 +28,18 @@ export const skillCatalog = {
     {
       id: "test-strength",
       name: "検証用攻撃力補正",
-      description: "習得中、自分の通常攻撃力に2を加算。",
+      description: "習得中、自分の通常攻撃力にランク1で2、ランク2で4を加算。",
       tier: "normal",
       type: "passive",
-      effect: { type: "basic-attack-power-bonus", amount: 2 },
+      effect: { type: "basic-attack-power-bonus", rankAmounts: [2, 4] },
     },
     {
       id: "test-strike-advanced",
       name: "検証用上位攻撃",
-      description: "生存中の敵1体へ24ダメージ。",
+      description: "生存中の敵1体へ、24＋攻撃力×0.5のダメージ。",
       tier: "advanced",
       type: "active",
-      effect: { type: "damage", amount: 24 },
+      effect: { type: "damage", amount: 24, scaling: { stat: "attackPower", coefficient: 0.5 } },
       mentalFatigueIncrease: 8,
       scenes: ["battle"],
       target: "single-enemy",
@@ -47,10 +47,10 @@ export const skillCatalog = {
     {
       id: "test-heal-advanced",
       name: "検証用上位回復",
-      description: "生存中の味方1体のHPを16回復。自分も対象。",
+      description: "生存中の味方1体のHPを16＋最大HP×0.5回復。自分も対象。",
       tier: "advanced",
       type: "active",
-      effect: { type: "hp-recovery", amount: 16 },
+      effect: { type: "hp-recovery", amount: 16, scaling: { stat: "maxHp", coefficient: 0.5 } },
       mentalFatigueIncrease: 6,
       scenes: ["battle", "branch"],
       target: "single-ally",
@@ -58,18 +58,18 @@ export const skillCatalog = {
     {
       id: "test-strength-advanced",
       name: "検証用上位攻撃力補正",
-      description: "習得中、自分の通常攻撃力に4を加算。",
+      description: "習得中、自分の通常攻撃力にランク1で4、ランク2で8を加算。",
       tier: "advanced",
       type: "passive",
-      effect: { type: "basic-attack-power-bonus", amount: 4 },
+      effect: { type: "basic-attack-power-bonus", rankAmounts: [4, 8] },
     },
     {
       id: "test-strike-ultimate",
       name: "検証用最上位攻撃",
-      description: "生存中の敵1体へ36ダメージ。",
+      description: "生存中の敵1体へ、36＋攻撃力×0.5のダメージ。",
       tier: "ultimate",
       type: "active",
-      effect: { type: "damage", amount: 36 },
+      effect: { type: "damage", amount: 36, scaling: { stat: "attackPower", coefficient: 0.5 } },
       mentalFatigueIncrease: 12,
       scenes: ["battle"],
       target: "single-enemy",
@@ -77,10 +77,10 @@ export const skillCatalog = {
     {
       id: "test-heal-ultimate",
       name: "検証用最上位回復",
-      description: "生存中の味方1体のHPを24回復。自分も対象。",
+      description: "生存中の味方1体のHPを24＋最大HP×0.5回復。自分も対象。",
       tier: "ultimate",
       type: "active",
-      effect: { type: "hp-recovery", amount: 24 },
+      effect: { type: "hp-recovery", amount: 24, scaling: { stat: "maxHp", coefficient: 0.5 } },
       mentalFatigueIncrease: 9,
       scenes: ["battle", "branch"],
       target: "single-ally",
@@ -88,10 +88,10 @@ export const skillCatalog = {
     {
       id: "test-strength-ultimate",
       name: "検証用最上位攻撃力補正",
-      description: "習得中、自分の通常攻撃力に6を加算。",
+      description: "習得中、自分の通常攻撃力にランク1で6、ランク2で12を加算。",
       tier: "ultimate",
       type: "passive",
-      effect: { type: "basic-attack-power-bonus", amount: 6 },
+      effect: { type: "basic-attack-power-bonus", rankAmounts: [6, 12] },
     },
   ],
   pools: [
