@@ -12,11 +12,13 @@ import {
   chooseDungeonConversationOption,
   createDungeonState,
   type DungeonActionResult,
+  type DungeonBranchSkillInput,
   type DungeonDefinition,
   type DungeonSkillInput,
   type DungeonState,
   enterNextDungeonNode,
   performDungeonBasicAttack,
+  performDungeonBranchSkill,
   performDungeonSkill,
 } from "./dungeon";
 import { ensureGrowth, grownCharacters, hasPendingGrowth, projectGrowth, rewardGrowth } from "./growthRuntime";
@@ -113,6 +115,7 @@ export type DungeonCommand =
   | { readonly type: "enter"; readonly nodeId: string }
   | { readonly type: "advance" }
   | { readonly type: "choose"; readonly optionId: string }
+  | ({ readonly type: "branch-skill" } & DungeonBranchSkillInput)
   | ({ readonly type: "skill" } & DungeonSkillInput)
   | { readonly type: "attack"; readonly actorId: string; readonly targetId: string };
 
@@ -128,11 +131,17 @@ export function actInExpedition(
   readonly result: DungeonActionResult;
   readonly completion?: GameActionCompletion;
 } {
-  if (state.dungeon === null) throw new Error("探索を開始していません");
+  if (state.dungeon === null)
+    return { state, result: { accepted: false, state: null, reason: "dungeon-ended", events: [] } };
   if (hasPendingGrowth(state))
     return { state, result: { accepted: false, state: state.dungeon, reason: "pending-growth-choice", events: [] } };
   let result: DungeonActionResult;
   switch (command.type) {
+    case "branch-skill":
+      result = skills
+        ? performDungeonBranchSkill(state.dungeon, command, route, skills)
+        : { accepted: false, state: state.dungeon, reason: "battle:skill-not-usable", events: [] };
+      break;
     case "skill":
       result = skills
         ? performDungeonSkill(state.dungeon, command, route, skills)

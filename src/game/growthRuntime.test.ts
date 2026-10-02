@@ -397,3 +397,58 @@ describe("HP上限の差分", () => {
     expect(growth.party.members[0]).toMatchObject({ hp: 0, status: { incapacityRecoverySteps: 6 } });
   });
 });
+
+it("分岐回復は必須選択を省略せず、時計・成長・控えを保持して古い操作を拒否する", () => {
+  let game = depart(initial(["player", "gilberta"]));
+  const command = () => ({
+    type: "branch-skill" as const,
+    actorId: "player",
+    targetId: "player",
+    skillId: "test-heal",
+    expectedVersion: game.dungeon?.branchSkillVersion ?? -1,
+    expectedNodeId: game.dungeon?.currentNodeId ?? "",
+    expeditionActionId: game.dungeon?.expeditionActionId ?? -1,
+  });
+  const entryInput = command();
+  game = act(game, { type: "enter", nodeId: "battle-a" });
+  game = strike(game, "slime");
+  game = strike(game, "slime-2");
+  const blocked = actInExpedition(game, command(), initialDungeon, initialAdventure, rules);
+  expect(blocked).toMatchObject({ state: game, result: { accepted: false, reason: "pending-growth-choice" } });
+  game = resolve(game);
+  expect(actInExpedition(game, entryInput, initialDungeon, initialAdventure, rules)).toMatchObject({
+    state: game,
+    result: { accepted: false },
+  });
+  const before = game;
+  const valid = command();
+  game = act(game, valid);
+  expect(game.clock).toEqual(before.clock);
+  expect(game.lastTownRecoverySignal).toEqual(before.lastTownRecoverySignal);
+  expect(game.growth).toEqual(before.growth);
+  expect(game.party.members.find(({ id }) => id === "gilberta")).toEqual(
+    before.party.members.find(({ id }) => id === "gilberta"),
+  );
+  expect(game.dungeon).toMatchObject({
+    currentNodeId: "battle-a",
+    resolvedNodeIds: before.dungeon?.resolvedNodeIds,
+    flags: before.dungeon?.flags,
+  });
+  expect(actInExpedition(game, valid, initialDungeon, initialAdventure, rules)).toMatchObject({
+    state: game,
+    result: { accepted: false },
+  });
+  const last = command();
+  game = accept(leaveExpedition(game, undefined, rules));
+  expect(actInExpedition(game, last, initialDungeon, initialAdventure, rules)).toMatchObject({
+    state: game,
+    result: { accepted: false, reason: "dungeon-ended" },
+  });
+  game = depart(roundTrip(game));
+  expect(actInExpedition(game, entryInput, initialDungeon, initialAdventure, rules)).toMatchObject({
+    state: game,
+    result: { accepted: false },
+  });
+  game = act(game, command());
+  expect(game.party.members[0].mentalFatigue).toBe(14);
+});
