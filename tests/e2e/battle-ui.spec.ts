@@ -104,7 +104,7 @@ test("スキルの予測・回復対象・取消を各画面サイズで操作�
   await expect(skills).toBeFocused();
 });
 
-test("通常入力の勝利XPから複数3択を完了し次戦へ成長を反映する", async ({ page }) => {
+test("通常入力の勝利XPから複数3択を完了し次戦へ成長を反映する", async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 600 });
   await page.goto("/tests/fixtures/battle-ui.html?growth=1");
   await page.getByRole("button", { name: "戦闘、選択可能" }).click();
@@ -120,6 +120,13 @@ test("通常入力の勝利XPから複数3択を完了し次戦へ成長を反�
     await expect(page.getByRole("button", { name: "ボス、選択可能" })).toBeHidden();
     await page.keyboard.press("Escape");
     await expect(choice).toBeVisible();
+    for (const button of await choice.getByRole("button").all()) {
+      await button.scrollIntoViewIfNeeded();
+      await button.focus();
+      await expect(button).toBeFocused();
+      await expect(button).toBeInViewport();
+    }
+    await page.screenshot({ path: testInfo.outputPath(`growth-level-${level}.png`) });
     const pick = choice.getByRole("button").first();
     await pick.scrollIntoViewIfNeeded();
     await expect(pick).toBeInViewport();

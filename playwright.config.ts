@@ -25,7 +25,7 @@ export default defineConfig({
     { name: "built", testMatch: ["battle.spec.ts", "dungeon.spec.ts"] },
     {
       name: "ui",
-      testMatch: "battle-ui.spec.ts",
+      testMatch: ["battle-ui.spec.ts", "party-ui.spec.ts"],
       use: { baseURL: "http://127.0.0.1:4174" },
     },
     {

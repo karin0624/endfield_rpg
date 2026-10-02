@@ -24,6 +24,18 @@ async function winByAttacking(page: Page) {
   await expect(victory).toBeVisible();
 }
 
+async function editSlot(page: Page, slot: number, id: string) {
+  await page.getByRole("button", { name: `枠 ${slot}`, exact: true }).click();
+  if (!id) await page.getByRole("button", { name: "外す", exact: true }).click();
+  else {
+    await page
+      .getByRole("group", { name: "候補一覧" })
+      .getByRole("button", { name: id === "player" ? "ロッシ" : "ギルベルタ", exact: true })
+      .click();
+    await page.getByRole("button", { name: /^(編成する|入れ替える)$/ }).click();
+  }
+}
+
 test("ルートを横ドラッグでき、表示領域を変えても選択肢を操作できる", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/?dungeon=1");
@@ -124,6 +136,7 @@ test("全滅帰還でHP全回復し、街探索6回で戦闘不能から復帰�
     adventure: createInitialGameState(initialGameOptions),
     party: createParty(characters, ["player"]),
     dungeon: null,
+    randomState: 3,
   };
   for (let n = 0; n < 3; n++) initial = applyPartyStatus(initial, "player", "haze", characters);
   const seed = serializeGame(initial, saveDefinitions);
@@ -202,8 +215,8 @@ test("編成だけを表示し、キーボードで戻っても編集内容を�
   await expect(back).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(party.getByLabel("枠 1", { exact: true })).toBeFocused();
-  await party.getByLabel("枠 1", { exact: true }).selectOption("");
-  await party.getByLabel("枠 4", { exact: true }).selectOption("player");
+  await editSlot(page, 1, "");
+  await editSlot(page, 4, "player");
   for (let reopen = 0; reopen < 2; reopen++) {
     await back.focus();
     await page.keyboard.press("Enter");
@@ -211,8 +224,8 @@ test("編成だけを表示し、キーボードで戻っても編集内容を�
     await expect(page.getByRole("navigation", { name: "街の場所" })).toBeVisible();
     await expect(entry).toBeFocused();
     await page.keyboard.press("Enter");
-    await expect(party.getByLabel("枠 4", { exact: true })).toHaveValue("player");
-    await expect(party.getByLabel("枠 1", { exact: true })).toHaveValue("");
+    await expect(party.getByLabel("枠 4", { exact: true })).toContainText("ロッシ");
+    await expect(party.getByLabel("枠 1", { exact: true })).toContainText("空き枠に追加");
     await expect(back).toBeFocused();
   }
 });
@@ -227,15 +240,18 @@ test("街の4枠を編集して単独出撃し、ボス帰還の回復HPを編�
   await page.goto("/");
   await page.getByRole("link", { name: "出撃編成を見る" }).click();
   const party = page.getByRole("region", { name: "出撃編成", exact: true });
-  await expect(party.getByRole("combobox")).toHaveCount(4);
-  await party.getByLabel("枠 1", { exact: true }).selectOption("");
+  await expect(party.locator(".party-slot-choice")).toHaveCount(4);
+  await editSlot(page, 1, "");
   const depart = page.getByRole("button", { name: "出撃" });
   await expect(depart).toBeDisabled();
   await expect(party.getByRole("status")).toContainText("出撃する仲間を1人以上");
-  await party.getByLabel("枠 4", { exact: true }).selectOption("player");
-  await party.getByLabel("枠 2", { exact: true }).selectOption("player");
-  await expect(party.getByLabel("枠 2", { exact: true })).toHaveValue("");
-  await expect(party.getByRole("status")).toContainText("同じ仲間は複数の枠に配置できません");
+  await editSlot(page, 4, "player");
+  await page.getByRole("button", { name: "枠 2", exact: true }).click();
+  await page.getByRole("group", { name: "候補一覧" }).getByRole("button", { name: "ロッシ", exact: true }).click();
+  await expect(page.getByRole("button", { name: "編成する", exact: true })).toBeDisabled();
+  await expect(page.getByText("編成中。先に元の枠を空けてください。")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(party.getByLabel("枠 2", { exact: true })).toContainText("空き枠に追加");
   await expect(page.locator(".party-slot-hp").nth(3)).toHaveText("HP 20 / 20");
   await depart.scrollIntoViewIfNeeded();
   await expect(depart).toBeInViewport();
@@ -255,11 +271,9 @@ test("街の4枠を編集して単独出撃し、ボス帰還の回復HPを編�
   await page.getByRole("button", { name: "街へ戻る", exact: true }).click();
   await page.getByRole("link", { name: "出撃編成を見る" }).click();
   await expect(page.locator(".party-slot-hp").nth(3)).toHaveText("HP 20 / 20");
-  await party.getByLabel("枠 4", { exact: true }).selectOption("");
-  await expect(
-    party.getByLabel("枠 1", { exact: true }).getByRole("option", { name: "ロッシ — HP 20/20", exact: true }),
-  ).toHaveCount(1);
-  await party.getByLabel("枠 1", { exact: true }).selectOption("player");
+  await editSlot(page, 4, "");
+
+  await editSlot(page, 1, "player");
   await expect(page.locator(".party-slot-hp").first()).toHaveText("HP 20 / 20");
   expect(errors).toEqual([]);
 });
@@ -268,8 +282,12 @@ test("街探索から加入・編成・ボス帰還・再訪まで同じセッ�
   await page.setViewportSize({ width: 1920, height: 1080 });
   await page.goto("/");
   await page.getByRole("link", { name: "出撃編成を見る" }).click();
-  const second = page.getByRole("combobox", { name: "枠 2" });
-  await expect(second.locator('option[value="gilberta"]')).toHaveCount(0);
+  const second = page.getByRole("button", { name: "枠 2" });
+  await second.click();
+  await expect(
+    page.getByRole("group", { name: "候補一覧" }).getByRole("button", { name: "ギルベルタ", exact: true }),
+  ).toHaveCount(0);
+  await page.keyboard.press("Escape");
   await expect(page.getByRole("button", { name: "出撃", exact: true })).toBeEnabled();
   await page.getByRole("button", { name: "戻る", exact: true }).click();
   await page.getByRole("button", { name: "同行者を探す（仮）", exact: true }).click();
@@ -279,10 +297,9 @@ test("街探索から加入・編成・ボス帰還・再訪まで同じセッ�
   await expect(page.locator("[data-town-prompt]")).toHaveText("ギルベルタが仲間に加わった。");
   await expect(page.locator("[data-calendar]")).toHaveText("1日目 · 夜");
   await page.getByRole("link", { name: "出撃編成を見る" }).click();
-  await expect(page.getByRole("combobox", { name: "枠 1" })).toHaveValue("player");
-  await expect(second).toHaveValue("");
-  await expect(second.locator('option[value="gilberta"]')).toHaveText("ギルベルタ — HP 18/18");
-  await second.selectOption("gilberta");
+  await expect(page.getByRole("button", { name: "枠 1" })).toContainText("ロッシ");
+  await expect(second).toContainText("空き枠に追加");
+  await editSlot(page, 2, "gilberta");
   await expect(page.locator(".party-slot").nth(1)).toContainText("HP 18 / 18");
   await expect(page.locator(".party-slot").nth(1).locator("img")).toHaveJSProperty("naturalWidth", 1024);
   await page.screenshot({ path: testInfo.outputPath("joined-party-1920.png") });
@@ -313,15 +330,19 @@ test("街探索から加入・編成・ボス帰還・再訪まで同じセッ�
   await page.keyboard.press("Space");
   await expect(page.locator("[data-calendar]")).toHaveText("2日目 · 夜");
   await page.getByRole("link", { name: "出撃編成を見る" }).click();
-  await expect(second).toHaveValue("gilberta");
-  await expect(second.locator('option[value="gilberta"]')).toHaveCount(1);
+  await expect(second).toContainText("ギルベルタ");
+  await second.click();
+  await expect(
+    page.getByRole("group", { name: "候補一覧" }).getByRole("button", { name: "ギルベルタ", exact: true }),
+  ).toHaveCount(1);
+  await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "戻る", exact: true }).click();
   await page.getByRole("button", { name: "保存", exact: true }).click();
   await page.reload();
   await page.getByRole("button", { name: "読込", exact: true }).click();
   await expect(page.locator("[data-calendar]")).toHaveText("2日目 · 夜");
   await page.getByRole("link", { name: "出撃編成を見る" }).click();
-  await expect(second).toHaveValue("gilberta");
+  await expect(second).toContainText("ギルベルタ");
   await page.getByRole("button", { name: "出撃", exact: true }).click();
   await expect(page.getByRole("region", { name: "遺跡の進路" })).toBeVisible();
   await expect(page.locator("[data-calendar]")).toHaveText("2日目 · 夜");
@@ -337,7 +358,7 @@ test("キャラ詳細の閲覧だけでは編成・保存内容を変えず、�
   await page.getByRole("button", { name: "仲間に迎える" }).click();
   const entry = page.getByRole("link", { name: "出撃編成を見る" });
   await entry.click();
-  await page.getByRole("combobox", { name: "枠 2" }).selectOption("gilberta");
+  await editSlot(page, 2, "gilberta");
   await page.getByRole("button", { name: "戻る", exact: true }).click();
   await page.getByRole("button", { name: "保存", exact: true }).click();
   const saved = await page.evaluate(() => localStorage.getItem("endfield-rpg-game-save"));
@@ -379,7 +400,7 @@ test("キャラ詳細の閲覧だけでは編成・保存内容を変えず、�
   await page.screenshot({ path: testInfo.outputPath("details-gilberta-390.png") });
   await details.getByRole("button", { name: "編成へ戻る" }).click();
   await expect(gilberta).toBeFocused();
-  const second = page.getByRole("combobox", { name: "枠 2" });
+  const second = page.getByRole("button", { name: "枠 2" });
   const before = await second.boundingBox();
   if (!before) throw new Error("元の枠が表示されていません");
   for (let count = 0; count < 3; count++) {
@@ -391,8 +412,8 @@ test("キャラ詳細の閲覧だけでは編成・保存内容を変えず、�
   await expect
     .poll(async () => Math.abs(((await second.boundingBox())?.y ?? Number.POSITIVE_INFINITY) - before.y))
     .toBeLessThan(1);
-  await expect(page.getByRole("combobox", { name: "枠 1" })).toHaveValue("player");
-  await expect(page.getByRole("combobox", { name: "枠 2" })).toHaveValue("gilberta");
+  await expect(page.getByRole("button", { name: "枠 1" })).toContainText("ロッシ");
+  await expect(page.getByRole("button", { name: "枠 2" })).toContainText("ギルベルタ");
   await expect(page.locator("[data-party-calendar]")).toHaveText("1日目 · 夜");
   await page.getByRole("button", { name: "戻る", exact: true }).click();
   await page.getByRole("button", { name: "保存", exact: true }).click();
@@ -490,8 +511,8 @@ test("街で保存し、リロード後も加入・編成・時計を読み込�
   await expect(page.getByRole("button", { name: "読込", exact: true })).toBeHidden();
   await page.getByRole("button", { name: "仲間に迎える" }).click();
   await page.getByRole("link", { name: "出撃編成を見る" }).click();
-  await page.getByLabel("枠 1", { exact: true }).selectOption("");
-  await page.getByLabel("枠 4", { exact: true }).selectOption("player");
+  await editSlot(page, 1, "");
+  await editSlot(page, 4, "player");
   await page.getByRole("button", { name: "戻る", exact: true }).click();
   await page.getByRole("button", { name: "保存", exact: true }).dblclick();
   await expect(page.locator("[data-save-status]")).toHaveText("保存しました。");
@@ -504,9 +525,13 @@ test("街で保存し、リロード後も加入・編成・時計を読み込�
   await expect(page.locator("[data-save-status]")).toHaveText("読み込みました。");
   await page.screenshot({ path: testInfo.outputPath("save-loaded-town-1920.png") });
   await page.getByRole("link", { name: "出撃編成を見る" }).click();
-  await expect(page.getByLabel("枠 1", { exact: true })).toHaveValue("");
-  await expect(page.getByLabel("枠 4", { exact: true })).toHaveValue("player");
-  await expect(page.getByLabel("枠 2", { exact: true }).locator('option[value="gilberta"]')).toHaveCount(1);
+  await expect(page.getByLabel("枠 1", { exact: true })).toContainText("空き枠に追加");
+  await expect(page.getByLabel("枠 4", { exact: true })).toContainText("ロッシ");
+  await page.getByLabel("枠 2", { exact: true }).click();
+  await expect(
+    page.getByRole("group", { name: "候補一覧" }).getByRole("button", { name: "ギルベルタ", exact: true }),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
   await page.screenshot({ path: testInfo.outputPath("save-loaded-party-1920.png") });
   await page.getByRole("button", { name: "戻る", exact: true }).click();
   await page.setViewportSize({ width: 390, height: 844 });

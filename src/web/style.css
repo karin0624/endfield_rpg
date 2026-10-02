@@ -2042,6 +2042,8 @@ body.dungeon-mode {
 
 /* Party editing is a focused view; the town keeps its own navigation. */
 .adventure-screen.party-editing {
+  width: 100%;
+  max-width: none;
   height: auto;
   min-height: 100dvh;
   aspect-ratio: auto;
@@ -2446,6 +2448,8 @@ body.dungeon-mode {
   background: var(--surface-base);
   color: var(--text-primary);
   min-height: 100dvh;
+  max-height: 100dvh;
+  overflow-y: auto;
 }
 .growth-choice h1 {
   font-size: 1.5rem;
@@ -2482,4 +2486,213 @@ body.dungeon-mode {
 .growth-choice button:focus-visible {
   outline: 2px solid var(--text-primary);
   outline-offset: 3px;
+}
+
+/* Candidate browsing is UI-only; the four committed slots stay alongside it. */
+.party-slot-choice,
+.party-candidate {
+  color: var(--text-primary);
+  background: var(--surface-base);
+  border: 1px solid var(--text-secondary);
+  font-family: inherit;
+  font-size: var(--font-size-body);
+  line-height: 1.5;
+  border-radius: 0;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+.party-slot-choice {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 8px;
+}
+.party-slot-choice .party-slot-portrait {
+  width: 100%;
+  margin: 0;
+}
+.party-slot-choice .party-slot-name {
+  align-self: center;
+}
+.party-slot-choice .party-slot-hp {
+  align-self: center;
+  margin: 8px 0 0;
+}
+.party-slot-choice:hover,
+.party-candidate:hover {
+  background: var(--surface-hover);
+}
+.party-slot-choice:active,
+.party-candidate:active {
+  background: var(--surface-pressed);
+}
+.party-slot-choice[aria-pressed="true"],
+.party-candidate[aria-pressed="true"] {
+  border: 2px solid var(--selection-edge);
+  background: var(--surface-selected);
+}
+.party-slot-choice:focus-visible,
+.party-candidate:focus-visible {
+  outline: 2px solid var(--text-primary);
+  outline-offset: 2px;
+}
+.party-candidates[hidden],
+.party-pending[hidden],
+.party-editor button[hidden] {
+  display: none;
+}
+.party-editor.is-selecting {
+  max-width: none;
+}
+.party-workspace {
+  min-width: 0;
+}
+.is-selecting .party-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: 24px;
+  height: min(75dvh, 850px);
+}
+.party-candidates {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+.party-candidates h3,
+.party-pending h3 {
+  margin: 0 0 12px;
+  font-family: inherit;
+  font-size: var(--font-size-body);
+  font-weight: 500;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.party-candidate-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
+  align-content: start;
+  grid-auto-rows: max-content;
+  flex: 1;
+  gap: 12px;
+  overflow-y: auto;
+  min-height: 0;
+  padding: 4px;
+  scrollbar-gutter: stable;
+}
+.party-candidate {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  padding: 8px;
+  border-width: 2px;
+}
+.party-candidate-face {
+  display: grid;
+  place-items: center;
+  height: 128px;
+  flex: 0 0 128px;
+  background: var(--surface-pressed);
+  color: var(--text-secondary);
+}
+.party-candidate-face .party-character-image {
+  object-fit: cover;
+}
+.party-candidate-state {
+  min-height: 1.5em;
+  color: var(--text-secondary);
+}
+.party-current {
+  min-width: 0;
+}
+.is-selecting .party-slots {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+.is-selecting .party-slot {
+  padding: 0;
+  border: 0;
+  background: none;
+}
+.is-selecting .party-slot-portrait {
+  height: 120px;
+}
+.is-selecting .party-slot-symptoms {
+  display: none;
+}
+.party-pending {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--trim-metal);
+  font-size: var(--font-size-body);
+  overflow-wrap: anywhere;
+}
+.party-pending-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.party-pending-actions button {
+  margin: 0;
+}
+.party-pending-actions .party-depart {
+  min-width: 0;
+}
+.party-detail:disabled {
+  cursor: not-allowed;
+  color: var(--text-secondary);
+}
+@media (min-width: 1151px) {
+  .adventure-screen.party-editing .town-view {
+    padding: 32px 3%;
+  }
+}
+@media (max-width: 1150px) {
+  .is-selecting .party-workspace {
+    height: auto;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .is-selecting .party-current {
+    grid-row: 1;
+  }
+  .is-selecting .party-slot-portrait {
+    height: 72px;
+  }
+  .party-candidate-grid {
+    max-height: 50dvh;
+    min-height: 200px;
+  }
+  .party-pending {
+    margin-top: 12px;
+    padding-top: 12px;
+  }
+}
+@media (max-width: 500px) {
+  .is-selecting .party-slots {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .party-candidate-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .party-candidate-face {
+    height: 100px;
+    flex-basis: 100px;
+  }
+}
+
+@media (min-width: 1151px) and (max-height: 650px) {
+  .adventure-screen.party-editing .town-view {
+    padding: 16px 3%;
+  }
+  .is-selecting .party-workspace {
+    height: max(280px, calc(100dvh - 160px));
+  }
+  .is-selecting .party-slot-portrait {
+    height: 64px;
+  }
+  .party-pending {
+    margin-top: 12px;
+    padding-top: 12px;
+  }
 }

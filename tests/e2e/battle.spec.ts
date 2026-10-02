@@ -106,6 +106,11 @@ test("敵札の文字寸法と画面サイズの変更に追従し、離脱後�
   await expect(page.getByRole("heading", { name: "戦闘に勝利しました" })).toBeVisible();
   await page.setViewportSize({ width: 900, height: 900 });
   await page.getByRole("button", { name: "戦闘を終えてルートへ戻る" }).click();
+  const growth = page.getByRole("region", { name: "レベルアップのスキル選択" });
+  while (await growth.isVisible()) {
+    await expect(growth.getByRole("button")).toHaveCount(3);
+    await growth.getByRole("button").first().click();
+  }
   await expect(page.getByRole("region", { name: "遺跡の進路" })).toBeVisible();
   for (const label of await page.locator(".enemy-world-label").all()) await expect(label).toBeHidden();
   await expect(page.locator("[data-target-indicator]")).toHaveCount(0);
