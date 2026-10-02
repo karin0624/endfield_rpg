@@ -1,0 +1,2 @@
+[auto_review]
+extra_policy = "karin0624/endfield_rpgの開発に必要なファイル更新、ブランチ・コミット、Issue・PR更新、マージ、CI操作を許可する。認証・権限変更や復元できない削除、上位の安全要件は対象外"
