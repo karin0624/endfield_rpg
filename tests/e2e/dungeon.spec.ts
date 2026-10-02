@@ -553,3 +553,88 @@ test("壊れた保存とブラウザI/O失敗でもゲームと既存保存を�
   await expect(page.locator("[data-calendar]")).toHaveText("1日目 · 夜");
   expect(await page.evaluate(() => localStorage.getItem("endfield-rpg-game-save"))).toBe('{"version":1,"party":{}}');
 });
+
+test("通常探索のスキルを選択・取消・使用し、次戦・帰還・保存読込・街回復へつなぐ", async ({ page }, testInfo) => {
+  await page.goto("/");
+  await page.getByRole("link", { name: "出撃編成を見る" }).click();
+  await page.getByRole("button", { name: "出撃", exact: true }).click();
+  await page.getByRole("button", { name: "戦闘、選択可能" }).click();
+  const skills = page.getByRole("button", { name: "スキル", exact: true });
+  await expect(skills).toBeEnabled({ timeout: 60_000 });
+  await page.locator('[data-combatant-id="slime"]').click();
+  const use = async (name: string, target?: string) => {
+    await skills.click();
+    await page.getByRole("button", { name, exact: true }).click();
+    if (target) await page.getByRole("combobox", { name: "回復対象" }).selectOption(target);
+    await page.getByRole("button", { name: "使用する", exact: true }).click();
+    await expect(page.locator("[data-battle-ui]")).toHaveAttribute("data-replaying", "false");
+  };
+  await skills.click();
+  await page.getByRole("button", { name: "検証用攻撃", exact: true }).click();
+  await expect(page.locator("[data-skill-preview]")).toContainText("予測ダメージ 16");
+  await expect(page.locator("[data-skill-preview]")).toContainText("対象：スライム A");
+  await page.keyboard.press("Escape");
+  await expect(skills).toBeFocused();
+  await skills.click();
+  await expect(page.locator("[data-skill-fatigue]")).toContainText("精神疲労 0");
+  await page.getByRole("button", { name: "戻る", exact: true }).click();
+  await use("検証用攻撃");
+  await expect(page.locator("[data-skill-result]")).toContainText("精神疲労 0 → 4");
+  await use("検証用回復", "player");
+  await expect(page.locator("[data-skill-result]")).toContainText("精神疲労 4 → 7");
+  await use("検証用攻撃");
+  await page.getByRole("button", { name: "戦闘を終えてルートへ戻る" }).click();
+  await page.getByRole("button", { name: "ボス、選択可能" }).click();
+  await expect(skills).toBeEnabled({ timeout: 60_000 });
+  await skills.click();
+  await page.getByRole("button", { name: "検証用攻撃", exact: true }).click();
+  await expect(page.locator("[data-skill-fatigue]")).toContainText("精神疲労 11");
+  await expect(page.locator("[data-skill-preview]")).toContainText("予測ダメージ 14.41");
+  for (const [width, height] of [
+    [320, 900],
+    [390, 900],
+    [900, 900],
+    [901, 900],
+    [1440, 540],
+    [1920, 1080],
+    [1440, 900],
+  ]) {
+    await page.setViewportSize({ width, height });
+    await page.getByRole("button", { name: "使用する", exact: true }).scrollIntoViewIfNeeded();
+    await expect(page.getByRole("button", { name: "使用する", exact: true })).toBeInViewport();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await page.getByRole("button", { name: "戻る", exact: true }).scrollIntoViewIfNeeded();
+    await expect(page.getByRole("button", { name: "戻る", exact: true })).toBeInViewport();
+    if (width === 390 || (width === 1440 && height === 900))
+      await page.screenshot({ path: testInfo.outputPath(`skill-preview-${width}.png`), fullPage: true });
+  }
+  await page.getByRole("button", { name: "使用する", exact: true }).click();
+  await expect(page.locator("[data-battle-ui]")).toHaveAttribute("data-replaying", "false");
+  await expect(page.locator("[data-skill-result]")).toContainText("14.41ダメージ");
+  await use("検証用攻撃");
+  await page.getByRole("button", { name: "戦闘を終えてルートへ戻る" }).click();
+  await page.getByRole("button", { name: "街へ戻る", exact: true }).click();
+  await expect(page.locator("[data-town-recovery]")).toContainText("精神疲労 19");
+  await page.getByRole("button", { name: "保存", exact: true }).click();
+  const saved = await page.evaluate(() => localStorage.getItem("endfield-rpg-game-save"));
+  expect(JSON.parse(saved ?? "{}").party.members[0].mentalFatigue).toBe(19);
+  await page.reload();
+  await page.getByRole("button", { name: "読込", exact: true }).dblclick();
+  expect(await page.evaluate(() => localStorage.getItem("endfield-rpg-game-save"))).toBe(saved);
+  await page.getByRole("button", { name: "市場", exact: true }).click();
+  await page.keyboard.press("Space");
+  await expect(page.locator("[data-town-recovery]")).toContainText("精神疲労：19 → 9");
+  await page.getByRole("button", { name: "保存", exact: true }).click();
+  expect(
+    await page.evaluate(
+      () => JSON.parse(localStorage.getItem("endfield-rpg-game-save") ?? "{}").party.members[0].mentalFatigue,
+    ),
+  ).toBe(9);
+  await page.screenshot({ path: testInfo.outputPath("skill-town-recovery.png") });
+  await page.getByRole("link", { name: "出撃編成を見る" }).click();
+  await page.getByRole("button", { name: "ロッシの詳細", exact: true }).click();
+  const details = page.getByRole("dialog", { name: "ロッシ", exact: true });
+  await expect(details.locator("dd").nth(4)).toHaveText("9（なし）");
+  await page.screenshot({ path: testInfo.outputPath("skill-fatigue-details.png") });
+  await page.keyboard.press("Escape");
+});

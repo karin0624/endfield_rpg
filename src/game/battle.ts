@@ -6,8 +6,15 @@ import {
   getUpcomingActions,
   type UpcomingAction,
 } from "./battleTimeline";
-
 import { createGameRandom, nextGameRandom } from "./gameRandom";
+import { type MentalFatigueDefinition, mentalFatigueMultiplier, validateMentalFatigue } from "./mentalFatigue";
+import {
+  activeSkillBaseAmount,
+  type LearnedSkill,
+  mentalFatigueAffectedQuantity,
+  type SkillCatalog,
+  skillById,
+} from "./skills";
 import {
   applyIncapacity,
   type CharacterStatus,
@@ -16,6 +23,11 @@ import {
   effectiveMaxHp,
   healthyStatus,
 } from "./status";
+
+export interface BattleSkillRules {
+  readonly catalog: SkillCatalog;
+  readonly fatigue: MentalFatigueDefinition;
+}
 
 export type BattleTeam = "ally" | "enemy";
 
@@ -26,6 +38,8 @@ export type BattleOutcome = "ongoing" | "victory" | "defeat";
  * 最大HP・命中率を省略した既存定義も受け付ける。
  */
 export interface BattleCombatantDefinition {
+  readonly mentalFatigue?: number;
+  readonly learnedSkills?: readonly LearnedSkill[];
   readonly maxHp?: number;
   readonly hitRate?: number;
   readonly status?: CharacterStatus;
@@ -37,6 +51,8 @@ export interface BattleCombatantDefinition {
 }
 
 export interface BattleCombatant {
+  readonly mentalFatigue: number;
+  readonly learnedSkills: readonly LearnedSkill[];
   readonly maxHp: number;
   readonly hitRate: number;
   readonly status: CharacterStatus;
@@ -57,6 +73,17 @@ export interface BattleState extends Omit<BattleTimelineState, "combatants"> {
 }
 
 export type BattleEvent =
+  | {
+      readonly type: "skill";
+      readonly actorId: string;
+      readonly targetId: string;
+      readonly skillId: string;
+      readonly effect: "damage" | "hp-recovery";
+      readonly amount: number;
+      readonly fatigueBefore: number;
+      readonly fatigueAfter: number;
+      readonly hit: boolean;
+    }
   | { readonly type: "miss"; readonly actorId: string; readonly targetId: string }
   | {
       readonly type: "attack";
@@ -81,7 +108,11 @@ export type BasicAttackRejectionReason =
   | "actor-is-not-current"
   | "target-does-not-exist"
   | "target-is-ally"
-  | "target-is-defeated";
+  | "target-is-defeated"
+  | "action-not-current"
+  | "skill-not-learned"
+  | "skill-not-usable"
+  | "numeric-overflow";
 
 export interface BasicAttackSuccess {
   readonly accepted: true;
@@ -110,6 +141,7 @@ function isBattleTeam(value: unknown): value is BattleTeam {
 }
 
 function assertValidDefinition(definition: BattleCombatantDefinition): void {
+  validateMentalFatigue(definition.mentalFatigue ?? 0);
   if (
     definition.hitRate !== undefined &&
     (!Number.isFinite(definition.hitRate) || definition.hitRate < 0 || definition.hitRate > 1)
@@ -209,6 +241,8 @@ export function createBattleState(
     const definition = normalized[index];
     return {
       ...combatant,
+      mentalFatigue: definition.mentalFatigue ?? 0,
+      learnedSkills: definition.learnedSkills ?? [],
       status: definition.status,
       maxHp: definition.maxHp,
       hitRate: definition.hitRate,
@@ -343,18 +377,98 @@ export function performBasicAttack(state: BattleState, actorId: string, targetId
     });
   }
 
-  const withOutcome = {
-    ...stateAfterDamage,
-    outcome,
-  } satisfies BattleState;
-  const completed = withTimelineState(withOutcome, completeCurrentAction(withOutcome));
-  const nextState = outcome === "ongoing" ? advanceBattleToNextActor(completed) : completed;
+  return completeBattleAction({ ...stateAfterDamage, outcome }, events);
+}
 
+function completeBattleAction(state: BattleState, events: BattleEvent[]): BasicAttackSuccess {
+  const completed = withTimelineState(state, completeCurrentAction(state));
   return {
     accepted: true,
-    state: nextState,
+    state: state.outcome === "ongoing" ? advanceBattleToNextActor(completed) : completed,
     events,
   };
+}
+
+/** Atomic effect -> fatigue -> symptoms, then timeline. Onset is explicitly unconnected.
+ * The expected logical time rejects retries from the previous input turn.
+ */
+export function performBattleSkill(
+  state: BattleState,
+  actorId: string,
+  targetId: string,
+  skillId: string,
+  expectedActionTime: number,
+  catalog: SkillCatalog,
+  fatigue: MentalFatigueDefinition,
+): BasicAttackResult {
+  if (state.outcome !== "ongoing") return reject(state, "battle-ended");
+  if (state.logicalTime !== expectedActionTime) return reject(state, "action-not-current");
+  if (state.currentActorId !== actorId) return reject(state, "actor-is-not-current");
+  const actor = findCombatant(state, actorId);
+  if (!actor || !canParticipate(actor.hp, actor.status)) return reject(state, "no-current-actor");
+  if (!actor.learnedSkills.some((known) => known.skillId === skillId && known.type === "active"))
+    return reject(state, "skill-not-learned");
+  const skill = skillById(catalog, skillId);
+  if (skill.type !== "active" || !skill.scenes.includes("battle")) return reject(state, "skill-not-usable");
+  const target = findCombatant(state, targetId);
+  if (!target) return reject(state, "target-does-not-exist");
+  if (!canParticipate(target.hp, target.status)) return reject(state, "target-is-defeated");
+  if ((skill.target === "single-enemy") === (target.team === actor.team)) return reject(state, "skill-not-usable");
+  const fatigueAfter = actor.mentalFatigue + skill.mentalFatigueIncrease;
+  if (!Number.isFinite(fatigueAfter)) return reject(state, "numeric-overflow");
+  const base = activeSkillBaseAmount(skill, {
+    attackPower: actor.attackPower,
+    maxHp: effectiveMaxHp(actor.maxHp, actor.status),
+  });
+  const amount =
+    base * (mentalFatigueAffectedQuantity(skill) ? mentalFatigueMultiplier(actor.mentalFatigue, fatigue) : 1);
+  const hitRate = skill.effect.type === "damage" ? effectiveHitRate(actor.hitRate, actor.status) : 1;
+  const draw = amount > 0 && hitRate > 0 && hitRate < 1 ? nextGameRandom(state.randomState) : null;
+  const hit = hitRate === 1 || (hitRate > 0 && (draw === null || draw.value < hitRate));
+  const applied = hit ? amount : 0;
+  const hp =
+    skill.effect.type === "damage"
+      ? Math.max(0, target.hp - applied)
+      : Math.min(effectiveMaxHp(target.maxHp, target.status), target.hp + applied);
+  const defeated = hp === 0;
+  const combatants = state.combatants.map((entry) => ({
+    ...entry,
+    ...(entry.id === targetId
+      ? { hp, isAlive: !defeated, status: defeated ? applyIncapacity(entry.status) : entry.status }
+      : {}),
+    ...(entry.id === actorId ? { mentalFatigue: fatigueAfter } : {}),
+  }));
+  const outcome = determineOutcome({ combatants });
+  const events: BattleEvent[] = [
+    {
+      type: "skill",
+      actorId,
+      targetId,
+      skillId,
+      effect: skill.effect.type,
+      amount: Math.abs(hp - target.hp),
+      fatigueBefore: actor.mentalFatigue,
+      fatigueAfter,
+      hit,
+    },
+  ];
+  if (defeated) events.push({ type: "combatant-defeated", combatantId: targetId });
+  if (outcome !== "ongoing") events.push({ type: "battle-ended", outcome });
+  return completeBattleAction({ ...state, randomState: draw?.state ?? state.randomState, combatants, outcome }, events);
+}
+export function performBattleSkillAndAdvanceToAllyInput(
+  state: BattleState,
+  actorId: string,
+  targetId: string,
+  skillId: string,
+  expectedActionTime: number,
+  catalog: SkillCatalog,
+  fatigue: MentalFatigueDefinition,
+): BasicAttackResult {
+  const used = performBattleSkill(state, actorId, targetId, skillId, expectedActionTime, catalog, fatigue);
+  if (!used.accepted || state.combatants.find((entry) => entry.id === actorId)?.team !== "ally") return used;
+  const loop = advanceBattleToNextAllyInput(used.state);
+  return { accepted: true, state: loop.state, events: [...used.events, ...loop.events] };
 }
 
 /**

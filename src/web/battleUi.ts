@@ -3,13 +3,18 @@ import {
   advanceBattleToNextAllyInput,
   type BattleCombatantDefinition,
   type BattleEvent,
+  type BattleSkillRules,
   type BattleState,
   createBattleState,
   getBattleUpcomingActions,
   performBasicAttackAndAdvanceToAllyInput,
 } from "../game/battle";
+import { mentalFatigueMultiplier } from "../game/mentalFatigue";
+import { activeSkillBaseAmount, mentalFatigueAffectedQuantity, skillById } from "../game/skills";
+import { canParticipate, effectiveMaxHp } from "../game/status";
 import type { createBattleScene } from "./battleScene";
 import { requiredElement } from "./requiredElement";
+import { formatAmount, mentalFatigueText } from "./sessionFeedback";
 
 const EVENT_TOAST_DURATION_MS = 650;
 const ENEMY_TURN_PAUSE_MS = 360;
@@ -94,6 +99,8 @@ export type BattleUiAttackResult =
 
 export interface BattleUiOptions {
   readonly initialState?: BattleState;
+  readonly skillRules?: BattleSkillRules;
+  readonly useSkill?: (state: BattleState, actorId: string, targetId: string, skillId: string) => BattleUiAttackResult;
   readonly combatants?: readonly BattleCombatantDefinition[];
   readonly displayNames?: Readonly<Record<string, string>>;
   readonly attack?: (state: BattleState, actorId: string, targetId: string) => BattleUiAttackResult;
@@ -121,6 +128,16 @@ function makeBattleMarkup(): string {
           </svg>
           <span>通常攻撃</span>
         </button>
+        <button class="command" type="button" data-skills hidden>スキル</button>
+        <div class="skill-panel" data-skill-panel hidden>
+          <p data-skill-fatigue></p>
+          <div data-skill-list></div>
+          <p data-skill-preview></p>
+          <label data-ally-label hidden>回復対象<select data-ally-target aria-label="回復対象"></select></label>
+          <button class="command" type="button" data-use-skill>使用する</button>
+          <button class="command" type="button" data-cancel-skill>戻る</button>
+        </div>
+        <p class="skill-result" data-skill-result hidden></p>
       </section>
       <section class="party" data-party aria-label="味方の状態"></section>
       <section class="battle-result panel" data-result role="status" aria-live="assertive" hidden>
@@ -164,6 +181,9 @@ export function mountBattleUi(
   const eventSignal = events.signal;
   let state = options.initialState ?? createInitialBattle();
   let selectedTargetId = getFrontmostLivingEnemyId(state);
+  let skillPanelOpen = false;
+  let selectedSkillId: string | null = null;
+  let allyTargetId: string | null = null;
   let replayingEvents = false;
   let message = targetPrompt();
   let disposed = false;
@@ -178,6 +198,17 @@ export function mountBattleUi(
   const battleUi = requiredElement<HTMLElement>(hud, "[data-battle-ui]");
   const timeline = requiredElement<HTMLOListElement>(hud, "[data-timeline]");
   const party = requiredElement<HTMLElement>(hud, "[data-party]");
+  const skillsButton = requiredElement<HTMLButtonElement>(hud, "[data-skills]");
+  const skillPanel = requiredElement<HTMLElement>(hud, "[data-skill-panel]");
+  const skillList = requiredElement<HTMLElement>(hud, "[data-skill-list]");
+  const skillFatigue = requiredElement<HTMLElement>(hud, "[data-skill-fatigue]");
+  const skillPreview = requiredElement<HTMLElement>(hud, "[data-skill-preview]");
+  const allyLabel = requiredElement<HTMLElement>(hud, "[data-ally-label]");
+  const allyTarget = requiredElement<HTMLSelectElement>(hud, "[data-ally-target]");
+  const useSkillButton = requiredElement<HTMLButtonElement>(hud, "[data-use-skill]");
+  const cancelSkillButton = requiredElement<HTMLButtonElement>(hud, "[data-cancel-skill]");
+  const skillResult = requiredElement<HTMLElement>(hud, "[data-skill-result]");
+  if (options.skillRules) battleUi.classList.add("with-skills");
   const attackButton = requiredElement<HTMLButtonElement>(hud, "[data-attack]");
   const resultPanel = requiredElement<HTMLElement>(hud, "[data-result]");
   const resultTitle = requiredElement<HTMLHeadingElement>(hud, "[data-result-title]");
@@ -254,6 +285,7 @@ export function mountBattleUi(
     const rect = id === null ? undefined : battle.getCombatantScreenRect(id);
     const nameplate = id === null ? undefined : enemyNameplates.get(id);
     if (
+      !hasSelectedEnemy() ||
       id === null ||
       getCombatant(id)?.isAlive !== true ||
       rect === undefined ||
@@ -378,12 +410,15 @@ export function mountBattleUi(
     for (const combatant of state.combatants) {
       if (combatant.team === "enemy") continue;
       const name = combatantName(combatant.id);
-      const maximum = findInitialCombatant(combatant.id)?.hp ?? combatant.hp;
+      const maximum = effectiveMaxHp(combatant.maxHp, combatant.status);
       const status = combatant.isAlive ? "" : "戦闘不能";
       const card = document.createElement("article");
       card.className = `ally-card${combatant.id === state.currentActorId ? " active" : ""}${combatant.isAlive ? "" : " defeated"}`;
       if (combatant.id === state.currentActorId) card.setAttribute("aria-current", "true");
-      card.setAttribute("aria-label", `${name}、HP ${combatant.hp}/${maximum}${status ? `、${status}` : ""}`);
+      card.setAttribute(
+        "aria-label",
+        `${name}、HP ${formatAmount(combatant.hp)}/${maximum}${status ? `、${status}` : ""}`,
+      );
       const image = document.createElement("img");
       image.className = "ally-portrait";
       image.alt = "";
@@ -403,7 +438,7 @@ export function mountBattleUi(
       const hpLabel = document.createElement("span");
       hpLabel.textContent = "HP";
       const hp = document.createElement("b");
-      hp.textContent = `${combatant.hp}`;
+      hp.textContent = `${formatAmount(combatant.hp)}`;
       const maximumLabel = document.createElement("span");
       maximumLabel.textContent = `/ ${maximum}`;
       hpLine.append(hpLabel, hp, maximumLabel);
@@ -427,15 +462,15 @@ export function mountBattleUi(
       nameplate.classList.toggle("selected", selectedTargetId === id);
       nameplate.setAttribute(
         "aria-label",
-        `${combatantName(id)}、HP ${enemy.hp}/${maximum}${defeated ? "、戦闘不能" : ""}`,
+        `${combatantName(id)}、HP ${formatAmount(enemy.hp)}/${maximum}${defeated ? "、戦闘不能" : ""}`,
       );
-      hp.textContent = `${enemy.hp} / ${maximum}`;
+      hp.textContent = `${formatAmount(enemy.hp)} / ${maximum}`;
       status.textContent = defeated ? "戦闘不能" : "";
       bar.style.width = `${maximum === 0 ? 0 : (enemy.hp / maximum) * 100}%`;
       const button = enemyHitAreas.get(id);
       button?.setAttribute(
         "aria-label",
-        `${combatantName(id)}、HP ${enemy.hp}/${maximum}${defeated ? "、戦闘不能" : ""}、攻撃対象に選択`,
+        `${combatantName(id)}、HP ${formatAmount(enemy.hp)}/${maximum}${defeated ? "、戦闘不能" : ""}、攻撃対象に選択`,
       );
     }
   }
@@ -446,7 +481,12 @@ export function mountBattleUi(
   }
 
   function hasSelectedEnemy(): boolean {
-    return selectedTargetId !== null && getCombatant(selectedTargetId)?.isAlive === true && state.outcome === "ongoing";
+    return (
+      selectedTargetId !== null &&
+      getCombatant(selectedTargetId)?.isAlive === true &&
+      state.outcome === "ongoing" &&
+      !(skillPanelOpen && selectedSkill()?.target === "single-ally")
+    );
   }
 
   function animateTetra(time: number) {
@@ -488,6 +528,7 @@ export function mountBattleUi(
     screenReaderStatus.textContent = message;
     const canAct = currentActorIsAlly() && !replayingEvents;
     attackButton.disabled = !canAct || selectedTargetId === null;
+    renderSkills(canAct);
     for (const [id, button] of enemyHitAreas) {
       const enemy = getCombatant(id);
       button.setAttribute("aria-pressed", String(id === selectedTargetId));
@@ -556,6 +597,16 @@ export function mountBattleUi(
         showEventToast(detail, "attack");
         screenReaderStatus.textContent = detail;
         await animationWait(EVENT_TOAST_DURATION_MS);
+      } else if (event.type === "skill") {
+        hasReplayedAllyAttack = true;
+        const name = options.skillRules ? skillById(options.skillRules.catalog, event.skillId).name : event.skillId;
+        const detail = `${name}：${combatantName(event.targetId)}に${formatAmount(event.amount)}${event.effect === "damage" ? "ダメージ" : "回復"}${event.hit ? "" : "（外れ）"} · 精神疲労 ${formatAmount(event.fatigueBefore)} → ${formatAmount(event.fatigueAfter)}`;
+        skillResult.textContent = detail;
+        skillResult.hidden = false;
+        message = detail;
+        showEventToast(detail, "attack");
+        screenReaderStatus.textContent = detail;
+        await animationWait(EVENT_TOAST_DURATION_MS);
       } else if (event.type === "combatant-defeated") {
         battle.playCombatantEffect(event.combatantId, "defeat", !reducedMotion.matches, () => {
           if (!disposed) finishDefeatPresentation(event.combatantId);
@@ -617,6 +668,132 @@ export function mountBattleUi(
     render();
     void replayEvents(result.events);
   }
+
+  function selectedSkill() {
+    if (!options.skillRules || !selectedSkillId) return undefined;
+    const skill = skillById(options.skillRules.catalog, selectedSkillId);
+    return skill.type === "active" ? skill : undefined;
+  }
+
+  function renderSkills(canAct: boolean) {
+    const rules = options.skillRules;
+    skillsButton.hidden = !rules || skillPanelOpen;
+    skillsButton.disabled = !canAct;
+    skillPanel.hidden = !skillPanelOpen || !canAct;
+    attackButton.hidden = skillPanelOpen;
+    if (!rules || !skillPanelOpen || !canAct) return;
+    const actor = state.combatants.find((member) => member.id === state.currentActorId);
+    if (!actor) return;
+    skillFatigue.textContent = `精神疲労 ${mentalFatigueText(actor.mentalFatigue)} · 試用値`;
+    skillList.replaceChildren();
+    for (const known of actor.learnedSkills) {
+      const definition = skillById(rules.catalog, known.skillId);
+      if (definition.type !== "active" || !definition.scenes.includes("battle")) continue;
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "command";
+      button.textContent = definition.name;
+      button.setAttribute("aria-pressed", String(selectedSkillId === definition.id));
+      button.addEventListener("click", () => {
+        selectedSkillId = definition.id;
+        render();
+        skillList.querySelector<HTMLButtonElement>('[aria-pressed="true"]')?.focus();
+      });
+      skillList.append(button);
+    }
+    const skill = selectedSkill();
+    useSkillButton.disabled = !skill;
+    allyLabel.hidden = skill?.target !== "single-ally";
+    allyTarget.replaceChildren();
+    for (const member of state.combatants.filter(
+      (member) => member.team === actor.team && canParticipate(member.hp, member.status),
+    )) {
+      const option = document.createElement("option");
+      option.value = member.id;
+      option.textContent = `${combatantName(member.id)} · HP ${formatAmount(member.hp)} / ${formatAmount(effectiveMaxHp(member.maxHp, member.status))}`;
+      allyTarget.append(option);
+    }
+    if (!allyTargetId || ![...allyTarget.options].some((option) => option.value === allyTargetId))
+      allyTargetId = actor.id;
+    allyTarget.value = allyTargetId;
+    if (!skill) {
+      skillPreview.textContent = "使用するスキルを選択";
+      return;
+    }
+    const multiplier = mentalFatigueAffectedQuantity(skill)
+      ? mentalFatigueMultiplier(actor.mentalFatigue, rules.fatigue)
+      : 1;
+    const amount =
+      activeSkillBaseAmount(skill, {
+        attackPower: actor.attackPower,
+        maxHp: effectiveMaxHp(actor.maxHp, actor.status),
+      }) * multiplier;
+    skillPreview.textContent = `${skill.description} 予測${skill.effect.type === "damage" ? "ダメージ" : "回復量"} ${formatAmount(amount)}（倍率 ${formatAmount(multiplier)}） · 使用後疲労 +${formatAmount(skill.mentalFatigueIncrease)}。命中・HP上限により実効果は変わります。`;
+    if (skill.target === "single-enemy")
+      skillPreview.textContent += ` 対象：${selectedTargetId ? combatantName(selectedTargetId) : "なし"}`;
+  }
+
+  function cancelSkill() {
+    if (!skillPanelOpen || replayingEvents) return;
+    skillPanelOpen = false;
+    selectedSkillId = null;
+    render();
+    skillsButton.focus();
+  }
+
+  skillsButton.addEventListener(
+    "click",
+    () => {
+      skillPanelOpen = true;
+      selectedSkillId = null;
+      render();
+      skillList.querySelector<HTMLButtonElement>("button")?.focus();
+    },
+    { signal: eventSignal },
+  );
+  cancelSkillButton.addEventListener("click", cancelSkill, { signal: eventSignal });
+  allyTarget.addEventListener(
+    "change",
+    () => {
+      allyTargetId = allyTarget.value;
+    },
+    { signal: eventSignal },
+  );
+  window.addEventListener(
+    "keydown",
+    (event) => {
+      if (event.key === "Escape" && skillPanelOpen) {
+        event.preventDefault();
+        cancelSkill();
+      }
+    },
+    { signal: eventSignal },
+  );
+  useSkillButton.addEventListener(
+    "click",
+    () => {
+      const actorId = state.currentActorId;
+      const skill = selectedSkill();
+      if (!actorId || !skill || replayingEvents || !currentActorIsAlly() || !options.useSkill) return;
+      const targetId = skill.target === "single-ally" ? allyTargetId : selectedTargetId;
+      if (!targetId) return;
+      replayingEvents = true;
+      const result = options.useSkill(state, actorId, targetId, skill.id);
+      if (!result.accepted) {
+        replayingEvents = false;
+        message = `使用できませんでした：${result.reason}`;
+        render();
+        return;
+      }
+      state = result.state;
+      skillPanelOpen = false;
+      selectedSkillId = null;
+      if (getCombatant(selectedTargetId ?? "")?.isAlive !== true) selectedTargetId = getFrontmostLivingEnemyId(state);
+      render();
+      void replayEvents(result.events);
+    },
+    { signal: eventSignal },
+  );
 
   attackButton.addEventListener(
     "click",

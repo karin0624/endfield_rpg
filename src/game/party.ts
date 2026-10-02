@@ -1,5 +1,6 @@
 import { hasFlags, type RecruitmentEffect } from "./adventure";
 import type { BattleCombatantDefinition } from "./battle";
+import { initialLearnedSkills, type SkillCatalog } from "./skills";
 import { type CharacterStatus, canParticipate, healthyStatus } from "./status";
 
 export interface CharacterDefinition {
@@ -12,6 +13,8 @@ export interface CharacterDefinition {
 }
 
 export interface PartyMember {
+  /** Persistent numeric fatigue, separate from staged symptoms; absence means legacy zero. */
+  readonly mentalFatigue?: number;
   readonly status?: CharacterStatus;
   readonly id: string;
   readonly hp: number;
@@ -82,6 +85,7 @@ export function setPartySlot(
 export function getPartyCombatants(
   state: PartyState,
   definitions: readonly CharacterDefinition[],
+  catalog?: SkillCatalog,
 ): BattleCombatantDefinition[] {
   return state.slots.flatMap((id) => {
     if (id === null) return [];
@@ -90,6 +94,8 @@ export function getPartyCombatants(
     const definition = characterById(definitions, id);
     return [
       {
+        mentalFatigue: member.mentalFatigue ?? 0,
+        learnedSkills: catalog ? initialLearnedSkills(catalog, id) : [],
         maxHp: definition.maxHp,
         hitRate: definition.hitRate,
         status: member.status ?? healthyStatus(),

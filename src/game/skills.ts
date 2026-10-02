@@ -59,6 +59,17 @@ export type LearnedSkill = {
   readonly acquisition: "initial" | "guaranteed" | "choice";
 } & ({ readonly type: "active"; readonly rank?: never } | { readonly type: "passive"; readonly rank: number });
 
+/** Resolve authored initial ownership only; null is not an empty loadout. */
+export function initialLearnedSkills(catalog: SkillCatalog, characterId: string): readonly LearnedSkill[] {
+  const profile = catalog.characters.find((entry) => entry.characterId === characterId);
+  if (!profile || profile.initialSkillIds === null) throw new Error(`初期スキル定義が未接続です: ${characterId}`);
+  return profile.initialSkillIds.map((skillId) =>
+    skillById(catalog, skillId).type === "active"
+      ? { skillId, type: "active", origin: "initial", acquisition: "initial" }
+      : { skillId, type: "passive", origin: "initial", acquisition: "initial", rank: 1 },
+  );
+}
+
 /** Unrounded base amount. Fatigue and other modifiers belong to the use owner. */
 export function activeSkillBaseAmount(
   skill: ActiveSkillDefinition,

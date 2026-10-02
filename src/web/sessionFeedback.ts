@@ -1,8 +1,13 @@
+import { mentalFatigueDefinition } from "../content/mentalFatigueDefinition";
 import type { CharacterRecoveryChange, GameActionCompletion } from "../game/expedition";
+import { mentalFatigueLabel } from "../game/mentalFatigue";
 import { type CharacterDefinition, characterById } from "../game/party";
 import type { CharacterStatus } from "../game/status";
 import { type ActionClock, createActionClock, getCalendar } from "../game/time";
 
+export const formatAmount = (value: number): string => String(Number(value.toFixed(2)));
+export const mentalFatigueText = (value: number): string =>
+  `${formatAmount(value)}（${mentalFatigueLabel(value, mentalFatigueDefinition)}）`;
 const severity = ["なし", "軽度", "中度", "重度"];
 export function calendarLabel(clock: ActionClock = createActionClock()): string {
   const calendar = getCalendar(clock);
@@ -22,6 +27,11 @@ export function symptomLabel(status: CharacterStatus): string {
 function recoveryLabel(change: CharacterRecoveryChange): string {
   const { before, after } = change;
   return [
+    change.mentalFatigueBefore !== undefined &&
+    change.mentalFatigueAfter !== undefined &&
+    change.mentalFatigueBefore !== change.mentalFatigueAfter
+      ? `精神疲労：${formatAmount(change.mentalFatigueBefore)} → ${mentalFatigueText(change.mentalFatigueAfter)}`
+      : "",
     ...(["physicalFatigue", "haze"] as const).map((kind) =>
       before[kind] === after[kind]
         ? ""

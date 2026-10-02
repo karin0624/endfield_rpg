@@ -1,6 +1,7 @@
 import type { SkillCatalog } from "../game/skills";
 
-/** All names, scaling, rank caps/effects and fatigue increases are provisional test data. */
+/** Initial loadouts are trial skills, not the characters' canonical signature moves.
+ * All names, scaling, rank caps/effects and fatigue increases are provisional test data. */
 export const skillCatalog = {
   skills: [
     {
@@ -105,7 +106,7 @@ export const skillCatalog = {
     },
   ],
   characters: [
-    { characterId: "player", poolId: "test-shared", initialSkillIds: null },
-    { characterId: "gilberta", poolId: "test-shared", initialSkillIds: null },
+    { characterId: "player", poolId: "test-shared", initialSkillIds: ["test-strike", "test-heal"] },
+    { characterId: "gilberta", poolId: "test-shared", initialSkillIds: ["test-strike", "test-heal"] },
   ],
 } as const satisfies SkillCatalog;

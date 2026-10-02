@@ -13,12 +13,15 @@ import {
 import {
   advanceBattleToNextAllyInput,
   type BasicAttackRejectionReason,
+  type BasicAttackResult,
   type BattleCombatantDefinition,
   type BattleEvent,
   type BattleOutcome,
+  type BattleSkillRules,
   type BattleState,
   createBattleState,
   performBasicAttackAndAdvanceToAllyInput,
+  performBattleSkillAndAdvanceToAllyInput,
 } from "./battle";
 import type { GameState } from "./createInitialGameState";
 
@@ -66,6 +69,7 @@ export type DungeonActivity =
   | { readonly type: "conversation"; readonly state: GameState };
 
 export interface DungeonState {
+  readonly expeditionActionId?: number;
   readonly dungeonId: string;
   /** The last entered node, or the entry node before the first choice. */
   readonly currentNodeId: string;
@@ -330,6 +334,8 @@ function updatePartyFromBattle(state: DungeonState, battle: BattleState): readon
       ...member,
       maxHp: combatant.maxHp,
       hitRate: combatant.hitRate,
+      mentalFatigue: combatant.mentalFatigue,
+      learnedSkills: combatant.learnedSkills,
       hp: combatant.hp,
       status: combatant.status,
     };
@@ -472,11 +478,10 @@ export function chooseDungeonConversationOption(
 }
 
 /** Resolve a player attack and any following enemy actions with the shared battle rules. */
-export function performDungeonBasicAttack(
+function resolveDungeonBattleAction(
   state: DungeonState,
-  actorId: string,
-  targetId: string,
   definition: DungeonDefinition,
+  act: (battle: BattleState) => BasicAttackResult,
 ): DungeonActionResult {
   if (state.dungeonId !== definition.id) {
     return reject(state, "wrong-dungeon");
@@ -488,7 +493,7 @@ export function performDungeonBasicAttack(
   if (node === undefined || (node.type !== "battle" && node.type !== "boss")) {
     throw new Error(`進行中の戦闘ノードが存在しません: ${state.activeNodeId}`);
   }
-  const attack = performBasicAttackAndAdvanceToAllyInput(state.activity.state, actorId, targetId);
+  const attack = act(state.activity.state);
   if (!attack.accepted) {
     return reject(state, `battle:${attack.reason}`);
   }
@@ -507,4 +512,43 @@ export function performDungeonBasicAttack(
     };
   }
   return { accepted: true, state: updated, events: attack.events, battleState: attack.state };
+}
+
+export function performDungeonBasicAttack(
+  state: DungeonState,
+  actorId: string,
+  targetId: string,
+  definition: DungeonDefinition,
+): DungeonActionResult {
+  return resolveDungeonBattleAction(state, definition, (battle) =>
+    performBasicAttackAndAdvanceToAllyInput(battle, actorId, targetId),
+  );
+}
+export interface DungeonSkillInput {
+  readonly actorId: string;
+  readonly targetId: string;
+  readonly skillId: string;
+  readonly expectedActionTime: number;
+  readonly expectedNodeId: string;
+  readonly expeditionActionId: number;
+}
+export function performDungeonSkill(
+  state: DungeonState,
+  input: DungeonSkillInput,
+  definition: DungeonDefinition,
+  rules: BattleSkillRules,
+): DungeonActionResult {
+  if (state.expeditionActionId !== input.expeditionActionId || state.activeNodeId !== input.expectedNodeId)
+    return reject(state, "battle:action-not-current");
+  return resolveDungeonBattleAction(state, definition, (battle) =>
+    performBattleSkillAndAdvanceToAllyInput(
+      battle,
+      input.actorId,
+      input.targetId,
+      input.skillId,
+      input.expectedActionTime,
+      rules.catalog,
+      rules.fatigue,
+    ),
+  );
 }

@@ -50,7 +50,7 @@ describe("スキル定義", () => {
     expect(() => validateSkillCatalog(skillCatalog, characters)).not.toThrow();
     for (const characterId of ["player", "gilberta"]) {
       const profile = skillCatalog.characters.find((entry) => entry.characterId === characterId);
-      expect(profile).toMatchObject({ poolId: "test-shared", initialSkillIds: null });
+      expect(profile).toMatchObject({ poolId: "test-shared", initialSkillIds: ["test-strike", "test-heal"] });
       const pool = skillCatalog.pools.find((entry) => entry.id === profile?.poolId);
       if (!pool) throw new Error("候補群がありません");
       for (const [tier, damage, healing, bonus] of [

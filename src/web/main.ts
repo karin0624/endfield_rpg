@@ -2,7 +2,9 @@ import { characters } from "../content/characters";
 import { initialAdventure } from "../content/initialAdventure";
 import { initialDungeon } from "../content/initialDungeon";
 import { initialGameOptions } from "../content/initialGameOptions";
+import { mentalFatigueDefinition } from "../content/mentalFatigueDefinition";
 import { saveDefinitions } from "../content/saveDefinitions";
+import { skillCatalog } from "../content/skillDefinitions";
 import { createInitialGameState } from "../game/createInitialGameState";
 import {
   actInExpedition,
@@ -23,10 +25,11 @@ import type { createBattleScene } from "./battleScene";
 import { parseBattleSettings } from "./battleSettings";
 import "./style.css";
 import { loadSlot, saveSlot } from "./saveSlot";
-import { calendarLabel, completionFeedback, symptomLabel } from "./sessionFeedback";
+import { calendarLabel, completionFeedback, mentalFatigueText, symptomLabel } from "./sessionFeedback";
 
 const app = document.querySelector<HTMLDivElement>("#app");
 if (app === null) throw new Error("#app が見つかりません");
+const skillRules = { catalog: skillCatalog, fatigue: mentalFatigueDefinition };
 const query = new URLSearchParams(location.search);
 const editing = import.meta.env.DEV && query.get("edit") === "1";
 const dungeonMode = query.get("dungeon") === "1";
@@ -105,7 +108,12 @@ if (!battleMode) {
               ...completionFeedback(completion, characters),
               ...(completion?.returnedIds ?? []).flatMap((id) => {
                 const member = game.party.members.find((candidate) => candidate.id === id);
-                const label = symptomLabel(member?.status ?? healthyStatus());
+                const label = [
+                  symptomLabel(member?.status ?? healthyStatus()),
+                  (member?.mentalFatigue ?? 0) > 0 ? `精神疲労 ${mentalFatigueText(member?.mentalFatigue ?? 0)}` : "",
+                ]
+                  .filter(Boolean)
+                  .join(" / ");
                 return label ? [`${characterById(characters, id).name} · ${label}`] : [];
               }),
             ],
@@ -113,7 +121,7 @@ if (!battleMode) {
               const result =
                 command.type === "select"
                   ? beginTownExploration(game, command.placeId, initialAdventure)
-                  : actInTown(game, actionId ?? -1, command, characters, initialAdventure);
+                  : actInTown(game, actionId ?? -1, command, characters, initialAdventure, mentalFatigueDefinition);
               game = result.state;
               if (result.accepted) completion = result.completion;
               return result.accepted
@@ -135,7 +143,7 @@ if (!battleMode) {
                 return result;
               },
               depart: () => {
-                const result = departOnExpedition(game, characters, initialDungeon, initialAdventure);
+                const result = departOnExpedition(game, characters, initialDungeon, initialAdventure, skillRules);
                 game = result.state;
                 if (result.accepted) showDungeon();
                 return result;
@@ -154,6 +162,7 @@ if (!battleMode) {
     const actionId = game.clock?.pendingAction?.id;
     disposeDungeon = mountDungeonUi(app, {
       initialState: game.dungeon,
+      skillRules,
       calendarLabel: calendarLabel(game.clock),
       combatants: getPartyCombatants(game.party, characters).map((member) => ({
         ...member,
@@ -161,7 +170,7 @@ if (!battleMode) {
       })),
       displayNames: Object.fromEntries(characters.map(({ id, name }) => [id, name])),
       dispatch: (command) => {
-        const update = actInExpedition(game, command, initialDungeon, initialAdventure);
+        const update = actInExpedition(game, command, initialDungeon, initialAdventure, skillRules);
         game = update.state;
         return update.result;
       },
@@ -177,7 +186,7 @@ if (!battleMode) {
   }
   if (!disposed) {
     if (dungeonMode) {
-      game = departOnExpedition(game, characters, initialDungeon, initialAdventure).state;
+      game = departOnExpedition(game, characters, initialDungeon, initialAdventure, skillRules).state;
       showDungeon();
     } else {
       const adventure = showTown();

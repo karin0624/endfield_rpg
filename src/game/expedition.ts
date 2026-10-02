@@ -5,6 +5,7 @@ import {
   chooseConversationOption,
   selectTownPlace,
 } from "./adventure";
+import type { BattleSkillRules } from "./battle";
 import type { GameState } from "./createInitialGameState";
 import {
   advanceDungeonConversation,
@@ -12,10 +13,13 @@ import {
   createDungeonState,
   type DungeonActionResult,
   type DungeonDefinition,
+  type DungeonSkillInput,
   type DungeonState,
   enterNextDungeonNode,
   performDungeonBasicAttack,
+  performDungeonSkill,
 } from "./dungeon";
+import { type MentalFatigueDefinition, recoverMentalFatigue } from "./mentalFatigue";
 import {
   type CharacterDefinition,
   characterById,
@@ -73,6 +77,7 @@ export function departOnExpedition(
   characters: readonly CharacterDefinition[],
   route: DungeonDefinition,
   adventure: AdventureDefinition,
+  skills?: BattleSkillRules,
 ): ExpeditionResult {
   if (state.dungeon !== null || state.adventure.mode !== "town")
     return { accepted: false, state, reason: "not-in-town" };
@@ -83,17 +88,25 @@ export function departOnExpedition(
   const dungeon = createDungeonState(
     route,
     adventure,
-    getPartyCombatants(state.party, characters),
+    getPartyCombatants(state.party, characters, skills?.catalog),
     state.adventure.flags,
     state.randomState ?? 1,
   );
-  return { accepted: true, state: { ...state, dungeon, clock: beginTimedAction(clock, "dungeon-expedition") } };
+  return {
+    accepted: true,
+    state: {
+      ...state,
+      dungeon: { ...dungeon, expeditionActionId: clock.nextActionId },
+      clock: beginTimedAction(clock, "dungeon-expedition"),
+    },
+  };
 }
 
 export type DungeonCommand =
   | { readonly type: "enter"; readonly nodeId: string }
   | { readonly type: "advance" }
   | { readonly type: "choose"; readonly optionId: string }
+  | ({ readonly type: "skill" } & DungeonSkillInput)
   | { readonly type: "attack"; readonly actorId: string; readonly targetId: string };
 
 /** Commit the core result before rendering it. Roster HP follows the battle projection, preserving reserves. */
@@ -102,10 +115,16 @@ export function actInExpedition(
   command: DungeonCommand,
   route: DungeonDefinition,
   adventure: AdventureDefinition,
+  skills?: BattleSkillRules,
 ): { readonly state: ExpeditionGame; readonly result: DungeonActionResult } {
   if (state.dungeon === null) throw new Error("探索を開始していません");
   let result: DungeonActionResult;
   switch (command.type) {
+    case "skill":
+      result = skills
+        ? performDungeonSkill(state.dungeon, command, route, skills)
+        : { accepted: false, state: state.dungeon, reason: "battle:skill-not-usable", events: [] };
+      break;
     case "enter":
       result = enterNextDungeonNode(state.dungeon, command.nodeId, route, adventure);
       break;
@@ -130,7 +149,14 @@ export function actInExpedition(
         ...state.party,
         members: state.party.members.map((member) => {
           const participant = dungeon.party.find(({ id }) => id === member.id);
-          return participant === undefined ? member : { ...member, hp: participant.hp, status: participant.status };
+          return participant === undefined
+            ? member
+            : {
+                ...member,
+                hp: participant.hp,
+                status: participant.status,
+                mentalFatigue: participant.mentalFatigue ?? 0,
+              };
         }),
       },
       adventure: { ...state.adventure, flags: dungeon.flags },
@@ -175,6 +201,7 @@ export function receiveTownRecoverySignal(
   state: ExpeditionGame,
   signal: number,
   characters: readonly CharacterDefinition[],
+  fatigue?: MentalFatigueDefinition,
 ): ExpeditionGame {
   if (!Number.isSafeInteger(signal) || signal < 0) throw new RangeError("回復signalは非負の整数です");
   if (signal <= (state.lastTownRecoverySignal ?? -1)) return state;
@@ -189,6 +216,7 @@ export function receiveTownRecoverySignal(
         const status = recoverTownStep(member.status ?? healthyStatus());
         return {
           ...member,
+          mentalFatigue: fatigue ? recoverMentalFatigue(member.mentalFatigue ?? 0, fatigue) : member.mentalFatigue,
           status,
           hp: Math.min(member.hp, effectiveMaxHp(characterById(characters, member.id).maxHp, status)),
         };
@@ -223,6 +251,8 @@ export function applyPartyStatus(
 }
 
 export interface CharacterRecoveryChange {
+  readonly mentalFatigueBefore?: number;
+  readonly mentalFatigueAfter?: number;
   readonly id: string;
   readonly before: CharacterStatus;
   readonly after: CharacterStatus;
@@ -264,6 +294,7 @@ export function completeTownExploration(
   state: ExpeditionGame,
   action: TimedAction,
   characters: readonly CharacterDefinition[],
+  fatigue?: MentalFatigueDefinition,
 ): TownActionResult {
   const clock = state.clock ?? createActionClock();
   if (state.dungeon !== null || state.adventure.mode !== "town")
@@ -276,12 +307,15 @@ export function completeTownExploration(
     { ...state, clock: result.clock },
     (state.lastTownRecoverySignal ?? -1) + 1,
     characters,
+    fatigue,
   );
   const recovery = recovered.party.members.map((member) => {
     const before = state.party.members.find(({ id }) => id === member.id)?.status ?? healthyStatus();
     const after = member.status ?? healthyStatus();
     return {
       id: member.id,
+      mentalFatigueBefore: state.party.members.find(({ id }) => id === member.id)?.mentalFatigue ?? 0,
+      mentalFatigueAfter: member.mentalFatigue ?? 0,
       before,
       after,
       remainingSteps: {
@@ -301,6 +335,7 @@ export function actInTown(
   command: TownCommand,
   characters: readonly CharacterDefinition[],
   definition: AdventureDefinition,
+  fatigue?: MentalFatigueDefinition,
 ): TownActionResult {
   const pending = state.clock?.pendingAction;
   if (pending?.kind !== "town-exploration" || pending.id !== actionId)
@@ -329,7 +364,7 @@ export function actInTown(
     };
   }
   if (result.state.mode !== "town") return { accepted: true, state: updated };
-  const completed = completeTownExploration(updated, pending, characters);
+  const completed = completeTownExploration(updated, pending, characters, fatigue);
   return completed.accepted && completed.completion !== undefined
     ? { ...completed, completion: { ...completed.completion, recruitedIds } }
     : completed;
