@@ -4,7 +4,8 @@ import { type CharacterDefinition, characterById, departureRejection, type Party
 import { canParticipate, effectiveMaxHp, healthyStatus } from "../game/status";
 import { mountCharacterDetailsUi } from "./characterDetailsUi";
 import { characterPortraitUrl } from "./characterPortrait";
-import { symptomLabel } from "./sessionFeedback";
+import { requiredElement } from "./requiredElement";
+import { formatAmount, mentalFatigueText, symptomLabel } from "./sessionFeedback";
 
 const rejectionText: Record<ExpeditionRejection, string> = {
   "invalid-slot": "編成枠を選び直してください。",
@@ -28,112 +29,253 @@ export interface PartyUiOptions {
 export function mountPartyUi(root: HTMLElement, options: PartyUiOptions, back: () => void) {
   root.innerHTML = `<header class="party-heading"><button class="party-back" type="button" data-party-back>戻る</button>
     <h2 id="party-title">出撃編成</h2><p class="party-calendar" data-party-calendar></p></header>
-    <div class="party-slots" data-party-slots></div>
+    <div class="party-workspace"><section class="party-candidates" aria-label="加入済みの仲間" hidden>
+    <h3 data-selection-title></h3><div class="party-candidate-grid" role="group" aria-label="候補一覧"></div></section>
+    <div class="party-current"><div class="party-slots" data-party-slots></div>
+    <section class="party-pending" aria-label="未確定の候補" hidden><h3 data-pending-name></h3>
+    <p data-pending-summary></p><p data-pending-reason></p>
+    <div class="party-pending-actions"><button type="button" class="party-detail" data-candidate-details>詳細</button>
+    <button type="button" class="party-back" data-remove>外す</button>
+    <button type="button" class="party-depart" data-confirm>編成する</button></div></section></div></div>
     <footer class="party-footer"><p data-party-status role="status" aria-live="polite"></p>
     <button class="party-depart" type="button" data-depart>出撃</button></footer>`;
-  const slots = root.querySelector<HTMLElement>("[data-party-slots]");
-  const status = root.querySelector<HTMLElement>("[data-party-status]");
-  const depart = root.querySelector<HTMLButtonElement>("[data-depart]");
-  const backButton = root.querySelector<HTMLButtonElement>("[data-party-back]");
-  if (!slots || !status || !depart || !backButton) throw new Error("編成画面を作成できませんでした");
+  const slots = requiredElement<HTMLElement>(root, "[data-party-slots]");
+  const status = requiredElement<HTMLElement>(root, "[data-party-status]");
+  const depart = requiredElement<HTMLButtonElement>(root, "[data-depart]");
+  const backButton = requiredElement<HTMLButtonElement>(root, "[data-party-back]");
+  const candidates = requiredElement<HTMLElement>(root, ".party-candidates");
+  const grid = requiredElement<HTMLElement>(root, ".party-candidate-grid");
+  const pending = requiredElement<HTMLElement>(root, ".party-pending");
+  const confirm = requiredElement<HTMLButtonElement>(root, "[data-confirm]");
+  const remove = requiredElement<HTMLButtonElement>(root, "[data-remove]");
+  const candidateDetails = requiredElement<HTMLButtonElement>(root, "[data-candidate-details]");
   const events = new AbortController();
   const details = mountCharacterDetailsUi(root, options.characters, options.getParty);
-  backButton.addEventListener("click", back, { signal: events.signal });
-  const selects = Array.from({ length: 4 }, (_, slot) => {
+  // A second click must not activate the screen revealed by the first click.
+  for (const type of ["mousedown", "click"] as const)
+    root.addEventListener(
+      type,
+      (event) => {
+        if (event.detail <= 1) return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+      },
+      { capture: true, signal: events.signal },
+    );
+  let editingSlot: number | null = null;
+  let candidateId: string | null = null;
+
+  function portrait(target: HTMLElement, id: string, face = false) {
+    target.replaceChildren();
+    const url = characterPortraitUrl(id, face);
+    if (url) {
+      const image = document.createElement("img");
+      image.className = "party-character-image";
+      image.src = url;
+      image.alt = "";
+      image.addEventListener(
+        "error",
+        () => {
+          target.textContent = "画像なし";
+        },
+        { once: true },
+      );
+      target.append(image);
+    } else target.textContent = "画像なし";
+  }
+  function memberHp(id: string) {
+    const member = options.getParty().members.find((entry) => entry.id === id);
+    if (!member) return "";
+    const character = characterById(options.characters, id);
+    return `HP ${formatAmount(member.hp)} / ${formatAmount(effectiveMaxHp(character.maxHp, member.status ?? healthyStatus()))}`;
+  }
+  const cards = Array.from({ length: 4 }, (_, slot) => {
     const card = document.createElement("div");
     card.className = "party-slot";
-    const label = document.createElement("label");
-    label.className = "sr-only";
-    label.textContent = `枠 ${slot + 1}`;
-    label.htmlFor = `party-slot-${slot + 1}`;
-    const portrait = document.createElement("div");
-    portrait.className = "party-slot-portrait";
-    portrait.setAttribute("aria-hidden", "true");
-    const hp = document.createElement("p");
-    hp.className = "party-slot-hp";
-    const symptoms = document.createElement("p");
-    symptoms.className = "party-slot-symptoms";
-    const select = document.createElement("select");
-    const detail = document.createElement("button");
-    detail.type = "button";
-    detail.className = "party-detail";
-    detail.textContent = "詳細";
+    card.innerHTML = `<button type="button" class="party-slot-choice" aria-label="枠 ${slot + 1}" aria-describedby="party-slot-name-${slot} party-slot-hp-${slot} party-slot-state-${slot}">
+      <span class="party-slot-portrait" aria-hidden="true"></span><span class="party-slot-name" id="party-slot-name-${slot}"></span>
+      <span class="party-slot-hp" id="party-slot-hp-${slot}"></span></button><p class="party-slot-symptoms" id="party-slot-state-${slot}"></p>
+      <button type="button" class="party-detail">詳細</button>`;
+    const choice = requiredElement<HTMLButtonElement>(card, ".party-slot-choice");
+    const detail = requiredElement<HTMLButtonElement>(card, ".party-detail");
+    choice.addEventListener(
+      "click",
+      () => {
+        editingSlot = slot;
+        candidateId = options.getParty().slots[slot] ?? null;
+        render();
+        grid.scrollTop = 0;
+        (
+          grid.querySelector<HTMLButtonElement>('[aria-pressed="true"]') ??
+          grid.querySelector<HTMLButtonElement>("button")
+        )?.focus();
+      },
+      { signal: events.signal },
+    );
     detail.addEventListener(
       "click",
       () => {
-        if (select.value) details.open(select.value, detail);
+        const id = options.getParty().slots[slot];
+        if (id) details.open(id, detail);
       },
       { signal: events.signal },
     );
-    select.id = label.htmlFor;
-    select.add(new Option("空き枠", ""));
-    for (const member of options.getParty().members)
-      select.add(new Option(characterById(options.characters, member.id).name, member.id));
-    select.addEventListener(
-      "change",
-      () => {
-        const result = options.edit(slot, select.value || null);
-        render(result.accepted ? "" : rejectionText[result.reason]);
-      },
-      { signal: events.signal },
-    );
-    card.append(label, portrait, hp, select, symptoms, detail);
     slots.append(card);
-    return { select, card, portrait, hp, symptoms, detail };
+    return { card, choice, detail };
   });
-  function render(message = "") {
-    if (!status || !depart) return;
+  function finish() {
+    const slot = editingSlot;
+    editingSlot = null;
+    candidateId = null;
+    render();
+    if (slot !== null) cards[slot]?.choice.focus({ preventScroll: true });
+  }
+  function goBack() {
+    if (editingSlot !== null) finish();
+    else back();
+  }
+  backButton.addEventListener("click", goBack, { signal: events.signal });
+  root.addEventListener(
+    "keydown",
+    (event) => {
+      if (event.repeat && ["Enter", " ", "Escape"].includes(event.key)) {
+        event.preventDefault();
+        return;
+      }
+      if (event.key !== "Escape" || event.repeat || root.querySelector("dialog[open]")) return;
+      event.preventDefault();
+      goBack();
+    },
+    { signal: events.signal },
+  );
+  function commit(id: string | null) {
+    if (editingSlot === null) return;
+    const result = options.edit(editingSlot, id);
+    if (result.accepted) finish();
+    else render(rejectionText[result.reason]);
+  }
+  confirm.addEventListener(
+    "click",
+    () => {
+      if (!confirm.disabled && candidateId) commit(candidateId);
+    },
+    { signal: events.signal },
+  );
+  remove.addEventListener("click", () => commit(null), { signal: events.signal });
+  candidateDetails.addEventListener(
+    "click",
+    () => {
+      if (candidateId) details.open(candidateId, candidateDetails);
+    },
+    { signal: events.signal },
+  );
+
+  function renderPending() {
     const party = options.getParty();
-    const calendar = root.querySelector<HTMLElement>("[data-party-calendar]");
-    if (calendar) calendar.textContent = options.getCalendarLabel();
-    selects.forEach(({ select, card, portrait, hp, symptoms, detail }, slot) => {
+    for (const button of grid.querySelectorAll<HTMLButtonElement>("button")) {
+      button.setAttribute("aria-pressed", String(button.value === candidateId));
+    }
+    const member = party.members.find((entry) => entry.id === candidateId);
+    const name = requiredElement<HTMLElement>(root, "[data-pending-name]");
+    const summary = requiredElement<HTMLElement>(root, "[data-pending-summary]");
+    const reason = requiredElement<HTMLElement>(root, "[data-pending-reason]");
+    name.textContent = member
+      ? `${characterById(options.characters, member.id).name}（未確定）`
+      : "仲間を選んでください";
+    summary.textContent = "";
+    if (member) {
+      const character = characterById(options.characters, member.id);
+      summary.textContent = `${memberHp(member.id)} · 攻撃力 ${character.attackPower} · 速度 ${character.speed} · 精神疲労 ${mentalFatigueText(member.mentalFatigue ?? 0)}`;
+    }
+    const duplicate = member && party.slots.some((id, slot) => id === member.id && slot !== editingSlot);
+    reason.textContent = duplicate ? "編成中。先に元の枠を空けてください。" : "";
+    reason.hidden = !reason.textContent;
+    candidateDetails.disabled = !member;
+    confirm.disabled = !member || !!duplicate;
+    confirm.textContent = editingSlot !== null && party.slots[editingSlot] ? "入れ替える" : "編成する";
+    remove.hidden = editingSlot === null || !party.slots[editingSlot];
+  }
+  function render(message = "") {
+    const party = options.getParty();
+    root.classList.toggle("is-selecting", editingSlot !== null);
+    candidates.hidden = editingSlot === null;
+    pending.hidden = editingSlot === null;
+    depart.hidden = editingSlot !== null;
+    requiredElement<HTMLElement>(root, "[data-party-calendar]").textContent = options.getCalendarLabel();
+    requiredElement<HTMLElement>(root, "[data-selection-title]").textContent =
+      `枠 ${(editingSlot ?? 0) + 1} の仲間を選ぶ`;
+    cards.forEach(({ card, choice, detail }, slot) => {
       const id = party.slots[slot];
-      select.replaceChildren(
-        new Option("空き枠", ""),
-        ...party.members.map((member) => new Option(characterById(options.characters, member.id).name, member.id)),
-      );
-      select.value = id ?? "";
-      for (const option of select.options) {
-        const candidate = party.members.find((member) => member.id === option.value);
-        if (!candidate) continue;
-        const character = characterById(options.characters, candidate.id);
-        option.text =
-          candidate.id === id
-            ? character.name
-            : `${character.name} — HP ${candidate.hp}/${effectiveMaxHp(character.maxHp, candidate.status ?? healthyStatus())}${!canParticipate(candidate.hp, candidate.status) ? "・戦闘不能" : ""}`;
-      }
-      card.classList.toggle("is-occupied", id !== null);
-      portrait.replaceChildren();
-      const member = party.members.find((candidate) => candidate.id === id);
-      if (member) {
-        const character = characterById(options.characters, member.id);
-        const url = characterPortraitUrl(member.id);
-        if (url) {
-          const image = document.createElement("img");
-          image.className = "party-character-image";
-          image.src = url;
-          image.alt = "";
-          portrait.append(image);
-        } else {
-          portrait.textContent = character.name;
-        }
-        hp.textContent = `HP ${member.hp} / ${effectiveMaxHp(character.maxHp, member.status ?? healthyStatus())}`;
-        detail.hidden = false;
-        detail.setAttribute("aria-label", `${character.name}の詳細`);
-        symptoms.textContent = symptomLabel(member.status ?? healthyStatus());
-        hp.classList.toggle("is-defeated", !canParticipate(member.hp, member.status));
-      } else {
-        detail.hidden = true;
-        hp.textContent = "";
-        symptoms.textContent = "";
-        hp.classList.remove("is-defeated");
-      }
-      symptoms.hidden = symptoms.textContent.length === 0;
+      const member = party.members.find((entry) => entry.id === id);
+      choice.value = id ?? "";
+      choice.setAttribute("aria-pressed", String(slot === editingSlot));
+      card.classList.toggle("is-occupied", !!member);
+      const image = requiredElement<HTMLElement>(card, ".party-slot-portrait");
+      const name = requiredElement<HTMLElement>(card, ".party-slot-name");
+      const hp = requiredElement<HTMLElement>(card, ".party-slot-hp");
+      const symptoms = requiredElement<HTMLElement>(card, ".party-slot-symptoms");
+      image.replaceChildren();
+      if (member) portrait(image, member.id);
+      else image.textContent = "+";
+      name.textContent = member ? characterById(options.characters, member.id).name : "空き枠に追加";
+      hp.textContent = member ? memberHp(member.id) : "";
+      hp.classList.toggle("is-defeated", !!member && !canParticipate(member.hp, member.status));
+      symptoms.textContent = member ? symptomLabel(member.status ?? healthyStatus()) : "";
+      symptoms.hidden = !symptoms.textContent;
+      detail.hidden = !member || editingSlot !== null;
+      detail.setAttribute("aria-label", `${name.textContent}の詳細`);
     });
+    const scroll = grid.scrollTop;
+    const focusedCandidate = grid.contains(document.activeElement)
+      ? (document.activeElement as HTMLButtonElement).value
+      : null;
+    grid.replaceChildren();
+    if (editingSlot !== null)
+      for (const member of party.members) {
+        const character = characterById(options.characters, member.id);
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "party-candidate";
+        button.value = member.id;
+        button.setAttribute("aria-label", character.name);
+        const face = document.createElement("span");
+        face.className = "party-candidate-face";
+        face.setAttribute("aria-hidden", "true");
+        portrait(face, member.id, true);
+        const name = document.createElement("span");
+        name.textContent = character.name;
+        const hp = document.createElement("span");
+        hp.id = `party-candidate-hp-${grid.childElementCount}`;
+        hp.textContent = memberHp(member.id);
+        const state = document.createElement("span");
+        state.className = "party-candidate-state";
+        state.id = `party-candidate-state-${grid.childElementCount}`;
+        button.setAttribute("aria-describedby", `${hp.id} ${state.id}`);
+        state.textContent = [
+          party.slots.includes(member.id) ? "編成中" : "",
+          !canParticipate(member.hp, member.status) ? "戦闘不能" : "",
+        ]
+          .filter(Boolean)
+          .join(" · ");
+        button.append(face, name, hp, state);
+        button.addEventListener("click", () => {
+          candidateId = member.id;
+          renderPending();
+        });
+        grid.append(button);
+      }
+    grid.scrollTop = scroll;
+    renderPending();
+    if (focusedCandidate)
+      Array.from(grid.querySelectorAll<HTMLButtonElement>("button"))
+        .find((button) => button.value === focusedCandidate)
+        ?.focus({ preventScroll: true });
     const reason = departureRejection(party);
     depart.disabled = reason !== null;
-    status.textContent = [message, reason ? rejectionText[reason] : ""].filter(Boolean).join(" ");
-    status.hidden = status.textContent.length === 0;
+    status.textContent = [message, editingSlot === null && reason ? rejectionText[reason] : ""]
+      .filter(Boolean)
+      .join(" ");
+    status.hidden = !status.textContent;
   }
   depart.addEventListener(
     "click",

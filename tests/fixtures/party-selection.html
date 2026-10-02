@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="ja">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>編成候補の表示条件テスト</title>
+  <div class="adventure-screen party-editing"><div class="town-view"><section class="party-editor" id="fixture" aria-label="出撃編成"></section></div></div>
+  <button type="button" id="snapshot">状態を確認</button><output hidden id="state"></output><output hidden id="edits"></output>
+  <script type="module">
+    import { characters } from "/src/content/characters.ts";
+    import { initialGameOptions } from "/src/content/initialGameOptions.ts";
+    import { createInitialGameState } from "/src/game/createInitialGameState.ts";
+    import { applyPartyStatus, editExpeditionParty } from "/src/game/expedition.ts";
+    import { createParty } from "/src/game/party.ts";
+    import { mountPartyUi } from "/src/web/partyUi.ts";
+    import "/src/web/style.css";
+
+    const params = new URLSearchParams(location.search);
+    const count = params.get("count") === "12" ? 12 : 24;
+    const definitions = [...characters, ...Array.from({ length: count - characters.length }, (_, index) => ({
+      id: `fixture-${index + 3}`, name: `仲間 ${index + 3}`, maxHp: 200, speed: 100, attackPower: 8,
+    }))];
+    if (params.has("long")) definitions[definitions.length - 1].name = "長い名前の仲間（折り返しと欠けがないことを確認する表示条件）";
+    let game = { adventure: createInitialGameState(initialGameOptions), party: createParty(definitions, definitions.map(({ id }) => id)), dungeon: null };
+    for (let slot = 1; slot < 4; slot++) game = editExpeditionParty(game, slot, definitions[slot].id).state;
+    game = applyPartyStatus(game, definitions[definitions.length - 1].id, "physicalFatigue", definitions);
+    game = applyPartyStatus(game, definitions[definitions.length - 1].id, "haze", definitions);
+    let edits = 0;
+    const capture = () => { document.querySelector("#state").textContent = JSON.stringify(game); document.querySelector("#edits").textContent = String(edits); };
+    document.querySelector("#snapshot").onclick = capture;
+    mountPartyUi(document.querySelector("#fixture"), {
+      characters: definitions, getParty: () => game.party, getCalendarLabel: () => "1日目 · 昼",
+      edit: (slot, id) => { edits++; const result = editExpeditionParty(game, slot, id); game = result.state; capture(); return result; },
+      depart: () => ({ accepted: false, state: game, reason: "action-in-progress" }),
+    }, () => {});
+    capture();
+  </script>
+</html>
