@@ -1,0 +1,5 @@
+/* Hide only the fixture controls while capturing the actual game canvas/UI. */
+nav,
+aside {
+  visibility: hidden;
+}

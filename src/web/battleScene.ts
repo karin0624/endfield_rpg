@@ -21,6 +21,7 @@ import { initialBattleCombatants } from "../content/initialBattle";
 import type { BattleCombatantDefinition } from "../game/battle";
 import { type BattleActorLayout, createBattleLayout, getFormationPositions } from "./battleLayout";
 import type { BattleSettings } from "./battleSettings";
+import { canCullGround, hasGroundCullingProfile } from "./groundCulling";
 
 const assetUrl = (path: string) => `${import.meta.env.BASE_URL}assets/${path}`;
 const CONTACT_OFFSET = 0.01;
@@ -154,6 +155,8 @@ function createEnvironment(
   let environmentDisposed = false;
   let currentBattle: BattleScene | undefined;
   let environmentReady: Promise<void> | undefined;
+  let groundFingerprint: string | undefined;
+  const groundMaterialFaces = new Map<Material, boolean>();
 
   const textures = new Map<string, Promise<Texture>>();
   const ownedTextures = new Set<Texture>();
@@ -193,16 +196,42 @@ function createEnvironment(
     return material;
   };
 
+  const loadGround = async () => {
+    if (!hasGroundCullingProfile(definition)) return LoadAssetContainerAsync(assetUrl(definition.ground), scene);
+    // Verify the same bytes imported by Babylon; do not issue another model request.
+    const url = new URL(assetUrl(definition.ground), location.href);
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`モデルを読み込めません: ${definition.ground} (${response.status})`);
+    const bytes = await response.arrayBuffer();
+    if (environmentDisposed || scene.isDisposed) return undefined;
+    const fingerprint = globalThis.crypto?.subtle
+      ?.digest("SHA-256", bytes)
+      .then((digest) => Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join(""))
+      .catch(() => undefined);
+    const [assets, digest] = await Promise.all([
+      LoadAssetContainerAsync(new Uint8Array(bytes), scene, {
+        rootUrl: new URL(".", url).href,
+        pluginExtension: ".glb",
+        name: "ground1.glb",
+      }),
+      fingerprint,
+    ]);
+    groundFingerprint = digest;
+    return assets;
+  };
+
   const loadEnvironment = () => {
     environmentReady ??= (async () => {
       const [, background] = await Promise.all([
-        LoadAssetContainerAsync(assetUrl(definition.ground), scene).then((assets) => {
+        loadGround().then((assets) => {
+          if (!assets) return;
           if (environmentDisposed) {
             assets.dispose();
             return;
           }
           groundAssets = assets;
           assets.addAllToScene();
+          for (const material of assets.materials) groundMaterialFaces.set(material, material.backFaceCulling);
           for (const mesh of assets.meshes) {
             if (!mesh.parent) mesh.parent = groundRoot;
             mesh.isPickable = true;
@@ -302,6 +331,8 @@ function createEnvironment(
       camera.setTarget(new Vector3(next.targetX, next.targetY, next.targetZ));
       camera.fov = (next.fovDegrees * Math.PI) / 180;
       groundRoot.scaling.setAll(layout.ground.scale * next.groundScale);
+      const cull = canCullGround(definition, next, groundFingerprint);
+      for (const [material, original] of groundMaterialFaces) material.backFaceCulling = cull || original;
       if (backdrop) {
         backdrop.position.set(next.backdropX, next.backdropY, next.backdropZ);
         backdrop.scaling.setAll(next.backdropScale);
@@ -703,6 +734,7 @@ function createEnvironment(
       currentBattle?.dispose();
       groundAssets?.dispose();
       groundMeshes.length = 0;
+      groundMaterialFaces.clear();
       groundHeightCache.clear();
       backdrop?.material?.dispose(false, false);
       backdrop?.dispose();
