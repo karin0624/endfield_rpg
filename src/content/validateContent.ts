@@ -2,6 +2,7 @@ import { type AdventureDefinition, assertValidAdventureDefinition } from "../gam
 import type { InitialGameOptions } from "../game/createInitialGameState";
 import { assertValidDungeonDefinition, type DungeonDefinition } from "../game/dungeon";
 import type { GrowthRules } from "../game/growthRuntime";
+import { type LoadSymptomRules, validateLoadSymptomRules } from "../game/loadSymptoms";
 import { type CharacterDefinition, createParty, getPartyCombatants } from "../game/party";
 import type { SaveDefinitions } from "../game/save";
 import { createExplorationSkills } from "../game/skillAcquisition";
@@ -11,6 +12,7 @@ import { growthRules } from "./growthRules";
 import { initialAdventure } from "./initialAdventure";
 import { initialDungeon } from "./initialDungeon";
 import { initialGameOptions } from "./initialGameOptions";
+import { loadSymptomDefinition } from "./loadSymptomDefinition";
 import { saveDefinitions } from "./saveDefinitions";
 import { skillCatalog } from "./skillDefinitions";
 
@@ -22,6 +24,7 @@ export interface ContentDefinitions {
   readonly growth: GrowthRules;
   readonly skills: SkillCatalog;
   readonly save: SaveDefinitions;
+  readonly loadSymptoms: LoadSymptomRules;
 }
 
 export const contentDefinitions: ContentDefinitions = {
@@ -32,6 +35,7 @@ export const contentDefinitions: ContentDefinitions = {
   growth: growthRules,
   skills: skillCatalog,
   save: saveDefinitions,
+  loadSymptoms: loadSymptomDefinition,
 };
 
 /** npm run check の本番定義テストから呼ぶ。個別の形式検証は既存APIへ委譲する。 */
@@ -48,6 +52,8 @@ export function validateContent(content: ContentDefinitions): void {
   );
   assertValidDungeonDefinition(dungeon, adventure, combatants);
   validateSkillCatalog(skills, roster);
+  // このAPIが各症状の定義と明示候補群を検証する。判定規則を複製しない。
+  validateLoadSymptomRules(content.loadSymptoms);
   const ids = new Set(roster.map(({ id }) => id));
   for (const [label, references] of [
     ["初期成長", growth.progression.initial.map(({ characterId }) => characterId)],

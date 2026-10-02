@@ -210,10 +210,10 @@ describe("仲間と出撃編成", () => {
   it.each(["cleared", "failed"] as const)("%sの帰還で有効最大HPまで回復し、症状と控えを維持する", (outcome) => {
     let state = newGame(["player", "gilberta"]);
     for (let tier = 0; tier < 2; tier++) {
-      state = applyPartyStatus(state, "player", "physicalFatigue", companions);
-      state = applyPartyStatus(state, "gilberta", "physicalFatigue", companions);
+      state = applyPartyStatus(state, "player", { kind: "physicalFatigue", amount: 10 }, companions);
+      state = applyPartyStatus(state, "gilberta", { kind: "physicalFatigue", amount: 10 }, companions);
     }
-    state = applyPartyStatus(state, "player", "haze", companions);
+    state = applyPartyStatus(state, "player", { kind: "haze", amount: 10 }, companions);
     // A normal town action raises both maxima without healing their current HP.
     const started = beginTownExploration(state, "market", initialAdventure);
     if (!started.accepted) throw new Error(started.reason);
@@ -225,7 +225,7 @@ describe("仲間と出撃編成", () => {
       initialAdventure,
     );
     if (!town.accepted) throw new Error(town.reason);
-    state = applyPartyStatus(town.state, "player", "haze", companions);
+    state = applyPartyStatus(town.state, "player", { kind: "haze", amount: 10 }, companions);
     const route: DungeonDefinition = {
       id: "return-test",
       entryNodeId: "entry",
@@ -265,10 +265,10 @@ describe("仲間と出撃編成", () => {
     expect(returned.state.party.members).toMatchObject([
       {
         id: "player",
-        hp: 15,
-        status: { physicalFatigue: 1, haze: 1, incapacityRecoverySteps: outcome === "failed" ? 6 : null },
+        hp: 18,
+        status: { physicalFatigue: 10, haze: 10, incapacityRecoverySteps: outcome === "failed" ? 6 : null },
       },
-      { id: "gilberta", hp: 9, status: { physicalFatigue: 1 } },
+      { id: "gilberta", hp: 15, status: { physicalFatigue: 10 } },
     ]);
     expect(returned.state.clock).toMatchObject({ elapsedHalfDays: 2, recoverySteps: 1 });
     expect(leaveExpedition(returned.state, actionId).accepted).toBe(false);

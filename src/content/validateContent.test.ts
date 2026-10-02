@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { LoadSymptomKind } from "../game/loadSymptoms";
 import { type ContentDefinitions, contentDefinitions, validateContent } from "./validateContent";
 
 function fixture(): ContentDefinitions {
@@ -184,6 +185,29 @@ describe("コンテンツ追加時の定義と参照", () => {
       );
     }
     validateContent({ ...c, growth: { ...c.growth, [key]: 0 } });
+  });
+  it("症状の試用値変更と空候補群を既存APIで検証する", () => {
+    const c = fixture();
+    validateContent({ ...c, loadSymptoms: { ...c.loadSymptoms, candidates: [], probabilityScale: 150 } });
+  });
+  it.each(["incapacity", "mentalFatigue"])("追加発症候補%sを既存APIで拒否する", (candidate) => {
+    const c = fixture();
+    // 型外の定義が混入した場合も実行時検証へ届くことを確認する。
+    expect(() =>
+      validateContent({ ...c, loadSymptoms: { ...c.loadSymptoms, candidates: [candidate as LoadSymptomKind] } }),
+    ).toThrow("追加発症の調整値");
+  });
+  it("症状の数値定義も既存validatorへ委譲する", () => {
+    const c = fixture();
+    expect(() =>
+      validateContent({
+        ...c,
+        loadSymptoms: {
+          ...c.loadSymptoms,
+          symptoms: { ...c.loadSymptoms.symptoms, haze: { ...c.loadSymptoms.symptoms.haze, townRecovery: 0 } },
+        },
+      }),
+    ).toThrow("負荷系症状の調整値");
   });
   it("個別validatorへ会話・候補・成長の不正を委譲する", () => {
     const c = fixture();

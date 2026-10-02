@@ -37,8 +37,8 @@ function start(): ExpeditionGame {
 function stage(initial: ExpeditionGame, count: number): ExpeditionGame {
   let game = initial;
   for (let i = 0; i < count; i++) {
-    game = applyPartyStatus(game, "player", "physicalFatigue", definitions);
-    game = applyPartyStatus(game, "player", "haze", definitions);
+    game = applyPartyStatus(game, "player", { kind: "physicalFatigue", amount: 10 }, definitions);
+    game = applyPartyStatus(game, "player", { kind: "haze", amount: 10 }, definitions);
   }
   return game;
 }
@@ -103,7 +103,7 @@ function expedition(
   }
   const actionId = game.clock?.pendingAction?.id;
   expect(game.dungeon?.outcome).toBe(expectedOutcome);
-  if (branch === "battle-a") expect(game.party.members[0].hp).toBeLessThan(50);
+  if (branch === "battle-a") expect(game.party.members[0].hp).toBeLessThan(153);
   const returned = leaveExpedition(game, actionId);
   if (!returned.accepted) throw new Error(returned.reason);
   expect(leaveExpedition(returned.state, actionId).accepted).toBe(false);
@@ -133,15 +133,15 @@ describe("M2c生活ループ", () => {
           };
     game = expedition(game, route, outcome === "cleared" ? "battle-a" : "conversation-b", outcome);
     expect(game.party.members[0]).toMatchObject({
-      hp: 50,
-      status: { physicalFatigue: 3, haze: 3, incapacityRecoverySteps: outcome === "failed" ? 6 : null },
+      hp: 153,
+      status: { physicalFatigue: 30, haze: 30, incapacityRecoverySteps: outcome === "failed" ? 6 : null },
     });
     expect(game.clock).toMatchObject({ elapsedHalfDays: 1, recoverySteps: 0 });
     game = roundTrip(town(game));
-    effects(game, 100, 0.64);
-    expect(game.party.members[0].hp).toBe(50);
+    effects(game, 166, 0.75);
+    expect(game.party.members[0].hp).toBe(153);
     game = town(game, "find-companion", true);
-    effects(game, 150, 0.72);
+    effects(game, 181, 0.7741935483870968);
     expect(game.party.members.map(({ id }) => id)).toEqual(["player", "gilberta"]);
     expect(game.party.slots).toEqual(["player", null, null, null]);
     game = town(game, "find-companion");
@@ -160,7 +160,7 @@ describe("M2c生活ループ", () => {
     game = expedition(game, initialDungeon, "conversation-b");
     game = roundTrip(game);
     expect(game.party.slots).toEqual([null, null, null, "gilberta"]);
-    expect(game.party.members[0].hp).toBe(50);
+    expect(game.party.members[0].hp).toBe(153);
     expect(game.party.members[1].hp).toBe(200);
     expect(game.adventure.flags).toContain("marked-ruins-route");
     expect(game.adventure.flags).toContain("joined-gilberta");
@@ -170,17 +170,17 @@ describe("M2c生活ループ", () => {
     });
     expect(game.randomState).toBe(outcome === "failed" ? 1015568748 : 3027450565);
   });
-  it("中度から街・ダンジョン・街で軽度・軽度・なしになり、生活1.5日と療養1日を区別する", () => {
+  it("症状値20から街・ダンジョン・街で10・10・0になり、生活1.5日と療養1日を区別する", () => {
     let game = roundTrip(town(stage(start(), 2)));
-    effects(game, 150, 0.72);
-    expect(game.party.members[0].hp).toBe(100);
+    effects(game, 181, 0.7741935483870968);
+    expect(game.party.members[0].hp).toBe(166);
     game = roundTrip(expedition(game, initialDungeon, "conversation-b"));
-    effects(game, 150, 0.72);
-    expect(game.party.members[0].hp).toBe(150);
+    effects(game, 181, 0.7741935483870968);
+    expect(game.party.members[0].hp).toBe(181);
     expect(game.clock).toMatchObject({ elapsedHalfDays: 2, recoverySteps: 1 });
     game = town(game);
     effects(game, 200, 0.8);
-    expect(game.party.members[0].hp).toBe(150);
+    expect(game.party.members[0].hp).toBe(181);
     expect(game.clock).toMatchObject({ elapsedHalfDays: 3, recoverySteps: 2 });
   });
 });

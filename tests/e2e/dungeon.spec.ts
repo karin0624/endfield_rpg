@@ -138,7 +138,7 @@ test("全滅帰還でHP全回復し、街探索6回で戦闘不能から復帰�
     dungeon: null,
     randomState: 3,
   };
-  for (let n = 0; n < 3; n++) initial = applyPartyStatus(initial, "player", "haze", characters);
+  initial = applyPartyStatus(initial, "player", { kind: "haze", amount: 150 }, characters);
   const seed = serializeGame(initial, saveDefinitions);
   if (!seed.accepted) throw new Error(seed.reason);
   await page.goto("/");
@@ -156,11 +156,11 @@ test("全滅帰還でHP全回復し、街探索6回で戦闘不能から復帰�
   await page.getByRole("button", { name: "戦闘を終えてルートへ戻る" }).click();
   await expect(page.locator("[data-calendar]")).toHaveText("1日目 · 夜");
   await expect(page.locator("[data-town-recovery]")).toContainText("出撃者のHPが全回復しました。");
-  await expect(page.locator("[data-town-recovery]")).toContainText("戦闘不能（あと街探索6回）");
+  await expect(page.locator("[data-town-recovery]")).toContainText("戦闘参加不可（あと街探索6回）");
   await page.screenshot({ path: testInfo.outputPath("defeat-town-1920.png") });
   await page.getByRole("link", { name: "出撃編成を見る" }).click();
   await expect(page.locator(".party-slot-hp").first()).toHaveText("HP 20 / 20");
-  await expect(page.locator(".party-slot-symptoms").first()).toContainText("戦闘不能（あと街探索6回）");
+  await expect(page.locator(".party-slot-symptoms").first()).toContainText("戦闘参加不可（あと街探索6回）");
   await expect(page.getByRole("button", { name: "出撃" })).toBeDisabled();
   await page.screenshot({ path: testInfo.outputPath("defeat-party-1920.png") });
   await page.setViewportSize({ width: 390, height: 844 });
@@ -421,19 +421,18 @@ test("キャラ詳細の閲覧だけでは編成・保存内容を変えず、�
   expect(errors).toEqual([]);
 });
 
-test("初期症状の試験データから実操作で段階回復・全滅帰還・保存再開をつなぐ", async ({ page }, testInfo) => {
+test("初期症状の試験データから実操作で数値回復・全滅帰還・保存再開をつなぐ", async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1920, height: 1080 });
-  // Setup only: use the public core to prepare a street save with moderate ailments.
+  // Setup only: use the public core to prepare a street save with numeric ailments.
   // Once loaded, all time, combat outcomes and recovery come from player controls.
   let fixture: ExpeditionGame = {
     adventure: createInitialGameState(initialGameOptions),
     party: createParty(characters, ["player"]),
     dungeon: null,
+    randomState: 3,
   };
-  for (let tier = 0; tier < 2; tier++) {
-    fixture = applyPartyStatus(fixture, "player", "physicalFatigue", characters);
-    fixture = applyPartyStatus(fixture, "player", "haze", characters);
-  }
+  fixture = applyPartyStatus(fixture, "player", { kind: "physicalFatigue", amount: 50 }, characters);
+  fixture = applyPartyStatus(fixture, "player", { kind: "haze", amount: 75 }, characters);
   const encoded = serializeGame(fixture, saveDefinitions);
   if (!encoded.accepted) throw new Error(encoded.reason);
   await page.goto("/");
@@ -442,30 +441,30 @@ test("初期症状の試験データから実操作で段階回復・全滅帰�
   await page.getByRole("link", { name: "出撃編成を見る" }).click();
   await page.getByRole("button", { name: "ロッシの詳細" }).click();
   const details = page.getByRole("dialog", { name: "ロッシ", exact: true });
-  await expect(details).toContainText("10 / 10");
+  await expect(details).toContainText("13 / 13");
   await expect(details).toContainText("基礎最大HP 20 · 肉体疲労による低下");
   await expect(details).toContainText("80%");
   await expect(details).toContainText("基礎 100% · 朦朧による低下");
   await expect(details).toContainText("肉体疲労・中度");
-  await expect(details).toContainText("朦朧・中度");
+  await expect(details).toContainText("朦朧・重度");
   await page.screenshot({ path: testInfo.outputPath("details-ailments-1920.png") });
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "戻る", exact: true }).click();
   await page.getByRole("button", { name: "市場", exact: true }).click();
   await page.keyboard.press("Space");
-  await expect(page.locator("[data-town-recovery]")).toContainText("肉体疲労：中度 → 軽度");
-  await expect(page.locator("[data-town-recovery]")).toContainText("朦朧：中度 → 軽度");
-  await page.screenshot({ path: testInfo.outputPath("m2c-staged-recovery-1920.png") });
+  await expect(page.locator("[data-town-recovery]")).toContainText("肉体疲労：50 → 40（軽度）");
+  await expect(page.locator("[data-town-recovery]")).toContainText("朦朧：75 → 65（中度）");
+  await page.screenshot({ path: testInfo.outputPath("continuous-recovery-1920.png") });
   await page.getByRole("button", { name: "保存", exact: true }).click();
   await page.reload();
   await page.getByRole("button", { name: "読込", exact: true }).click();
   await page.getByRole("link", { name: "出撃編成を見る" }).click();
-  await expect(page.locator(".party-slot").first()).toContainText("HP 10 / 15");
+  await expect(page.locator(".party-slot").first()).toContainText("HP 13 / 14");
   await expect(page.locator(".party-slot").first()).toContainText("肉体疲労・軽度");
-  await expect(page.locator(".party-slot").first()).toContainText("朦朧・軽度");
+  await expect(page.locator(".party-slot").first()).toContainText("朦朧・中度");
   await page.getByRole("button", { name: "ロッシの詳細" }).click();
-  await expect(details).toContainText("10 / 15");
-  await expect(details.getByText("90%", { exact: true })).toBeVisible();
+  await expect(details).toContainText("13 / 14");
+  await expect(details.getByText("82.19%", { exact: true })).toBeVisible();
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "出撃", exact: true }).click();
   await page.getByRole("button", { name: "戦闘、選択可能" }).click();
@@ -476,28 +475,28 @@ test("初期症状の試験データから実操作で段階回復・全滅帰�
   await expect(defeat).toBeVisible();
   await page.getByRole("button", { name: "戦闘を終えてルートへ戻る" }).click();
   await page.getByRole("link", { name: "出撃編成を見る" }).click();
-  await expect(page.locator(".party-slot").first()).toContainText("HP 15 / 15");
+  await expect(page.locator(".party-slot").first()).toContainText("HP 14 / 14");
   await expect(page.locator(".party-slot").first()).toContainText("肉体疲労・軽度");
   await expect(page.locator(".party-slot").first()).toContainText("あと街探索6回");
   await page.getByRole("button", { name: "ロッシの詳細" }).click();
-  await expect(details).toContainText("15 / 15");
+  await expect(details).toContainText("14 / 14");
   await expect(details).toContainText("戦闘に参加できません");
-  await expect(details).toContainText("戦闘不能（あと街探索6回）");
+  await expect(details).toContainText("戦闘参加不可（あと街探索6回）");
   await page.keyboard.press("Escape");
   await page.screenshot({ path: testInfo.outputPath("m2c-returned-ailments-1920.png") });
   await page.getByRole("button", { name: "戻る", exact: true }).click();
   await page.getByRole("button", { name: "市場", exact: true }).click();
   await page.keyboard.press("Space");
   await expect(page.locator("[data-calendar]")).toHaveText("2日目 · 夜");
-  await expect(page.locator("[data-town-recovery]")).toContainText("肉体疲労：軽度 → なし");
+  await expect(page.locator("[data-town-recovery]")).toContainText("肉体疲労：40 → 30（軽度）");
   await expect(page.locator("[data-town-recovery]")).toContainText("あと街探索6回 → 5回");
   await page.getByRole("link", { name: "出撃編成を見る" }).click();
-  await expect(page.locator(".party-slot").first()).toContainText("HP 15 / 20");
-  await expect(page.locator(".party-slot").first()).not.toContainText("肉体疲労");
+  await expect(page.locator(".party-slot").first()).toContainText("HP 14 / 15");
+  await expect(page.locator(".party-slot").first()).toContainText("肉体疲労・軽度");
   await page.getByRole("button", { name: "ロッシの詳細" }).click();
-  await expect(details).toContainText("15 / 20");
-  await expect(details.getByText("100%", { exact: true })).toBeVisible();
-  await expect(details).not.toContainText("基礎最大HP");
+  await expect(details).toContainText("14 / 15");
+  await expect(details.getByText("84.51%", { exact: true })).toBeVisible();
+  await expect(details).toContainText("基礎最大HP 20");
   await page.keyboard.press("Escape");
   await expect(page.getByRole("button", { name: "出撃", exact: true })).toBeDisabled();
 });
@@ -571,18 +570,18 @@ test("壊れた保存とブラウザI/O失敗でもゲームと既存保存を�
   await expect(page.locator("[data-save-status]")).toContainText("読み込めません");
   await expect(page.locator("[data-calendar]")).toHaveText("1日目 · 夜");
   await page.reload();
-  await page.evaluate(() => localStorage.setItem("endfield-rpg-game-save", '{"version":3,"party":{}}'));
+  await page.evaluate(() => localStorage.setItem("endfield-rpg-game-save", '{"version":4,"party":{}}'));
   await page.getByRole("button", { name: "市場", exact: true }).click();
   await page.keyboard.press("Space");
   await page.getByRole("button", { name: "読込", exact: true }).click();
   await expect(page.locator("[data-save-status]")).toContainText("読み込めません");
   await expect(page.locator("[data-calendar]")).toHaveText("1日目 · 夜");
-  expect(await page.evaluate(() => localStorage.getItem("endfield-rpg-game-save"))).toBe('{"version":3,"party":{}}');
-  await page.evaluate(() => localStorage.setItem("endfield-rpg-game-save", '{"version":2,"party":{}}'));
+  expect(await page.evaluate(() => localStorage.getItem("endfield-rpg-game-save"))).toBe('{"version":4,"party":{}}');
+  await page.evaluate(() => localStorage.setItem("endfield-rpg-game-save", '{"version":3,"party":{}}'));
   await page.getByRole("button", { name: "読込", exact: true }).click();
   await expect(page.locator("[data-save-status]")).toHaveText("対応していない保存データです。");
   await expect(page.locator("[data-calendar]")).toHaveText("1日目 · 夜");
-  expect(await page.evaluate(() => localStorage.getItem("endfield-rpg-game-save"))).toBe('{"version":2,"party":{}}');
+  expect(await page.evaluate(() => localStorage.getItem("endfield-rpg-game-save"))).toBe('{"version":3,"party":{}}');
 });
 
 test("通常探索のスキル使用を次戦・帰還・保存読込・街回復へつなぐ", async ({ page }, testInfo) => {

@@ -1,8 +1,9 @@
+import { loadSymptomDefinition } from "../content/loadSymptomDefinition";
 import { type CharacterDefinition, characterById, type PartyState } from "../game/party";
 import { canParticipate, effectiveHitRate, effectiveMaxHp, healthyStatus } from "../game/status";
 import { characterPortraitUrl } from "./characterPortrait";
 import { requiredElement } from "./requiredElement";
-import { formatAmount, mentalFatigueText, symptomLabel } from "./sessionFeedback";
+import { formatAmount, loadSymptomText, mentalFatigueText, symptomLabel } from "./sessionFeedback";
 
 export function mountCharacterDetailsUi(
   root: HTMLElement,
@@ -78,6 +79,11 @@ export function mountCharacterDetailsUi(
         ["速度", String(character.speed), ""],
         ["命中率", percent(hit), hit !== baseHit ? `基礎 ${percent(baseHit)} · 朦朧による低下` : ""],
         ["精神疲労", mentalFatigueText(member.mentalFatigue ?? 0), ""],
+        ...(["physicalFatigue", "haze"] as const).map((kind) => [
+          kind === "physicalFatigue" ? "肉体疲労" : "朦朧",
+          loadSymptomText(kind, status[kind]),
+          `上限 ${loadSymptomDefinition.symptoms[kind].cap} · 街探索1回につき ${loadSymptomDefinition.symptoms[kind].townRecovery} 回復`,
+        ]),
       ]) {
         const row = document.createElement("div");
         const term = document.createElement("dt");

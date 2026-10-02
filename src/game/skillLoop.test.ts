@@ -89,7 +89,8 @@ describe("通常探索から街保存までのスキルループ", () => {
     expect(game.dungeon?.outcome).toBe("cleared");
     game = leaveExpedition(game).state;
     expect(fatigue(game)).toBe(19);
-    expect(game.party.members[0].hp).toBe(20);
+    expect(game.party.members[0].hp).toBe(19);
+    expect(game.party.members[0].status?.physicalFatigue).toBe(4);
     expect(game.clock).toMatchObject({ elapsedHalfDays: 1, recoverySteps: 0 });
     game = loaded(saved(game));
     expect(fatigue(game)).toBe(19);

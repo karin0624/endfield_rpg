@@ -31,10 +31,18 @@
 
 ## 追加後に確認する
 
-- `npm run check`：`src/content/validateContent.test.ts` が本番の集約検証を必ず実行する。party／adventure／dungeon／skill／progressionの既存検証を再利用し、名簿と加入・初期成長・解決済みprofile・保存フラグ・場所の参照、および共通報酬数値を追加検証する。エラーのID・会話／ノードを修正する。イベント報酬参照や画像素材をこの関数が検証すると解釈しない。
+- `npm run check`：`src/content/validateContent.test.ts` が本番の集約検証を必ず実行する。party／adventure／dungeon／skill／progressionの既存検証を再利用し、名簿と加入・初期成長・解決済みprofile・保存フラグ・場所の参照、および共通報酬数値を追加検証する。症状の明示候補群・数値定義は既存 `validateLoadSymptomRules` に委譲する。エラーのID・会話／ノードを修正する。イベント報酬参照や画像素材をこの関数が検証すると解釈しない。
 - 正例では新しい仲間・会話・既存効果を定義追加で接続できること、負例では壊れた参照が具体的に検出されることを確認する。加入→再訪→編成→探索→習得→使用→帰還→街保存・復元は関連する公開コア操作のテストで確認する。
 - `growthRuntime.test.ts` の全97習得経路は、現行の街5＋ルート最大25 XP、Lv1→4の最大3権利を対象にした証明。XP・到達レベル・候補・初期習得・保証を変えたら、この到達範囲と有効候補の検証も拡張する。静的な参照検証の成功だけで枯渇しないとは言えない。
 - `skillAcquisition.test.ts` の4→6／9→11と `skillAcquisitionBoundaries.test.ts` の14→16／19→21は独立した合法な試験定義によるコア境界検証。Lv4までの現行試用E2EがLv15／20の本番経路を証明するわけではない。
 - `npm run build` は素材検証込みで実行する。LFS実体がない環境でも検証を無効化せず、既存GitHub CIのverify・browserでbuildと `npm run test:e2e:inside` を確認する。ローカル未実施事項を記録する。[テスト方針](testing.md)に従い、コア全分岐をE2Eへ重複させない。
 
-症状候補の最終接続は別担当の変更を統合した後に確認する。全状態異常からの自動候補化や戦闘不能の混入を許さず、採用された候補・条件・確率の既存APIを集約入口から利用する。予定の接続先は `src/game/loadSymptoms.ts` の `validateLoadSymptomRules`／`validateLoadSymptomDefinition` と `src/content/loadSymptomDefinition.ts` の試用定義。これらを提供する変更の統合後に接続し、検証処理は複製しない。現時点の集約検証がその接続を完了したとは扱わない。残る通し受入・症状統合は [Issue 21](https://github.com/karin0624/endfield_rpg/issues/21)／[Issue 46](https://github.com/karin0624/endfield_rpg/issues/46)、ユーザー試遊はIssue 19で追跡する。
+## 症状の試用定義を調整する
+
+`src/content/loadSymptomDefinition.ts` の明示候補群と各症状の `cap`・`scale`・`loadCoefficient`・`townRecovery`・`labelThresholds`、発症の `probabilityScale` を変更する。肉体疲労・朦朧は連続数値で、同種付与は今回のスキル負荷から算出した量を加算し、個別上限で止める。重度は表示ラベルであり上限ではない。街回復は固定量を減らして0で止め、ラベル下限へ丸めたり一段階ずつ回復したりしない。戦闘不能の街6回復stepは別に扱う。
+
+現在の試用値は、個別上限200、肉体疲労倍率 `1 / (1 + 値 / 100)`、朦朧倍率 `1 / (1 + 値 / 300)`、街回復10、今回の負荷係数1、表示閾値25／50／75。発症確率は使用後精神疲労fで `f / (100 + f)`、候補は肉体疲労・朦朧の均等選択。使用前疲労で効果を適用した後に負荷を加算し、使用者へ最大一種類を付与する。命中→発症→成功時の候補選択の順で必要な乱数を使う。個別上限の候補だけを除外し、負荷0・空候補群・確率0なら追加乱数を使わない。曲線・数値は最終バランスではない。
+
+集約入口は `src/game/loadSymptoms.ts` の `validateLoadSymptomRules` を呼ぶ。このAPIが `validateLoadSymptomDefinition` にも委譲するため、症状の検証を複製しない。候補を全状態異常から自動生成せず、精神疲労自身や戦闘不能の混入を拒否する。現在の保存形式はv4のみで、旧形式の変換は行わない。症状値と精神疲労は丸めず保存し、読込では回復しない。
+
+残る全通し受入は [Issue 21](https://github.com/karin0624/endfield_rpg/issues/21)／[Issue 46](https://github.com/karin0624/endfield_rpg/issues/46)、ユーザー試遊はIssue 19で追跡する。定義検証・個別境界テストの成功を全通し受入の完了と取り違えない。

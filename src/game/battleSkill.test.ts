@@ -49,7 +49,10 @@ describe("公開スキル使用操作", () => {
     if (!second.accepted) throw new Error(second.reason);
     expect(second.events[0]).toMatchObject({ fatigueBefore: 104, fatigueAfter: 108 });
     expect(second.state.combatants.find((member) => member.id === "enemy")?.hp).toBeCloseTo(184.15686274509804, 12);
-    expect(first.state.combatants.find((member) => member.id === "player")?.status).toEqual(healthyStatus());
+    expect(first.state.combatants.find((member) => member.id === "player")?.status).toEqual({
+      ...healthyStatus(),
+      physicalFatigue: 4,
+    });
   });
   it("回復の対象は自分を含む生存味方、上限でクランプしても疲労は一度加算する", () => {
     const ally = use(start(), "friend", "test-heal");
@@ -58,15 +61,22 @@ describe("公開スキル使用操作", () => {
     const self = use(start(), "player", "test-heal");
     if (!self.accepted) throw new Error(self.reason);
     expect(self.events[0]).toMatchObject({ amount: 0, fatigueAfter: 103 });
-    expect(self.state.combatants.find((member) => member.id === "player")?.hp).toBe(20);
+    expect(self.state.combatants.find((member) => member.id === "player")?.hp).toBe(19);
     expect(use(start(), "dead", "test-heal")).toMatchObject({ accepted: false, reason: "target-is-defeated" });
   });
-  it("朦朧込みの命中0は外れでも行動と疲労を消費し、乱数を消費しない", () => {
-    const state = start({ hitRate: 0, status: { ...healthyStatus(), haze: 2 } });
+  it("命中0でも有効使用は疲労と追加発症を処理し、命中乱数だけを省く", () => {
+    const state = start({ hitRate: 0, status: { ...healthyStatus(), haze: 20 } });
     const result = use(state);
     if (!result.accepted) throw new Error(result.reason);
     expect(result.events[0]).toMatchObject({ hit: false, amount: 0, fatigueAfter: 104 });
-    expect(result.state.randomState).toBe(state.randomState);
+    expect(result.state.randomState).toBe(1586005467);
+    expect(result.events).toContainEqual({
+      type: "symptom",
+      actorId: "player",
+      kind: "physicalFatigue",
+      before: 0,
+      after: 4,
+    });
     expect(result.state.logicalTime).toBeGreaterThan(state.logicalTime);
   });
   it("対象違い・未習得・旧行動時刻・使用場面違いを拒否し、HP・疲労・時計・乱数を保持する", () => {
@@ -96,19 +106,19 @@ describe("公開スキル使用操作", () => {
     });
   });
   it("攻撃スキルもseed1の既知値で命中・外れを決め、拒否では乱数を進めない", () => {
-    let state = start({ hitRate: 0.5, status: { ...healthyStatus(), haze: 1 } });
+    let state = start({ hitRate: 0.5, status: { ...healthyStatus(), haze: 10 } });
     const first = use(state);
     if (!first.accepted) throw new Error(first.reason);
-    expect(first.state.randomState).toBe(1015568748);
+    expect(first.state.randomState).toBe(2165703038);
     expect(first.events[0]).toMatchObject({ hit: true, amount: 8, fatigueAfter: 104 });
     state = first.state;
     const second = use(state);
     if (!second.accepted) throw new Error(second.reason);
-    expect(second.state.randomState).toBe(1586005467);
-    expect(second.events[0]).toMatchObject({ hit: true, fatigueAfter: 108 });
+    expect(second.state.randomState).toBe(1587069247);
+    expect(second.events[0]).toMatchObject({ hit: false, amount: 0, fatigueAfter: 108 });
     const third = use(second.state);
     if (!third.accepted) throw new Error(third.reason);
-    expect(third.state.randomState).toBe(2165703038);
+    expect(third.state.randomState).toBe(2388811721);
     expect(third.events[0]).toMatchObject({ hit: false, amount: 0, fatigueAfter: 112 });
     expect(use(third.state, "missing")).toMatchObject({ accepted: false, state: third.state });
   });

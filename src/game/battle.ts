@@ -1,3 +1,4 @@
+import { loadSymptomDefinition } from "../content/loadSymptomDefinition";
 import {
   advanceToNextActor,
   type BattleTimelineState,
@@ -7,6 +8,7 @@ import {
   type UpcomingAction,
 } from "./battleTimeline";
 import { createGameRandom, nextGameRandom } from "./gameRandom";
+import { applyAdditionalLoadSymptom, type LoadSymptomApplication } from "./loadSymptoms";
 import { type MentalFatigueDefinition, mentalFatigueMultiplier, validateMentalFatigue } from "./mentalFatigue";
 import {
   activeSkillBaseAmount,
@@ -22,6 +24,7 @@ import {
   effectiveHitRate,
   effectiveMaxHp,
   healthyStatus,
+  validateCharacterStatus,
 } from "./status";
 
 export interface BattleSkillRules {
@@ -76,6 +79,7 @@ export interface BattleState extends Omit<BattleTimelineState, "combatants"> {
 }
 
 export type BattleEvent =
+  | ({ readonly type: "symptom"; readonly actorId: string } & LoadSymptomApplication)
   | {
       readonly type: "skill";
       readonly actorId: string;
@@ -145,6 +149,7 @@ function isBattleTeam(value: unknown): value is BattleTeam {
 
 function assertValidDefinition(definition: BattleCombatantDefinition): void {
   validateMentalFatigue(definition.mentalFatigue ?? 0);
+  if (definition.status) validateCharacterStatus(definition.status);
   if (
     definition.hitRate !== undefined &&
     (!Number.isFinite(definition.hitRate) || definition.hitRate < 0 || definition.hitRate > 1)
@@ -400,7 +405,7 @@ function completeBattleAction(state: BattleState, events: BattleEvent[]): BasicA
   };
 }
 
-/** Atomic effect -> fatigue -> symptoms, then timeline. Onset is explicitly unconnected.
+/** Atomic effect -> fatigue -> symptoms, then timeline.
  * The expected logical time rejects retries from the previous input turn.
  */
 export function performBattleSkill(
@@ -449,7 +454,21 @@ export function performBattleSkill(
       : {}),
     ...(entry.id === actorId ? { mentalFatigue: fatigueAfter } : {}),
   }));
-  const outcome = determineOutcome({ combatants });
+  const user = combatants.find((entry) => entry.id === actorId);
+  if (!user) throw new Error("スキル使用者がありません");
+  const onset = applyAdditionalLoadSymptom(
+    user.status,
+    fatigueAfter,
+    skill.mentalFatigueIncrease,
+    draw?.state ?? state.randomState,
+    loadSymptomDefinition,
+  );
+  const resolvedCombatants = combatants.map((entry) => {
+    if (entry.id !== actorId || onset.application === null) return entry;
+    const status = { ...entry.status, ...onset.symptoms };
+    return { ...entry, status, hp: Math.min(entry.hp, effectiveMaxHp(entry.maxHp, status)) };
+  });
+  const outcome = determineOutcome({ combatants: resolvedCombatants });
   const events: BattleEvent[] = [
     {
       type: "skill",
@@ -463,9 +482,13 @@ export function performBattleSkill(
       hit,
     },
   ];
+  if (onset.application) events.push({ type: "symptom", actorId, ...onset.application });
   if (defeated) events.push({ type: "combatant-defeated", combatantId: targetId });
   if (outcome !== "ongoing") events.push({ type: "battle-ended", outcome });
-  return completeBattleAction({ ...state, randomState: draw?.state ?? state.randomState, combatants, outcome }, events);
+  return completeBattleAction(
+    { ...state, randomState: onset.randomState, combatants: resolvedCombatants, outcome },
+    events,
+  );
 }
 export function performBattleSkillAndAdvanceToAllyInput(
   state: BattleState,

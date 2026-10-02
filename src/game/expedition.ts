@@ -20,6 +20,7 @@ import {
   performDungeonSkill,
 } from "./dungeon";
 import { ensureGrowth, grownCharacters, hasPendingGrowth, projectGrowth, rewardGrowth } from "./growthRuntime";
+import type { LoadSymptomKind } from "./loadSymptoms";
 import { type MentalFatigueDefinition, recoverMentalFatigue } from "./mentalFatigue";
 import {
   type CharacterDefinition,
@@ -36,12 +37,12 @@ import { type ExplorationSkills, resetExplorationSkills } from "./skillAcquisiti
 import type { CharacterStatus } from "./status";
 import {
   applyIncapacity,
-  applyStagedStatus,
+  applyLoadSymptom,
   canParticipate,
   effectiveMaxHp,
   healthyStatus,
   recoverTownStep,
-  type StagedStatusKind,
+  symptomRecoverySteps,
 } from "./status";
 import {
   type ActionClock,
@@ -286,7 +287,7 @@ export function receiveTownRecoverySignal(
 export function applyPartyStatus(
   state: ExpeditionGame,
   id: string,
-  kind: StagedStatusKind | "incapacity",
+  effect: { readonly kind: LoadSymptomKind; readonly amount: number } | { readonly kind: "incapacity" },
   characters: readonly CharacterDefinition[],
 ): ExpeditionGame {
   if (state.dungeon !== null || !state.party.members.some((member) => member.id === id)) return state;
@@ -297,7 +298,10 @@ export function applyPartyStatus(
       members: state.party.members.map((member) => {
         if (member.id !== id) return member;
         const previous = member.status ?? healthyStatus();
-        const status = kind === "incapacity" ? applyIncapacity(previous) : applyStagedStatus(previous, kind);
+        const status =
+          effect.kind === "incapacity"
+            ? applyIncapacity(previous)
+            : applyLoadSymptom(previous, effect.kind, effect.amount);
         return {
           ...member,
           status,
@@ -378,8 +382,8 @@ export function completeTownExploration(
       before,
       after,
       remainingSteps: {
-        physicalFatigue: after.physicalFatigue,
-        haze: after.haze,
+        physicalFatigue: symptomRecoverySteps(after.physicalFatigue, "physicalFatigue"),
+        haze: symptomRecoverySteps(after.haze, "haze"),
         incapacity: after.incapacityRecoverySteps ?? 0,
       },
     };

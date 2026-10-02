@@ -22,8 +22,8 @@
     if (params.has("long")) definitions[definitions.length - 1].name = "長い名前の仲間（折り返しと欠けがないことを確認する表示条件）";
     let game = { adventure: createInitialGameState(initialGameOptions), party: createParty(definitions, definitions.map(({ id }) => id)), dungeon: null };
     for (let slot = 1; slot < 4; slot++) game = editExpeditionParty(game, slot, definitions[slot].id).state;
-    game = applyPartyStatus(game, definitions[definitions.length - 1].id, "physicalFatigue", definitions);
-    game = applyPartyStatus(game, definitions[definitions.length - 1].id, "haze", definitions);
+    game = applyPartyStatus(game, definitions[definitions.length - 1].id, { kind: "physicalFatigue", amount: 25 }, definitions);
+    game = applyPartyStatus(game, definitions[definitions.length - 1].id, { kind: "haze", amount: 25 }, definitions);
     let edits = 0;
     const capture = () => { document.querySelector("#state").textContent = JSON.stringify(game); document.querySelector("#edits").textContent = String(edits); };
     document.querySelector("#snapshot").onclick = capture;

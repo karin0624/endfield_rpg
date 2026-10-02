@@ -253,7 +253,7 @@ describe("探索内成長コア", () => {
   });
   it("呼び出し側のHP0・症状・回復時間・仲間・PT・フラグを成長と初期化で変えない", () => {
     const party: PartyState = {
-      members: [{ id: "player", hp: 0, status: { physicalFatigue: 2, haze: 1, incapacityRecoverySteps: 5 } }],
+      members: [{ id: "player", hp: 0, status: { physicalFatigue: 20, haze: 10, incapacityRecoverySteps: 5 } }],
       slots: ["player", null, null, null],
     };
     const session = { party, flags: ["joined"], growth: createExplorationGrowth(definition) };
@@ -263,7 +263,7 @@ describe("探索内成長コア", () => {
     };
     const reset = { ...next, growth: accepted(resetCharacterGrowth(next.growth, ["player"], definition)).state };
     expect(reset.party).toEqual({
-      members: [{ id: "player", hp: 0, status: { physicalFatigue: 2, haze: 1, incapacityRecoverySteps: 5 } }],
+      members: [{ id: "player", hp: 0, status: { physicalFatigue: 20, haze: 10, incapacityRecoverySteps: 5 } }],
       slots: ["player", null, null, null],
     });
     expect(reset.flags).toEqual(["joined"]);

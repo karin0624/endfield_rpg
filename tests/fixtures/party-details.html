@@ -24,8 +24,8 @@
     };
     game = editExpeditionParty(game, 1, "no-portrait").state;
     for (const { id } of definitions) {
-      game = applyPartyStatus(game, id, "physicalFatigue", definitions);
-      game = applyPartyStatus(game, id, "haze", definitions);
+      game = applyPartyStatus(game, id, { kind: "physicalFatigue", amount: 25 }, definitions);
+      game = applyPartyStatus(game, id, { kind: "haze", amount: 25 }, definitions);
     }
     mountPartyUi(document.querySelector("#fixture"), {
       characters: definitions,
