@@ -825,7 +825,7 @@ export function mountBattleUi(
   render();
   updateTargetHitAreas();
   // Projection and intrinsic text dimensions can settle in different layout passes.
-  // Position changes do not resize these boxes; coalesce size notifications into one render.
+  // Position changes do not resize these boxes; coalesce projection and DOM placement into one frame.
   const resizeObserver = new ResizeObserver(() => {
     if (disposed || overlayFrame !== undefined) return;
     overlayFrame = window.requestAnimationFrame(() => {

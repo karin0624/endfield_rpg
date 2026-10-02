@@ -49,6 +49,27 @@ test("配布画面の実描画を基準画像と比較する", async ({ page }) 
 });
 
 test("敵札の文字寸法と画面サイズの変更に追従し、離脱後に札を表示しない", async ({ page }) => {
+  // DOMだけの寸法変更で地面を描き直さないことを、ブラウザの描画APIで確認する。
+  await page.addInitScript(() => {
+    for (const context of [WebGLRenderingContext, WebGL2RenderingContext]) {
+      const drawElements = context.prototype.drawElements;
+      context.prototype.drawElements = function (
+        this: WebGLRenderingContext,
+        ...args: Parameters<WebGLRenderingContext["drawElements"]>
+      ) {
+        performance.mark("e2e-webgl-draw");
+        drawElements.apply(this, args);
+      };
+      const drawArrays = context.prototype.drawArrays;
+      context.prototype.drawArrays = function (
+        this: WebGLRenderingContext,
+        ...args: Parameters<WebGLRenderingContext["drawArrays"]>
+      ) {
+        performance.mark("e2e-webgl-draw");
+        drawArrays.apply(this, args);
+      };
+    }
+  });
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   page.on("console", (message) => {
@@ -61,12 +82,17 @@ test("敵札の文字寸法と画面サイズの変更に追従し、離脱後�
   const selected = page.locator(".enemy-world-label.selected");
   const before = await selected.boundingBox();
   if (!before) throw new Error("敵札が表示されていません");
+  await page.screenshot();
+  const drawsBeforeTextResize = await page.evaluate(() => performance.getEntriesByName("e2e-webgl-draw").length);
+  expect(drawsBeforeTextResize).toBeGreaterThan(0);
   // Presentation input only: simulate increased text size, leaving game state intact.
   const textSize = await page.addStyleTag({
     content: ".enemy-world-heading strong, .enemy-world-hp { font-size: 24px !important; }",
   });
   await expect.poll(async () => (await selected.boundingBox())?.height ?? 0).toBeGreaterThan(before.height);
   await expectCurrentEnemyOverlays(page);
+  await page.screenshot();
+  expect(await page.evaluate(() => performance.getEntriesByName("e2e-webgl-draw").length)).toBe(drawsBeforeTextResize);
   await textSize.evaluate((element) => element.parentNode?.removeChild(element));
   for (const viewport of [
     { width: 390, height: 844 },
@@ -83,6 +109,40 @@ test("敵札の文字寸法と画面サイズの変更に追従し、離脱後�
   await expect(page.getByRole("region", { name: "遺跡の進路" })).toBeVisible();
   for (const label of await page.locator(".enemy-world-label").all()) await expect(label).toBeHidden();
   await expect(page.locator("[data-target-indicator]")).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test("通常モーションで攻撃・撃破・再戦し、再読込後も敵札を配置する", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.goto("/?battle=1");
+  const attack = page.getByRole("button", { name: "通常攻撃" });
+  const slimeA = page.getByRole("button", { name: /スライム A、HP .*攻撃対象に選択/ });
+  const slimeB = page.getByRole("button", { name: /スライム B、HP .*攻撃対象に選択/ });
+  await expect(attack).toBeEnabled({ timeout: 60_000 });
+  await expectCurrentEnemyOverlays(page);
+  await attack.click();
+  // 通常モーション経路の攻撃後に寸法を変えても、その後の入力・投影を保つ。
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(slimeB).toHaveAccessibleName(/スライム B、HP 6\/14/);
+  await expect(attack).toBeEnabled({ timeout: 60_000 });
+  await expectCurrentEnemyOverlays(page, { width: 390, height: 844 });
+  await attack.click();
+  await expect(slimeB).toBeHidden({ timeout: 60_000 });
+  await expect(attack).toBeEnabled({ timeout: 60_000 });
+  await attack.click();
+  await expect(attack).toBeEnabled({ timeout: 60_000 });
+  await attack.click();
+  await expect(page.getByRole("heading", { name: "戦闘に勝利しました" })).toBeVisible({ timeout: 60_000 });
+  await page.getByRole("button", { name: "戦闘を再戦する" }).click();
+  await expect(slimeA).toHaveAccessibleName(/スライム A、HP 14\/14/);
+  await expect(slimeB).toHaveAccessibleName(/スライム B、HP 14\/14/);
+  await expect(attack).toBeEnabled({ timeout: 60_000 });
+  await expectCurrentEnemyOverlays(page);
+  await page.reload();
+  await expect(attack).toBeEnabled({ timeout: 60_000 });
+  await expectCurrentEnemyOverlays(page);
   expect(errors).toEqual([]);
 });
 

@@ -367,6 +367,7 @@ export function createBattleScene(
     engine.resize();
     scene.render();
     updateCombatantScreenPositions();
+    needsRender = false;
     // この画面は静止画。重い地面を操作のないフレームでも描き続けない。
     engine.runRenderLoop(() => {
       const now = performance.now();
@@ -414,10 +415,14 @@ export function createBattleScene(
     });
   })();
 
-  const resizeObserver = new ResizeObserver(() => {
+  const resizeEngine = () => {
+    const width = engine.getRenderWidth();
+    const height = engine.getRenderHeight();
     engine.resize();
-    needsRender = true;
-  });
+    // 初回の監視通知や札の寸法変更では、描画済みの地面を描き直さない。
+    if (width !== engine.getRenderWidth() || height !== engine.getRenderHeight()) needsRender = true;
+  };
+  const resizeObserver = new ResizeObserver(resizeEngine);
   resizeObserver.observe(canvas);
   return {
     ready,
@@ -467,13 +472,12 @@ export function createBattleScene(
       }
       return frontmostId;
     },
-    /** サイズ変更時に一度だけ描画して、全敵の投影位置を更新する。 */
+    /** 現在の寸法・変換から投影を更新する。実寸法の変更だけ次の描画へまとめる。 */
     refreshCombatantScreenPositions() {
       if (disposed || actors.length === 0) return;
-      engine.resize();
-      scene.render();
+      resizeEngine();
+      scene.updateTransformMatrix();
       updateCombatantScreenPositions();
-      needsRender = false;
     },
     playCombatantEffect(id: string, type: "attack" | "hit" | "defeat", animate = true, onComplete?: () => void) {
       const actor = findActor(id);
