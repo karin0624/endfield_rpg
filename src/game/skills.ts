@@ -28,7 +28,10 @@ export interface PassiveSkillDefinition extends SkillIdentity {
   readonly type: "passive";
   /** Add to basic attack power without activation. Each entry is the total
    * effect at that rank; length is the individual cap. */
-  readonly effect: { readonly type: "basic-attack-power-bonus"; readonly rankAmounts: readonly number[] };
+  readonly effect: {
+    readonly type: "basic-attack-power-bonus" | "attack-power-bonus" | "max-hp-bonus";
+    readonly rankAmounts: readonly number[];
+  };
   readonly mentalFatigueIncrease?: never;
   readonly scenes?: never;
   readonly target?: never;
@@ -156,7 +159,7 @@ export function validateSkillCatalog(catalog: SkillCatalog, characters: readonly
         throw new Error(`効果・対象条件が不正です: ${skill.id}`);
     } else if (
       skill.type !== "passive" ||
-      skill.effect.type !== "basic-attack-power-bonus" ||
+      !["basic-attack-power-bonus", "attack-power-bonus", "max-hp-bonus"].includes(skill.effect.type) ||
       skill.mentalFatigueIncrease !== undefined ||
       skill.scenes !== undefined ||
       skill.target !== undefined

@@ -25,6 +25,7 @@ import {
 } from "./status";
 
 export interface BattleSkillRules {
+  readonly growth?: import("./growthRuntime").GrowthRules;
   readonly catalog: SkillCatalog;
   readonly fatigue: MentalFatigueDefinition;
 }
@@ -48,6 +49,7 @@ export interface BattleCombatantDefinition {
   readonly speed: number;
   readonly hp: number;
   readonly attackPower: number;
+  readonly basicAttackBonus?: number;
 }
 
 export interface BattleCombatant {
@@ -64,6 +66,7 @@ export interface BattleCombatant {
   readonly startOrder: number;
   readonly hp: number;
   readonly attackPower: number;
+  readonly basicAttackBonus?: number;
 }
 
 export interface BattleState extends Omit<BattleTimelineState, "combatants"> {
@@ -155,6 +158,12 @@ function assertValidDefinition(definition: BattleCombatantDefinition): void {
   if (!Number.isFinite(definition.hp) || definition.hp < 0) {
     throw new Error(`戦闘者のHPは0以上の有限値で指定してください: ${definition.id}`);
   }
+  if (
+    !Number.isFinite(definition.basicAttackBonus ?? 0) ||
+    (definition.basicAttackBonus ?? 0) < 0 ||
+    !Number.isFinite(definition.attackPower + (definition.basicAttackBonus ?? 0))
+  )
+    throw new Error(`通常攻撃力補正が不正です: ${definition.id}`);
   if (!Number.isFinite(definition.attackPower) || definition.attackPower < 0) {
     throw new Error(`戦闘者の攻撃力は0以上の有限値で指定してください: ${definition.id}`);
   }
@@ -249,6 +258,7 @@ export function createBattleState(
       team: definition.team,
       hp: definition.hp,
       attackPower: definition.attackPower,
+      basicAttackBonus: definition.basicAttackBonus ?? 0,
     } satisfies BattleCombatant;
   });
 
@@ -330,10 +340,11 @@ export function performBasicAttack(state: BattleState, actorId: string, targetId
   }
 
   const hitRate = effectiveHitRate(actor.hitRate, actor.status);
-  const draw = actor.attackPower > 0 && hitRate > 0 && hitRate < 1 ? nextGameRandom(state.randomState) : null;
+  const basicPower = actor.attackPower + (actor.basicAttackBonus ?? 0);
+  const draw = basicPower > 0 && hitRate > 0 && hitRate < 1 ? nextGameRandom(state.randomState) : null;
   const hit = hitRate === 1 || (hitRate > 0 && (draw === null || draw.value < hitRate));
   const targetHpBefore = target.hp;
-  const targetHpAfter = Math.max(0, targetHpBefore - (hit ? actor.attackPower : 0));
+  const targetHpAfter = Math.max(0, targetHpBefore - (hit ? basicPower : 0));
   const targetWasDefeated = targetHpAfter === 0;
   const combatants = state.combatants.map((combatant) =>
     combatant.id === target.id
@@ -357,7 +368,7 @@ export function performBasicAttack(state: BattleState, actorId: string, targetId
           type: "attack",
           actorId,
           targetId,
-          damage: actor.attackPower,
+          damage: basicPower,
           targetHpBefore,
           targetHpAfter,
         },

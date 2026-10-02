@@ -1,4 +1,5 @@
 import { characters } from "../../src/content/characters";
+import { growthRules } from "../../src/content/growthRules";
 import { initialAdventure } from "../../src/content/initialAdventure";
 import { initialBattleCombatants } from "../../src/content/initialBattle";
 import { initialDungeon } from "../../src/content/initialDungeon";
@@ -7,6 +8,7 @@ import { mentalFatigueDefinition } from "../../src/content/mentalFatigueDefiniti
 import { skillCatalog } from "../../src/content/skillDefinitions";
 import { createInitialGameState } from "../../src/game/createInitialGameState";
 import { actInExpedition, departOnExpedition, type ExpeditionGame } from "../../src/game/expedition";
+import { chooseGrowthSkill } from "../../src/game/growthRuntime";
 import { createParty, getPartyCombatants } from "../../src/game/party";
 import savedSettings from "../../src/web/battle-settings.json";
 import { parseBattleSettings } from "../../src/web/battleSettings";
@@ -33,7 +35,11 @@ if (new URLSearchParams(location.search).has("demo")) {
     renderer.dispose();
   };
 } else {
-  const skillRules = { catalog: skillCatalog, fatigue: mentalFatigueDefinition };
+  const skillRules = {
+    catalog: skillCatalog,
+    fatigue: mentalFatigueDefinition,
+    ...(new URLSearchParams(location.search).has("growth") ? { growth: growthRules } : {}),
+  };
   let game: ExpeditionGame = {
     adventure: createInitialGameState(initialGameOptions),
     party: createParty(characters, ["player"]),
@@ -44,6 +50,12 @@ if (new URLSearchParams(location.search).has("demo")) {
   document.body.classList.add("dungeon-mode");
   dispose = mountDungeonUi(app, {
     initialState: game.dungeon,
+    getGrowth: () => game.growth,
+    chooseGrowth(input) {
+      const result = chooseGrowthSkill(game, input, skillRules);
+      game = result.state;
+      return game.dungeon ?? undefined;
+    },
     skillRules,
     calendarLabel: "UI操作テスト",
     combatants: getPartyCombatants(game.party, characters),

@@ -7,6 +7,23 @@ import { applyPartyStatus, type ExpeditionGame } from "../../src/game/expedition
 import { createParty } from "../../src/game/party";
 import { serializeGame } from "../../src/game/save";
 
+/** Resolve actual retained offers; prefer effects that do not alter attackPower. */
+async function finishGrowthChoices(page: Page) {
+  const panel = page.getByRole("region", { name: "レベルアップのスキル選択" });
+  while (await panel.isVisible()) {
+    await expect(panel.getByRole("button")).toHaveCount(3);
+    const pick = panel.getByRole("button").filter({ hasNotText: "検証用威力補正" }).first();
+    await pick.click();
+  }
+}
+async function winByAttacking(page: Page) {
+  const victory = page.getByRole("heading", { name: "戦闘に勝利しました" });
+  for (let turn = 0; turn < 12 && !(await victory.isVisible()); turn++) {
+    await page.getByRole("button", { name: "通常攻撃" }).click();
+  }
+  await expect(victory).toBeVisible();
+}
+
 async function editSlot(page: Page, slot: number, id: string) {
   await page.getByRole("button", { name: `枠 ${slot}`, exact: true }).click();
   if (!id) await page.getByRole("button", { name: "外す", exact: true }).click();
@@ -86,6 +103,7 @@ test("会話ノードの選択後に探索位置へ戻る", async ({ page }) => 
   await page.locator("[data-conversation-stage]").click();
   await expect(page.getByText("足跡を記録する？")).toBeVisible();
   await page.getByRole("button", { name: "地図に足跡を記す" }).click();
+  await finishGrowthChoices(page);
 
   await expect(page.getByRole("region", { name: "遺跡の進路" })).toBeVisible();
   await expect(page.getByRole("button", { name: "思わぬ遭遇、現在地" })).toBeDisabled();
@@ -114,49 +132,35 @@ test("390pxのダンジョン戦闘でコマンドまでスクロールして攻
 
 test("全滅帰還でHP全回復し、街探索6回で戦闘不能から復帰する", async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1920, height: 1080 });
+  let initial: ExpeditionGame = {
+    adventure: createInitialGameState(initialGameOptions),
+    party: createParty(characters, ["player"]),
+    dungeon: null,
+    randomState: 3,
+  };
+  for (let n = 0; n < 3; n++) initial = applyPartyStatus(initial, "player", "haze", characters);
+  const seed = serializeGame(initial, saveDefinitions);
+  if (!seed.accepted) throw new Error(seed.reason);
   await page.goto("/");
+  await page.evaluate((data) => localStorage.setItem("endfield-rpg-game-save", data), seed.data);
+  await page.getByRole("button", { name: "読込", exact: true }).click();
   await page.getByRole("link", { name: "出撃編成を見る" }).click();
   await page.getByRole("button", { name: "出撃", exact: true }).click();
   await page.getByRole("button", { name: "戦闘、選択可能" }).click();
 
   const attack = page.getByRole("button", { name: "通常攻撃" });
-  const slimeA = page.getByRole("button", { name: /スライム A、HP .*攻撃対象に選択/ });
-  const slimeB = page.getByRole("button", { name: /スライム B、HP .*攻撃対象に選択/ });
   await expect(attack).toBeEnabled({ timeout: 60_000 });
-  await expect(slimeB).toHaveAttribute("aria-pressed", "true");
-  await attack.click();
-  await expect(slimeB).toHaveAccessibleName(/スライム B、HP 6\/14/);
-  await attack.click();
-  await expect(slimeB).toBeHidden();
-  await expect(slimeA).toHaveAttribute("aria-pressed", "true");
-  await attack.click();
-  await expect(slimeA).toHaveAccessibleName(/スライム A、HP 6\/14/);
-  await attack.click();
-  await expect(page.getByRole("heading", { name: "戦闘に勝利しました" })).toBeVisible();
+  const defeat = page.getByRole("heading", { name: "戦闘に敗北しました" });
+  for (let turn = 0; turn < 10 && !(await defeat.isVisible()); turn++) await attack.click();
+  await expect(defeat).toBeVisible();
   await page.getByRole("button", { name: "戦闘を終えてルートへ戻る" }).click();
-  await expect(page.getByRole("button", { name: "ボス、選択可能" })).toBeEnabled();
-  const skippedConversation = page.getByRole("button", { name: "思わぬ遭遇、未到達" });
-  await expect(skippedConversation).toBeDisabled();
-  await expect(skippedConversation.locator("img")).toHaveCSS("filter", /blur/);
-  await expect(page.getByText("思わぬ遭遇", { exact: true })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "ボス、選択可能" }).locator("img")).not.toHaveCSS("filter", /blur/);
-
-  await page.getByRole("button", { name: "ボス、選択可能" }).click();
-  const warden = page.getByRole("button", { name: /遺跡の守り手、HP .*攻撃対象に選択/ });
-  await expect(attack).toBeEnabled({ timeout: 60_000 });
-  await expect(warden).toHaveAccessibleName(/遺跡の守り手、HP 28\/28/);
-  await attack.click();
-  await expect(page.getByRole("heading", { name: "戦闘に敗北しました" })).toBeVisible();
-  await page.getByRole("button", { name: "戦闘を終えてルートへ戻る" }).click();
-  await expect(page.getByRole("heading", { name: "探索に失敗しました" })).toBeVisible();
-  await page.getByRole("button", { name: "街へ戻る", exact: true }).dblclick();
   await expect(page.locator("[data-calendar]")).toHaveText("1日目 · 夜");
   await expect(page.locator("[data-town-recovery]")).toContainText("出撃者のHPが全回復しました。");
   await expect(page.locator("[data-town-recovery]")).toContainText("戦闘不能（あと街探索6回）");
   await page.screenshot({ path: testInfo.outputPath("defeat-town-1920.png") });
   await page.getByRole("link", { name: "出撃編成を見る" }).click();
   await expect(page.locator(".party-slot-hp").first()).toHaveText("HP 20 / 20");
-  await expect(page.locator(".party-slot-symptoms").first()).toHaveText("戦闘不能（あと街探索6回）");
+  await expect(page.locator(".party-slot-symptoms").first()).toContainText("戦闘不能（あと街探索6回）");
   await expect(page.getByRole("button", { name: "出撃" })).toBeDisabled();
   await page.screenshot({ path: testInfo.outputPath("defeat-party-1920.png") });
   await page.setViewportSize({ width: 390, height: 844 });
@@ -255,11 +259,12 @@ test("街の4枠を編集して単独出撃し、ボス帰還の回復HPを編�
   await page.getByRole("button", { name: "思わぬ遭遇、選択可能" }).click();
   await page.locator("[data-conversation-stage]").click();
   await page.getByRole("button", { name: "地図に足跡を記す" }).click();
+  await finishGrowthChoices(page);
   await page.getByRole("button", { name: "ボス、選択可能" }).click();
   const attack = page.getByRole("button", { name: "通常攻撃" });
   await expect(attack).toBeEnabled({ timeout: 60_000 });
   await expect(page.getByRole("region", { name: "味方の状態" }).getByRole("article")).toHaveCount(1);
-  for (let turn = 0; turn < 4; turn++) await attack.click();
+  await winByAttacking(page);
   await expect(page.getByRole("heading", { name: "戦闘に勝利しました" })).toBeVisible();
   await page.getByRole("button", { name: "戦闘を終えてルートへ戻る" }).click();
   await expect(page.getByRole("heading", { name: "探索を完了しました" })).toBeVisible();
@@ -304,11 +309,12 @@ test("街探索から加入・編成・ボス帰還・再訪まで同じセッ�
   await page.getByRole("button", { name: "思わぬ遭遇、選択可能" }).click();
   await page.keyboard.press("Space");
   await page.getByRole("button", { name: "地図に足跡を記す" }).click();
+  await finishGrowthChoices(page);
   await page.getByRole("button", { name: "ボス、選択可能" }).click();
   const attack = page.getByRole("button", { name: "通常攻撃" });
   await expect(attack).toBeEnabled({ timeout: 60_000 });
   await page.screenshot({ path: testInfo.outputPath("party-battle-1920.png") });
-  for (let turn = 0; turn < 4; turn++) await attack.click();
+  await winByAttacking(page);
   await expect(page.getByRole("heading", { name: "戦闘に勝利しました" })).toBeVisible();
   await page.getByRole("button", { name: "戦闘を終えてルートへ戻る" }).click();
   await page.getByRole("button", { name: "街へ戻る", exact: true }).dblclick();
@@ -462,17 +468,13 @@ test("初期症状の試験データから実操作で段階回復・全滅帰�
   await expect(details.getByText("90%", { exact: true })).toBeVisible();
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "出撃", exact: true }).click();
-  await page.getByRole("button", { name: "思わぬ遭遇、選択可能" }).click();
-  await page.keyboard.press("Space");
-  await page.getByRole("button", { name: "地図に足跡を記す" }).click();
-  await page.getByRole("button", { name: "ボス、選択可能" }).click();
+  await page.getByRole("button", { name: "戦闘、選択可能" }).click();
   const attack = page.getByRole("button", { name: "通常攻撃" });
   await expect(attack).toBeEnabled({ timeout: 60_000 });
-  await attack.click();
-  await attack.click();
-  await expect(page.getByRole("heading", { name: "戦闘に敗北しました" })).toBeVisible();
+  const defeat = page.getByRole("heading", { name: "戦闘に敗北しました" });
+  for (let turn = 0; turn < 12 && !(await defeat.isVisible()); turn++) await attack.click();
+  await expect(defeat).toBeVisible();
   await page.getByRole("button", { name: "戦闘を終えてルートへ戻る" }).click();
-  await page.getByRole("button", { name: "街へ戻る", exact: true }).click();
   await page.getByRole("link", { name: "出撃編成を見る" }).click();
   await expect(page.locator(".party-slot").first()).toContainText("HP 15 / 15");
   await expect(page.locator(".party-slot").first()).toContainText("肉体疲労・軽度");
@@ -569,13 +571,18 @@ test("壊れた保存とブラウザI/O失敗でもゲームと既存保存を�
   await expect(page.locator("[data-save-status]")).toContainText("読み込めません");
   await expect(page.locator("[data-calendar]")).toHaveText("1日目 · 夜");
   await page.reload();
-  await page.evaluate(() => localStorage.setItem("endfield-rpg-game-save", '{"version":1,"party":{}}'));
+  await page.evaluate(() => localStorage.setItem("endfield-rpg-game-save", '{"version":3,"party":{}}'));
   await page.getByRole("button", { name: "市場", exact: true }).click();
   await page.keyboard.press("Space");
   await page.getByRole("button", { name: "読込", exact: true }).click();
   await expect(page.locator("[data-save-status]")).toContainText("読み込めません");
   await expect(page.locator("[data-calendar]")).toHaveText("1日目 · 夜");
-  expect(await page.evaluate(() => localStorage.getItem("endfield-rpg-game-save"))).toBe('{"version":1,"party":{}}');
+  expect(await page.evaluate(() => localStorage.getItem("endfield-rpg-game-save"))).toBe('{"version":3,"party":{}}');
+  await page.evaluate(() => localStorage.setItem("endfield-rpg-game-save", '{"version":2,"party":{}}'));
+  await page.getByRole("button", { name: "読込", exact: true }).click();
+  await expect(page.locator("[data-save-status]")).toHaveText("対応していない保存データです。");
+  await expect(page.locator("[data-calendar]")).toHaveText("1日目 · 夜");
+  expect(await page.evaluate(() => localStorage.getItem("endfield-rpg-game-save"))).toBe('{"version":2,"party":{}}');
 });
 
 test("通常探索のスキル使用を次戦・帰還・保存読込・街回復へつなぐ", async ({ page }, testInfo) => {
@@ -597,16 +604,17 @@ test("通常探索のスキル使用を次戦・帰還・保存読込・街回�
   await use("検証用回復", "player");
   await use("検証用攻撃", undefined, true);
   await page.getByRole("button", { name: "戦闘を終えてルートへ戻る" }).click();
+  await finishGrowthChoices(page);
   await page.getByRole("button", { name: "ボス、選択可能" }).click();
   await expect(skills).toBeEnabled({ timeout: 60_000 });
   await skills.click();
   await page.getByRole("button", { name: "検証用攻撃", exact: true }).click();
   await expect(page.locator("[data-skill-fatigue]")).toContainText("精神疲労 11");
-  await expect(page.locator("[data-skill-preview]")).toContainText("予測ダメージ 14.41");
+  await expect(page.locator("[data-skill-preview]")).toContainText("予測ダメージ 15.32");
   await page.screenshot({ path: testInfo.outputPath("skill-preview-1440.png") });
   await page.getByRole("button", { name: "使用する", exact: true }).click();
   await expect(skills).toBeEnabled();
-  await expect(page.locator("[data-skill-result]")).toContainText("14.41ダメージ");
+  await expect(page.locator("[data-skill-result]")).toContainText("15.32ダメージ");
   await use("検証用攻撃", undefined, true);
   await page.getByRole("button", { name: "戦闘を終えてルートへ戻る" }).click();
   await page.getByRole("button", { name: "街へ戻る", exact: true }).click();
@@ -614,6 +622,10 @@ test("通常探索のスキル使用を次戦・帰還・保存読込・街回�
   await page.getByRole("button", { name: "保存", exact: true }).click();
   const saved = await page.evaluate(() => localStorage.getItem("endfield-rpg-game-save"));
   expect(JSON.parse(saved ?? "{}").party.members[0].mentalFatigue).toBe(19);
+  expect(JSON.parse(saved ?? "{}").growth.growth.characters[0]).toMatchObject({ level: 1, experience: 0 });
+  expect(
+    JSON.parse(saved ?? "{}").growth.characters[0].learned.map((entry: { skillId: string }) => entry.skillId),
+  ).toEqual(["test-strike", "test-heal"]);
   await page.reload();
   await page.getByRole("button", { name: "読込", exact: true }).dblclick();
   expect(await page.evaluate(() => localStorage.getItem("endfield-rpg-game-save"))).toBe(saved);

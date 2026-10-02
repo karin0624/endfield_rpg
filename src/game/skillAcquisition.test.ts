@@ -259,6 +259,12 @@ describe("探索内スキル取得コア", () => {
     const initialIds = ["test-strike", "test-heal", "test-strength"].slice(remaining);
     const skills: SkillCatalog = {
       ...skillCatalog,
+      pools: [
+        {
+          id: "test-shared",
+          candidates: { ...skillCatalog.pools[0].candidates, normal: ["test-strike", "test-heal", "test-strength"] },
+        },
+      ],
       skills: skillCatalog.skills.map((skill) =>
         skill.type === "passive" ? { ...skill, effect: { ...skill.effect, rankAmounts: [2] } } : skill,
       ),
