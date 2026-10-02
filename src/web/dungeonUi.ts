@@ -12,7 +12,7 @@ import type { DungeonCommand } from "../game/expedition";
 import savedAdventureSettings from "./adventure-settings.json";
 import { applyAdventureSettings, parseAdventureSettings } from "./adventureSettings";
 import savedBattleSettings from "./battle-settings.json";
-import { createBattleScene } from "./battleScene";
+import { type BattleScene, createBattleRenderer } from "./battleScene";
 import { parseBattleSettings } from "./battleSettings";
 import { mountBattleUi } from "./battleUi";
 import { requiredElement } from "./requiredElement";
@@ -190,7 +190,8 @@ export function mountDungeonUi(
   let dragStartOffset = 0;
   let dragMoved = false;
   let suppressNextNodeClick = false;
-  let battleScene: ReturnType<typeof createBattleScene> | undefined;
+  let battleRenderer: ReturnType<typeof createBattleRenderer> | undefined;
+  let battleScene: BattleScene | undefined;
   let disposeBattleUi: (() => void) | undefined;
   let battleLoadId = 0;
   let edgeRefreshFrame: number | undefined;
@@ -495,7 +496,8 @@ export function mountDungeonUi(
     battleStatus.classList.remove("sr-only");
     battleStatus.textContent = "戦闘画面を読み込んでいます…";
     showView("battle");
-    battleScene = createBattleScene(battleCanvas, settings, definitions);
+    battleRenderer ??= createBattleRenderer(battleCanvas, settings);
+    battleScene = battleRenderer.beginBattle(definitions);
     const currentScene = battleScene;
     void currentScene.ready
       .then(() => {
@@ -667,6 +669,8 @@ export function mountDungeonUi(
   return () => {
     disposed = true;
     disposeBattle();
+    battleRenderer?.dispose();
+    battleRenderer = undefined;
     resizeObserver.disconnect();
     if (edgeRefreshFrame !== undefined) cancelAnimationFrame(edgeRefreshFrame);
     events.abort();
