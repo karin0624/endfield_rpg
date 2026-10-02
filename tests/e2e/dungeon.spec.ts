@@ -546,13 +546,18 @@ test("壊れた保存とブラウザI/O失敗でもゲームと既存保存を�
   await expect(page.locator("[data-save-status]")).toContainText("読み込めません");
   await expect(page.locator("[data-calendar]")).toHaveText("1日目 · 夜");
   await page.reload();
-  await page.evaluate(() => localStorage.setItem("endfield-rpg-game-save", '{"version":1,"party":{}}'));
+  await page.evaluate(() => localStorage.setItem("endfield-rpg-game-save", '{"version":3,"party":{}}'));
   await page.getByRole("button", { name: "市場", exact: true }).click();
   await page.keyboard.press("Space");
   await page.getByRole("button", { name: "読込", exact: true }).click();
   await expect(page.locator("[data-save-status]")).toContainText("読み込めません");
   await expect(page.locator("[data-calendar]")).toHaveText("1日目 · 夜");
-  expect(await page.evaluate(() => localStorage.getItem("endfield-rpg-game-save"))).toBe('{"version":1,"party":{}}');
+  expect(await page.evaluate(() => localStorage.getItem("endfield-rpg-game-save"))).toBe('{"version":3,"party":{}}');
+  await page.evaluate(() => localStorage.setItem("endfield-rpg-game-save", '{"version":2,"party":{}}'));
+  await page.getByRole("button", { name: "読込", exact: true }).click();
+  await expect(page.locator("[data-save-status]")).toHaveText("対応していない保存データです。");
+  await expect(page.locator("[data-calendar]")).toHaveText("1日目 · 夜");
+  expect(await page.evaluate(() => localStorage.getItem("endfield-rpg-game-save"))).toBe('{"version":2,"party":{}}');
 });
 
 test("通常探索のスキル使用を次戦・帰還・保存読込・街回復へつなぐ", async ({ page }, testInfo) => {

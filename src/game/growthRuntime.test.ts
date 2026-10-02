@@ -7,6 +7,7 @@ import { initialGameOptions } from "../content/initialGameOptions";
 import { mentalFatigueDefinition } from "../content/mentalFatigueDefinition";
 import { saveDefinitions } from "../content/saveDefinitions";
 import { skillCatalog } from "../content/skillDefinitions";
+import { advanceBattleToNextAllyInput, createBattleState } from "./battle";
 import { createInitialGameState } from "./createInitialGameState";
 import {
   actInExpedition,
@@ -17,6 +18,7 @@ import {
   type ExpeditionGame,
   editExpeditionParty,
   leaveExpedition,
+  receiveTownRecoverySignal,
 } from "./expedition";
 import { chooseGrowthSkill, ensureGrowth, rewardGrowth } from "./growthRuntime";
 import { createParty } from "./party";
@@ -249,100 +251,46 @@ describe("通常操作の成長と取得・帰還", () => {
   });
 });
 
+type MutableSaveFixture = {
+  randomState: number;
+  growth: {
+    randomState: number;
+    closed: boolean;
+    growth: { characters: { experience: number; bonus: { maxHp: number }; pendingChoiceLevels: number[] }[] };
+    characters: { learned: { rank?: number }[] }[];
+  };
+};
+
 describe("成長保存の入力検証", () => {
   it("不正な乱数・余剰・補正・習得ランク・残存権利を例外なく拒否する", () => {
     const saved = serializeGame(town(initial()), saveDefinitions);
     if (!saved.accepted) throw new Error(saved.reason);
     for (const mutate of [
-      (data: {
-        randomState: number;
-        growth: {
-          randomState: number;
-          closed: boolean;
-          growth: { characters: { experience: number; bonus: { maxHp: number }; pendingChoiceLevels: number[] }[] };
-          characters: { learned: { rank?: number }[] }[];
-        };
-      }) => {
+      (data: MutableSaveFixture) => {
         data.randomState = -1;
         data.growth.randomState = -1;
       },
-      (data: {
-        randomState: number;
-        growth: {
-          randomState: number;
-          closed: boolean;
-          growth: { characters: { experience: number; bonus: { maxHp: number }; pendingChoiceLevels: number[] }[] };
-          characters: { learned: { rank?: number }[] }[];
-        };
-      }) => {
+      (data: MutableSaveFixture) => {
         data.randomState = 0.5;
         data.growth.randomState = 0.5;
       },
-      (data: {
-        randomState: number;
-        growth: {
-          randomState: number;
-          closed: boolean;
-          growth: { characters: { experience: number; bonus: { maxHp: number }; pendingChoiceLevels: number[] }[] };
-          characters: { learned: { rank?: number }[] }[];
-        };
-      }) => {
+      (data: MutableSaveFixture) => {
         data.randomState = 0x100000000;
         data.growth.randomState = 0x100000000;
       },
-      (data: {
-        randomState: number;
-        growth: {
-          randomState: number;
-          closed: boolean;
-          growth: { characters: { experience: number; bonus: { maxHp: number }; pendingChoiceLevels: number[] }[] };
-          characters: { learned: { rank?: number }[] }[];
-        };
-      }) => {
+      (data: MutableSaveFixture) => {
         data.growth.growth.characters[0].experience = 10;
       },
-      (data: {
-        randomState: number;
-        growth: {
-          randomState: number;
-          closed: boolean;
-          growth: { characters: { experience: number; bonus: { maxHp: number }; pendingChoiceLevels: number[] }[] };
-          characters: { learned: { rank?: number }[] }[];
-        };
-      }) => {
+      (data: MutableSaveFixture) => {
         data.growth.growth.characters[0].bonus.maxHp = 4;
       },
-      (data: {
-        randomState: number;
-        growth: {
-          randomState: number;
-          closed: boolean;
-          growth: { characters: { experience: number; bonus: { maxHp: number }; pendingChoiceLevels: number[] }[] };
-          characters: { learned: { rank?: number }[] }[];
-        };
-      }) => {
+      (data: MutableSaveFixture) => {
         data.growth.characters[0].learned[0].rank = 2;
       },
-      (data: {
-        randomState: number;
-        growth: {
-          randomState: number;
-          closed: boolean;
-          growth: { characters: { experience: number; bonus: { maxHp: number }; pendingChoiceLevels: number[] }[] };
-          characters: { learned: { rank?: number }[] }[];
-        };
-      }) => {
+      (data: MutableSaveFixture) => {
         data.growth.growth.characters[0].pendingChoiceLevels = [2];
       },
-      (data: {
-        randomState: number;
-        growth: {
-          randomState: number;
-          closed: boolean;
-          growth: { characters: { experience: number; bonus: { maxHp: number }; pendingChoiceLevels: number[] }[] };
-          characters: { learned: { rank?: number }[] }[];
-        };
-      }) => {
+      (data: MutableSaveFixture) => {
         data.growth.closed = true;
       },
     ]) {
@@ -386,5 +334,63 @@ describe("生存条件とパッシブ効果", () => {
     expect(game.growth?.growth.characters.every(({ pendingChoiceLevels }) => pendingChoiceLevels.length === 0)).toBe(
       true,
     );
+  });
+});
+
+describe("HP上限の差分", () => {
+  it("体力の習得とランク増加だけ現在HPへ加え、症状・疲労を維持する", () => {
+    let injured = applyPartyStatus(initial(), "player", "physicalFatigue", characters);
+    injured = receiveTownRecoverySignal(injured, 0, characters, mentalFatigueDefinition);
+    injured = applyPartyStatus(injured, "player", "haze", characters);
+    let verified = false;
+    for (let seed = 0; seed < 128 && !verified; seed++) {
+      let game = accept(
+        rewardGrowth(
+          { ...injured, randomState: seed },
+          { id: "event", allocations: [{ characterId: "player", experience: 25 }] },
+          rules,
+        ),
+      );
+      expect(game.party.members[0].hp).toBe(23); // 15 injured HP + 8 level growth, not full28.
+      if (!game.growth?.choice?.candidateIds.includes("test-vitality")) continue;
+      game = accept(chooseGrowthSkill(game, selection(game, "test-vitality"), rules));
+      expect(game.party.members[0].hp).toBe(27);
+      if (!game.growth?.choice?.candidateIds.includes("test-vitality")) continue;
+      game = accept(chooseGrowthSkill(game, selection(game, "test-vitality"), rules));
+      expect(game.party.members[0]).toMatchObject({ hp: 30, status: { haze: 1 }, mentalFatigue: 0 });
+      game = roundTrip(game);
+      game = depart(game);
+      expect(game.dungeon?.party[0]).toMatchObject({ hp: 30, maxHp: 35 });
+      game = accept(leaveExpedition(game, undefined, rules));
+      expect(game.party.members[0]).toMatchObject({ hp: 20, status: { haze: 1 } });
+      verified = true;
+    }
+    expect(verified).toBe(true);
+  });
+  it("戦闘でHP0になったキャラを成長投影で復活させない", () => {
+    const battle = advanceBattleToNextAllyInput(
+      createBattleState([
+        { ...characters[0], team: "ally", hp: 1 },
+        { id: "enemy", team: "enemy", hp: 20, attackPower: 10, speed: 1000 },
+      ]),
+    ).state;
+    const fallen = battle.combatants.find(({ id }) => id === "player");
+    if (!fallen) throw new Error("戦闘参加者なし");
+    expect(fallen.hp).toBe(0);
+    const game = {
+      ...initial(),
+      party: {
+        ...initial().party,
+        members: [{ id: fallen.id, hp: fallen.hp, status: fallen.status, mentalFatigue: fallen.mentalFatigue }],
+      },
+    };
+    const growth = accept(
+      rewardGrowth(
+        game,
+        { id: "explicit-core-fixture", allocations: [{ characterId: "player", experience: 10 }] },
+        rules,
+      ),
+    );
+    expect(growth.party.members[0]).toMatchObject({ hp: 0, status: { incapacityRecoverySteps: 6 } });
   });
 });

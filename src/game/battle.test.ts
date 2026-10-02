@@ -344,3 +344,18 @@ describe("battle", () => {
     expect(result.events.at(-1)).toEqual({ type: "battle-ended", outcome: "defeat" });
   });
 });
+
+it("通常攻撃パッシブだけでも命中乱数を使い、負の補正を拒否する", () => {
+  const combatants = [
+    { id: "hero", team: "ally" as const, hp: 20, speed: 100, attackPower: 0, basicAttackBonus: 3, hitRate: 0.1 },
+    { id: "enemy", team: "enemy" as const, hp: 20, speed: 50, attackPower: 1 },
+  ];
+  const state = advanceBattleToNextActor(createBattleState(combatants, 1));
+  const result = performBasicAttack(state, "hero", "enemy");
+  expect(result.accepted).toBe(true);
+  expect(result.state.combatants.find(({ id }) => id === "enemy")?.hp).toBe(20);
+  expect(result.state.randomState).not.toBe(1);
+  for (const basicAttackBonus of [-1, Number.POSITIVE_INFINITY, Number.NaN]) {
+    expect(() => createBattleState([{ ...combatants[0], basicAttackBonus }, combatants[1]])).toThrow();
+  }
+});
