@@ -1,3 +1,4 @@
+import { loadSymptomDefinition } from "../content/loadSymptomDefinition";
 import type {
   AdventureActionResult,
   AdventureDefinition,
@@ -24,6 +25,10 @@ import {
   performBattleSkillAndAdvanceToAllyInput,
 } from "./battle";
 import type { GameState } from "./createInitialGameState";
+import { applyAdditionalLoadSymptom } from "./loadSymptoms";
+import { mentalFatigueMultiplier } from "./mentalFatigue";
+import { activeSkillBaseAmount, mentalFatigueAffectedQuantity } from "./skills";
+import { canParticipate, effectiveMaxHp, healthyStatus } from "./status";
 
 interface DungeonNodeBase {
   readonly id: string;
@@ -70,6 +75,7 @@ export type DungeonActivity =
 
 export interface DungeonState {
   readonly expeditionActionId?: number;
+  readonly branchSkillVersion: number;
   readonly dungeonId: string;
   /** The last entered node, or the entry node before the first choice. */
   readonly currentNodeId: string;
@@ -114,7 +120,7 @@ export type DungeonActionResult =
   | {
       readonly accepted: false;
       readonly reason: DungeonRejectionReason;
-      readonly state: DungeonState;
+      readonly state: DungeonState | null;
       readonly events: BattleEvent[];
     };
 
@@ -266,6 +272,7 @@ export function createDungeonState(
   }
   return {
     randomState,
+    branchSkillVersion: 0,
     dungeonId: definition.id,
     currentNodeId: entry.id,
     activeNodeId: null,
@@ -553,4 +560,97 @@ export function performDungeonSkill(
       rules.fatigue,
     ),
   );
+}
+
+export interface DungeonBranchSkillInput {
+  readonly actorId: string;
+  readonly targetId: string;
+  readonly skillId: string;
+  readonly expectedVersion: number;
+  readonly expectedNodeId: string;
+  readonly expeditionActionId: number;
+}
+
+/** A version identifies one accepted use, independent of the battle timeline. */
+export function performDungeonBranchSkill(
+  state: DungeonState,
+  input: DungeonBranchSkillInput,
+  definition: DungeonDefinition,
+  rules: BattleSkillRules,
+): DungeonActionResult {
+  if (state.dungeonId !== definition.id) return reject(state, "wrong-dungeon");
+  if (state.outcome !== "ongoing") return reject(state, "dungeon-ended");
+  if (state.activity !== null || state.activeNodeId !== null) return reject(state, "node-in-progress");
+  if (!getAvailableDungeonNodes(state, definition).length) return reject(state, "current-node-unresolved");
+  if (
+    state.expeditionActionId !== input.expeditionActionId ||
+    state.currentNodeId !== input.expectedNodeId ||
+    state.branchSkillVersion !== input.expectedVersion
+  )
+    return reject(state, "battle:action-not-current");
+  const actor = state.party.find(({ id }) => id === input.actorId);
+  if (actor?.team !== "ally" || !canParticipate(actor.hp, actor.status))
+    return reject(state, "battle:no-current-actor");
+  if (!actor.learnedSkills?.some((known) => known.type === "active" && known.skillId === input.skillId))
+    return reject(state, "battle:skill-not-learned");
+  const skill = rules.catalog.skills.find(({ id }) => id === input.skillId);
+  if (
+    skill?.type !== "active" ||
+    !skill.scenes.includes("branch") ||
+    skill.target !== "single-ally" ||
+    skill.effect.type !== "hp-recovery"
+  )
+    return reject(state, "battle:skill-not-usable");
+  const target = state.party.find(({ id }) => id === input.targetId);
+  if (target?.team !== "ally") return reject(state, "battle:target-does-not-exist");
+  if (!canParticipate(target.hp, target.status)) return reject(state, "battle:target-is-defeated");
+  const fatigueBefore = actor.mentalFatigue ?? 0;
+  const fatigueAfter = fatigueBefore + skill.mentalFatigueIncrease;
+  if (!Number.isFinite(fatigueAfter)) return reject(state, "battle:numeric-overflow");
+  const status = actor.status ?? healthyStatus();
+  const base = activeSkillBaseAmount(skill, {
+    attackPower: actor.attackPower,
+    maxHp: effectiveMaxHp(actor.maxHp ?? actor.hp, status),
+  });
+  const amount =
+    base * (mentalFatigueAffectedQuantity(skill) ? mentalFatigueMultiplier(fatigueBefore, rules.fatigue) : 1);
+  const hp = Math.min(effectiveMaxHp(target.maxHp ?? target.hp, target.status ?? healthyStatus()), target.hp + amount);
+  const onset = applyAdditionalLoadSymptom(
+    status,
+    fatigueAfter,
+    skill.mentalFatigueIncrease,
+    state.randomState,
+    loadSymptomDefinition,
+  );
+  const actorStatus = { ...status, ...onset.symptoms };
+  const party = state.party.map((member) => {
+    const healed = member.id === target.id ? hp : member.hp;
+    return member.id === actor.id
+      ? {
+          ...member,
+          mentalFatigue: fatigueAfter,
+          status: actorStatus,
+          hp: Math.min(healed, effectiveMaxHp(member.maxHp ?? member.hp, actorStatus)),
+        }
+      : { ...member, hp: healed };
+  });
+  const events: BattleEvent[] = [
+    {
+      type: "skill",
+      actorId: actor.id,
+      targetId: target.id,
+      skillId: skill.id,
+      effect: "hp-recovery",
+      amount: hp - target.hp,
+      fatigueBefore,
+      fatigueAfter,
+      hit: true,
+    },
+  ];
+  if (onset.application) events.push({ type: "symptom", actorId: actor.id, ...onset.application });
+  return {
+    accepted: true,
+    state: { ...state, party, randomState: onset.randomState, branchSkillVersion: state.branchSkillVersion + 1 },
+    events,
+  };
 }

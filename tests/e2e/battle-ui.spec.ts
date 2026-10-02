@@ -178,3 +178,35 @@ test("ゲージ下の症状アイコンから効果を読み、重度でも使�
   await physical.click();
   await expect(ally.getByText("最大HP × 56.18%（あと街探索8回）", { exact: true })).toBeVisible();
 });
+
+test("分岐回復の選択・取消・再使用とフォーカスを狭幅でも操作できる", async ({ page }, testInfo) => {
+  await page.goto("/tests/fixtures/battle-ui.html");
+  const open = page.getByRole("button", { name: "分岐で回復", exact: true });
+  const dialog = page.getByRole("dialog", { name: "分岐の回復スキル" });
+  for (const width of [320, 390, 1440]) {
+    await page.setViewportSize({ width, height: 640 });
+    await open.click();
+    await dialog.getByRole("button", { name: "ロッシ", exact: true }).click();
+    await expect(dialog.getByText(/現在の精神疲労 0/)).toBeVisible();
+    await dialog.getByRole("button", { name: /検証用回復/ }).click();
+    await expect(dialog.getByRole("button", { name: /ロッシ HP/ })).toBeInViewport();
+    await expect(dialog.getByRole("button", { name: "取消" })).toBeInViewport();
+    const box = await dialog.boundingBox();
+    expect(box?.x).toBeGreaterThanOrEqual(0);
+    expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(width);
+    await page.screenshot({ path: testInfo.outputPath(`branch-heal-${width}.png`) });
+    await page.keyboard.press("Escape");
+    await expect(open).toBeFocused();
+    await open.click();
+    await dialog.getByRole("button", { name: "取消" }).click();
+    await expect(open).toBeFocused();
+  }
+  for (const fatigue of ["0 → 3", "3 → 6"]) {
+    await open.click();
+    await dialog.getByRole("button", { name: "ロッシ", exact: true }).click();
+    await dialog.getByRole("button", { name: /検証用回復/ }).click();
+    await dialog.getByRole("button", { name: /ロッシ HP/ }).click();
+    await expect(page.locator(".branch-skill-result")).toContainText(`精神疲労 ${fatigue}`);
+    await expect(open).toBeFocused();
+  }
+});
