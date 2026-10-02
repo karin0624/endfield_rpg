@@ -59,7 +59,7 @@ export function deserializeGame(data: string, definitions: SaveDefinitions): Sav
     return invalid;
   }
   if (!record(value)) return invalid;
-  if (value.version !== 1) return { accepted: false, reason: "unsupported-version" };
+  if (value.version !== 1 && value.version !== 2) return { accepted: false, reason: "unsupported-version" };
   if (!keys(value, ["version", "adventure", "party", "clock", "randomState", "lastTownRecoverySignal"])) return invalid;
   const { adventure, party, clock, randomState, lastTownRecoverySignal } = value;
   if (
@@ -85,16 +85,21 @@ export function deserializeGame(data: string, definitions: SaveDefinitions): Sav
   for (const member of party.members) {
     if (
       !record(member) ||
-      !keys(member, ["id", "hp", "status"]) ||
+      !keys(member, value.version === 1 ? ["id", "hp", "status"] : ["id", "hp", "status", "mentalFatigue"]) ||
       typeof member.id !== "string" ||
       joined.has(member.id)
     )
       return invalid;
     const definition = definitions.characters.find(({ id }) => id === member.id);
     const status = parseStatus(member.status);
+    // Version 1 predates fatigue; restore zero without running recovery or changing the saved file.
+    const mentalFatigue = value.version === 1 ? 0 : member.mentalFatigue;
     if (
       !definition ||
       !status ||
+      typeof mentalFatigue !== "number" ||
+      !Number.isFinite(mentalFatigue) ||
+      mentalFatigue < 0 ||
       typeof member.hp !== "number" ||
       !Number.isFinite(member.hp) ||
       member.hp < 0 ||
@@ -102,7 +107,7 @@ export function deserializeGame(data: string, definitions: SaveDefinitions): Sav
     )
       return invalid;
     joined.add(member.id);
-    members.push({ id: member.id, hp: member.hp, status });
+    members.push({ id: member.id, hp: member.hp, status, mentalFatigue });
   }
   const occupied = new Set<string>();
   const flags = adventure.flags;
@@ -163,10 +168,15 @@ export function serializeGame(
   if (!canSaveGame(game)) return { accepted: false, reason: "not-in-town" };
   const clock = game.clock ?? createActionClock();
   const data = JSON.stringify({
-    version: 1,
+    version: 2,
     adventure: { currentPlaceId: game.adventure.currentPlaceId, flags: game.adventure.flags },
     party: {
-      members: game.party.members.map(({ id, hp, status }) => ({ id, hp, status: status ?? healthyStatus() })),
+      members: game.party.members.map(({ id, hp, status, mentalFatigue }) => ({
+        id,
+        hp,
+        status: status ?? healthyStatus(),
+        mentalFatigue: mentalFatigue ?? 0,
+      })),
       slots: game.party.slots,
     },
     clock: {

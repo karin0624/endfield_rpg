@@ -2,7 +2,7 @@ import { type CharacterDefinition, characterById, type PartyState } from "../gam
 import { canParticipate, effectiveHitRate, effectiveMaxHp, healthyStatus } from "../game/status";
 import { characterPortraitUrl } from "./characterPortrait";
 import { requiredElement } from "./requiredElement";
-import { symptomLabel } from "./sessionFeedback";
+import { formatAmount, mentalFatigueText, symptomLabel } from "./sessionFeedback";
 
 export function mountCharacterDetailsUi(
   root: HTMLElement,
@@ -71,12 +71,13 @@ export function mountCharacterDetailsUi(
       for (const [label, value, reason] of [
         [
           "HP",
-          `${member.hp} / ${maxHp}`,
+          `${formatAmount(member.hp)} / ${formatAmount(maxHp)}`,
           maxHp !== character.maxHp ? `基礎最大HP ${character.maxHp} · 肉体疲労による低下` : "",
         ],
         ["攻撃力", String(character.attackPower), ""],
         ["速度", String(character.speed), ""],
         ["命中率", percent(hit), hit !== baseHit ? `基礎 ${percent(baseHit)} · 朦朧による低下` : ""],
+        ["精神疲労", mentalFatigueText(member.mentalFatigue ?? 0), ""],
       ]) {
         const row = document.createElement("div");
         const term = document.createElement("dt");

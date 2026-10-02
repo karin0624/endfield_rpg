@@ -8,7 +8,14 @@ import {
   type ProgressionDefinition,
   resetCharacterGrowth,
 } from "./progression";
-import { type LearnedSkill, type SkillCatalog, skillById, skillTierForLevel, validateSkillCatalog } from "./skills";
+import {
+  initialLearnedSkills,
+  type LearnedSkill,
+  type SkillCatalog,
+  skillById,
+  skillTierForLevel,
+  validateSkillCatalog,
+} from "./skills";
 
 export interface CharacterSkills {
   readonly characterId: string;
@@ -57,9 +64,7 @@ function learn(
     : { skillId, type: "passive", origin, acquisition, rank: 1 };
 }
 function initialSkills(catalog: SkillCatalog, characterId: string): CharacterSkills {
-  const profile = catalog.characters.find((profile) => profile.characterId === characterId);
-  if (!profile || profile.initialSkillIds === null) throw new Error(`初期スキル定義が未接続です: ${characterId}`);
-  return { characterId, learned: profile.initialSkillIds.map((id) => learn(catalog, id, "initial", "initial")) };
+  return { characterId, learned: initialLearnedSkills(catalog, characterId) };
 }
 
 /** No product defaults: callers supply resolved initial skills and unlock tables. */

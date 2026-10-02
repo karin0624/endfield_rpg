@@ -1,7 +1,7 @@
 import { initialAdventure } from "../content/initialAdventure";
 import { initialDungeon } from "../content/initialDungeon";
 import type { ConversationPresentation } from "../game/adventure";
-import type { BattleCombatantDefinition, BattleState } from "../game/battle";
+import type { BattleCombatantDefinition, BattleSkillRules, BattleState } from "../game/battle";
 import {
   type DungeonActionResult,
   type DungeonState,
@@ -93,6 +93,7 @@ export function mountDungeonUi(
   root: HTMLDivElement,
   options: {
     initialState: DungeonState;
+    skillRules?: BattleSkillRules;
     calendarLabel: string;
     combatants: readonly BattleCombatantDefinition[];
     displayNames: Readonly<Record<string, string>>;
@@ -504,6 +505,22 @@ export function mountDungeonUi(
         battleStatus.classList.add("sr-only");
         disposeBattleUi = mountBattleUi(battleBoard, currentScene, {
           initialState: activity.state,
+          skillRules: options.skillRules,
+          useSkill: (battleState, actorId, targetId, skillId) => {
+            const result = options.dispatch({
+              type: "skill",
+              actorId,
+              targetId,
+              skillId,
+              expectedActionTime: battleState.logicalTime,
+              expectedNodeId: state.activeNodeId ?? "",
+              expeditionActionId: state.expeditionActionId ?? -1,
+            });
+            if (!result.accepted) return { accepted: false, reason: result.reason };
+            dungeonState = result.state;
+            if (result.battleState === undefined) return { accepted: false, reason: "戦闘結果を取得できませんでした" };
+            return { accepted: true, state: result.battleState, events: result.events };
+          },
           combatants: labelDefinitions,
           displayNames: { ...combatantNames, ...options.displayNames },
           finishButtonLabel: "ルートへ戻る",

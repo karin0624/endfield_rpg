@@ -217,7 +217,7 @@ describe("街のセーブ", () => {
   });
   it("壊れたJSONと未対応形式を拒否する", () => {
     expect(deserializeGame("{", definitions)).toMatchObject({ accepted: false, reason: "invalid-data" });
-    expect(deserializeGame('{"version":2}', definitions)).toMatchObject({
+    expect(deserializeGame('{"version":999}', definitions)).toMatchObject({
       accepted: false,
       reason: "unsupported-version",
     });

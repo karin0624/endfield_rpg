@@ -2393,3 +2393,47 @@ body.dungeon-mode {
     padding: 16px;
   }
 }
+
+/* Trial skill controls retain readable text and scroll within the command area. */
+.command[hidden],
+.skill-panel[hidden],
+.skill-result[hidden] {
+  display: none;
+}
+.with-skills .commands {
+  top: 1rem;
+  width: min(22rem, 32%);
+  max-height: calc(100% - 12rem);
+  overflow-y: auto;
+}
+.with-skills .command {
+  font: 500 var(--font-size-decision) / 1.4 var(--serif);
+  min-height: 44px;
+  padding: 0.5rem 0.75rem;
+}
+.skill-panel,
+.skill-result {
+  font-size: var(--font-size-body);
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.skill-panel p,
+.skill-result {
+  margin: 0.75rem 0;
+}
+.skill-panel select {
+  width: 100%;
+  min-height: 44px;
+  font: inherit;
+  color: var(--text-primary);
+  background: var(--surface-base);
+  border: 1px solid var(--border-control);
+}
+@media (max-width: 900px) {
+  .with-skills .commands {
+    position: static;
+    width: auto;
+    max-height: none;
+    overflow-y: visible;
+  }
+}

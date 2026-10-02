@@ -309,7 +309,12 @@ describe("探索内スキル取得コア", () => {
     ).toMatchObject({ accepted: false, reason: "wrong-exploration", state: next });
   });
   it("未決定の初期定義を空習得へ変換せず、解禁漏れになる初期レベルを拒否する", () => {
-    expect(() => start(progression(), skillCatalog)).toThrow("初期スキル定義が未接続");
+    expect(() =>
+      start(progression(), {
+        ...skillCatalog,
+        characters: skillCatalog.characters.map((profile) => ({ ...profile, initialSkillIds: null })),
+      }),
+    ).toThrow("初期スキル定義が未接続");
     expect(() => start(progression(5))).toThrow("保証解禁レベル");
   });
   it("成長対象の部分集合へ全キャラのカタログを再利用できる", () => {
