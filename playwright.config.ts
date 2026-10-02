@@ -30,7 +30,7 @@ export default defineConfig({
     },
     {
       name: "settings",
-      testMatch: ["settings.spec.ts", "renderer.spec.ts"],
+      testMatch: ["settings.spec.ts", "renderer.spec.ts", "ground-culling.spec.ts"],
       use: { baseURL: "http://127.0.0.1:4174" },
     },
   ],

@@ -101,6 +101,21 @@ test("旧立ち絵の読込を保留したまま次の表示と退出が完了�
 test("旧環境のモデル・背景を待たずに別環境を表示し、遅着した素材も解放する", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
+  // Observe the browser's image completion, after Babylon's existing load
+  // listeners. HTTP completion alone does not wait for image decoding.
+  await page.addInitScript(() => {
+    const descriptor = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, "src");
+    if (!descriptor?.set) throw new Error("画像読込の観測を開始できません");
+    Object.defineProperty(HTMLImageElement.prototype, "src", {
+      ...descriptor,
+      set(this: HTMLImageElement, value: string) {
+        if (value.endsWith("/landscape1.png")) {
+          this.addEventListener("load", () => performance.mark("late-background-loaded"), { once: true });
+        }
+        descriptor.set?.call(this, value);
+      },
+    });
+  });
   const held: Array<() => void> = [];
   await page.route("**/assets/**", async (route) => {
     const url = route.request().url();
@@ -126,12 +141,20 @@ test("旧環境のモデル・背景を待たずに別環境を表示し、遅�
   const backgroundFinished = page
     .waitForResponse((response) => response.url().endsWith("landscape1.png"))
     .then((response) => response.finished());
+  const groundFinished = page
+    .waitForResponse((response) => response.url().endsWith("ground1.glb"))
+    .then((response) => response.finished());
   for (const release of held) release();
-  await backgroundFinished;
-  await expect(page.getByLabel("環境読込の完了回数")).toHaveText("2", { timeout: 60_000 });
+  await Promise.all([backgroundFinished, groundFinished]);
+  await expect
+    .poll(() => page.evaluate(() => performance.getEntriesByName("late-background-loaded").length), {
+      timeout: 60_000,
+    })
+    .toBe(1);
   await page.getByRole("button", { name: "別の環境を表示" }).click();
   await expect(status).toHaveText("2人の表示完了", { timeout: 60_000 });
   await page.screenshot();
+  await expect(page.getByLabel("環境読込の完了回数")).toHaveText("1");
   expect(await webGLResources(page)).toEqual(warm);
   await expect(page.getByRole("button", { name: /スライム B、HP 14\/14/ })).toBeVisible();
   await page.getByRole("button", { name: "描画を破棄" }).click();

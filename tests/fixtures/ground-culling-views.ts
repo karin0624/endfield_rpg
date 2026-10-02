@@ -1,0 +1,31 @@
+import type { BattleSettings } from "../../src/web/battleSettings";
+
+export const groundCullingViews: Readonly<Record<string, Partial<BattleSettings>>> = {
+  default: {},
+  left: { cameraX: -1.1 },
+  right: { cameraX: 0.9 },
+  up: { cameraY: 7.2 },
+  down: { cameraY: 6 },
+  "left-down": { cameraX: -1.1, cameraY: 6 },
+  "left-up": { cameraX: -1.1, cameraY: 7.2 },
+  "right-down": { cameraX: 0.9, cameraY: 6 },
+  "right-up": { cameraX: 0.9, cameraY: 7.2 },
+  internal: {
+    cameraX: 12,
+    cameraY: 3.5,
+    cameraZ: 3,
+    targetZ: -8,
+    fovDegrees: 55,
+    groundScale: 1.5,
+  },
+  edited: {
+    cameraY: 8,
+    cameraZ: 13,
+    targetY: 3.5,
+    fovDegrees: 40,
+    groundScale: 1.1,
+    backdropScale: 1.15,
+    backdropY: 7,
+    backdropZ: -10,
+  },
+};

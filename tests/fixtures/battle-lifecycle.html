@@ -22,14 +22,23 @@
       <section class="stage"><canvas aria-label="寿命テストの戦闘"></canvas></section>
     </div>
   </main>
+  <aside style="position: fixed; right: 12px; bottom: 12px; z-index: 30; background: white">
+    <label>検証構図<select id="view" aria-label="検証構図"></select></label>
+    <button type="button" id="apply-view">構図を適用</button>
+    <button type="button" id="preview-view">構図をプレビュー</button>
+    <button type="button" id="known-environment">既知の環境へ戻す</button>
+    <button type="button" id="unknown-environment">同じ素材の未検証環境</button>
+  </aside>
   <script type="module">
     import { SceneLoader } from "@babylonjs/core/Loading/sceneLoader";
     import { initialBattleCombatants } from "/src/content/initialBattle.ts";
+    import { initialDungeon } from "/src/content/initialDungeon.ts";
     import { advanceBattleToNextAllyInput, createBattleState } from "/src/game/battle.ts";
     import savedSettings from "/src/web/battle-settings.json";
     import { createBattleRenderer, initialBattleEnvironment } from "/src/web/battleScene.ts";
     import { parseBattleSettings } from "/src/web/battleSettings.ts";
     import { mountBattleUi } from "/src/web/battleUi.ts";
+    import { groundCullingViews } from "./ground-culling-views.ts";
     import "/src/web/style.css";
 
     const board = document.querySelector("#board");
@@ -37,9 +46,15 @@
     const status = document.querySelector("#status");
     const rect = document.querySelector("#rect");
     const late = document.querySelector("#late");
-    const full = initialBattleCombatants;
+    const query = new URLSearchParams(location.search);
+    const full = query.get("party") === "boss"
+      ? [initialBattleCombatants[0], ...initialDungeon.nodes.find(node => node.type === "boss").enemies]
+      : initialBattleCombatants;
     const small = full.filter(({ id }) => id === "player" || id === "slime-2");
-    let settings = parseBattleSettings(savedSettings);
+    const view = document.querySelector("#view");
+    for (const name of Object.keys(groundCullingViews)) view.add(new Option(name, name));
+    view.value = query.get("view") ?? "default";
+    let settings = parseBattleSettings({ ...savedSettings, ...groundCullingViews[view.value] });
     let renderer;
     let current;
     let previous;
@@ -121,6 +136,21 @@
     document.querySelector("#environment").onclick = () => void show(small, {
       ground: "ground/ground1.glb?environment=alternate",
       background: "backgrounds/dungeon-route.png",
+    });
+    document.querySelector("#apply-view").onclick = () => {
+      settings = parseBattleSettings({ ...savedSettings, ...groundCullingViews[view.value] });
+      current?.applySettings(settings);
+      refreshRect();
+    };
+    document.querySelector("#preview-view").onclick = () => {
+      settings = parseBattleSettings({ ...savedSettings, ...groundCullingViews[view.value] });
+      current?.previewSettings(settings);
+      refreshRect();
+    };
+    document.querySelector("#known-environment").onclick = () => void show(full);
+    document.querySelector("#unknown-environment").onclick = () => void show(full, {
+      ...initialBattleEnvironment,
+      ground: "ground/ground1.glb?environment=unverified",
     });
     document.querySelector("#dispose").onclick = dispose;
     window.addEventListener("pagehide", () => {
