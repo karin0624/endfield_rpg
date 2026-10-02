@@ -86,6 +86,7 @@ export type BattleEvent =
       readonly targetId: string;
       readonly skillId: string;
       readonly effect: "damage" | "hp-recovery";
+      readonly hitIndex: number;
       readonly amount: number;
       readonly fatigueBefore: number;
       readonly fatigueAfter: number;
@@ -411,7 +412,7 @@ function completeBattleAction(state: BattleState, events: BattleEvent[]): BasicA
 export function performBattleSkill(
   state: BattleState,
   actorId: string,
-  targetId: string,
+  targetId: string | null,
   skillId: string,
   expectedActionTime: number,
   catalog: SkillCatalog,
@@ -426,10 +427,18 @@ export function performBattleSkill(
     return reject(state, "skill-not-learned");
   const skill = skillById(catalog, skillId);
   if (skill.type !== "active" || !skill.scenes.includes("battle")) return reject(state, "skill-not-usable");
-  const target = findCombatant(state, targetId);
-  if (!target) return reject(state, "target-does-not-exist");
-  if (!canParticipate(target.hp, target.status)) return reject(state, "target-is-defeated");
-  if ((skill.target === "single-enemy") === (target.team === actor.team)) return reject(state, "skill-not-usable");
+  let targets: readonly BattleCombatant[];
+  if (skill.target === "all-enemies") {
+    if (targetId !== null) return reject(state, "skill-not-usable");
+    targets = state.combatants.filter((entry) => entry.team !== actor.team && canParticipate(entry.hp, entry.status));
+    if (!targets.length) return reject(state, "target-does-not-exist");
+  } else {
+    const target = targetId === null ? undefined : findCombatant(state, targetId);
+    if (!target) return reject(state, "target-does-not-exist");
+    if (!canParticipate(target.hp, target.status)) return reject(state, "target-is-defeated");
+    if ((skill.target === "single-enemy") === (target.team === actor.team)) return reject(state, "skill-not-usable");
+    targets = [target];
+  }
   const fatigueAfter = actor.mentalFatigue + skill.mentalFatigueIncrease;
   if (!Number.isFinite(fatigueAfter)) return reject(state, "numeric-overflow");
   const base = activeSkillBaseAmount(skill, {
@@ -439,28 +448,48 @@ export function performBattleSkill(
   const amount =
     base * (mentalFatigueAffectedQuantity(skill) ? mentalFatigueMultiplier(actor.mentalFatigue, fatigue) : 1);
   const hitRate = skill.effect.type === "damage" ? effectiveHitRate(actor.hitRate, actor.status) : 1;
-  const draw = amount > 0 && hitRate > 0 && hitRate < 1 ? nextGameRandom(state.randomState) : null;
-  const hit = hitRate === 1 || (hitRate > 0 && (draw === null || draw.value < hitRate));
-  const applied = hit ? amount : 0;
-  const hp =
-    skill.effect.type === "damage"
-      ? Math.max(0, target.hp - applied)
-      : Math.min(effectiveMaxHp(target.maxHp, target.status), target.hp + applied);
-  const defeated = hp === 0;
-  const combatants = state.combatants.map((entry) => ({
-    ...entry,
-    ...(entry.id === targetId
-      ? { hp, isAlive: !defeated, status: defeated ? applyIncapacity(entry.status) : entry.status }
-      : {}),
-    ...(entry.id === actorId ? { mentalFatigue: fatigueAfter } : {}),
-  }));
+  // Target order is battle definition order, then hits in ascending order.
+  // The amount and hit rate above are snapshots from before this use.
+  let randomState = state.randomState;
+  let combatants = [...state.combatants];
+  const events: BattleEvent[] = [];
+  const hitCount = skill.effect.type === "damage" ? (skill.effect.hitCount ?? 1) : 1;
+  for (const initialTarget of targets) {
+    let target = initialTarget;
+    for (let hitIndex = 1; hitIndex <= hitCount && target.isAlive; hitIndex++) {
+      const draw = amount > 0 && hitRate > 0 && hitRate < 1 ? nextGameRandom(randomState) : null;
+      randomState = draw?.state ?? randomState;
+      const hit = hitRate === 1 || (hitRate > 0 && (draw === null || draw.value < hitRate));
+      const applied = hit ? amount : 0;
+      const hp =
+        skill.effect.type === "damage"
+          ? Math.max(0, target.hp - applied)
+          : Math.min(effectiveMaxHp(target.maxHp, target.status), target.hp + applied);
+      events.push({
+        type: "skill",
+        actorId,
+        targetId: target.id,
+        skillId,
+        effect: skill.effect.type,
+        hitIndex,
+        amount: Math.abs(hp - target.hp),
+        fatigueBefore: actor.mentalFatigue,
+        fatigueAfter,
+        hit,
+      });
+      target = { ...target, hp, isAlive: hp > 0, status: hp === 0 ? applyIncapacity(target.status) : target.status };
+      combatants = combatants.map((entry) => (entry.id === target.id ? target : entry));
+      if (!target.isAlive) events.push({ type: "combatant-defeated", combatantId: target.id });
+    }
+  }
+  combatants = combatants.map((entry) => (entry.id === actorId ? { ...entry, mentalFatigue: fatigueAfter } : entry));
   const user = combatants.find((entry) => entry.id === actorId);
   if (!user) throw new Error("スキル使用者がありません");
   const onset = applyAdditionalLoadSymptom(
     user.status,
     fatigueAfter,
     skill.mentalFatigueIncrease,
-    draw?.state ?? state.randomState,
+    randomState,
     loadSymptomDefinition,
   );
   const resolvedCombatants = combatants.map((entry) => {
@@ -469,21 +498,7 @@ export function performBattleSkill(
     return { ...entry, status, hp: Math.min(entry.hp, effectiveMaxHp(entry.maxHp, status)) };
   });
   const outcome = determineOutcome({ combatants: resolvedCombatants });
-  const events: BattleEvent[] = [
-    {
-      type: "skill",
-      actorId,
-      targetId,
-      skillId,
-      effect: skill.effect.type,
-      amount: Math.abs(hp - target.hp),
-      fatigueBefore: actor.mentalFatigue,
-      fatigueAfter,
-      hit,
-    },
-  ];
   if (onset.application) events.push({ type: "symptom", actorId, ...onset.application });
-  if (defeated) events.push({ type: "combatant-defeated", combatantId: targetId });
   if (outcome !== "ongoing") events.push({ type: "battle-ended", outcome });
   return completeBattleAction(
     { ...state, randomState: onset.randomState, combatants: resolvedCombatants, outcome },
@@ -493,7 +508,7 @@ export function performBattleSkill(
 export function performBattleSkillAndAdvanceToAllyInput(
   state: BattleState,
   actorId: string,
-  targetId: string,
+  targetId: string | null,
   skillId: string,
   expectedActionTime: number,
   catalog: SkillCatalog,

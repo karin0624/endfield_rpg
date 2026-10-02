@@ -212,3 +212,59 @@ test("分岐回復の選択・取消・再使用とフォーカスを狭幅で�
     await expect(open).toBeFocused();
   }
 });
+
+test("多段・全体攻撃の範囲、取消、各発の結果と一度の疲労を実UIで示す", async ({ page }) => {
+  await page.goto("/tests/fixtures/battle-ui.html?multi=1");
+  await page.getByRole("button", { name: "戦闘、選択可能" }).click();
+  await page.getByRole("button", { name: /スライム A、HP .*攻撃対象に選択/ }).click();
+  const skills = page.getByRole("button", { name: "スキル", exact: true });
+  const preview = page.locator("[data-skill-preview]");
+  const result = page.locator("[data-skill-result]");
+  for (const name of ["連続攻撃（試験入力）", "全体攻撃（試験入力）"]) {
+    await skills.click();
+    await page.getByRole("button", { name, exact: true }).click();
+    for (const [width, height] of [
+      [320, 900],
+      [390, 900],
+      [900, 900],
+      [901, 900],
+      [1440, 540],
+      [1920, 1080],
+    ]) {
+      await page.setViewportSize({ width, height });
+      await page.getByRole("button", { name: "使用する", exact: true }).scrollIntoViewIfNeeded();
+      await expect(page.getByRole("button", { name: "使用する", exact: true })).toBeInViewport();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    }
+    if (name.startsWith("全体")) {
+      await expect(preview).toContainText("対象：生存中の敵全体（スライム A、スライム B）");
+      await expect(page.locator("[data-target-indicator]")).toBeHidden();
+    } else {
+      await expect(preview).toContainText("1体・1発あたり 4 × 3回");
+      await expect(preview).toContainText("対象：スライム A");
+    }
+    await page.keyboard.press("Escape");
+    await expect(skills).toBeFocused();
+    await skills.click();
+    await expect(page.locator("[data-skill-fatigue]")).toContainText("精神疲労 0");
+    await page.getByRole("button", { name: "戻る", exact: true }).click();
+  }
+  await page.setViewportSize({ width: 390, height: 900 });
+  await skills.click();
+  await page.getByRole("button", { name: "連続攻撃（試験入力）", exact: true }).click();
+  await page.getByRole("button", { name: "使用する", exact: true }).dblclick();
+  await expect(skills).toBeEnabled();
+  await expect(result).toContainText(
+    "スライム A 1発目 4ダメージ · スライム A 2発目 4ダメージ · スライム A 3発目 4ダメージ",
+  );
+  await expect(result).toContainText("精神疲労 0 → 4");
+  await expect(page.locator('[data-enemy-label="slime"]')).toContainText("2 / 14");
+  await expect(page.locator('[data-enemy-label="slime-2"]')).toContainText("14 / 14");
+  await skills.click();
+  await page.getByRole("button", { name: "全体攻撃（試験入力）", exact: true }).click();
+  await expect(preview).toContainText("対象：生存中の敵全体（スライム A、スライム B）");
+  await page.getByRole("button", { name: "使用する", exact: true }).click();
+  await expect(result).toContainText("スライム A 1発目 2ダメージ · スライム B 1発目 14ダメージ");
+  await expect(result).toContainText("精神疲労 4 → 8");
+  await expect(page.getByRole("heading", { name: "戦闘に勝利しました" })).toBeVisible();
+});

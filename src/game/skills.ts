@@ -1,7 +1,7 @@
 export type SkillTier = "normal" | "advanced" | "ultimate";
 export type SkillScene = "battle" | "branch";
-/** Both require a living target; single-ally includes the user. */
-export type SkillTarget = "single-enemy" | "single-ally";
+/** Living targets only; single-ally includes the user. */
+export type SkillTarget = "single-enemy" | "all-enemies" | "single-ally";
 
 interface SkillIdentity {
   readonly id: string;
@@ -14,7 +14,11 @@ export interface SkillPower {
   readonly amount: number;
   readonly scaling: { readonly stat: "attackPower" | "maxHp"; readonly coefficient: number };
 }
-export type ActiveSkillEffect = SkillPower & { readonly type: "damage" | "hp-recovery" };
+export type ActiveSkillEffect = SkillPower &
+  (
+    | { readonly type: "damage"; readonly hitCount?: number }
+    | { readonly type: "hp-recovery"; readonly hitCount?: never }
+  );
 
 export interface ActiveSkillDefinition extends SkillIdentity {
   readonly type: "active";
@@ -144,6 +148,11 @@ export function validateSkillCatalog(catalog: SkillCatalog, characters: readonly
       if (!["attackPower", "maxHp"].includes(skill.effect.scaling.stat)) throw new Error("参照能力値が不正です");
       if (!Number.isFinite(skill.effect.scaling.coefficient) || skill.effect.scaling.coefficient <= 0)
         throw new Error("能力値係数は有限の正数です");
+      if (
+        skill.effect.hitCount !== undefined &&
+        (skill.effect.type !== "damage" || !Number.isSafeInteger(skill.effect.hitCount) || skill.effect.hitCount < 1)
+      )
+        throw new Error("攻撃回数は正の安全な整数です");
       requireAmount(skill.mentalFatigueIncrease, "精神疲労増加量");
       if (
         skill.scenes.length === 0 ||
@@ -152,7 +161,8 @@ export function validateSkillCatalog(catalog: SkillCatalog, characters: readonly
       )
         throw new Error(`使用場面が不正です: ${skill.id}`);
       if (
-        (skill.effect.type === "damage" && (skill.target !== "single-enemy" || skill.scenes.includes("branch"))) ||
+        (skill.effect.type === "damage" &&
+          (!["single-enemy", "all-enemies"].includes(skill.target) || skill.scenes.includes("branch"))) ||
         (skill.effect.type === "hp-recovery" && skill.target !== "single-ally") ||
         (skill.effect.type !== "damage" && skill.effect.type !== "hp-recovery")
       )

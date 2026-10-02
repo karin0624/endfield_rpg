@@ -101,7 +101,12 @@ export type BattleUiAttackResult =
 export interface BattleUiOptions {
   readonly initialState?: BattleState;
   readonly skillRules?: BattleSkillRules;
-  readonly useSkill?: (state: BattleState, actorId: string, targetId: string, skillId: string) => BattleUiAttackResult;
+  readonly useSkill?: (
+    state: BattleState,
+    actorId: string,
+    targetId: string | null,
+    skillId: string,
+  ) => BattleUiAttackResult;
   readonly combatants?: readonly BattleCombatantDefinition[];
   readonly displayNames?: Readonly<Record<string, string>>;
   readonly attack?: (state: BattleState, actorId: string, targetId: string) => BattleUiAttackResult;
@@ -463,7 +468,13 @@ export function mountBattleUi(
       const hp = requiredElement<HTMLElement>(nameplate, "[data-enemy-hp]");
       const bar = requiredElement<HTMLElement>(nameplate, ".enemy-world-track > span");
       nameplate.classList.toggle("defeated", defeated);
-      nameplate.classList.toggle("selected", selectedTargetId === id);
+      nameplate.classList.toggle(
+        "selected",
+        !defeated &&
+          (skillPanelOpen && selectedSkill()?.target === "all-enemies"
+            ? true
+            : hasSelectedEnemy() && selectedTargetId === id),
+      );
       nameplate.setAttribute(
         "aria-label",
         `${combatantName(id)}、HP ${formatAmount(enemy.hp)}/${maximum}${defeated ? "、戦闘不能" : ""}`,
@@ -489,7 +500,7 @@ export function mountBattleUi(
       selectedTargetId !== null &&
       getCombatant(selectedTargetId)?.isAlive === true &&
       state.outcome === "ongoing" &&
-      !(skillPanelOpen && selectedSkill()?.target === "single-ally")
+      !(skillPanelOpen && selectedSkill() && selectedSkill()?.target !== "single-enemy")
     );
   }
 
@@ -535,8 +546,9 @@ export function mountBattleUi(
     renderSkills(canAct);
     for (const [id, button] of enemyHitAreas) {
       const enemy = getCombatant(id);
-      button.setAttribute("aria-pressed", String(id === selectedTargetId));
-      button.disabled = replayingEvents || state.outcome !== "ongoing" || enemy?.isAlive !== true;
+      const allEnemies = skillPanelOpen && selectedSkill()?.target === "all-enemies";
+      button.setAttribute("aria-pressed", String(allEnemies ? enemy?.isAlive === true : id === selectedTargetId));
+      button.disabled = allEnemies || replayingEvents || state.outcome !== "ongoing" || enemy?.isAlive !== true;
     }
     positionEnemyOverlays(false);
     syncTetraAnimation();
@@ -581,6 +593,15 @@ export function mountBattleUi(
   }
 
   async function replayEvents(confirmedEvents: readonly BattleEvent[]) {
+    const skillEvents = confirmedEvents.filter((event) => event.type === "skill");
+    const firstSkill = skillEvents[0];
+    if (firstSkill) {
+      const name = options.skillRules
+        ? skillById(options.skillRules.catalog, firstSkill.skillId).name
+        : firstSkill.skillId;
+      skillResult.textContent = `${name}：${skillEvents.map((event) => `${combatantName(event.targetId)} ${event.hitIndex}発目 ${event.hit ? `${formatAmount(event.amount)}${event.effect === "damage" ? "ダメージ" : "回復"}` : "外れ"}`).join(" · ")} · 精神疲労 ${formatAmount(firstSkill.fatigueBefore)} → ${formatAmount(firstSkill.fatigueAfter)}`;
+      skillResult.hidden = false;
+    }
     let hasReplayedAllyAttack = false;
     let hasPausedBeforeEnemyTurn = false;
     for (const event of confirmedEvents) {
@@ -610,9 +631,7 @@ export function mountBattleUi(
       } else if (event.type === "skill") {
         hasReplayedAllyAttack = true;
         const name = options.skillRules ? skillById(options.skillRules.catalog, event.skillId).name : event.skillId;
-        const detail = `${name}：${combatantName(event.targetId)}に${formatAmount(event.amount)}${event.effect === "damage" ? "ダメージ" : "回復"}${event.hit ? "" : "（外れ）"} · 精神疲労 ${formatAmount(event.fatigueBefore)} → ${formatAmount(event.fatigueAfter)}`;
-        skillResult.textContent = detail;
-        skillResult.hidden = false;
+        const detail = `${name}：${combatantName(event.targetId)} ${event.hitIndex}発目 ${formatAmount(event.amount)}${event.effect === "damage" ? "ダメージ" : "回復"}${event.hit ? "" : "（外れ）"}`;
         message = detail;
         showEventToast(detail, "attack");
         screenReaderStatus.textContent = detail;
@@ -650,7 +669,8 @@ export function mountBattleUi(
   }
 
   function selectTarget(targetId: string) {
-    if (replayingEvents || state.outcome !== "ongoing") return;
+    if (replayingEvents || state.outcome !== "ongoing" || (skillPanelOpen && selectedSkill()?.target === "all-enemies"))
+      return;
     const target = getCombatant(targetId);
     if (target === undefined || target.team !== "enemy" || !target.isAlive) return;
     // Selecting the active target again keeps it selected; there is no deselect state.
@@ -743,6 +763,13 @@ export function mountBattleUi(
         maxHp: effectiveMaxHp(actor.maxHp, actor.status),
       }) * multiplier;
     skillPreview.textContent = `${skill.description} 予測${skill.effect.type === "damage" ? "ダメージ" : "回復量"} ${formatAmount(amount)}（倍率 ${formatAmount(multiplier)}） · 使用後疲労 +${formatAmount(skill.mentalFatigueIncrease)}。命中・HP上限により実効果は変わります。`;
+    if (skill.effect.type === "damage")
+      skillPreview.textContent += ` 1体・1発あたり ${formatAmount(amount)} × ${skill.effect.hitCount ?? 1}回（撃破時は打切り）。`;
+    if (skill.target === "all-enemies")
+      skillPreview.textContent += ` 対象：生存中の敵全体（${state.combatants
+        .filter((entry) => entry.team !== actor.team && entry.isAlive)
+        .map((entry) => combatantName(entry.id))
+        .join("、")}）`;
     if (skill.target === "single-enemy")
       skillPreview.textContent += ` 対象：${selectedTargetId ? combatantName(selectedTargetId) : "なし"}`;
   }
@@ -789,8 +816,9 @@ export function mountBattleUi(
       const actorId = state.currentActorId;
       const skill = selectedSkill();
       if (!actorId || !skill || replayingEvents || !currentActorIsAlly() || !options.useSkill) return;
-      const targetId = skill.target === "single-ally" ? allyTargetId : selectedTargetId;
-      if (!targetId) return;
+      const targetId =
+        skill.target === "all-enemies" ? null : skill.target === "single-ally" ? allyTargetId : selectedTargetId;
+      if (skill.target !== "all-enemies" && !targetId) return;
       replayingEvents = true;
       const result = options.useSkill(state, actorId, targetId, skill.id);
       if (!result.accepted) {
