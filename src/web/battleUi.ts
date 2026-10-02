@@ -12,7 +12,7 @@ import {
 import { mentalFatigueMultiplier } from "../game/mentalFatigue";
 import { activeSkillBaseAmount, mentalFatigueAffectedQuantity, skillById } from "../game/skills";
 import { canParticipate, effectiveMaxHp } from "../game/status";
-import type { createBattleScene } from "./battleScene";
+import type { BattlePresentation } from "./battlePresentation";
 import { requiredElement } from "./requiredElement";
 import { formatAmount, mentalFatigueText } from "./sessionFeedback";
 
@@ -158,7 +158,7 @@ function makeBattleMarkup(): string {
 
 export function mountBattleUi(
   board: HTMLDivElement,
-  battle: ReturnType<typeof createBattleScene>,
+  battle: BattlePresentation,
   options: BattleUiOptions = {},
 ): () => void {
   const initialCombatants = options.combatants ?? initialBattleCombatants;

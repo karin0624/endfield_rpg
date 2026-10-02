@@ -12,7 +12,8 @@ import type { DungeonCommand } from "../game/expedition";
 import savedAdventureSettings from "./adventure-settings.json";
 import { applyAdventureSettings, parseAdventureSettings } from "./adventureSettings";
 import savedBattleSettings from "./battle-settings.json";
-import { type BattleScene, createBattleRenderer } from "./battleScene";
+import type { DungeonBattleRenderer, DungeonBattleRendererFactory } from "./battlePresentation";
+import { createBattleRenderer } from "./battleScene";
 import { parseBattleSettings } from "./battleSettings";
 import { mountBattleUi } from "./battleUi";
 import { requiredElement } from "./requiredElement";
@@ -99,6 +100,7 @@ export function mountDungeonUi(
     displayNames: Readonly<Record<string, string>>;
     dispatch: (command: DungeonCommand) => DungeonActionResult;
     onReturn: () => void;
+    createRenderer?: DungeonBattleRendererFactory;
   },
 ): () => void {
   root.innerHTML = `
@@ -190,8 +192,8 @@ export function mountDungeonUi(
   let dragStartOffset = 0;
   let dragMoved = false;
   let suppressNextNodeClick = false;
-  let battleRenderer: ReturnType<typeof createBattleRenderer> | undefined;
-  let battleScene: BattleScene | undefined;
+  let battleRenderer: DungeonBattleRenderer | undefined;
+  let battleScene: ReturnType<DungeonBattleRenderer["beginBattle"]> | undefined;
   let disposeBattleUi: (() => void) | undefined;
   let battleLoadId = 0;
   let edgeRefreshFrame: number | undefined;
@@ -496,7 +498,7 @@ export function mountDungeonUi(
     battleStatus.classList.remove("sr-only");
     battleStatus.textContent = "戦闘画面を読み込んでいます…";
     showView("battle");
-    battleRenderer ??= createBattleRenderer(battleCanvas, settings);
+    battleRenderer ??= (options.createRenderer ?? createBattleRenderer)(battleCanvas, settings);
     battleScene = battleRenderer.beginBattle(definitions);
     const currentScene = battleScene;
     void currentScene.ready

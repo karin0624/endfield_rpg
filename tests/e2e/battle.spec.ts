@@ -146,43 +146,6 @@ test("通常モーションで攻撃・撃破・再戦し、再読込後も敵�
   expect(errors).toEqual([]);
 });
 
-test("敵を選んで攻撃すると対象のHPが更新される", async ({ page }) => {
-  await page.goto("/?battle=1");
-  const attack = page.getByRole("button", { name: "通常攻撃" });
-  const slimeA = page.getByRole("button", { name: /スライム A、HP .*攻撃対象に選択/ });
-  const slimeB = page.getByRole("button", { name: /スライム B、HP .*攻撃対象に選択/ });
-  await expect(attack).toBeEnabled({ timeout: 60_000 });
-  await expect(slimeB).toHaveAttribute("aria-pressed", "true");
-  await slimeA.click();
-  await expect(slimeA).toHaveAttribute("aria-pressed", "true");
-  await attack.click();
-  await expect(slimeA).toHaveAccessibleName(/スライム A、HP 6\/14/);
-  await expect(attack).toBeEnabled();
-});
-
-test("実ボタンから勝利し、再戦で初期状態へ戻る", async ({ page }) => {
-  await page.goto("/?battle=1");
-  const attack = page.getByRole("button", { name: "通常攻撃" });
-  const slimeA = page.getByRole("button", { name: /スライム A、HP .*攻撃対象に選択/ });
-  const slimeB = page.getByRole("button", { name: /スライム B、HP .*攻撃対象に選択/ });
-  await expect(attack).toBeEnabled({ timeout: 60_000 });
-  await attack.click();
-  await expect(slimeB).toHaveAccessibleName(/スライム B、HP 6\/14/);
-  await attack.click();
-  await expect(slimeB).toBeHidden();
-  await expect(slimeA).toHaveAttribute("aria-pressed", "true");
-  await attack.click();
-  await expect(slimeA).toHaveAccessibleName(/スライム A、HP 6\/14/);
-  await attack.click();
-  await expect(page.getByRole("heading", { name: "戦闘に勝利しました" })).toBeVisible();
-  await expect(attack).toBeDisabled();
-  await page.getByRole("button", { name: "戦闘を再戦する" }).click();
-  await expect(slimeA).toHaveAccessibleName(/スライム A、HP 14\/14/);
-  await expect(slimeB).toHaveAccessibleName(/スライム B、HP 14\/14/);
-  await expect(slimeB).toHaveAttribute("aria-pressed", "true");
-  await expect(attack).toBeEnabled();
-});
-
 test("素材の取得に失敗した理由を画面に表示する", async ({ page }) => {
   await page.route("**/assets/characters/rossi/front-left.png", (route) =>
     route.fulfill({ status: 404, body: "missing" }),

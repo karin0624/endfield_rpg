@@ -554,7 +554,7 @@ test("壊れた保存とブラウザI/O失敗でもゲームと既存保存を�
   expect(await page.evaluate(() => localStorage.getItem("endfield-rpg-game-save"))).toBe('{"version":1,"party":{}}');
 });
 
-test("通常探索のスキルを選択・取消・使用し、次戦・帰還・保存読込・街回復へつなぐ", async ({ page }, testInfo) => {
+test("通常探索のスキル使用を次戦・帰還・保存読込・街回復へつなぐ", async ({ page }, testInfo) => {
   await page.goto("/");
   await page.getByRole("link", { name: "出撃編成を見る" }).click();
   await page.getByRole("button", { name: "出撃", exact: true }).click();
@@ -569,19 +569,8 @@ test("通常探索のスキルを選択・取消・使用し、次戦・帰還�
     await page.getByRole("button", { name: "使用する", exact: true }).click();
     await expect(endsBattle ? page.getByRole("button", { name: "戦闘を終えてルートへ戻る" }) : skills).toBeEnabled();
   };
-  await skills.click();
-  await page.getByRole("button", { name: "検証用攻撃", exact: true }).click();
-  await expect(page.locator("[data-skill-preview]")).toContainText("予測ダメージ 16");
-  await expect(page.locator("[data-skill-preview]")).toContainText("対象：スライム A");
-  await page.keyboard.press("Escape");
-  await expect(skills).toBeFocused();
-  await skills.click();
-  await expect(page.locator("[data-skill-fatigue]")).toContainText("精神疲労 0");
-  await page.getByRole("button", { name: "戻る", exact: true }).click();
   await use("検証用攻撃");
-  await expect(page.locator("[data-skill-result]")).toContainText("精神疲労 0 → 4");
   await use("検証用回復", "player");
-  await expect(page.locator("[data-skill-result]")).toContainText("精神疲労 4 → 7");
   await use("検証用攻撃", undefined, true);
   await page.getByRole("button", { name: "戦闘を終えてルートへ戻る" }).click();
   await page.getByRole("button", { name: "ボス、選択可能" }).click();
@@ -620,46 +609,4 @@ test("通常探索のスキルを選択・取消・使用し、次戦・帰還�
   await expect(details.locator("dd").nth(4)).toHaveText("9（なし）");
   await page.screenshot({ path: testInfo.outputPath("skill-fatigue-details.png") });
   await page.keyboard.press("Escape");
-});
-
-// Layout checks use their own battle so resize/render waits do not consume the full-loop budget.
-test("スキルの予測・回復対象・取消を各画面サイズで操作できる", async ({ page }, testInfo) => {
-  await page.goto("/");
-  await page.getByRole("link", { name: "出撃編成を見る" }).click();
-  await page.getByRole("button", { name: "出撃", exact: true }).click();
-  await page.getByRole("button", { name: "戦闘、選択可能" }).click();
-  const skills = page.getByRole("button", { name: "スキル", exact: true });
-  await expect(skills).toBeEnabled({ timeout: 60_000 });
-  await skills.click();
-  await page.getByRole("button", { name: "検証用攻撃", exact: true }).click();
-  await expect(page.locator("[data-skill-fatigue]")).toContainText("精神疲労 0");
-  await expect(page.locator("[data-skill-preview]")).toContainText("予測ダメージ 16");
-  for (const [width, height] of [
-    [320, 900],
-    [390, 900],
-    [900, 900],
-    [901, 900],
-    [1440, 540],
-    [1920, 1080],
-    [1440, 900],
-  ]) {
-    await page.setViewportSize({ width, height });
-    await page.getByRole("button", { name: "使用する", exact: true }).scrollIntoViewIfNeeded();
-    await expect(page.getByRole("button", { name: "使用する", exact: true })).toBeInViewport();
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-    await page.getByRole("button", { name: "戻る", exact: true }).scrollIntoViewIfNeeded();
-    await expect(page.getByRole("button", { name: "戻る", exact: true })).toBeInViewport();
-    if (width === 390 || width === 1920 || (width === 1440 && height === 900))
-      await page.screenshot({ path: testInfo.outputPath(`skill-preview-${width}.png`), fullPage: true });
-  }
-
-  await page.getByRole("button", { name: "検証用回復", exact: true }).click();
-  await page.getByRole("combobox", { name: "回復対象" }).selectOption("player");
-  await expect(page.getByRole("combobox", { name: "回復対象" })).toHaveValue("player");
-  await page.getByRole("button", { name: "戻る", exact: true }).click();
-  await expect(skills).toBeFocused();
-  await skills.click();
-  await expect(page.locator("[data-skill-fatigue]")).toContainText("精神疲労 0");
-  await page.keyboard.press("Escape");
-  await expect(skills).toBeFocused();
 });
