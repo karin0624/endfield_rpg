@@ -137,3 +137,44 @@ test("通常入力の勝利XPから複数3択を完了し次戦へ成長を反�
   await expect(attack).toBeEnabled();
   await expect(page.getByRole("region", { name: "味方の状態" })).toContainText("28");
 });
+
+test("ゲージ下の症状アイコンから効果を読み、重度でも使用後に数値が悪化する", async ({ page }, testInfo) => {
+  await page.goto("/tests/fixtures/battle-ui.html?symptoms=1");
+  await page.getByRole("button", { name: "戦闘、選択可能" }).click();
+  const ally = page.locator(".ally-card").first();
+  const physical = ally.locator("summary").filter({ hasText: "肉体疲労・重度" });
+  await expect(ally.locator(".symptom-icon")).toHaveCount(3);
+  await physical.focus();
+  await page.keyboard.press("Enter");
+  await expect(ally.getByText("最大HP × 57.14%（あと街探索8回）", { exact: true })).toBeVisible();
+  for (const [width, height] of [
+    [320, 844],
+    [390, 844],
+    [900, 700],
+    [901, 700],
+    [1920, 500],
+  ]) {
+    await page.setViewportSize({ width, height });
+    for (const summary of await ally.locator("summary").all()) {
+      await summary.scrollIntoViewIfNeeded();
+      await expect(summary).toBeInViewport();
+    }
+    await physical.scrollIntoViewIfNeeded();
+    await expect(physical).toBeInViewport();
+    const gauge = await ally.locator(".hp-track").boundingBox();
+    const icons = await ally.locator(".symptom-icons").boundingBox();
+    expect(icons?.y).toBeGreaterThanOrEqual((gauge?.y ?? 0) + (gauge?.height ?? 0));
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    if (width === 320 || width === 1920)
+      await page.screenshot({ path: testInfo.outputPath(`symptoms-${width}.png`), fullPage: true });
+  }
+  await page.getByRole("button", { name: "スキル", exact: true }).click();
+  await page.getByRole("button", { name: "検証用回復", exact: true }).click();
+  await page.getByRole("combobox", { name: "回復対象" }).selectOption("player");
+  await page.getByRole("button", { name: "使用する", exact: true }).click();
+  await expect(page.locator("[data-skill-result]")).toContainText("精神疲労 100 → 103");
+  await expect(page.locator("[data-skill-result]")).toContainText("肉体疲労：75 → 78（重度）");
+  await expect(physical).toBeVisible();
+  await physical.click();
+  await expect(ally.getByText("最大HP × 56.18%（あと街探索8回）", { exact: true })).toBeVisible();
+});

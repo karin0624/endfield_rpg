@@ -1,11 +1,11 @@
 import type { ExpeditionRejection, ExpeditionResult } from "../game/expedition";
 import { type CharacterDefinition, characterById, departureRejection, type PartyState } from "../game/party";
-
 import { canParticipate, effectiveMaxHp, healthyStatus } from "../game/status";
 import { mountCharacterDetailsUi } from "./characterDetailsUi";
 import { characterPortraitUrl } from "./characterPortrait";
 import { requiredElement } from "./requiredElement";
-import { formatAmount, mentalFatigueText, symptomLabel } from "./sessionFeedback";
+import { formatAmount, mentalFatigueText } from "./sessionFeedback";
+import { renderSymptomIcons } from "./symptomIcons";
 
 const rejectionText: Record<ExpeditionRejection, string> = {
   "invalid-slot": "編成枠を選び直してください。",
@@ -94,7 +94,7 @@ export function mountPartyUi(root: HTMLElement, options: PartyUiOptions, back: (
     card.className = "party-slot";
     card.innerHTML = `<button type="button" class="party-slot-choice" aria-label="枠 ${slot + 1}" aria-describedby="party-slot-name-${slot} party-slot-hp-${slot} party-slot-state-${slot}">
       <span class="party-slot-portrait" aria-hidden="true"></span><span class="party-slot-name" id="party-slot-name-${slot}"></span>
-      <span class="party-slot-hp" id="party-slot-hp-${slot}"></span></button><p class="party-slot-symptoms" id="party-slot-state-${slot}"></p>
+      <span class="party-slot-hp" id="party-slot-hp-${slot}"></span></button><div class="party-slot-symptoms" id="party-slot-state-${slot}"></div>
       <button type="button" class="party-detail">詳細</button>`;
     const choice = requiredElement<HTMLButtonElement>(card, ".party-slot-choice");
     const detail = requiredElement<HTMLButtonElement>(card, ".party-detail");
@@ -220,8 +220,7 @@ export function mountPartyUi(root: HTMLElement, options: PartyUiOptions, back: (
       name.textContent = member ? characterById(options.characters, member.id).name : "空き枠に追加";
       hp.textContent = member ? memberHp(member.id) : "";
       hp.classList.toggle("is-defeated", !!member && !canParticipate(member.hp, member.status));
-      symptoms.textContent = member ? symptomLabel(member.status ?? healthyStatus()) : "";
-      symptoms.hidden = !symptoms.textContent;
+      renderSymptomIcons(symptoms, member?.status ?? healthyStatus(), member?.mentalFatigue ?? 0);
       detail.hidden = !member || editingSlot !== null;
       detail.setAttribute("aria-label", `${name.textContent}の詳細`);
     });

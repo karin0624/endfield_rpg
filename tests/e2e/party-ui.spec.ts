@@ -30,8 +30,8 @@ for (const count of [12, 24]) {
       await detail.click();
       const dialog = page.getByRole("dialog");
       await expect(dialog.getByRole("heading", { name: `仲間 ${count}`, exact: true })).toBeVisible();
-      await expect(dialog).toContainText("150 / 150");
-      await expect(dialog).toContainText("90%");
+      await expect(dialog).toContainText("160 / 160");
+      await expect(dialog).toContainText("92.31%");
       if (attempt === 1) await dialog.getByRole("button", { name: "編成へ戻る" }).click();
       else await page.keyboard.press("Escape");
       await expect(detail).toBeFocused();

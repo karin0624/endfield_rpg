@@ -136,7 +136,7 @@ describe("通常操作の成長と取得・帰還", () => {
     if (game.dungeon?.activity?.type !== "battle") throw new Error("戦闘なし");
     expect(game.dungeon.activity.state.combatants.find(({ id }) => id === "player")).toMatchObject({
       attackPower: power,
-      maxHp: 32,
+      maxHp: 36,
     });
     const xp = game.growth?.growth.characters[0].experience;
     while (game.dungeon?.activity?.type === "battle") game = strike(game, "ruin-warden");
@@ -160,7 +160,7 @@ describe("通常操作の成長と取得・帰還", () => {
   });
   it("余剰XP・報酬再送・HP差分を保持し、控えの育成も帰還で消す", () => {
     let game = ensureGrowth(initial(["player", "gilberta"]), rules);
-    game = applyPartyStatus(game, "gilberta", "haze", characters);
+    game = applyPartyStatus(game, "gilberta", { kind: "haze", amount: 10 }, characters);
     const reward = { id: "event:reserve", allocations: [{ characterId: "gilberta", experience: 25 }] };
     game = accept(rewardGrowth(game, reward, rules));
     expect(game.growth?.growth.characters[1]).toMatchObject({ level: 3, experience: 5 });
@@ -174,11 +174,11 @@ describe("通常操作の成長と取得・帰還", () => {
     game = depart(game);
     game = accept(leaveExpedition(game, undefined, rules));
     expect(game.growth?.growth.characters[1]).toMatchObject({ level: 1, experience: 0 });
-    expect(game.party.members[1]).toMatchObject({ hp: 18, status: { haze: 1 } });
+    expect(game.party.members[1]).toMatchObject({ hp: 18, status: { haze: 10 } });
   });
   it("敗北は直ちに帰還しHPを回復しても戦闘不能・疲労を残す", () => {
     let game = initial();
-    for (let n = 0; n < 3; n++) game = applyPartyStatus(game, "player", "physicalFatigue", characters);
+    game = applyPartyStatus(game, "player", { kind: "physicalFatigue", amount: 200 }, characters);
     game = depart(game);
     game = act(game, { type: "enter", nodeId: "battle-a" });
     while (game.dungeon?.activity?.type === "battle") {
@@ -188,14 +188,17 @@ describe("通常操作の成長と取得・帰還", () => {
       game = act(game, { type: "attack", actorId: "player", targetId: target.id });
     }
     expect(game.dungeon).toBeNull();
-    expect(game.party.members[0]).toMatchObject({ hp: 5, status: { physicalFatigue: 3, incapacityRecoverySteps: 6 } });
+    expect(game.party.members[0]).toMatchObject({
+      hp: 6,
+      status: { physicalFatigue: 200, incapacityRecoverySteps: 6 },
+    });
     expect(game.growth?.growth.characters[0]).toMatchObject({ level: 1, experience: 0 });
     expect(game.clock).toMatchObject({ elapsedHalfDays: 1, recoverySteps: 0 });
     expect(roundTrip(game).party.members[0]).toEqual(game.party.members[0]);
   });
   it("HP0／参加不能は成長投影で復活せず、勝利XPは生存出撃者に同額", () => {
     let game = initial(["player", "gilberta"]);
-    game = applyPartyStatus(game, "gilberta", "incapacity", characters);
+    game = applyPartyStatus(game, "gilberta", { kind: "incapacity" }, characters);
     game = accept(editExpeditionParty(game, 1, "gilberta"));
     game = depart(game);
     game = act(game, { type: "enter", nodeId: "battle-a" });
@@ -339,9 +342,9 @@ describe("生存条件とパッシブ効果", () => {
 
 describe("HP上限の差分", () => {
   it("体力の習得とランク増加だけ現在HPへ加え、症状・疲労を維持する", () => {
-    let injured = applyPartyStatus(initial(), "player", "physicalFatigue", characters);
+    let injured = applyPartyStatus(initial(), "player", { kind: "physicalFatigue", amount: 10 }, characters);
     injured = receiveTownRecoverySignal(injured, 0, characters, mentalFatigueDefinition);
-    injured = applyPartyStatus(injured, "player", "haze", characters);
+    injured = applyPartyStatus(injured, "player", { kind: "haze", amount: 10 }, characters);
     let verified = false;
     for (let seed = 0; seed < 128 && !verified; seed++) {
       let game = accept(
@@ -351,18 +354,18 @@ describe("HP上限の差分", () => {
           rules,
         ),
       );
-      expect(game.party.members[0].hp).toBe(23); // 15 injured HP + 8 level growth, not full28.
+      expect(game.party.members[0].hp).toBe(26); // 18 injured HP + 8 level growth, not full28.
       if (!game.growth?.choice?.candidateIds.includes("test-vitality")) continue;
       game = accept(chooseGrowthSkill(game, selection(game, "test-vitality"), rules));
-      expect(game.party.members[0].hp).toBe(27);
+      expect(game.party.members[0].hp).toBe(30);
       if (!game.growth?.choice?.candidateIds.includes("test-vitality")) continue;
       game = accept(chooseGrowthSkill(game, selection(game, "test-vitality"), rules));
-      expect(game.party.members[0]).toMatchObject({ hp: 30, status: { haze: 1 }, mentalFatigue: 0 });
+      expect(game.party.members[0]).toMatchObject({ hp: 33, status: { haze: 10 }, mentalFatigue: 0 });
       game = roundTrip(game);
       game = depart(game);
-      expect(game.dungeon?.party[0]).toMatchObject({ hp: 30, maxHp: 35 });
+      expect(game.dungeon?.party[0]).toMatchObject({ hp: 33, maxHp: 35 });
       game = accept(leaveExpedition(game, undefined, rules));
-      expect(game.party.members[0]).toMatchObject({ hp: 20, status: { haze: 1 } });
+      expect(game.party.members[0]).toMatchObject({ hp: 20, status: { haze: 10 } });
       verified = true;
     }
     expect(verified).toBe(true);

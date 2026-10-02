@@ -1,3 +1,4 @@
+import { loadSymptomDefinition } from "../content/loadSymptomDefinition";
 import type { BattleSkillRules } from "./battle";
 import type { ExpeditionGame } from "./expedition";
 import { growthStats, hasPendingGrowth } from "./growthRuntime";
@@ -36,15 +37,15 @@ function keys(value: Record<string, unknown>, expected: readonly string[]): bool
 function counter(value: unknown): value is number {
   return typeof value === "number" && Number.isSafeInteger(value) && value >= 0 && value < Number.MAX_SAFE_INTEGER;
 }
-function severity(value: unknown): value is 0 | 1 | 2 | 3 {
-  return typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= 3;
+function symptomValue(value: unknown, cap: number): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= cap;
 }
 function parseStatus(value: unknown): CharacterStatus | undefined {
   if (!record(value) || !keys(value, ["physicalFatigue", "haze", "incapacityRecoverySteps"])) return;
   const { physicalFatigue, haze, incapacityRecoverySteps } = value;
   if (
-    !severity(physicalFatigue) ||
-    !severity(haze) ||
+    !symptomValue(physicalFatigue, loadSymptomDefinition.symptoms.physicalFatigue.cap) ||
+    !symptomValue(haze, loadSymptomDefinition.symptoms.haze.cap) ||
     !(
       incapacityRecoverySteps === null ||
       (counter(incapacityRecoverySteps) && incapacityRecoverySteps >= 1 && incapacityRecoverySteps <= 6)
@@ -64,7 +65,7 @@ export function deserializeGame(data: string, definitions: SaveDefinitions): Sav
     return invalid;
   }
   if (!record(value)) return invalid;
-  if (value.version !== 3) return { accepted: false, reason: "unsupported-version" };
+  if (value.version !== 4) return { accepted: false, reason: "unsupported-version" };
   if (!keys(value, ["version", "adventure", "party", "clock", "randomState", "lastTownRecoverySignal", "growth"]))
     return invalid;
   const { adventure, party, clock, randomState, lastTownRecoverySignal } = value;
@@ -183,7 +184,7 @@ export function serializeGame(
   if (!canSaveGame(game)) return { accepted: false, reason: "not-in-town" };
   const clock = game.clock ?? createActionClock();
   const data = JSON.stringify({
-    version: 3,
+    version: 4,
     growth: game.growth ? { ...game.growth, randomState: game.randomState ?? 1 } : null,
     adventure: { currentPlaceId: game.adventure.currentPlaceId, flags: game.adventure.flags },
     party: {

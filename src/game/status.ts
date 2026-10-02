@@ -1,15 +1,28 @@
-export type StatusSeverity = 0 | 1 | 2 | 3;
-export type StagedStatusKind = "physicalFatigue" | "haze";
-export interface CharacterStatus {
-  readonly physicalFatigue: StatusSeverity;
-  readonly haze: StatusSeverity;
+import { loadSymptomDefinition } from "../content/loadSymptomDefinition";
+import {
+  accumulateLoadSymptom,
+  type LoadSymptomKind,
+  type LoadSymptoms,
+  loadSymptomMultiplier,
+  recoverLoadSymptom,
+  validateLoadSymptom,
+} from "./loadSymptoms";
+
+export interface CharacterStatus extends LoadSymptoms {
   readonly incapacityRecoverySteps: number | null;
 }
 export function healthyStatus(): CharacterStatus {
   return { physicalFatigue: 0, haze: 0, incapacityRecoverySteps: null };
 }
-export function applyStagedStatus(status: CharacterStatus, kind: StagedStatusKind): CharacterStatus {
-  return { ...status, [kind]: Math.min(3, status[kind] + 1) as StatusSeverity };
+export function validateCharacterStatus(status: CharacterStatus): void {
+  for (const kind of ["physicalFatigue", "haze"] as const)
+    validateLoadSymptom(status[kind], loadSymptomDefinition.symptoms[kind]);
+  const steps = status.incapacityRecoverySteps;
+  if (steps !== null && (!Number.isInteger(steps) || steps < 1 || steps > 6))
+    throw new Error("戦闘不能の回復残りが不正です");
+}
+export function applyLoadSymptom(status: CharacterStatus, kind: LoadSymptomKind, amount: number): CharacterStatus {
+  return { ...status, [kind]: accumulateLoadSymptom(status[kind], amount, loadSymptomDefinition.symptoms[kind]) };
 }
 export function applyIncapacity(status: CharacterStatus): CharacterStatus {
   return status.incapacityRecoverySteps === null ? { ...status, incapacityRecoverySteps: 6 } : status;
@@ -18,16 +31,23 @@ export function applyIncapacity(status: CharacterStatus): CharacterStatus {
 export function recoverTownStep(status: CharacterStatus): CharacterStatus {
   const remaining = status.incapacityRecoverySteps;
   return {
-    physicalFatigue: Math.max(0, status.physicalFatigue - 1) as StatusSeverity,
-    haze: Math.max(0, status.haze - 1) as StatusSeverity,
+    physicalFatigue: recoverLoadSymptom(status.physicalFatigue, loadSymptomDefinition.symptoms.physicalFatigue),
+    haze: recoverLoadSymptom(status.haze, loadSymptomDefinition.symptoms.haze),
     incapacityRecoverySteps: remaining === null || remaining === 1 ? null : remaining - 1,
   };
 }
+export function symptomRecoverySteps(value: number, kind: LoadSymptomKind): number {
+  validateLoadSymptom(value, loadSymptomDefinition.symptoms[kind]);
+  return Math.ceil(value / loadSymptomDefinition.symptoms[kind].townRecovery);
+}
 export function effectiveMaxHp(base: number, status: CharacterStatus): number {
-  return Math.max(1, Math.floor(base * [1, 0.75, 0.5, 0.25][status.physicalFatigue]));
+  return Math.max(
+    1,
+    Math.floor(base * loadSymptomMultiplier(status.physicalFatigue, loadSymptomDefinition.symptoms.physicalFatigue)),
+  );
 }
 export function effectiveHitRate(base: number | undefined, status: CharacterStatus): number {
-  return (base ?? 1) * [1, 0.9, 0.8, 0.7][status.haze];
+  return (base ?? 1) * loadSymptomMultiplier(status.haze, loadSymptomDefinition.symptoms.haze);
 }
 export function canParticipate(hp: number, status: CharacterStatus = healthyStatus()): boolean {
   return hp > 0 && status.incapacityRecoverySteps === null;
