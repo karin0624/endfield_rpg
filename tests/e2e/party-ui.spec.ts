@@ -44,7 +44,7 @@ for (const count of [12, 24]) {
     await page.keyboard.press("Escape");
     await expect(slot).toBeFocused();
     await expect(slot).toContainText("ギルベルタ");
-    await page.getByRole("button", { name: "状態を確認" }).click();
+    await page.getByRole("button", { name: "状態を確認", exact: true }).click();
     await expect(page.locator("#state")).toHaveText(before ?? "");
     await expect(page.locator("#edits")).toHaveText("0");
     await slot.click();
@@ -97,4 +97,75 @@ test("長名・未提供画像・他枠の重複と狭幅・低い画面での�
     await expect(slot).toContainText("仲間 4");
   }
   await expect(page.locator("#edits")).toHaveText("0");
+});
+
+for (const width of [320, 390, 1920]) {
+  test(`習得詳細は${width}pxで現在値・長文を読め、帰還初期化後の再開に古い習得を残さない`, async ({
+    page,
+  }, testInfo) => {
+    await page.setViewportSize({ width, height: 1080 });
+    await page.goto("/tests/fixtures/character-details.html");
+    const before = await page.locator("#state").textContent();
+    const opener = page.getByRole("button", { name: /長い名前のロッシ.*の詳細/ });
+    await opener.focus();
+    await page.keyboard.press("Enter");
+    const dialog = page.getByRole("dialog");
+    const stat = (label: string) =>
+      dialog
+        .locator(".character-details-stats > div")
+        .filter({ has: page.getByText(label, { exact: true }) })
+        .locator("dd");
+    await expect(stat("レベル")).toHaveText("4");
+    await expect(stat("HP")).toContainText("症状前最大HP 39（成長・パッシブ込み）");
+    await expect(stat("HP")).toContainText("基礎最大HP 20");
+    await expect(stat("攻撃力")).toContainText("11");
+    const passive = dialog.locator(".character-details-skill").filter({ hasText: "検証用攻撃力補正" });
+    await expect(passive).toContainText("ランク 2 / 上限 3");
+    await expect(passive).toContainText("通常攻撃のみの威力補正 +4");
+    const active = dialog.locator(".character-details-skill").filter({ hasText: "検証用軽撃" });
+    await expect(active).toContainText("レベル保証で習得");
+    await expect(active).toContainText("探索中のみ（帰還で失う）");
+    await expect(active).not.toContainText("減衰");
+    await expect(active).not.toContainText("ランク");
+    await page.keyboard.press("Tab");
+    await expect(dialog.getByRole("region", { name: "能力と状態" })).toBeFocused();
+    for (let count = 0; count < 15; count++) await page.keyboard.press("PageDown");
+    const last = dialog.locator(".character-details-skill").last();
+    await last.scrollIntoViewIfNeeded();
+    await expect(last).toBeInViewport();
+    const bounds = await dialog.boundingBox();
+    expect(bounds?.x).toBeGreaterThanOrEqual(0);
+    expect((bounds?.x ?? width) + (bounds?.width ?? width)).toBeLessThanOrEqual(width);
+    await page.screenshot({ path: testInfo.outputPath(`skills-${width}.png`) });
+    await page.keyboard.press("Escape");
+    await expect(opener).toBeFocused();
+    await page.getByRole("button", { name: "状態を確認", exact: true }).click();
+    await expect(page.locator("#state")).toHaveText(before ?? "");
+    await page.getByRole("button", { name: "帰還時の育成初期化" }).click();
+    const reset = await page.locator("#state").textContent();
+    await opener.click();
+    await expect(stat("レベル")).toHaveText("1");
+    await expect(stat("HP")).toContainText("症状前最大HP 20");
+    await expect(passive).toContainText("ランク 1 / 上限 3");
+    await expect(dialog).not.toContainText("検証用軽撃");
+    await expect(dialog).not.toContainText("検証用体力補正");
+    await dialog.getByRole("button", { name: "編成へ戻る" }).click();
+    await page.getByRole("button", { name: "状態を確認", exact: true }).click();
+    await expect(page.locator("#state")).toHaveText(reset ?? "");
+  });
+}
+
+test("初期習得の未決と空を区別し、タップで詳細を閉じて戻る", async ({ browser }) => {
+  const context = await browser.newContext({ hasTouch: true, viewport: { width: 390, height: 844 } });
+  const page = await context.newPage();
+  for (const mode of ["unknown", "empty"]) {
+    await page.goto(`/tests/fixtures/character-details.html?mode=${mode}`);
+    const opener = page.getByRole("button", { name: /長い名前のロッシ.*の詳細/ });
+    await opener.tap();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toContainText(mode === "unknown" ? "習得情報は未接続です。" : "習得スキルなし");
+    await dialog.getByRole("button", { name: "編成へ戻る" }).tap();
+    await expect(opener).toBeFocused();
+  }
+  await context.close();
 });

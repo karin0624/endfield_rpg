@@ -372,11 +372,28 @@ test("キャラ詳細の閲覧だけでは編成・保存内容を変えず、�
   await expect(details.getByRole("img", { name: "ロッシ", exact: true })).toBeVisible();
   await expect(details.getByRole("img", { name: "ロッシ", exact: true })).not.toHaveJSProperty("naturalWidth", 0);
   await expect(details).toContainText("20 / 20");
-  await expect(details.locator("dd").nth(1)).toHaveText("8");
-  await expect(details.locator("dd").nth(2)).toHaveText("100");
-  await expect(details.locator("dd").nth(3)).toHaveText("100%");
-  await expect(details).not.toContainText("レベル");
-  await expect(details).not.toContainText("習得");
+  await expect(
+    details
+      .locator(".character-details-stats > div")
+      .filter({ has: page.getByText("攻撃力", { exact: true }) })
+      .locator("dd"),
+  ).toHaveText("8");
+  await expect(
+    details
+      .locator(".character-details-stats > div")
+      .filter({ has: page.getByText("速度", { exact: true }) })
+      .locator("dd"),
+  ).toHaveText("100");
+  await expect(
+    details
+      .locator(".character-details-stats > div")
+      .filter({ has: page.getByText("命中率", { exact: true }) })
+      .locator("dd"),
+  ).toHaveText("100%");
+  await expect(
+    details.locator(".character-details-stats > div").filter({ has: page.getByText("レベル", { exact: true }) }),
+  ).toContainText("1");
+  await expect(details.getByRole("region", { name: "習得スキル" })).toContainText("検証用攻撃");
   await expect(details.getByRole("button", { name: "編成へ戻る" })).toBeFocused();
   await page.screenshot({ path: testInfo.outputPath("details-rossi-1920.png") });
   await page.keyboard.press("Tab");
@@ -390,8 +407,18 @@ test("キャラ詳細の閲覧だけでは編成・保存内容を変えず、�
   await expect(details.getByRole("img", { name: "ギルベルタ", exact: true })).toBeVisible();
   await expect(details.getByRole("img", { name: "ギルベルタ", exact: true })).not.toHaveJSProperty("naturalWidth", 0);
   await expect(details).toContainText("18 / 18");
-  await expect(details.locator("dd").nth(1)).toHaveText("6");
-  await expect(details.locator("dd").nth(2)).toHaveText("90");
+  await expect(
+    details
+      .locator(".character-details-stats > div")
+      .filter({ has: page.getByText("攻撃力", { exact: true }) })
+      .locator("dd"),
+  ).toHaveText("6");
+  await expect(
+    details
+      .locator(".character-details-stats > div")
+      .filter({ has: page.getByText("速度", { exact: true }) })
+      .locator("dd"),
+  ).toHaveText("90");
   await page.screenshot({ path: testInfo.outputPath("details-gilberta-1920.png") });
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(details.getByRole("heading", { name: "ギルベルタ", exact: true })).toBeInViewport();
@@ -442,7 +469,9 @@ test("初期症状の試験データから実操作で数値回復・全滅帰�
   await page.getByRole("button", { name: "ロッシの詳細" }).click();
   const details = page.getByRole("dialog", { name: "ロッシ", exact: true });
   await expect(details).toContainText("13 / 13");
-  await expect(details).toContainText("基礎最大HP 20 · 肉体疲労による低下");
+  await expect(details).toContainText("基礎最大HP 20");
+  await expect(details).toContainText("症状前最大HP 20");
+  await expect(details).toContainText("肉体疲労による低下");
   await expect(details).toContainText("80%");
   await expect(details).toContainText("基礎 100% · 朦朧による低下");
   await expect(details).toContainText("肉体疲労・中度");
@@ -641,7 +670,19 @@ test("通常探索のスキル使用を次戦・帰還・保存読込・街回�
   await page.getByRole("link", { name: "出撃編成を見る" }).click();
   await page.getByRole("button", { name: "ロッシの詳細", exact: true }).click();
   const details = page.getByRole("dialog", { name: "ロッシ", exact: true });
-  await expect(details.locator("dd").nth(4)).toHaveText("9（なし）");
+  await expect(
+    details
+      .locator(".character-details-stats > div")
+      .filter({ has: page.getByText("精神疲労", { exact: true }) })
+      .locator("dd"),
+  ).toHaveText("9（なし）");
+  await expect(
+    details
+      .locator(".character-details-stats > div")
+      .filter({ has: page.getByText("レベル", { exact: true }) })
+      .locator("dd"),
+  ).toHaveText("1");
+  await expect(details.locator(".character-details-skill h4")).toHaveText(["検証用攻撃", "検証用回復"]);
   await page.screenshot({ path: testInfo.outputPath("skill-fatigue-details.png") });
   await page.keyboard.press("Escape");
 });

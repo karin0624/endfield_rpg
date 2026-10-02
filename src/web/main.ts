@@ -161,6 +161,12 @@ if (!battleMode) {
             },
             party: {
               characters: grownCharacters(game, skillRules),
+              getDetailsContext: () => ({
+                characters: grownCharacters(game, skillRules),
+                baseCharacters: characters,
+                growth: game.growth,
+                rules: skillRules,
+              }),
               getParty: () => game.party,
               getCalendarLabel: () => calendarLabel(game.clock),
               edit: (slot, id) => {

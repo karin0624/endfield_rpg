@@ -2198,18 +2198,20 @@ body.dungeon-mode {
   max-width: none;
   max-height: calc(100dvh - 64px);
   padding: clamp(24px, 3vw, 48px);
-  overflow: auto;
+  overflow: hidden;
   border: 1px solid var(--text-secondary);
   background: var(--surface-base);
   color: var(--text-primary);
+}
+.character-details[open] {
+  display: flex;
+  flex-direction: column;
 }
 .character-details::backdrop {
   background: #171d19e8;
 }
 .character-details-heading {
-  position: sticky;
-  top: 0;
-  z-index: 1;
+  flex-shrink: 0;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -2220,9 +2222,11 @@ body.dungeon-mode {
   overflow-wrap: anywhere;
 }
 .character-details-body {
+  min-height: 0;
+  overflow: auto;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  align-items: center;
+  align-items: start;
   gap: clamp(24px, 4vw, 64px);
   margin-top: 24px;
 }
@@ -2733,4 +2737,23 @@ body.dungeon-mode {
 .symptom-icon summary:focus-visible {
   outline: 2px solid currentColor;
   outline-offset: 2px;
+}
+
+.character-details-skills {
+  overflow-wrap: anywhere;
+  line-height: 1.6;
+  font-size: var(--font-size-body);
+}
+.character-details-skills h3,
+.character-details-skill h4 {
+  font-size: var(--font-size-body);
+  line-height: 1.4;
+}
+.character-details-skill {
+  border-top: 1px solid var(--trim-metal);
+  padding-block: 0.75rem;
+}
+.character-details-skill h4,
+.character-details-skill p {
+  margin: 0 0 0.5rem;
 }
