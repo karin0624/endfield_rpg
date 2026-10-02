@@ -1,6 +1,7 @@
 import type { ExpeditionRejection, ExpeditionResult } from "../game/expedition";
 import { type CharacterDefinition, characterById, departureRejection, type PartyState } from "../game/party";
 import { canParticipate, effectiveMaxHp, healthyStatus } from "../game/status";
+import type { CharacterDetailsContext } from "./characterDetailsText";
 import { mountCharacterDetailsUi } from "./characterDetailsUi";
 import { characterPortraitUrl } from "./characterPortrait";
 import { requiredElement } from "./requiredElement";
@@ -20,6 +21,7 @@ const rejectionText: Record<ExpeditionRejection, string> = {
 
 export interface PartyUiOptions {
   readonly characters: readonly CharacterDefinition[];
+  readonly getDetailsContext?: () => CharacterDetailsContext;
   readonly getParty: () => PartyState;
   readonly getCalendarLabel: () => string;
   readonly edit: (slot: number, id: string | null) => ExpeditionResult;
@@ -50,7 +52,7 @@ export function mountPartyUi(root: HTMLElement, options: PartyUiOptions, back: (
   const remove = requiredElement<HTMLButtonElement>(root, "[data-remove]");
   const candidateDetails = requiredElement<HTMLButtonElement>(root, "[data-candidate-details]");
   const events = new AbortController();
-  const details = mountCharacterDetailsUi(root, options.characters, options.getParty);
+  const details = mountCharacterDetailsUi(root, options.characters, options.getParty, options.getDetailsContext);
   // A second click must not activate the screen revealed by the first click.
   for (const type of ["mousedown", "click"] as const)
     root.addEventListener(
