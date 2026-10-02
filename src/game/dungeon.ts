@@ -535,7 +535,7 @@ export function performDungeonBasicAttack(
 }
 export interface DungeonSkillInput {
   readonly actorId: string;
-  readonly targetId: string;
+  readonly targetId: string | null;
   readonly skillId: string;
   readonly expectedActionTime: number;
   readonly expectedNodeId: string;
@@ -641,6 +641,7 @@ export function performDungeonBranchSkill(
       targetId: target.id,
       skillId: skill.id,
       effect: "hp-recovery",
+      hitIndex: 1,
       amount: hp - target.hp,
       fatigueBefore,
       fatigueAfter,

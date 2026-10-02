@@ -56,8 +56,10 @@ export function learnedSkillText(catalog: SkillCatalog, learned: LearnedSkill) {
   }
   if (skill.type === "active") {
     notes.push(
-      `${skill.scenes.map((scene) => (scene === "battle" ? "戦闘" : "分岐")).join("／")} · ${skill.target === "single-enemy" ? "生存中の敵1体" : "生存中の味方1体（自分を含む）"} · 精神疲労 +${formatAmount(skill.mentalFatigueIncrease)}`,
+      `${skill.scenes.map((scene) => (scene === "battle" ? "戦闘" : "分岐")).join("／")} · ${skill.target === "all-enemies" ? "生存中の敵全体" : skill.target === "single-enemy" ? "生存中の敵1体" : "生存中の味方1体（自分を含む）"} · 精神疲労 +${formatAmount(skill.mentalFatigueIncrease)}`,
     );
+    if (skill.effect.type === "damage")
+      notes.push(`対象ごとに最大${skill.effect.hitCount ?? 1}回攻撃（撃破時は打切り）。`);
     if (mentalFatigueAffectedQuantity(skill))
       notes.push("効果量は使用前の精神疲労で減衰します。効果適用後に精神疲労が増加します。");
   }

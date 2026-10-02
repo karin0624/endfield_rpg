@@ -10,6 +10,7 @@ import { createInitialGameState } from "../../src/game/createInitialGameState";
 import { actInExpedition, applyPartyStatus, departOnExpedition, type ExpeditionGame } from "../../src/game/expedition";
 import { chooseGrowthSkill } from "../../src/game/growthRuntime";
 import { createParty, getPartyCombatants } from "../../src/game/party";
+import type { ActiveSkillDefinition, SkillCatalog } from "../../src/game/skills";
 import savedSettings from "../../src/web/battle-settings.json";
 import { parseBattleSettings } from "../../src/web/battleSettings";
 import { mountBattleUi } from "../../src/web/battleUi";
@@ -35,8 +36,41 @@ if (new URLSearchParams(location.search).has("demo")) {
     renderer.dispose();
   };
 } else {
+  // Isolated authored inputs exercise production runtime/UI; never change the shipped catalog.
+  const attacks: readonly ActiveSkillDefinition[] = [
+    {
+      id: "fixture-repeat",
+      name: "連続攻撃（試験入力）",
+      description: "選んだ敵を3回攻撃",
+      tier: "normal",
+      type: "active",
+      effect: { type: "damage", amount: 0, scaling: { stat: "attackPower", coefficient: 0.5 }, hitCount: 3 },
+      mentalFatigueIncrease: 4,
+      scenes: ["battle"],
+      target: "single-enemy",
+    },
+    {
+      id: "fixture-sweep",
+      name: "全体攻撃（試験入力）",
+      description: "生存中の敵を攻撃",
+      tier: "normal",
+      type: "active",
+      effect: { type: "damage", amount: 12, scaling: { stat: "attackPower", coefficient: 0.5 } },
+      mentalFatigueIncrease: 4,
+      scenes: ["battle"],
+      target: "all-enemies",
+    },
+  ];
+  const attackCatalog: SkillCatalog = {
+    ...skillCatalog,
+    skills: [...skillCatalog.skills, ...attacks],
+    characters: skillCatalog.characters.map((profile) => ({
+      ...profile,
+      initialSkillIds: attacks.map((skill) => skill.id),
+    })),
+  };
   const skillRules = {
-    catalog: skillCatalog,
+    catalog: new URLSearchParams(location.search).has("multi") ? attackCatalog : skillCatalog,
     fatigue: mentalFatigueDefinition,
     ...(new URLSearchParams(location.search).has("growth") ? { growth: growthRules } : {}),
   };
