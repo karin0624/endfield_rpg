@@ -47,7 +47,7 @@ export function mountGrowthChoice(
     detail.className = "growth-choice-detail";
     detail.textContent =
       skill.type === "active"
-        ? `新規アクティブ · 精神疲労 +${skill.mentalFatigueIncrease} · ${skill.scenes.map((scene) => (scene === "battle" ? "戦闘" : "分岐")).join("／")}${skill.scenes.includes("branch") ? "（分岐使用は未対応）" : ""}`
+        ? `新規アクティブ · 精神疲労 +${skill.mentalFatigueIncrease} · ${skill.scenes.map((scene) => (scene === "battle" ? "戦闘" : "分岐")).join("／")}`
         : `パッシブ ${known?.type === "passive" ? `強化 ${known.rank}→${known.rank + 1}` : "習得 0→1"} / 上限${skill.effect.rankAmounts.length}`;
     const description = document.createElement("span");
     description.className = "growth-choice-detail";
