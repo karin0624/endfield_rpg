@@ -187,6 +187,7 @@ export function mountBattleUi(
   let replayingEvents = false;
   let message = targetPrompt();
   let disposed = false;
+  const animationWaits = new Map<number, () => void>();
   let markerFrame: number | undefined;
   let overlayFrame: number | undefined;
   let markerLastTime = 0;
@@ -546,7 +547,13 @@ export function mountBattleUi(
 
   function animationWait(durationMs: number): Promise<void> {
     if (reducedMotion.matches) return Promise.resolve();
-    return new Promise((resolve) => window.setTimeout(resolve, durationMs));
+    return new Promise((resolve) => {
+      const timer = window.setTimeout(() => {
+        animationWaits.delete(timer);
+        resolve();
+      }, durationMs);
+      animationWaits.set(timer, resolve);
+    });
   }
 
   function finishDefeatPresentation(combatantId: string) {
@@ -839,11 +846,17 @@ export function mountBattleUi(
 
   return () => {
     disposed = true;
+    for (const [timer, resolve] of animationWaits) {
+      window.clearTimeout(timer);
+      resolve();
+    }
+    animationWaits.clear();
     if (markerFrame !== undefined) window.cancelAnimationFrame(markerFrame);
     if (overlayFrame !== undefined) window.cancelAnimationFrame(overlayFrame);
     resizeObserver.disconnect();
     events.abort();
     for (const button of enemyHitAreas.values()) button.remove();
+    for (const nameplate of enemyNameplates.values()) nameplate.remove();
     targetIndicator.remove();
     eventToast.remove();
     hud.remove();
