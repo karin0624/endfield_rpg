@@ -1,62 +1,170 @@
 import { describe, expect, it } from "vitest";
+import { createInitialGameState } from "../game/createInitialGameState";
+import { actInTown, beginTownExploration, type ExpeditionGame } from "../game/expedition";
 import type { LoadSymptomKind } from "../game/loadSymptoms";
+import { createParty } from "../game/party";
+import { deserializeGame, serializeGame } from "../game/save";
+import { createExplorationSkills } from "../game/skillAcquisition";
 import { type ContentDefinitions, contentDefinitions, validateContent } from "./validateContent";
 
 function fixture(): ContentDefinitions {
   return structuredClone(contentDefinitions);
 }
 
+function addedContent(flag = "joined-new"): ContentDefinitions {
+  const c = fixture();
+  const character = { ...c.characters[1], id: "new-companion", name: "追加の仲間" };
+  const newSkill = { ...c.skills.skills[0], id: "new-strike" };
+  const roster = [...c.characters, character];
+  const conversation = {
+    id: "new-recruitment",
+    startNodeId: "intro",
+    nodes: {
+      intro: { type: "line" as const, text: "同行を相談する", nextNodeId: "join" },
+      join: { type: "end" as const, recruitments: [{ characterId: character.id, setFlags: [flag] }] },
+    },
+  };
+  const content: ContentDefinitions = {
+    ...c,
+    characters: roster,
+    adventure: {
+      ...c.adventure,
+      conversations: [...c.adventure.conversations, conversation],
+      places: [
+        ...c.adventure.places,
+        { id: "new-place", label: "新しい場所", routes: [{ conversationId: conversation.id }] },
+      ],
+    },
+    growth: {
+      ...c.growth,
+      characters: roster,
+      progression: {
+        ...c.growth.progression,
+        initial: [...c.growth.progression.initial, { ...c.growth.progression.initial[0], characterId: character.id }],
+      },
+    },
+    skills: {
+      ...c.skills,
+      skills: [...c.skills.skills, newSkill],
+      characters: [
+        ...c.skills.characters,
+        { characterId: character.id, poolId: "test-shared", initialSkillIds: [newSkill.id] },
+      ],
+    },
+    save: {
+      ...c.save,
+      characters: roster,
+      placeIds: [...c.save.placeIds, "new-place"],
+      recruitmentFlags: [...(c.save.recruitmentFlags ?? []), { flag: flag, characterId: character.id }],
+    },
+  };
+  if (!c.save.skills) throw new Error("試験のスキル設定がありません");
+  return {
+    ...content,
+    save: { ...content.save, skills: { ...c.save.skills, catalog: content.skills, growth: content.growth } },
+  };
+}
+function recruitAdded(content: ContentDefinitions): ExpeditionGame {
+  const game: ExpeditionGame = {
+    adventure: createInitialGameState(content.initial),
+    party: createParty(content.characters, ["player"]),
+    dungeon: null,
+    growth: createExplorationSkills("growth:1", 1, content.growth.progression, content.skills),
+  };
+  const start = beginTownExploration(game, "new-place", content.adventure);
+  if (!start.accepted) throw new Error(start.reason);
+  const end = actInTown(
+    start.state,
+    start.state.clock?.pendingAction?.id ?? -1,
+    { type: "advance" },
+    content.characters,
+    content.adventure,
+  );
+  if (!end.accepted) throw new Error(end.reason);
+  return end.state;
+}
+function roundTrip(content: ContentDefinitions) {
+  const saved = serializeGame(recruitAdded(content), content.save);
+  if (!saved.accepted) throw new Error(saved.reason);
+  const restored = deserializeGame(saved.data, content.save);
+  if (!restored.accepted) throw new Error(restored.reason);
+  return restored.state;
+}
+
 describe("コンテンツ追加時の定義と参照", () => {
   it("本番の全定義を npm run check で検証する", () => {
     expect(() => validateContent(contentDefinitions)).not.toThrow();
   });
-  it("仲間・加入イベント・既存効果のスキルをデータ追加だけで接続できる", () => {
-    const c = fixture();
-    const character = { ...c.characters[1], id: "new-companion", name: "追加の仲間" };
-    const newSkill = { ...c.skills.skills[0], id: "new-strike" };
-    const roster = [...c.characters, character];
-    const conversation = {
-      id: "new-recruitment",
-      startNodeId: "intro",
-      nodes: {
-        intro: { type: "line" as const, text: "同行を相談する", nextNodeId: "join" },
-        join: { type: "end" as const, recruitments: [{ characterId: character.id, setFlags: ["joined-new"] }] },
-      },
+  it("仲間・加入イベント・既存効果を追加し、加入後の成長状態を現行形式で保存往復できる", () => {
+    const content = addedContent();
+    validateContent(content);
+    const restored = roundTrip(content);
+    expect(restored.party.members.map(({ id }) => id)).toEqual(["player", "new-companion"]);
+    expect(restored.adventure.flags).toContain("joined-new");
+    expect(restored.growth?.characters.find(({ characterId }) => characterId === "new-companion")?.learned).toEqual([
+      { skillId: "new-strike", type: "active", origin: "initial", acquisition: "initial" },
+    ]);
+  });
+  it("同じ加入フラグを独立したキャラに割り当てると保存できない", () => {
+    const content = addedContent("joined-gilberta");
+    expect(() => validateContent(content)).toThrow("加入フラグが別の加入を要求します");
+    expect(serializeGame(recruitAdded(content), content.save)).toEqual({ accepted: false, reason: "invalid-data" });
+  });
+  it.each(["catalog", "growth"] as const)("保存側の旧%s参照を拒否し、保存失敗も再現する", (key) => {
+    const content = addedContent();
+    if (!content.save.skills || !contentDefinitions.save.skills) throw new Error("試験のスキル設定がありません");
+    const stale = {
+      ...content,
+      save: { ...content.save, skills: { ...content.save.skills, [key]: contentDefinitions.save.skills[key] } },
     };
-    validateContent({
+    expect(() => validateContent(stale)).toThrow(
+      key === "catalog" ? "save.skills.catalog" : "save.skills.growth.progression",
+    );
+    if (key === "catalog") {
+      expect(() => serializeGame(recruitAdded(stale), stale.save)).toThrow("初期スキル定義が未接続です: new-companion");
+    } else {
+      expect(serializeGame(recruitAdded(stale), stale.save)).toEqual({ accepted: false, reason: "invalid-data" });
+    }
+  });
+  it("同じ内容の独立した保存定義も受理して往復できる", () => {
+    const content = addedContent();
+    const independent = { ...content, save: structuredClone(content.save) };
+    validateContent(independent);
+    expect(roundTrip(independent).party.members.map(({ id }) => id)).toEqual(["player", "new-companion"]);
+  });
+  it("同じ終了ノードで全員加入する共通フラグは保存往復できる", () => {
+    const c = addedContent("joined-together");
+    const content: ContentDefinitions = {
       ...c,
-      characters: roster,
       adventure: {
         ...c.adventure,
-        conversations: [...c.adventure.conversations, conversation],
-        places: [
-          ...c.adventure.places,
-          { id: "new-place", label: "新しい場所", routes: [{ conversationId: conversation.id }] },
-        ],
-      },
-      growth: {
-        ...c.growth,
-        characters: roster,
-        progression: {
-          ...c.growth.progression,
-          initial: [...c.growth.progression.initial, { ...c.growth.progression.initial[0], characterId: character.id }],
-        },
-      },
-      skills: {
-        ...c.skills,
-        skills: [...c.skills.skills, newSkill],
-        characters: [
-          ...c.skills.characters,
-          { characterId: character.id, poolId: "test-shared", initialSkillIds: [newSkill.id] },
-        ],
+        conversations: c.adventure.conversations.map((conversation) =>
+          conversation.id === "new-recruitment"
+            ? {
+                ...conversation,
+                nodes: {
+                  ...conversation.nodes,
+                  join: {
+                    type: "end",
+                    recruitments: [
+                      { characterId: "new-companion", setFlags: ["joined-together"] },
+                      { characterId: "gilberta" },
+                    ],
+                  },
+                },
+              }
+            : conversation,
+        ),
       },
       save: {
         ...c.save,
-        characters: roster,
-        placeIds: [...c.save.placeIds, "new-place"],
-        recruitmentFlags: [...(c.save.recruitmentFlags ?? []), { flag: "joined-new", characterId: character.id }],
+        recruitmentFlags: [...(c.save.recruitmentFlags ?? []), { flag: "joined-together", characterId: "gilberta" }],
       },
-    });
+    };
+    validateContent(content);
+    const restored = roundTrip(content);
+    expect(restored.party.members.map(({ id }) => id)).toEqual(["player", "new-companion", "gilberta"]);
+    expect(restored.adventure.flags).toContain("joined-together");
   });
   it.each([
     [
@@ -172,10 +280,9 @@ describe("コンテンツ追加時の定義と参照", () => {
   });
   it("空の初期習得は解決済みとして扱う", () => {
     const c = fixture();
-    validateContent({
-      ...c,
-      skills: { ...c.skills, characters: c.skills.characters.map((p) => ({ ...p, initialSkillIds: [] })) },
-    });
+    const skills = { ...c.skills, characters: c.skills.characters.map((p) => ({ ...p, initialSkillIds: [] })) };
+    if (!c.save.skills) throw new Error("試験のスキル設定がありません");
+    validateContent({ ...c, skills, save: { ...c.save, skills: { ...c.save.skills, catalog: skills } } });
   });
   it.each(["battleExperience", "eventExperience", "townExperience"] as const)("%sは安全な非負整数", (key) => {
     const c = fixture();

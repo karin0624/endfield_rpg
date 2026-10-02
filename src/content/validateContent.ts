@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from "node:util";
 import { type AdventureDefinition, assertValidAdventureDefinition } from "../game/adventure";
 import type { InitialGameOptions } from "../game/createInitialGameState";
 import { assertValidDungeonDefinition, type DungeonDefinition } from "../game/dungeon";
@@ -38,7 +39,7 @@ export const contentDefinitions: ContentDefinitions = {
   loadSymptoms: loadSymptomDefinition,
 };
 
-/** npm run check の本番定義テストから呼ぶ。個別の形式検証は既存APIへ委譲する。 */
+/** Node の npm run check 専用。個別の形式検証は既存APIへ委譲する。 */
 export function validateContent(content: ContentDefinitions): void {
   const { characters: roster, adventure, dungeon, initial, growth, skills, save } = content;
   const party = createParty(
@@ -88,20 +89,48 @@ export function validateContent(content: ContentDefinitions): void {
   const recruitments = adventure.conversations.flatMap((conversation) =>
     Object.entries(conversation.nodes).flatMap(([nodeId, node]) =>
       node.type === "end"
-        ? (node.recruitments ?? []).map((effect) => ({ effect, location: `${conversation.id}/${nodeId}` }))
+        ? (node.recruitments ?? []).map((effect) => ({
+            effect,
+            location: `${conversation.id}/${nodeId}`,
+            companions: node.recruitments ?? [],
+          }))
         : [],
     ),
   );
   const flags = save.recruitmentFlags ?? [];
-  for (const { effect, location } of recruitments) {
+  for (const { effect, location, companions } of recruitments) {
     if (!ids.has(effect.characterId))
       throw new Error(`加入キャラクター参照がありません: ${location}/${effect.characterId}`);
-    if (!flags.some(({ flag, characterId }) => characterId === effect.characterId && effect.setFlags?.includes(flag)))
+    if (
+      !flags.some(
+        ({ flag, characterId }) =>
+          characterId === effect.characterId && companions.some((member) => member.setFlags?.includes(flag)),
+      )
+    )
       throw new Error(`加入イベントの保存フラグ対応がありません: ${location}/${effect.characterId}`);
+    for (const flag of effect.setFlags ?? []) {
+      for (const mapping of flags.filter((entry) => entry.flag === flag)) {
+        if (!companions.some(({ characterId }) => characterId === mapping.characterId))
+          throw new Error(`加入フラグが別の加入を要求します: ${location}/${flag}/${mapping.characterId}`);
+      }
+    }
   }
   for (const { flag, characterId } of flags) {
     if (!ids.has(characterId)) throw new Error(`保存加入フラグのキャラクター参照がありません: ${flag}/${characterId}`);
-    if (!recruitments.some(({ effect }) => effect.characterId === characterId && effect.setFlags?.includes(flag)))
+    if (
+      !recruitments.some(
+        ({ effect, companions }) =>
+          effect.characterId === characterId && companions.some((member) => member.setFlags?.includes(flag)),
+      )
+    )
       throw new Error(`保存加入フラグに対応するイベントがありません: ${flag}/${characterId}`);
   }
+  // 保存と実行が別の内容を参照すると、正当な現行セーブも復元できない。
+  // 値の一致を確認するので、同内容を別オブジェクトで渡すことは許容する。
+  if (!isDeepStrictEqual(save.skills?.catalog, skills))
+    throw new Error("保存のスキル定義が実行時と一致しません: save.skills.catalog");
+  if (!isDeepStrictEqual(save.skills?.growth?.progression, growth.progression))
+    throw new Error("保存の成長定義が実行時と一致しません: save.skills.growth.progression");
+  if (!isDeepStrictEqual(save.skills?.growth?.characters, growth.characters))
+    throw new Error("保存の成長名簿が実行時と一致しません: save.skills.growth.characters");
 }
