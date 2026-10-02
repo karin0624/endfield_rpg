@@ -17,6 +17,7 @@ import type { DungeonBattleRenderer, DungeonBattleRendererFactory } from "./batt
 import { createBattleRenderer } from "./battleScene";
 import { parseBattleSettings } from "./battleSettings";
 import { mountBattleUi } from "./battleUi";
+import { mountBranchSkillUi } from "./branchSkillUi";
 import { mountGrowthChoice } from "./growthChoiceUi";
 import { requiredElement } from "./requiredElement";
 
@@ -196,6 +197,8 @@ export function mountDungeonUi(
   const conversationSettings = parseAdventureSettings(savedAdventureSettings);
   applyAdventureSettings(conversationScreen, conversationSettings);
   outcomeScreen.style.backgroundImage = `linear-gradient(180deg, #171d19d9, #171d19ee), url("${assetUrl("backgrounds/dungeon-route.png")}")`;
+  let disposeBranchSkills: (() => void) | undefined;
+  let branchResult = "";
   let dungeonState = options.initialState;
   let routeOffset = 0;
   let hasUserPannedRoute = false;
@@ -213,6 +216,8 @@ export function mountDungeonUi(
   const nodeButtons = new Map<string, HTMLButtonElement>();
 
   function showView(view: "route" | "conversation" | "battle" | "outcome" | "growth"): void {
+    disposeBranchSkills?.();
+    disposeBranchSkills = undefined;
     growthScreen.hidden = view !== "growth";
     routeScreen.hidden = view !== "route";
     conversationScreen.hidden = view !== "conversation";
@@ -395,6 +400,36 @@ export function mountDungeonUi(
     requestAnimationFrame(() => {
       if (!hasUserPannedRoute) centerRouteForCurrentProgress();
     });
+    if (options.skillRules)
+      disposeBranchSkills = mountBranchSkillUi(
+        routeScreen,
+        dungeonState,
+        options.skillRules,
+        options.displayNames,
+        options.dispatch,
+        (result) => {
+          if (result.accepted) {
+            const used = result.events.find((event) => event.type === "skill");
+            branchResult =
+              used?.type === "skill"
+                ? `HPを${Number(used.amount.toFixed(2))}回復。精神疲労 ${used.fatigueBefore} → ${used.fatigueAfter}。`
+                : "";
+            for (const event of result.events)
+              if (event.type === "symptom")
+                branchResult += `${event.kind === "physicalFatigue" ? "肉体疲労" : "朦朧"} ${event.before} → ${event.after}。`;
+          }
+          applyDungeonResult(result);
+          routeScreen.querySelector<HTMLButtonElement>(".branch-skill-trigger")?.focus();
+        },
+      );
+    let resultLabel = routeScreen.querySelector<HTMLParagraphElement>(".branch-skill-result");
+    if (!resultLabel) {
+      resultLabel = document.createElement("p");
+      resultLabel.className = "branch-skill-result";
+      resultLabel.setAttribute("role", "status");
+      routeScreen.append(resultLabel);
+    }
+    resultLabel.textContent = branchResult;
     status.textContent = `現在地: ${initialDungeon.nodes.find((node) => node.id === dungeonState.currentNodeId)?.label ?? "不明"}`;
   }
 
@@ -713,6 +748,7 @@ export function mountDungeonUi(
   if (!renderGrowth()) renderRoute();
   return () => {
     disposeGrowth?.();
+    disposeBranchSkills?.();
     disposed = true;
     disposeBattle();
     battleRenderer?.dispose();
