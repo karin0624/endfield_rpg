@@ -17,7 +17,7 @@ import { createGameRandom, nextGameRandom } from "./gameRandom";
 import { createParty, setPartySlot } from "./party";
 import {
   applyIncapacity,
-  applyStagedStatus,
+  applyLoadSymptom,
   canParticipate,
   effectiveHitRate,
   effectiveMaxHp,
@@ -43,34 +43,34 @@ function member(state: ExpeditionGame, id = "player") {
   return found;
 }
 describe("状態異常", () => {
-  it("省略された基礎命中率は100%で、朦朧の段階を同じように反映する", () => {
+  it("省略された基礎命中率は100%で、朦朧の連続値を反映する", () => {
     expect(effectiveHitRate(undefined, healthyStatus())).toBe(1);
-    expect(effectiveHitRate(undefined, { ...healthyStatus(), haze: 3 })).toBeCloseTo(0.7);
+    expect(effectiveHitRate(undefined, { ...healthyStatus(), haze: 75 })).toBe(0.8);
   });
-  it("最大HP200を150/100/50、命中80%を72/64/56%へ独立して変更する", () => {
+  it("基礎最大HPと基礎命中率へ連続倍率を独立して適用する", () => {
     let status = healthyStatus();
     for (const [maxHp, hitRate] of [
-      [150, 0.72],
-      [100, 0.64],
-      [50, 0.56],
+      [160, 0.7384615384615385],
+      [133, 0.6857142857142857],
+      [114, 0.64],
     ]) {
-      status = applyStagedStatus(status, "physicalFatigue");
-      status = applyStagedStatus(status, "haze");
+      status = applyLoadSymptom(status, "physicalFatigue", 25);
+      status = applyLoadSymptom(status, "haze", 25);
       expect(effectiveMaxHp(200, status)).toBe(maxHp);
-      expect(effectiveHitRate(0.8, status)).toBeCloseTo(hitRate);
+      expect(effectiveHitRate(0.8, status)).toBeCloseTo(hitRate, 12);
     }
-    expect(applyStagedStatus(status, "haze").haze).toBe(3);
-    expect(applyStagedStatus(status, "physicalFatigue").physicalFatigue).toBe(3);
-    expect(effectiveMaxHp(3, status)).toBe(1);
-    expect(effectiveMaxHp(7, { ...healthyStatus(), physicalFatigue: 1 })).toBe(5);
-    expect(applyStagedStatus(healthyStatus(), "haze").physicalFatigue).toBe(0);
+    expect(applyLoadSymptom(status, "haze", 25).haze).toBe(100);
+    expect(applyLoadSymptom(status, "physicalFatigue", 200).physicalFatigue).toBe(200);
+    expect(effectiveMaxHp(1, status)).toBe(1);
+    expect(effectiveMaxHp(7, { ...healthyStatus(), physicalFatigue: 25 })).toBe(5);
+    expect(applyLoadSymptom(healthyStatus(), "haze", 25).physicalFatigue).toBe(0);
   });
-  it.each([1, 2, 3] as const)("段階%sは同じ数の半日signalで回復する", (severity) => {
-    let status = { ...healthyStatus(), physicalFatigue: severity, haze: severity };
-    for (let elapsed = 1; elapsed <= severity; elapsed++) {
-      status = recoverTownStep(status) as typeof status;
-      expect(status.physicalFatigue).toBe(severity - elapsed);
-      expect(status.haze).toBe(severity - elapsed);
+  it.each([1, 2, 3])("値が回復量の%s倍なら同じ数の半日signalで回復する", (ticks) => {
+    let status = { ...healthyStatus(), physicalFatigue: ticks * 10, haze: ticks * 10 };
+    for (let elapsed = 1; elapsed <= ticks; elapsed++) {
+      status = recoverTownStep(status);
+      expect(status.physicalFatigue).toBe((ticks - elapsed) * 10);
+      expect(status.haze).toBe((ticks - elapsed) * 10);
     }
   });
   it("戦闘不能は再付与で延びず、HP回復とは別に6半日を要する", () => {
@@ -86,27 +86,27 @@ describe("状態異常", () => {
     expect(canParticipate(0, status)).toBe(false);
   });
   it("town signalは控えも回復し、重複・古いsignalは進めず、最大HP増加は治癒しない", () => {
-    let state = applyPartyStatus(game(), "player", "physicalFatigue", characters);
-    state = applyPartyStatus(state, "reserve", "haze", characters);
-    state = applyPartyStatus(state, "reserve", "haze", characters);
-    expect(member(state).hp).toBe(150);
+    let state = applyPartyStatus(game(), "player", { kind: "physicalFatigue", amount: 10 }, characters);
+    state = applyPartyStatus(state, "reserve", { kind: "haze", amount: 10 }, characters);
+    state = applyPartyStatus(state, "reserve", { kind: "haze", amount: 10 }, characters);
+    expect(member(state).hp).toBe(181);
     state = receiveTownRecoverySignal(state, 10, characters);
-    expect(member(state)).toMatchObject({ hp: 150, status: { physicalFatigue: 0 } });
-    expect(member(state, "reserve")).toMatchObject({ hp: 200, status: { haze: 1 } });
+    expect(member(state)).toMatchObject({ hp: 181, status: { physicalFatigue: 0 } });
+    expect(member(state, "reserve")).toMatchObject({ hp: 200, status: { haze: 10 } });
     state = receiveTownRecoverySignal(state, 10, characters);
     state = receiveTownRecoverySignal(state, 9, characters);
-    expect(member(state, "reserve").status?.haze).toBe(1);
+    expect(member(state, "reserve").status?.haze).toBe(10);
     state = receiveTownRecoverySignal(state, 11, characters);
     expect(member(state, "reserve").status?.haze).toBe(0);
   });
   it("戦闘・会話・退出は回復せず、次戦も状態と乱数を引き継ぐ", () => {
-    let state = applyPartyStatus(game(), "player", "physicalFatigue", characters);
-    state = applyPartyStatus(state, "player", "haze", characters);
-    state = applyPartyStatus(state, "reserve", "incapacity", characters);
+    let state = applyPartyStatus(game(), "player", { kind: "physicalFatigue", amount: 10 }, characters);
+    state = applyPartyStatus(state, "player", { kind: "haze", amount: 10 }, characters);
+    state = applyPartyStatus(state, "reserve", { kind: "incapacity" }, characters);
     const departed = departOnExpedition(state, characters, initialDungeon, initialAdventure);
     if (!departed.accepted) throw new Error(departed.reason);
     state = receiveTownRecoverySignal(departed.state, 0, characters);
-    expect(member(state).status?.haze).toBe(1);
+    expect(member(state).status?.haze).toBe(10);
     function act(command: Parameters<typeof actInExpedition>[1]) {
       const result = actInExpedition(state, command, initialDungeon, initialAdventure);
       if (!result.result.accepted) throw new Error(result.result.reason);
@@ -115,16 +115,16 @@ describe("状態異常", () => {
     act({ type: "enter", nodeId: "battle-a" });
     for (const targetId of ["slime", "slime-2"]) act({ type: "attack", actorId: "player", targetId });
     expect(state.randomState).toBe(1586005467);
-    expect(member(state).status).toMatchObject({ physicalFatigue: 1, haze: 1 });
+    expect(member(state).status).toMatchObject({ physicalFatigue: 10, haze: 10 });
     act({ type: "enter", nodeId: "boss-c" });
     expect(state.dungeon?.activity).toMatchObject({ type: "battle", state: { randomState: 1586005467 } });
-    // The third seeded draw also hits at the effective 72% hit rate.
+    // The third seeded draw also hits at the effective 77.42% hit rate.
     act({ type: "attack", actorId: "player", targetId: "ruin-warden" });
     const left = leaveExpedition(state);
     if (!left.accepted) throw new Error(left.reason);
     expect(member(left.state, "reserve").status?.incapacityRecoverySteps).toBe(6);
-    expect(member(left.state).status?.haze).toBe(1);
-    expect(member(receiveTownRecoverySignal(left.state, 0, characters)).status?.haze).toBe(1);
+    expect(member(left.state).status?.haze).toBe(10);
+    expect(member(receiveTownRecoverySignal(left.state, 0, characters)).status?.haze).toBe(10);
     expect(left.state.randomState).toBe(2165703038);
   });
 });
@@ -157,7 +157,7 @@ it("省略した基礎最大HPも初戦から固定し、次戦の肉体疲労�
       speed: 100,
       hp: 200,
       attackPower: 10,
-      status: { ...healthyStatus(), physicalFatigue: 1 },
+      status: { ...healthyStatus(), physicalFatigue: 10 },
     },
   ]);
   const first = enterNextDungeonNode(state, "first", route, initialAdventure);
@@ -165,14 +165,14 @@ it("省略した基礎最大HPも初戦から固定し、次戦の肉体疲労�
   const finished = performDungeonBasicAttack(first.state, "player", "enemy", route);
   if (!finished.accepted) throw new Error(finished.reason);
   state = finished.state;
-  expect(state.party[0].hp).toBe(150);
+  expect(state.party[0].hp).toBe(181);
   const last = enterNextDungeonNode(state, "last", route, initialAdventure);
   if (!last.accepted) throw new Error(last.reason);
-  expect(last.state.party[0].hp).toBe(150);
+  expect(last.state.party[0].hp).toBe(181);
 });
 it("探索会話でも状態・回復残りは進まない", () => {
-  let state = applyPartyStatus(game(), "player", "haze", characters);
-  state = applyPartyStatus(state, "reserve", "incapacity", characters);
+  let state = applyPartyStatus(game(), "player", { kind: "haze", amount: 10 }, characters);
+  state = applyPartyStatus(state, "reserve", { kind: "incapacity" }, characters);
   const departed = departOnExpedition(state, characters, initialDungeon, initialAdventure);
   if (!departed.accepted) throw new Error(departed.reason);
   state = departed.state;
@@ -186,7 +186,7 @@ it("探索会話でも状態・回復残りは進まない", () => {
     if (!step.result.accepted) throw new Error(step.result.reason);
     state = step.state;
   }
-  expect(member(state).status?.haze).toBe(1);
+  expect(member(state).status?.haze).toBe(10);
   expect(member(state, "reserve").status?.incapacityRecoverySteps).toBe(6);
   expect(state.randomState).toBe(1);
 });
@@ -230,7 +230,7 @@ describe("命中と戦闘参加", () => {
     expect(state.currentActorId).toBe("ally");
     expect(getBattleUpcomingActions(state, 10).some(({ id }) => id === "blocked")).toBe(false);
     expect(createBattleState([blocked, enemy]).outcome).toBe("defeat");
-    let expedition = applyPartyStatus(game(), "player", "incapacity", characters);
+    let expedition = applyPartyStatus(game(), "player", { kind: "incapacity" }, characters);
     expect(departOnExpedition(expedition, characters, initialDungeon, initialAdventure)).toMatchObject({
       accepted: false,
       reason: "no-living-member",

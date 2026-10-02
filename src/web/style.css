@@ -2696,3 +2696,41 @@ body.dungeon-mode {
     padding-top: 12px;
   }
 }
+
+/* Symptom disclosures sit below HP without adding numeric gauges. */
+.symptom-icons:not([hidden]) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+.symptom-icon {
+  min-width: 0;
+  max-width: 100%;
+  font-size: var(--font-size-body);
+}
+.symptom-icon summary {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--border-decorative);
+}
+.symptom-mark {
+  display: inline-grid;
+  place-items: center;
+  width: 1.5em;
+  height: 1.5em;
+  border: 1px solid currentColor;
+  flex-shrink: 0;
+}
+.symptom-description {
+  display: block;
+  padding: 4px;
+  overflow-wrap: anywhere;
+}
+.symptom-icon summary:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}

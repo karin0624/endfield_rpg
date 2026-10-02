@@ -14,7 +14,8 @@ import { activeSkillBaseAmount, mentalFatigueAffectedQuantity, skillById } from 
 import { canParticipate, effectiveMaxHp } from "../game/status";
 import type { BattlePresentation } from "./battlePresentation";
 import { requiredElement } from "./requiredElement";
-import { formatAmount, mentalFatigueText } from "./sessionFeedback";
+import { formatAmount, loadSymptomText, mentalFatigueText, symptomNames } from "./sessionFeedback";
+import { renderSymptomIcons } from "./symptomIcons";
 
 const EVENT_TOAST_DURATION_MS = 650;
 const ENEMY_TURN_PAUSE_MS = 360;
@@ -443,7 +444,9 @@ export function mountBattleUi(
       const maximumLabel = document.createElement("span");
       maximumLabel.textContent = `/ ${maximum}`;
       hpLine.append(hpLabel, hp, maximumLabel);
-      details.append(heading, hpLine, makeHpBar(combatant.hp, maximum));
+      const symptoms = document.createElement("div");
+      renderSymptomIcons(symptoms, combatant.status, combatant.mentalFatigue);
+      details.append(heading, hpLine, makeHpBar(combatant.hp, maximum), symptoms);
       card.append(image, details);
       allyFragment.append(card);
     }
@@ -614,6 +617,10 @@ export function mountBattleUi(
         showEventToast(detail, "attack");
         screenReaderStatus.textContent = detail;
         await animationWait(EVENT_TOAST_DURATION_MS);
+      } else if (event.type === "symptom") {
+        const detail = `${combatantName(event.actorId)}の${symptomNames[event.kind]}：${formatAmount(event.before)} → ${loadSymptomText(event.kind, event.after)}`;
+        skillResult.textContent += ` · ${detail}`;
+        screenReaderStatus.textContent = detail;
       } else if (event.type === "combatant-defeated") {
         battle.playCombatantEffect(event.combatantId, "defeat", !reducedMotion.matches, () => {
           if (!disposed) finishDefeatPresentation(event.combatantId);

@@ -73,11 +73,11 @@ describe("生活時計と街回復", () => {
     expect(state.clock).toMatchObject({ elapsedHalfDays: 2, recoverySteps: 2 });
     expect(getCalendar(state.clock ?? createActionClock())).toEqual({ day: 2, period: "day" });
   });
-  it("中度→街→探索→街は軽度→軽度→なし。生活1.5日、回復2step", () => {
+  it("症状値20→街→探索→街は10→10→0。生活1.5日、回復2step", () => {
     let state = game();
     for (let i = 0; i < 2; i++) {
-      state = applyPartyStatus(state, "player", "physicalFatigue", characters);
-      state = applyPartyStatus(state, "reserve", "haze", characters);
+      state = applyPartyStatus(state, "player", { kind: "physicalFatigue", amount: 10 }, characters);
+      state = applyPartyStatus(state, "reserve", { kind: "haze", amount: 10 }, characters);
     }
     const first = town(state);
     state = accepted(first);
@@ -87,35 +87,35 @@ describe("生活時計と街回復", () => {
         recovery: [
           {
             id: "player",
-            before: { physicalFatigue: 2 },
-            after: { physicalFatigue: 1 },
+            before: { physicalFatigue: 20 },
+            after: { physicalFatigue: 10 },
             remainingSteps: { physicalFatigue: 1 },
           },
-          { id: "reserve", before: { haze: 2 }, after: { haze: 1 }, remainingSteps: { haze: 1 } },
+          { id: "reserve", before: { haze: 20 }, after: { haze: 10 }, remainingSteps: { haze: 1 } },
         ],
       },
     });
-    expect(state.party.members[0].hp).toBe(100);
+    expect(state.party.members[0].hp).toBe(166);
     state = dungeon(state);
-    expect(state.party.members[0].hp).toBe(150);
-    expect(state.party.members[0].status?.physicalFatigue).toBe(1);
-    expect(state.party.members[1].status?.haze).toBe(1);
+    expect(state.party.members[0].hp).toBe(181);
+    expect(state.party.members[0].status?.physicalFatigue).toBe(10);
+    expect(state.party.members[1].status?.haze).toBe(10);
     state = accepted(town(state));
     expect(state.clock).toMatchObject({ elapsedHalfDays: 3, recoverySteps: 2 });
     expect(state.party.members[0].status?.physicalFatigue).toBe(0);
     expect(state.party.members[1].status?.haze).toBe(0);
-    expect(state.party.members[0].hp).toBe(150);
+    expect(state.party.members[0].hp).toBe(181);
     expect(state.randomState).toBe(123);
   });
-  it("重度は3街行動で段階と効果を更新し、再発後も現在段階から回復する", () => {
+  it("症状値30は3街行動で数値と効果を更新し、再発後も現在値から回復する", () => {
     let state = game();
     for (let i = 0; i < 3; i++) {
-      state = applyPartyStatus(state, "player", "physicalFatigue", characters);
-      state = applyPartyStatus(state, "player", "haze", characters);
+      state = applyPartyStatus(state, "player", { kind: "physicalFatigue", amount: 10 }, characters);
+      state = applyPartyStatus(state, "player", { kind: "haze", amount: 10 }, characters);
     }
     for (const [maxHp, hitRate] of [
-      [100, 0.64],
-      [150, 0.72],
+      [166, 0.75],
+      [181, 0.7741935483870968],
       [200, 0.8],
     ]) {
       state = accepted(town(state));
@@ -124,15 +124,15 @@ describe("生活時計と街回復", () => {
       expect(effectiveMaxHp(200, status)).toBe(maxHp);
       expect(effectiveHitRate(0.8, status)).toBeCloseTo(hitRate);
     }
-    for (let i = 0; i < 2; i++) state = applyPartyStatus(state, "player", "haze", characters);
+    for (let i = 0; i < 2; i++) state = applyPartyStatus(state, "player", { kind: "haze", amount: 10 }, characters);
     state = accepted(town(state));
-    expect(state.party.members[0].status?.haze).toBe(1);
+    expect(state.party.members[0].status?.haze).toBe(10);
     state = accepted(town(state));
     expect(state.party.members[0].status?.haze).toBe(0);
   });
   it("全員戦闘不能でも非戦闘の街探索を6回完了し、HP正なら再出撃できる", () => {
     let state = game();
-    for (const id of ["player", "reserve"]) state = applyPartyStatus(state, id, "incapacity", characters);
+    for (const id of ["player", "reserve"]) state = applyPartyStatus(state, id, { kind: "incapacity" }, characters);
     expect(departOnExpedition(state, characters, initialDungeon, initialAdventure)).toMatchObject({
       accepted: false,
       reason: "no-living-member",
@@ -211,13 +211,13 @@ describe("生活時計と街回復", () => {
   });
   it("既存の回復signalが先行していても、最初の街完了を抑止しない", () => {
     let state = game();
-    for (let i = 0; i < 3; i++) state = applyPartyStatus(state, "player", "haze", characters);
+    for (let i = 0; i < 3; i++) state = applyPartyStatus(state, "player", { kind: "haze", amount: 10 }, characters);
     state = receiveTownRecoverySignal(state, 10, characters);
-    expect(state.party.members[0].status?.haze).toBe(2);
+    expect(state.party.members[0].status?.haze).toBe(20);
     const completed = town(state);
     state = accepted(completed);
     expect(state.clock).toMatchObject({ elapsedHalfDays: 1, recoverySteps: 1 });
-    expect(state.party.members[0].status?.haze).toBe(1);
+    expect(state.party.members[0].status?.haze).toBe(10);
     expect(state.lastTownRecoverySignal).toBe(11);
   });
   it("時計の完了tokenは種類とIDを検査し、再送で二重計上しない", () => {

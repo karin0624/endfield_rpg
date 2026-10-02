@@ -1,5 +1,5 @@
 import type { MentalFatigueDefinition } from "../game/mentalFatigue";
-/** Trial tuning, not user-decided balance. Additional symptom onset is not connected. */
+/** Trial tuning, not user-decided balance. */
 export const mentalFatigueDefinition = {
   scale: 100,
   townRecovery: 10,

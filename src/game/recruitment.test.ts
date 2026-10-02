@@ -79,9 +79,9 @@ describe("街探索による仲間加入", () => {
   });
   it("重複加入効果はHP・症状・残り回復を初期化せず、再訪も通常の回復1stepだけ", () => {
     let state = accepted(invite(game()));
-    state = applyPartyStatus(state, "gilberta", "haze", characters);
-    state = applyPartyStatus(state, "gilberta", "haze", characters);
-    state = applyPartyStatus(state, "gilberta", "incapacity", characters);
+    state = applyPartyStatus(state, "gilberta", { kind: "haze", amount: 10 }, characters);
+    state = applyPartyStatus(state, "gilberta", { kind: "haze", amount: 10 }, characters);
+    state = applyPartyStatus(state, "gilberta", { kind: "incapacity" }, characters);
     const damaged = {
       ...state.party,
       members: state.party.members.map((member) => (member.id === "gilberta" ? { ...member, hp: 3 } : member)),
@@ -96,7 +96,7 @@ describe("街探索による仲間加入", () => {
       accepted: true,
       added: false,
       state: {
-        members: [{ id: "player" }, { id: "gilberta", hp: 3, status: { haze: 2, incapacityRecoverySteps: 6 } }],
+        members: [{ id: "player" }, { id: "gilberta", hp: 3, status: { haze: 20, incapacityRecoverySteps: 6 } }],
       },
     });
     if (!duplicate.accepted) throw new Error(duplicate.reason);
@@ -114,7 +114,7 @@ describe("街探索による仲間加入", () => {
       completion: { recruitedIds: [] },
       state: {
         party: {
-          members: [{ id: "player" }, { id: "gilberta", hp: 3, status: { haze: 1, incapacityRecoverySteps: 5 } }],
+          members: [{ id: "player" }, { id: "gilberta", hp: 3, status: { haze: 10, incapacityRecoverySteps: 5 } }],
         },
       },
     });
@@ -231,7 +231,7 @@ describe("街探索による仲間加入", () => {
     });
   });
   it("全員戦闘不能でも非戦闘の加入イベントを終えられる", () => {
-    const initial = applyPartyStatus(game(), "player", "incapacity", characters);
+    const initial = applyPartyStatus(game(), "player", { kind: "incapacity" }, characters);
     const joined = accepted(invite(initial));
     expect(joined.party.members.map(({ id }) => id)).toEqual(["player", "gilberta"]);
     expect(joined.party.members[0].status?.incapacityRecoverySteps).toBe(5);

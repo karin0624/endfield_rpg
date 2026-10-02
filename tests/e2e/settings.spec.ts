@@ -23,8 +23,8 @@ test("詳細は長い名前と複数症状を狭幅で読め、画像未提供�
   await page.getByRole("button", { name: /^画像未提供.*の詳細$/ }).click();
   await expect(details.getByRole("heading", { name: /画像未提供の仲間/ })).toBeVisible();
   await expect(details.getByRole("img")).toHaveCount(0);
-  await expect(details).toContainText("150 / 150");
-  await expect(details).toContainText("90%");
+  await expect(details).toContainText("160 / 160");
+  await expect(details).toContainText("92.31%");
   await page.keyboard.press("Escape");
 });
 
