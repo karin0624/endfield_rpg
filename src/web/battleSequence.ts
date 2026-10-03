@@ -61,6 +61,8 @@ export function createBattleSequence(stage: HTMLElement, renderer: BattlePresent
     });
   }
   function phase(value: string) {
+    // Freeze interpolation speed for this phase, matching its current wait.
+    layer.style.setProperty(`--sequence-${value}-speed`, String(speed || 1));
     layer.dataset.phase = value;
     layer.dataset.motion = String(!motion.matches && speed !== 0);
     position();
@@ -77,7 +79,6 @@ export function createBattleSequence(stage: HTMLElement, renderer: BattlePresent
   return {
     setSpeed(value: number) {
       speed = value;
-      layer.style.setProperty("--sequence-speed", String(value || 1));
       if (value === 0) {
         layer.hidden = true;
         if (defeatId) renderer.playCombatantEffect(defeatId, "defeat", false);

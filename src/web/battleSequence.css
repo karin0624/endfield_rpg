@@ -47,7 +47,8 @@
   stroke: var(--data-hp);
   stroke-width: 3;
 }
-.battle-sequence:not([data-phase="impact"]) .sequence-impact,
+/* Each cue enters, rests and exits; no permanent HUD element is animated. */
+.battle-sequence:where(:not([data-phase="impact"]):not([data-phase="result"])) .sequence-impact,
 .battle-sequence:where(:not([data-phase="result"]):not([data-phase="settle"])) .sequence-number,
 .battle-sequence[data-kind="miss"] .sequence-impact,
 .battle-sequence[data-kind="heal"] .impact-rays,
@@ -60,18 +61,83 @@
 .battle-sequence[data-kind="damage"] .sequence-number {
   border-color: var(--status-danger);
 }
-.battle-sequence[data-phase="impact"][data-motion="true"] .sequence-impact {
-  animation: sequence-strike calc(80ms / var(--sequence-speed, 1)) ease-out both;
+.battle-sequence:is([data-phase="actor"], [data-phase="prepare"])[data-motion="true"] .sequence-actor {
+  animation: sequence-name-enter calc(120ms / var(--sequence-actor-speed, 1)) ease-out both;
 }
-@keyframes sequence-strike {
+.battle-sequence:is([data-phase="impact"], [data-phase="result"], [data-phase="settle"])[data-motion="true"]
+  .sequence-actor {
+  animation: sequence-name-exit calc(160ms / var(--sequence-impact-speed, 1)) ease-in both;
+}
+.battle-sequence:is([data-phase="impact"], [data-phase="result"])[data-motion="true"] .sequence-impact {
+  animation: sequence-strike calc(240ms / var(--sequence-impact-speed, 1)) ease-out both;
+}
+.battle-sequence[data-phase="result"][data-motion="true"] .sequence-number {
+  animation: sequence-result-enter calc(380ms / var(--sequence-result-speed, 1)) linear both;
+}
+.battle-sequence[data-phase="settle"][data-motion="true"] .sequence-number {
+  animation: sequence-result-exit calc(120ms / var(--sequence-settle-speed, 1)) ease-in both;
+}
+@keyframes sequence-name-enter {
   from {
-    transform: translate(-50%, -50%) scale(0.65);
-    opacity: 0.6;
+    transform: translate(-50%, -50%) translateY(12px);
+    opacity: 0;
   }
   to {
-    transform: translate(-50%, -50%) scale(1);
+    transform: translate(-50%, -50%) translateY(0);
     opacity: 1;
   }
+}
+@keyframes sequence-name-exit {
+  from {
+    transform: translate(-50%, -50%) translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: translate(-50%, -50%) translateY(-8px);
+    opacity: 0;
+  }
+}
+@keyframes sequence-strike {
+  0% {
+    transform: translate(-50%, -50%) scale(0.55);
+    opacity: 0;
+  }
+  20% {
+    transform: translate(-50%, -50%) scale(0.85);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1.2);
+    opacity: 0;
+  }
+}
+@keyframes sequence-result-enter {
+  0% {
+    transform: translate(-50%, -50%) translateY(14px) scale(0.94);
+    opacity: 0;
+  }
+  32% {
+    transform: translate(-50%, -50%) translateY(0) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -50%) translateY(-4px) scale(1);
+    opacity: 1;
+  }
+}
+@keyframes sequence-result-exit {
+  from {
+    transform: translate(-50%, -50%) translateY(-4px);
+    opacity: 1;
+  }
+  to {
+    transform: translate(-50%, -50%) translateY(-12px);
+    opacity: 0;
+  }
+}
+/* The actor and target already communicate who acts and who receives the result. */
+.stage > .event-toast {
+  display: none;
 }
 .sequence-controls {
   display: flex;
@@ -89,19 +155,13 @@
   font: inherit;
 }
 @media (prefers-reduced-motion: reduce) {
-  .battle-sequence[data-phase="impact"][data-motion="true"] .sequence-impact {
+  .battle-sequence[data-motion="true"] :is(.sequence-actor, .sequence-impact, .sequence-number) {
     animation: none;
   }
 }
 
 .sequence-controls[hidden] {
   display: none;
-}
-
-@media (max-width: 900px) {
-  .event-toast[data-event="attack"] {
-    display: none;
-  }
 }
 
 /* Reserve the first fatigue/status row before the first skill is used. */
