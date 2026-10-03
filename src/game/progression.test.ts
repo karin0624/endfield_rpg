@@ -143,7 +143,7 @@ describe("探索内成長コア", () => {
       allocations: [{ characterId: "gilberta", experience }],
       reason: "invalid-experience",
     })),
-  ])("無効報酬は全体を拒否し、IDも消費しない: $reason", ({ id, allocations, reason }) => {
+  ])("無効報酬は全体を拒否し、IDも消費しない: [%#] $reason", ({ id, allocations, reason }) => {
     const state = createExplorationGrowth(definition);
     const result = grantExperience(
       state,
@@ -291,7 +291,7 @@ describe("探索内成長コア", () => {
       ...definition,
       initial: [{ ...definition.initial[0], bonus: { maxHp, attackPower: 0 } }],
     })),
-  ])("不正な設定を拒否する", (invalid) => {
+  ])("不正な設定を拒否する [%#]", (invalid) => {
     expect(() => validateProgressionDefinition(invalid)).toThrow();
   });
 });

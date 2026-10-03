@@ -78,6 +78,17 @@ function member(state: BattleState, id: string) {
 }
 
 describe("多段・複数対象の公開runtime", () => {
+  it.each([
+    [0.5 - 1 / 0x100000000, false, 100],
+    [0.5, false, 100],
+    [0.5 + 1 / 0x100000000, true, 80],
+  ])("スキル命中率%sも乱数0.5を含まない厳密な境界を使う", (hitRate, hit, hp) => {
+    const skill = { ...attack, mentalFatigueIncrease: 0, effect: { ...attack.effect, hitCount: 1 } };
+    const result = accepted(use(start(2782269413, { hitRate, mentalFatigue: 0 }), skill));
+    expect(result.events[0]).toMatchObject({ type: "skill", hit, amount: hit ? 20 : 0 });
+    expect(member(result.state, "z").hp).toBe(hp);
+    expect(result.state.randomState).toBe(2147483648);
+  });
   it.each(["single-enemy", "all-enemies"] as const)(
     "%sは使用前能力・疲労で全効果を解決してから一度発症する",
     (target) => {

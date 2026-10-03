@@ -81,7 +81,7 @@ describe("消耗品のHP回復", () => {
   it.each([
     { ...ally, hp: 0 },
     { ...ally, hp: 20, status: { ...healthyStatus(), incapacityRecoverySteps: 6 } },
-  ])("HP0またはHPが残る戦闘不能を回復・蘇生せず、個数も減らさない", (target) => {
+  ])("HP0またはHPが残る戦闘不能を回復・蘇生せず、個数も減らさない [%#]", (target) => {
     const result = useBattleRecoveryItem(items(), battle(target), { ...input, targetId: "target" }, catalog);
     expect(result.accepted).toBe(false);
     expect(result.items.exploration?.bag[0].quantity).toBe(2);

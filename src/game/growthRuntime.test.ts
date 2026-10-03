@@ -265,6 +265,39 @@ type MutableSaveFixture = {
 };
 
 describe("成長保存の入力検証", () => {
+  it.each([
+    ["無効なセッションID", "explorationId", "growth:0"],
+    ["未解決候補", "choice", { characterId: "player", level: 2, candidateIds: ["test-power"] }],
+    ["ゲーム乱数との不一致", "randomState", 42],
+    ["名簿の欠落", "growth.characters", []],
+    ["習得名簿の欠落", "characters", []],
+    ["重複受領記録", "growth.appliedRewardIds", ["town", "town"]],
+    ["空の受領記録", "growth.appliedRewardIds", [" "]],
+    ["未知の成長対象", "growth.characters.0.characterId", "missing"],
+    ["定義外レベル", "growth.characters.0.level", 6],
+    ["初期未満レベル", "growth.characters.0.level", 0],
+    ["端数レベル", "growth.characters.0.level", 1.5],
+    ["負の余剰XP", "growth.characters.0.experience", -1],
+    ["攻撃補正の水増し", "growth.characters.0.bonus.attackPower", 1],
+    ["習得対象の不一致", "characters.0.characterId", "missing"],
+    ["初期技欠落", "characters.0.learned", []],
+    ["初期技を探索取得へ改竄", "characters.0.learned.0.origin", "expedition"],
+    ["初期技を選択取得へ改竄", "characters.0.learned.0.acquisition", "choice"],
+    ["未知の習得技", "characters.0.learned.0.skillId", "missing"],
+    ["技種別の矛盾", "characters.0.learned.0.type", "passive"],
+  ])("%sを保存読込で拒否する", (_label, path, replacement) => {
+    const saved = serializeGame(town(initial()), saveDefinitions);
+    if (!saved.accepted) throw new Error(saved.reason);
+    const payload = JSON.parse(saved.data);
+    const fields = String(path).split(".");
+    let target = payload.growth;
+    for (const field of fields.slice(0, -1)) target = target[field];
+    target[fields.at(-1) ?? ""] = replacement;
+    expect(deserializeGame(JSON.stringify(payload), saveDefinitions)).toEqual({
+      accepted: false,
+      reason: "invalid-data",
+    });
+  });
   it("不正な乱数・余剰・補正・習得ランク・残存権利を例外なく拒否する", () => {
     const saved = serializeGame(town(initial()), saveDefinitions);
     if (!saved.accepted) throw new Error(saved.reason);
@@ -313,7 +346,6 @@ describe("成長保存の入力検証", () => {
     delete payload.growth;
     const original = JSON.stringify(payload);
     expect(deserializeGame(original, saveDefinitions)).toEqual({ accepted: false, reason: "unsupported-version" });
-    expect(JSON.stringify(payload)).toBe(original);
   });
 });
 

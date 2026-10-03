@@ -162,3 +162,187 @@ test("旧環境のモデル・背景を待たずに別環境を表示し、遅�
   await expect.poll(() => webGLResources(page), { timeout: 60_000 }).toEqual({ Buffer: 0, Texture: 0, Program: 0 });
   expect(errors).toEqual([]);
 });
+
+for (const [deviceScaleFactor, renderScale] of [
+  [1, 1],
+  [3, 1.5],
+]) {
+  test(`端末DPR${deviceScaleFactor}でも描画倍率${renderScale}でリサイズし対象操作を保つ`, async ({ browser }, info) => {
+    const context = await browser.newContext({
+      baseURL: info.project.use.baseURL,
+      viewport: { width: 800, height: 900 },
+      deviceScaleFactor,
+      reducedMotion: "reduce",
+    });
+    const page = await context.newPage();
+    const errors: string[] = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    try {
+      await page.goto("/?debug=1&battle=1");
+      const attack = page.getByRole("button", { name: "通常攻撃", exact: true });
+      await expect(attack).toBeEnabled({ timeout: 60_000 });
+      for (const width of [800, 640]) {
+        await page.setViewportSize({ width, height: 900 });
+        // Native canvas allocation is the documented GPU workload cap, not a proxy for appearance.
+        await expect
+          .poll(
+            () =>
+              page.locator("canvas").evaluate((canvas: HTMLCanvasElement) => ({
+                width: canvas.width,
+                height: canvas.height,
+              })),
+            { timeout: 60_000 },
+          )
+          .toEqual({ width: width * renderScale, height: ((width * 9) / 16) * renderScale });
+        await expect(page.locator(".stage")).toBeInViewport();
+        const target = page.getByRole("button", { name: /スライム A、HP .*攻撃対象に選択/ });
+        await target.click();
+        await expect(target).toHaveAttribute("aria-pressed", "true");
+        await expect(page.locator("[data-target-indicator]")).toBeInViewport();
+      }
+      await attack.click();
+      await expect(page.locator('[data-enemy-label="slime"]')).toContainText("6 / 14");
+      expect(errors).toEqual([]);
+    } finally {
+      await context.close();
+    }
+  });
+}
+
+test("pagehideは履歴キャッシュ退避では操作と資源を維持し実退出では全資源を解放する", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await observeWebGLResources(page);
+  await page.goto("/?debug=1&battle=1");
+  const attack = page.getByRole("button", { name: "通常攻撃", exact: true });
+  await expect(attack).toBeEnabled({ timeout: 60_000 });
+  const allocated = await webGLResources(page);
+  expect(allocated.Buffer).toBeGreaterThan(0);
+  expect(allocated.Texture).toBeGreaterThan(0);
+  expect(allocated.Program).toBeGreaterThan(0);
+  // Browser lifecycle integration: exercise the actual entry listener, not the fixture's dispose button.
+  await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent("pagehide", { persisted: true })));
+  expect(await webGLResources(page)).toEqual(allocated);
+  const target = page.getByRole("button", { name: /スライム A、HP .*攻撃対象に選択/ });
+  await target.click();
+  await attack.click();
+  await expect(page.locator('[data-enemy-label="slime"]')).toContainText("6 / 14");
+  await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent("pagehide", { persisted: false })));
+  await expect.poll(() => webGLResources(page)).toEqual({ Buffer: 0, Texture: 0, Program: 0 });
+  await expect(attack).toHaveCount(0);
+  await page.setViewportSize({ width: 640, height: 900 });
+  await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent("pagehide", { persisted: false })));
+  expect(await webGLResources(page)).toEqual({ Buffer: 0, Texture: 0, Program: 0 });
+  expect(errors).toEqual([]);
+});
+
+test("非rootのBASE_URL配下から実素材を取得して戦闘を表示・操作できる", async ({ page }) => {
+  const { createServer } = await import("vite");
+  // A real Vite base setting exercises emitted asset URLs; rewriting HTTP requests would hide the bug.
+  const server = await createServer({
+    root: process.cwd(),
+    configFile: false,
+    base: "/nested/rpg/",
+    server: { host: "127.0.0.1", port: 0 },
+    logLevel: "error",
+  });
+  const failures: string[] = [];
+  const assets: string[] = [];
+  page.on("pageerror", (error) => failures.push(error.message));
+  page.on("requestfailed", (request) => failures.push(request.url()));
+  page.on("response", (response) => {
+    if (response.status() >= 400) failures.push(`${response.status()} ${response.url()}`);
+  });
+  page.on("request", (request) => {
+    if (new URL(request.url()).pathname.includes("/assets/")) assets.push(request.url());
+  });
+  try {
+    await server.listen();
+    const address = server.httpServer?.address();
+    if (!address || typeof address === "string") throw new Error("検証用サーバーのポートがありません");
+    const origin = `http://127.0.0.1:${address.port}`;
+    await page.goto(`${origin}/nested/rpg/?debug=1&battle=1`);
+    const attack = page.getByRole("button", { name: "通常攻撃", exact: true });
+    await expect(attack).toBeEnabled({ timeout: 60_000 });
+    await page.getByRole("button", { name: /スライム A、HP .*攻撃対象に選択/ }).click();
+    await attack.click();
+    await expect(page.locator('[data-enemy-label="slime"]')).toContainText("6 / 14");
+    expect(assets.some((url) => new URL(url).pathname.endsWith(".glb"))).toBe(true);
+    expect(assets.some((url) => new URL(url).pathname.endsWith(".png"))).toBe(true);
+    for (const url of assets) {
+      expect(new URL(url).origin).toBe(origin);
+      expect(new URL(url).pathname).toMatch(/^\/nested\/rpg\/assets\//);
+    }
+    expect(failures).toEqual([]);
+  } finally {
+    await page.goto("about:blank");
+    await server.close();
+  }
+});
+
+test("Vite HMRは旧戦闘の資源を解放して次の表示・操作を保つ", async ({ page }) => {
+  const { cp, mkdtemp, mkdir, symlink, appendFile, rm } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const { createServer } = await import("vite");
+  const project = process.cwd();
+  const root = await mkdtemp(join(tmpdir(), "battle-hmr-"));
+  const server = await createServer({
+    root,
+    cacheDir: join(root, ".vite"),
+    configFile: false,
+    server: { host: "127.0.0.1", port: 0, fs: { allow: [root, project] } },
+    logLevel: "error",
+  });
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  try {
+    await cp(join(project, "src"), join(root, "src"), { recursive: true });
+    await cp(join(project, "tests/fixtures/battle-hmr.html"), join(root, "index.html"));
+    await mkdir(join(root, "public"));
+    await symlink(join(project, "public/assets"), join(root, "public/assets"), "dir");
+    await symlink(join(project, "node_modules"), join(root, "node_modules"), "dir");
+    await server.listen();
+    const address = server.httpServer?.address();
+    if (!address || typeof address === "string") throw new Error("HMRサーバーのポートがありません");
+    await observeWebGLResources(page);
+    await page.goto(`http://127.0.0.1:${address.port}/?battle=1`);
+    const attack = page.getByRole("button", { name: "通常攻撃", exact: true });
+    await expect(attack).toBeEnabled({ timeout: 60_000 });
+    const warm = await webGLResources(page);
+    expect(warm.Buffer).toBeGreaterThan(0);
+    expect(warm.Texture).toBeGreaterThan(0);
+    expect(warm.Program).toBeGreaterThan(0);
+    // Edit only an isolated copy. No manual invocation of application dispose or HMR callbacks.
+    await appendFile(join(root, "src/web/debugMain.ts"), "\n// HMR lifecycle regression probe\n");
+    await expect(page.locator("body")).toHaveAttribute("data-hot-updated", "true", { timeout: 60_000 });
+    await expect(attack).toBeEnabled({ timeout: 60_000 });
+    await expect.poll(() => webGLResources(page)).toEqual(warm);
+    await page.getByRole("button", { name: /スライム A、HP .*攻撃対象に選択/ }).click();
+    await attack.click();
+    await expect(page.locator('[data-enemy-label="slime"]')).toContainText("6 / 14");
+    await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent("pagehide", { persisted: false })));
+    await expect.poll(() => webGLResources(page)).toEqual({ Buffer: 0, Texture: 0, Program: 0 });
+    expect(errors).toEqual([]);
+  } finally {
+    await page.goto("about:blank");
+    await server.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("通常起動のpagehideは履歴退避後の入力を保ち実退出後の入力を解放する", async ({ page }) => {
+  await page.goto("/");
+  const start = page.getByRole("button", { name: "新規開始", exact: true });
+  await expect(start).toBeVisible();
+  await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent("pagehide", { persisted: true })));
+  await start.click();
+  await page.getByRole("button", { name: "実行する", exact: true }).click();
+  await expect(page.locator(".campaign-copy")).toHaveText("（仮テキスト）");
+  const home = page.getByRole("button", { name: "ホームへ", exact: true });
+  await expect(home).toBeEnabled();
+  await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent("pagehide", { persisted: false })));
+  await home.click();
+  await expect(page.locator(".campaign-copy")).toHaveText("（仮テキスト）");
+  await expect(page.getByRole("button", { name: "探索先を選ぶ", exact: true })).toHaveCount(0);
+});

@@ -83,7 +83,7 @@ const boundaries = [
 
 describe("Lv15・20をまたぐスキル習得", () => {
   it.each(boundaries)(
-    "$initialLevel→$finalLevelで途中の$tierと通常の権利を順に解決し、再入力でも再抽選・重複取得しない",
+    "$initialLevel→$finalLevel で途中の$tier と通常の権利を順に解決し、再入力でも再抽選・重複取得しない",
     ({ initialLevel, milestone, finalLevel, tier }) => {
       const { progression, catalog } = fixture(initialLevel);
       const initial = createExplorationSkills("boundary-run", createGameRandom(1), progression, catalog);
@@ -154,7 +154,7 @@ describe("Lv15・20をまたぐスキル習得", () => {
   );
 
   it.each(boundaries)(
-    "$milestoneのraw候補が7件でも有効候補2件なら、途中と次レベルの権利・乱数を保持する",
+    "$milestone のraw候補が7件でも有効候補2件なら、途中と次レベルの権利・乱数を保持する [%#]",
     ({ initialLevel, milestone, finalLevel, tier }) => {
       const { progression, catalog } = fixture(initialLevel, tier);
       const initial = createExplorationSkills("boundary-run", createGameRandom(1), progression, catalog);

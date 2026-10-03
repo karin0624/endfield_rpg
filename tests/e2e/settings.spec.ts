@@ -192,8 +192,7 @@ test("会話画面の立ち絵と本文位置を調整・保存し、通常表�
   await leftX.press("ControlOrMeta+C");
   await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe("32");
   await panelHeight.fill("35");
-  await expect(page.locator("[data-adventure-screen]")).toHaveCSS("--adventure-leftX", "32%");
-  await expect(page.locator("[data-adventure-screen]")).toHaveCSS("--adventure-panelHeight", "35%");
+  await expect(page.locator("[data-adventure-screen]")).toHaveScreenshot("adventure-edited-preview.png");
   await page.reload();
   await expect(leftX).toHaveValue("32");
   await expect(editor.getByRole("status")).toContainText("復元");
@@ -204,6 +203,7 @@ test("会話画面の立ち絵と本文位置を調整・保存し、通常表�
   await expect(editor.getByRole("status")).toContainText("標準として保存しました");
   await editor.getByRole("link", { name: "保存済みの通常表示" }).click();
   await expect(page.getByRole("heading", { name: "街の広場" })).toBeVisible();
-  await expect(page.locator("[data-adventure-screen]")).toHaveCSS("--adventure-leftX", "32%");
-  await expect(page.locator("[data-adventure-screen]")).toHaveCSS("--adventure-panelHeight", "35%");
+  await page.getByRole("button", { name: "冒険者ギルド", exact: true }).click();
+  await expect(page.getByText("ロッシは掲示板の前で足を止めた。")).toBeVisible();
+  await expect(page.locator("[data-adventure-screen]")).toHaveScreenshot("adventure-saved-dialogue.png");
 });

@@ -221,3 +221,67 @@ describe("本編の物品・装備接続", () => {
     }
   });
 });
+
+describe("物品・装備の保存契約", () => {
+  it.each([
+    ["ゼロ個の保管", "items.home", [{ itemId: recoveryItemId, quantity: 0 }]],
+    ["端数個の保管", "items.home", [{ itemId: recoveryItemId, quantity: 1.5 }]],
+    [
+      "同じ品目の二重保管",
+      "items.home",
+      [
+        { itemId: recoveryItemId, quantity: 1 },
+        { itemId: recoveryItemId, quantity: 2 },
+      ],
+    ],
+    ["未知の装備定義", "equipment.owned", [{ instanceId: "w1", definitionId: "unknown" }]],
+    ["空の実物ID", "equipment.owned", [{ instanceId: "  ", definitionId: "trial-weapon" }]],
+    [
+      "重複した実物ID",
+      "equipment.owned",
+      [
+        { instanceId: "w1", definitionId: "trial-weapon" },
+        { instanceId: "w1", definitionId: "trial-weapon" },
+      ],
+    ],
+    ["所持しない実物の装備", "equipment.assignments", [{ characterId: "player", weapon: "missing", armor: null }]],
+    ["防具を武器枠へ配置", "equipment.assignments", [{ characterId: "player", weapon: "a1", armor: null }]],
+    ["武器を防具枠へ配置", "equipment.assignments", [{ characterId: "player", weapon: null, armor: "w1" }]],
+    ["未加入キャラへの配置", "equipment.assignments", [{ characterId: "missing", weapon: "w1", armor: null }]],
+    [
+      "同じキャラへの二重行",
+      "equipment.assignments",
+      [
+        { characterId: "player", weapon: "w1", armor: null },
+        { characterId: "player", weapon: null, armor: "a1" },
+      ],
+    ],
+  ])("%sを復元時に拒否する", (_label, path, replacement) => {
+    const saved = serializeGame(withGear(), saveDefinitions);
+    if (!saved.accepted) throw new Error(saved.reason);
+    const payload = JSON.parse(saved.data);
+    const [group, field] = String(path).split(".");
+    payload.inventory[group][field] = replacement;
+    expect(deserializeGame(JSON.stringify(payload), saveDefinitions)).toEqual({
+      accepted: false,
+      reason: "invalid-data",
+    });
+  });
+
+  it("保存読込は消耗品・所持金・共有装備を初期配布で補充しない", () => {
+    const game = {
+      ...initial(),
+      inventory: {
+        balance: 0,
+        items: createItemState([], itemCatalog),
+        equipment: { owned: [], assignments: [] },
+      },
+    };
+    const loaded = roundTrip(game);
+    expect(loaded.inventory).toEqual({
+      balance: 0,
+      items: { version: 0, home: [], importantIds: [], exploration: null },
+      equipment: { owned: [], assignments: [] },
+    });
+  });
+});

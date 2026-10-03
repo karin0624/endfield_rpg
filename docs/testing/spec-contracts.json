@@ -1,0 +1,354 @@
+[
+  {
+    "id": "WF-BATTLE-API-01",
+    "source": ["scripts/battle-settings-plugin.ts", "specs/visuals.md"],
+    "contract": "設定保存はPOST・同一Origin・JSONだけを受け付け、不正payloadで既存ファイルを変更しない",
+    "status": "covered",
+    "evidence": [
+      {
+        "test": "T-V-settings-api-001",
+        "layer": "HTTP integration (Vitest + real Vite/Node HTTP)",
+        "assertion": "GET405、他/無Origin403、text/plain403、不正JSON/版400、各直後の保存ファイル全byte一致"
+      }
+    ]
+  },
+  {
+    "id": "WF-BATTLE-API-02",
+    "source": ["scripts/battle-settings-plugin.ts", "specs/visuals.md"],
+    "contract": "設定保存の本文上限はUTF-8で4096byte。拒否後も保存できる",
+    "status": "covered",
+    "evidence": [
+      {
+        "test": "T-V-settings-api-002",
+        "layer": "HTTP integration (Vitest + real Vite/Node HTTP)",
+        "assertion": "4096byte成功200、4097byte413、旧保存全byte不変、再送200"
+      }
+    ]
+  },
+  {
+    "id": "WF-BATTLE-API-03",
+    "source": ["scripts/battle-settings-plugin.ts", "specs/visuals.md"],
+    "contract": "設定保存は並行入力を409で拒否し、完了まで旧保存を維持する",
+    "status": "covered",
+    "evidence": [
+      {
+        "test": "T-V-settings-api-003",
+        "layer": "HTTP integration (Vitest + real Vite/Node HTTP)",
+        "assertion": "未完了request中の2本目409、旧byte一致、1本目完了200、その後200"
+      }
+    ]
+  },
+  {
+    "id": "WF-BATTLE-API-04",
+    "source": ["scripts/battle-settings-plugin.ts", "specs/visuals.md"],
+    "contract": "設定保存の書込失敗は500を返し旧ファイルを保ち、再試行できる",
+    "status": "covered",
+    "evidence": [
+      {
+        "test": "T-V-settings-api-004",
+        "layer": "HTTP integration (Vitest + real Vite/Node HTTP)",
+        "assertion": "tmp書込先をdirectoryにして500、旧byte一致、障害除去後200"
+      }
+    ]
+  },
+  {
+    "id": "WF-ADVENTURE-API-01",
+    "source": ["scripts/adventure-settings-plugin.ts", "specs/visuals.md"],
+    "contract": "設定保存はPOST・同一Origin・JSONだけを受け付け、不正payloadで既存ファイルを変更しない",
+    "status": "covered",
+    "evidence": [
+      {
+        "test": "T-V-settings-api-005",
+        "layer": "HTTP integration (Vitest + real Vite/Node HTTP)",
+        "assertion": "GET405、他/無Origin403、text/plain403、不正JSON/版400、各直後の保存ファイル全byte一致"
+      }
+    ]
+  },
+  {
+    "id": "WF-ADVENTURE-API-02",
+    "source": ["scripts/adventure-settings-plugin.ts", "specs/visuals.md"],
+    "contract": "設定保存の本文上限はUTF-8で4096byte。拒否後も保存できる",
+    "status": "covered",
+    "evidence": [
+      {
+        "test": "T-V-settings-api-006",
+        "layer": "HTTP integration (Vitest + real Vite/Node HTTP)",
+        "assertion": "4096byte成功200、4097byte413、旧保存全byte不変、再送200"
+      }
+    ]
+  },
+  {
+    "id": "WF-ADVENTURE-API-03",
+    "source": ["scripts/adventure-settings-plugin.ts", "specs/visuals.md"],
+    "contract": "設定保存は並行入力を409で拒否し、完了まで旧保存を維持する",
+    "status": "covered",
+    "evidence": [
+      {
+        "test": "T-V-settings-api-007",
+        "layer": "HTTP integration (Vitest + real Vite/Node HTTP)",
+        "assertion": "未完了request中の2本目409、旧byte一致、1本目完了200、その後200"
+      }
+    ]
+  },
+  {
+    "id": "WF-ADVENTURE-API-04",
+    "source": ["scripts/adventure-settings-plugin.ts", "specs/visuals.md"],
+    "contract": "設定保存の書込失敗は500を返し旧ファイルを保ち、再試行できる",
+    "status": "covered",
+    "evidence": [
+      {
+        "test": "T-V-settings-api-008",
+        "layer": "HTTP integration (Vitest + real Vite/Node HTTP)",
+        "assertion": "tmp書込先をdirectoryにして500、旧byte一致、障害除去後200"
+      }
+    ]
+  },
+  {
+    "id": "WF-GATE-001",
+    "source": "docs/testing.md",
+    "contract": "台帳ID・runner発見・実行結果を照合し、欠落・重複・未登録・未成功を拒否する",
+    "status": "covered",
+    "evidence": [
+      {
+        "test": "T-V-check-test-contracts-001",
+        "layer": "tooling unit (Vitest)",
+        "assertion": "accepts a registered executed case and refuses missing, unregistered or duplicate cases and excluded files"
+      },
+      {
+        "test": "T-V-check-test-contracts-002",
+        "layer": "tooling unit (Vitest)",
+        "assertion": "rejects skipped runtime status"
+      },
+      {
+        "test": "T-V-check-test-contracts-003",
+        "layer": "tooling unit (Vitest)",
+        "assertion": "rejects pending runtime status"
+      },
+      {
+        "test": "T-V-check-test-contracts-004",
+        "layer": "tooling unit (Vitest)",
+        "assertion": "rejects todo runtime status"
+      },
+      {
+        "test": "T-V-check-test-contracts-005",
+        "layer": "tooling unit (Vitest)",
+        "assertion": "rejects failed runtime status"
+      },
+      {
+        "test": "T-V-check-test-contracts-006",
+        "layer": "tooling unit (Vitest)",
+        "assertion": "rejects interrupted runtime status"
+      },
+      {
+        "test": "T-V-check-test-contracts-007",
+        "layer": "tooling unit (Vitest)",
+        "assertion": "requires unique IDs, a real registered test, an assertion and a verification layer"
+      },
+      {
+        "test": "T-V-check-test-contracts-008",
+        "layer": "tooling unit (Vitest)",
+        "assertion": "reads Vitest statuses and fully qualified names from the actual report"
+      },
+      {
+        "test": "T-V-check-test-contracts-009",
+        "layer": "tooling unit (Vitest)",
+        "assertion": "requires a successful Playwright attempt, refuses list-only reports and failed retries"
+      }
+    ]
+  },
+  {
+    "id": "DEF-CONTRACT-001",
+    "source": "specs/dungeon.md",
+    "contract": "dungeon rejects duplicate node",
+    "status": "covered",
+    "evidence": [
+      {
+        "test": "T-V-definitionContracts-001",
+        "layer": "unit (Vitest)",
+        "assertion": "期待する拒否理由のthrowを検査"
+      }
+    ]
+  },
+  {
+    "id": "DEF-CONTRACT-002",
+    "source": "specs/dungeon.md",
+    "contract": "dungeon rejects duplicate edge",
+    "status": "covered",
+    "evidence": [
+      {
+        "test": "T-V-definitionContracts-002",
+        "layer": "unit (Vitest)",
+        "assertion": "期待する拒否理由のthrowを検査"
+      }
+    ]
+  },
+  {
+    "id": "DEF-CONTRACT-003",
+    "source": "specs/dungeon.md",
+    "contract": "dungeon rejects self edge",
+    "status": "covered",
+    "evidence": [
+      {
+        "test": "T-V-definitionContracts-003",
+        "layer": "unit (Vitest)",
+        "assertion": "期待する拒否理由のthrowを検査"
+      }
+    ]
+  },
+  {
+    "id": "DEF-CONTRACT-004",
+    "source": "specs/dungeon.md",
+    "contract": "dungeon rejects return to start",
+    "status": "covered",
+    "evidence": [
+      {
+        "test": "T-V-definitionContracts-004",
+        "layer": "unit (Vitest)",
+        "assertion": "期待する拒否理由のthrowを検査"
+      }
+    ]
+  },
+  {
+    "id": "DEF-CONTRACT-005",
+    "source": "specs/dungeon.md",
+    "contract": "dungeon rejects cycle",
+    "status": "covered",
+    "evidence": [
+      {
+        "test": "T-V-definitionContracts-005",
+        "layer": "unit (Vitest)",
+        "assertion": "期待する拒否理由のthrowを検査"
+      }
+    ]
+  },
+  {
+    "id": "DEF-CONTRACT-006",
+    "source": "specs/dungeon.md",
+    "contract": "dungeon rejects unreachable node",
+    "status": "covered",
+    "evidence": [
+      {
+        "test": "T-V-definitionContracts-006",
+        "layer": "unit (Vitest)",
+        "assertion": "期待する拒否理由のthrowを検査"
+      }
+    ]
+  },
+  {
+    "id": "DEF-CONTRACT-007",
+    "source": "specs/dungeon.md",
+    "contract": "dungeon rejects duplicate start",
+    "status": "covered",
+    "evidence": [
+      {
+        "test": "T-V-definitionContracts-007",
+        "layer": "unit (Vitest)",
+        "assertion": "期待する拒否理由のthrowを検査"
+      }
+    ]
+  },
+  {
+    "id": "DEF-CONTRACT-008",
+    "source": "specs/dungeon.md",
+    "contract": "dungeon rejects missing boss",
+    "status": "covered",
+    "evidence": [
+      {
+        "test": "T-V-definitionContracts-008",
+        "layer": "unit (Vitest)",
+        "assertion": "期待する拒否理由のthrowを検査"
+      }
+    ]
+  },
+  {
+    "id": "DEF-CONTRACT-009",
+    "source": "specs/dungeon.md",
+    "contract": "dungeon rejects duplicate boss",
+    "status": "covered",
+    "evidence": [
+      {
+        "test": "T-V-definitionContracts-009",
+        "layer": "unit (Vitest)",
+        "assertion": "期待する拒否理由のthrowを検査"
+      }
+    ]
+  },
+  {
+    "id": "DEF-CONTRACT-010",
+    "source": "specs/dungeon.md",
+    "contract": "dungeon rejects boss edge",
+    "status": "covered",
+    "evidence": [
+      {
+        "test": "T-V-definitionContracts-010",
+        "layer": "unit (Vitest)",
+        "assertion": "期待する拒否理由のthrowを検査"
+      }
+    ]
+  },
+  {
+    "id": "DEF-CONTRACT-011",
+    "source": "specs/dungeon.md",
+    "contract": "dungeon rejects dead end",
+    "status": "covered",
+    "evidence": [
+      {
+        "test": "T-V-definitionContracts-011",
+        "layer": "unit (Vitest)",
+        "assertion": "期待する拒否理由のthrowを検査"
+      }
+    ]
+  },
+  {
+    "id": "DEF-CONTRACT-012",
+    "source": "specs/adventure.md",
+    "contract": "availableWhen requires all flags and excludes any forbidden flag for both listing and direct input",
+    "status": "covered",
+    "evidence": [
+      {
+        "test": "T-V-definitionContracts-012",
+        "layer": "unit (Vitest)",
+        "assertion": "必要flag欠落/禁止flagありで一覧空と直接入力place-unavailable、全条件充足では一覧と直接入力を受理"
+      }
+    ]
+  },
+  {
+    "id": "DEF-CONTRACT-013",
+    "source": "specs/adventure.md",
+    "contract": "adventure rejects missing default",
+    "status": "covered",
+    "evidence": [
+      {
+        "test": "T-V-definitionContracts-013",
+        "layer": "unit (Vitest)",
+        "assertion": "期待する拒否理由のthrowを検査"
+      }
+    ]
+  },
+  {
+    "id": "DEF-CONTRACT-014",
+    "source": "specs/adventure.md",
+    "contract": "adventure rejects duplicate option",
+    "status": "covered",
+    "evidence": [
+      {
+        "test": "T-V-definitionContracts-014",
+        "layer": "unit (Vitest)",
+        "assertion": "期待する拒否理由のthrowを検査"
+      }
+    ]
+  },
+  {
+    "id": "DEF-CONTRACT-015",
+    "source": "specs/adventure.md",
+    "contract": "adventure rejects empty options",
+    "status": "covered",
+    "evidence": [
+      {
+        "test": "T-V-definitionContracts-015",
+        "layer": "unit (Vitest)",
+        "assertion": "期待する拒否理由のthrowを検査"
+      }
+    ]
+  }
+]

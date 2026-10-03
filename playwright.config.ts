@@ -10,6 +10,8 @@ const uiOnly = process.env.PLAYWRIGHT_UI === "1";
 
 export default defineConfig({
   testDir: "./tests/e2e",
+  forbidOnly: true,
+  reporter: [["list"], ["json", { outputFile: "test-results/playwright.json" }]],
   timeout: 120_000,
   workers: 1,
   use: {

@@ -123,6 +123,21 @@ describe("物品の保管・探索・帰還", () => {
         catalog,
       ).accepted,
     ).toBe(false);
+    const combined = accepted(
+      packItems(
+        home(),
+        0,
+        7,
+        "town",
+        [
+          { itemId: hp, quantity: 2 },
+          { itemId: hp, quantity: 3 },
+        ],
+        catalog,
+      ),
+    );
+    expect(combined.home).toEqual([{ itemId: material, quantity: 3 }]);
+    expect(combined.exploration?.bag).toEqual([{ itemId: hp, quantity: 5, origin: "carried" }]);
     for (const quantity of [-1, 0, 1.5, Number.NaN])
       expect(packItems(home(), 0, 7, "town", [{ itemId: hp, quantity }], catalog).accepted).toBe(false);
     expect(packItems(depart(), 1, 8, "town", [], catalog).accepted).toBe(false);
@@ -168,15 +183,36 @@ describe("注入価格による街探索中の購入", () => {
 });
 
 describe("承認済み保持抽選と購入上限なし", () => {
+  it.each([
+    [0.5 - 1 / 0x100000000, 0],
+    [0.5, 0],
+    [0.5 + 1 / 0x100000000, 1],
+  ])("保持確率%sは乱数0.5との厳密な境界で1個の保持を決める", (probability, quantity) => {
+    // (1664525 * 2782269413 + 1013904223) mod 2^32 = 2147483648.
+    // This independent seed pins the draw to exactly 0.5, without using the RNG as an oracle.
+    const bag = [{ itemId: hp, quantity: 1, origin: "carried" as const }];
+    expect(independentItemRetention(probability)(bag, 2782269413, "defeat")).toEqual({
+      quantities: [quantity],
+      randomState: 2147483648,
+    });
+  });
   it("同じ品物は合計数で扱い、持込みを使い切ってから獲得分を使う", () => {
     let state = depart();
     state = accepted(receiveItems(state, state.version, "event:2", [{ itemId: hp, quantity: 2 }], catalog));
     expect(bagItemQuantity(state, hp)).toBe(5);
-    for (let i = 0; i < 4; i++) state = accepted(consumeBagItem(state, state.version, hp, catalog));
+    for (const [carried, acquired] of [
+      [2, 2],
+      [1, 2],
+      [0, 2],
+      [0, 1],
+    ]) {
+      state = accepted(consumeBagItem(state, state.version, hp, catalog));
+      expect(state.exploration?.bag.filter((entry) => entry.itemId === hp)).toEqual([
+        ...(carried ? [{ itemId: hp, quantity: carried, origin: "carried" }] : []),
+        { itemId: hp, quantity: acquired, origin: "acquired" },
+      ]);
+    }
     expect(bagItemQuantity(state, hp)).toBe(1);
-    expect(state.exploration?.bag.filter((s) => s.itemId === hp)).toEqual([
-      { itemId: hp, quantity: 1, origin: "acquired" },
-    ]);
   });
   it("50%独立抽選は1個なら全保持と全損の両方があり、空バッグは乱数を進めない", () => {
     const bag = [{ itemId: hp, quantity: 1, origin: "carried" as const }];

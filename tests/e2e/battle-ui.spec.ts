@@ -1,4 +1,3 @@
-import { execFileSync } from "node:child_process";
 import { expect, test } from "@playwright/test";
 
 test("敵を選んで攻撃すると対象のHPが更新される", async ({ page }) => {
@@ -445,112 +444,6 @@ test("スキル専用の本編導線と、回復→発症のHP制限→敵の被
   await expect(page.locator("[data-count]")).toHaveText("確定 1回");
 });
 
-test("代表シーケンス：通常1倍の操作動画（実素材）", async ({ browser }, testInfo) => {
-  test.skip(process.env.BATTLE_SEQUENCE_VIDEO !== "1", "動画採取のCIステップだけで実行");
-  test.setTimeout(180_000);
-  const context = await browser.newContext({
-    baseURL: testInfo.project.use.baseURL,
-    viewport: { width: 1920, height: 1080 },
-    reducedMotion: "no-preference",
-    recordVideo: { dir: testInfo.outputPath("recording"), size: { width: 1920, height: 1080 } },
-  });
-  const page = await context.newPage();
-  const video = page.video();
-  let started = 0;
-  const cuts: number[] = [0];
-  try {
-    await page.goto("/tests/fixtures/battle-sequence.html?real=1&party=1");
-    const skills = page.getByRole("button", { name: "スキル", exact: true });
-    await expect(skills).toBeEnabled({ timeout: 60_000 });
-    started = Date.now();
-    // 視聴者が初期画面と操作を読める間。アサーションの同期には使わない。
-    await page.waitForTimeout(1000);
-    await skills.click();
-    await page.getByRole("button", { name: "検証用攻撃", exact: true }).click();
-    await page.waitForTimeout(1000);
-    await page.getByRole("button", { name: "使用する", exact: true }).click();
-    await expect(skills).toBeEnabled({ timeout: 60_000 });
-    await expect(page.locator("[data-enemy-hp]")).toHaveText("24 / 40");
-    cuts.push((Date.now() - started) / 1000);
-    for (const target of ["player", "gilberta"]) {
-      await page.waitForTimeout(1000);
-      await skills.click();
-      await page.getByRole("button", { name: "検証用回復", exact: true }).click();
-      await page.getByRole("combobox", { name: "回復対象" }).selectOption(target);
-      await page.waitForTimeout(1000);
-      await page.getByRole("button", { name: "使用する", exact: true }).click();
-      await expect(skills).toBeEnabled({ timeout: 60_000 });
-      cuts.push((Date.now() - started) / 1000);
-    }
-    await expect(page.locator("[data-count]")).toHaveText("確定 3回");
-    await page.waitForTimeout(1500);
-  } finally {
-    await context.close();
-  }
-  if (!video || !started) throw new Error("操作動画を取得できませんでした");
-  const source = await video.path();
-  const duration = Number(
-    execFileSync("ffprobe", ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", source], {
-      encoding: "utf8",
-    }).trim(),
-  );
-  // 読込区間だけを除く。速度変更・静止画への置換・演出の途中カットはしない。
-  const start = Math.max(0, duration - (Date.now() - started) / 1000 - 0.5);
-  const output = testInfo.outputPath("sequence-real-motion.mp4");
-  execFileSync(
-    "ffmpeg",
-    [
-      "-y",
-      "-ss",
-      String(start),
-      "-i",
-      source,
-      "-an",
-      "-c:v",
-      "libx264",
-      "-preset",
-      "fast",
-      "-crf",
-      "20",
-      "-pix_fmt",
-      "yuv420p",
-      "-movflags",
-      "+faststart",
-      output,
-    ],
-    { stdio: "pipe" },
-  );
-  await testInfo.attach("通常1倍・単体攻撃と味方別回復・被弾", { path: output, contentType: "video/mp4" });
-  for (const [index, name] of ["attack", "heal-and-hit", "heal-ally"].entries()) {
-    const from = Math.max(0, cuts[index] - 0.5);
-    execFileSync(
-      "ffmpeg",
-      [
-        "-y",
-        "-ss",
-        String(from),
-        "-i",
-        output,
-        "-t",
-        String(index === cuts.length - 2 ? duration : cuts[index + 1] - from + 0.5),
-        "-an",
-        "-c:v",
-        "libx264",
-        "-preset",
-        "fast",
-        "-crf",
-        "20",
-        "-pix_fmt",
-        "yuv420p",
-        "-movflags",
-        "+faststart",
-        testInfo.outputPath(`sequence-real-${name}.mp4`),
-      ],
-      { stdio: "pipe" },
-    );
-  }
-});
-
 test("技名と結果は動いて出入りし、常設HUDと確定回数は変わらない", async ({ page }) => {
   await page.setViewportSize({ width: 1920, height: 1080 });
   await page.emulateMedia({ reducedMotion: "no-preference" });
@@ -640,4 +533,85 @@ test("結果の入場と退場の途中で速度を変えても現在の補間�
   await expect(number).toBeHidden();
   await expect(skills).toBeEnabled();
   await expect(page.locator("[data-count]")).toHaveText("確定 1回");
+});
+
+for (const presentation of ["normal", "double-speed", "skip", "exit"] as const) {
+  test(`表示操作${presentation}は確定済みHP・時計・疲労・乱数と次入力を変えない`, async ({ page }) => {
+    await page.goto("/tests/fixtures/battle-sequence.html");
+    const skills = page.getByRole("button", { name: "スキル", exact: true });
+    await expect(skills).toBeEnabled();
+    await page.clock.install();
+    await page.clock.pauseAt(new Date(Date.now() + 1000));
+    const inspect = () =>
+      page.evaluate(() =>
+        (
+          window as unknown as {
+            inspectBattleSequence: () => {
+              confirmedState: import("../../src/game/battle").BattleState;
+              commandInput: import("../../src/game/battle").BattleState;
+            };
+          }
+        ).inspectBattleSequence(),
+      );
+    await skills.click();
+    await page.getByRole("button", { name: "検証用攻撃", exact: true }).click();
+    await page.getByRole("button", { name: "使用する", exact: true }).click();
+    const { confirmedState } = await inspect();
+    expect(confirmedState).toMatchObject({
+      logicalTime: 200,
+      currentActorId: "player",
+      randomState: 1015568748,
+      outcome: "ongoing",
+    });
+    expect(confirmedState.combatants.map(({ id, hp, mentalFatigue }) => ({ id, hp, mentalFatigue }))).toEqual([
+      { id: "player", hp: 10, mentalFatigue: 4 },
+      { id: "slime", hp: 24, mentalFatigue: 0 },
+    ]);
+    if (presentation === "double-speed") await page.getByRole("combobox", { name: "演出速度" }).selectOption("2");
+    if (presentation === "skip") await page.getByRole("button", { name: "演出を省略" }).click();
+    if (presentation === "exit") await page.getByRole("button", { name: "戦闘を離れる" }).click();
+    await page.clock.runFor(5000);
+    expect((await inspect()).confirmedState).toEqual(confirmedState);
+    await expect(page.locator("[data-count]")).toHaveText("確定 1回");
+    if (presentation === "exit") {
+      await expect(page.locator(".battle-sequence")).toHaveCount(0);
+    } else {
+      await expect(page.locator("[data-enemy-hp]")).toHaveText("24 / 40");
+      await skills.click();
+      await page.getByRole("button", { name: "検証用回復", exact: true }).click();
+      await page.getByRole("button", { name: "使用する", exact: true }).click();
+      expect((await inspect()).commandInput).toEqual(confirmedState);
+    }
+  });
+}
+
+test("多段攻撃は各着弾まで次のHPを先取りせず1発目から順に表示する", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.goto("/tests/fixtures/battle-ui.html?multi=1");
+  await page.getByRole("button", { name: "戦闘、選択可能" }).click();
+  const skills = page.getByRole("button", { name: "スキル", exact: true });
+  await expect(skills).toBeEnabled();
+  await page.getByRole("button", { name: /スライム A、HP .*攻撃対象に選択/ }).click();
+  await page.clock.install();
+  await page.clock.pauseAt(new Date(Date.now() + 1000));
+  await skills.click();
+  await page.getByRole("button", { name: "連続攻撃（試験入力）", exact: true }).click();
+  await page.getByRole("button", { name: "使用する", exact: true }).click();
+  const target = page.locator('[data-enemy-label="slime"]');
+  const sequence = page.locator(".battle-sequence");
+  for (const [index, before, after] of [
+    [1, 14, 10],
+    [2, 10, 6],
+    [3, 6, 2],
+  ]) {
+    await expect(sequence).toHaveAttribute("data-phase", "actor");
+    await expect(target).toContainText(`${before} / 14`);
+    await page.clock.runFor(260);
+    await expect(sequence).toHaveAttribute("data-phase", "impact");
+    await expect(target).toContainText(`${after} / 14`);
+    await expect(page.locator(".sequence-number")).toHaveText("−4");
+    await expect(page.locator("[data-screen-reader-status]")).toContainText(`${index}発目`);
+    await expect(page.locator('[data-enemy-label="slime-2"]')).toContainText("14 / 14");
+    await page.clock.runFor(580);
+  }
 });

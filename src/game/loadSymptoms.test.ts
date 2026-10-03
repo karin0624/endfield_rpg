@@ -87,6 +87,16 @@ describe("連続した負荷系症状の試用値", () => {
 
 describe("追加発症の確率と乱数契約", () => {
   it.each([
+    [99.999999, false],
+    [100, false],
+    [100.000001, true],
+  ])("疲労%sの発症確率と乱数0.5の境界を判定する", (fatigue, occurs) => {
+    const result = applyAdditionalLoadSymptom(healthy, fatigue, 4, 2782269413, rules);
+    expect(result.symptoms).toEqual({ physicalFatigue: 0, haze: occurs ? 4 : 0 });
+    expect(result.application).toEqual(occurs ? { kind: "haze", before: 0, after: 4 } : null);
+    expect(result.randomState).toBe(occurs ? 3161387871 : 2147483648);
+  });
+  it.each([
     [0, 0],
     [25, 0.2],
     [100, 0.5],

@@ -4,6 +4,7 @@ import { skillCatalog } from "../../src/content/skillDefinitions";
 import {
   advanceBattleToNextAllyInput,
   type BattleCombatantDefinition,
+  type BattleState,
   createBattleState,
   performBattleSkillAndAdvanceToAllyInput,
 } from "../../src/game/battle";
@@ -71,6 +72,12 @@ const canvas = requiredElement<HTMLCanvasElement>(app, "canvas");
 const settings = parseBattleSettings(savedSettings);
 let dispose = () => {};
 let count = 0;
+let confirmedState: BattleState;
+let commandInput: BattleState;
+// Read-only observation at the real UI/core boundary; never inject state during a test.
+Object.assign(window, {
+  inspectBattleSequence: () => JSON.parse(JSON.stringify({ confirmedState, commandInput })),
+});
 async function enter() {
   dispose();
   const renderer = query.has("real")
@@ -81,9 +88,12 @@ async function enter() {
   const packed = packItems(createItemState(stock, itemCatalog), 0, 1, "dungeon", stock, itemCatalog);
   if (!packed.accepted) throw new Error("Fixture item packing failed");
   let items = packed.state;
+  confirmedState = advanceBattleToNextAllyInput(createBattleState(definitions)).state;
+  commandInput = confirmedState;
   const ui = mountBattleUi(board, renderer, {
     itemCount: query.has("items") ? () => bagItemQuantity(items, recoveryItemId) : undefined,
     useItem(state, actorId, targetId) {
+      commandInput = state;
       const used = useBattleRecoveryItem(
         items,
         state,
@@ -100,13 +110,15 @@ async function enter() {
       if (!used.accepted) return { accepted: false, reason: "使用不可" };
       items = used.items;
       const result = advanceBattleToNextAllyInput(used.battle);
+      confirmedState = result.state;
       requiredElement<HTMLElement>(app, "[data-count]").textContent = `確定 ${++count}回`;
       return { accepted: true, state: result.state, events: result.events, itemRecovery: used.event };
     },
     combatants: definitions,
-    initialState: advanceBattleToNextAllyInput(createBattleState(definitions)).state,
+    initialState: confirmedState,
     skillRules: rules,
     useSkill(state, actorId, targetId, skillId) {
+      commandInput = state;
       const result = performBattleSkillAndAdvanceToAllyInput(
         state,
         actorId,
@@ -116,7 +128,10 @@ async function enter() {
         rules.catalog,
         rules.fatigue,
       );
-      if (result.accepted) requiredElement<HTMLElement>(app, "[data-count]").textContent = `確定 ${++count}回`;
+      if (result.accepted) {
+        confirmedState = result.state;
+        requiredElement<HTMLElement>(app, "[data-count]").textContent = `確定 ${++count}回`;
+      }
       return result;
     },
   });

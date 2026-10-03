@@ -224,3 +224,92 @@ describe("街のセーブ", () => {
     });
   });
 });
+
+describe("保存JSONの公開境界", () => {
+  it.each([
+    [
+      "仲間の重複",
+      "party.members",
+      [
+        {
+          id: "player",
+          hp: 20,
+          mentalFatigue: 0,
+          status: { physicalFatigue: 0, haze: 0, incapacityRecoverySteps: null },
+        },
+        {
+          id: "player",
+          hp: 20,
+          mentalFatigue: 0,
+          status: { physicalFatigue: 0, haze: 0, incapacityRecoverySteps: null },
+        },
+      ],
+    ],
+    ["PT枠不足", "party.slots", ["player", null, null]],
+    ["PT枠過剰", "party.slots", ["player", null, null, null, null]],
+    ["負のHP", "party.members.0.hp", -1],
+    ["数値でないHP", "party.members.0.hp", "20"],
+    ["重複フラグ", "adventure.flags", ["seen", "seen"]],
+    ["空フラグ", "adventure.flags", [""]],
+    ["整数でない生活時計", "clock.elapsedHalfDays", 0.5],
+    ["安全整数外の生活時計", "clock.elapsedHalfDays", Number.MAX_SAFE_INTEGER],
+    ["負の療養回数", "clock.recoverySteps", -1],
+    ["行動IDのゼロ", "clock.nextActionId", 0],
+    ["生活時計と行動IDの矛盾", "clock.nextActionId", 2],
+    ["負の処理済通知", "lastTownRecoverySignal", -1],
+    ["負の物品版", "inventory.items.version", -1],
+    ["端数の物品版", "inventory.items.version", 0.5],
+    ["端数の所持金", "inventory.balance", 0.5],
+    ["探索バッグの残存", "inventory.items.exploration", {}],
+    ["未定義の重要品", "inventory.items.importantIds", ["unknown-important"]],
+  ])("%sを修復せず拒否する", (_label, path, replacement) => {
+    const payload = JSON.parse(encoded(initial()));
+    const fields = String(path).split(".");
+    let target = payload;
+    for (const field of fields.slice(0, -1)) target = target[field];
+    target[fields.at(-1) ?? ""] = replacement;
+    expect(deserializeGame(JSON.stringify(payload), definitions)).toEqual({ accepted: false, reason: "invalid-data" });
+  });
+
+  it("現行JSONの必須フィールド欠落と余分なフィールドを拒否する", () => {
+    const source = JSON.parse(encoded(initial()));
+    for (const path of [
+      [],
+      ["adventure"],
+      ["party"],
+      ["clock"],
+      ["inventory"],
+      ["inventory", "items"],
+      ["party", "members", "0"],
+      ["party", "members", "0", "status"],
+    ]) {
+      const locate = (payload: Record<string, unknown>) => {
+        let record = payload;
+        for (const key of path) record = record[key] as Record<string, unknown>;
+        return record;
+      };
+      const withExtra = structuredClone(source);
+      locate(withExtra).unexpected = true;
+      expect(deserializeGame(JSON.stringify(withExtra), definitions), `extra: ${path.join(".")}`).toEqual({
+        accepted: false,
+        reason: "invalid-data",
+      });
+      for (const key of Object.keys(locate(source)).filter((key) => key !== "version")) {
+        const missing = structuredClone(source);
+        delete locate(missing)[key];
+        expect(deserializeGame(JSON.stringify(missing), definitions), `missing: ${[...path, key].join(".")}`).toEqual({
+          accepted: false,
+          reason: "invalid-data",
+        });
+      }
+    }
+  });
+
+  it.each([0, 0xffffffff])("乱数の合法な端点%sを保持し、読込で進めない", (randomState) => {
+    const game = { ...initial(), randomState };
+    const loaded = restored(game);
+    expect(loaded.randomState).toBe(randomState);
+    expect(loaded.clock).toMatchObject({ elapsedHalfDays: 0, recoverySteps: 0, nextActionId: 1, pendingAction: null });
+    expect(loaded.party.members[0].hp).toBe(20);
+  });
+});

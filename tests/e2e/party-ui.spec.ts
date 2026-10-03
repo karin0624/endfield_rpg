@@ -124,6 +124,8 @@ for (const count of [12, 24]) {
     await expect(choices.last()).toHaveAttribute("aria-pressed", "false");
     await expect(grid.locator('.party-candidate[aria-pressed="true"]')).toHaveCount(4);
     await expect(choices.first()).toHaveAccessibleDescription(/隊列 1/);
+    // The modal makes the fixture control inert; invoke its public snapshot action without moving focus.
+    await page.locator("#snapshot").evaluate((button: HTMLButtonElement) => button.click());
     await expect(page.locator("#state")).toHaveText(before ?? "");
     await expect(page.getByRole("button", { name: "戻る", exact: true })).toBeHidden();
     await choices.nth(1).click();
@@ -148,6 +150,8 @@ for (const count of [12, 24]) {
     await expect(detail).toBeFocused();
     await expect(grid).toHaveJSProperty("scrollTop", scroll);
     await expect(last).toHaveAccessibleDescription(/隊列 2/);
+    // The modal makes the fixture control inert; invoke its public snapshot action without moving focus.
+    await page.locator("#snapshot").evaluate((button: HTMLButtonElement) => button.click());
     await expect(page.locator("#state")).toHaveText(before ?? "");
     await formationScreenshot(page, testInfo, `party-${count}-1920.png`);
     await page.getByRole("button", { name: "確定", exact: true }).dblclick();
@@ -253,6 +257,8 @@ for (const width of [320, 390, 1920]) {
     await page.keyboard.press("Escape");
     await expect(opener).toBeFocused();
     await page.getByRole("button", { name: "状態を確認", exact: true }).click();
+    // The modal makes the fixture control inert; invoke its public snapshot action without moving focus.
+    await page.locator("#snapshot").evaluate((button: HTMLButtonElement) => button.click());
     await expect(page.locator("#state")).toHaveText(before ?? "");
     await page.getByRole("button", { name: "帰還時の育成初期化" }).click();
     const reset = await page.locator("#state").textContent();
@@ -283,7 +289,7 @@ test("初期習得の未決と空を区別し、タップで詳細を閉じて�
   await context.close();
 });
 
-test("承認画像の4状態を同じfixtureと1672×941で実撮影する", async ({ page }, testInfo) => {
+test("承認画像に対応する4状態を1672×941のVRTで検証する", async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1672, height: 941 });
   for (const [name, mode, selection] of [
     ["departure", "normal", false],
@@ -295,6 +301,7 @@ test("承認画像の4状態を同じfixtureと1672×941で実撮影する", asy
     if (selection) await page.getByRole("button", { name: "枠 1", exact: true }).click();
     await page.mouse.move(1660, 10);
     await formationScreenshot(page, testInfo, `approved-${name}.png`);
+    await expect(page).toHaveScreenshot(`approved-${name}.png`);
     if (name === "disabled") await expect(page.getByRole("button", { name: "出発する", exact: true })).toBeDisabled();
     if (name === "symptoms") {
       const card = page.locator(".party-candidate-card").first();
@@ -310,7 +317,7 @@ test("承認画像の4状態を同じfixtureと1672×941で実撮影する", asy
   }
 });
 
-test("主操作はマウス保持とSpace押下中も暗い文字を保つ", async ({ page }, testInfo) => {
+test("主操作のマウス保持とSpace押下中の文字・focusをVRTで検証する", async ({ page }) => {
   await page.setViewportSize({ width: 1920, height: 1080 });
   await page.goto("/tests/fixtures/party-selection.html?count=2");
   for (const slot of await page.locator(".party-slot.is-occupied").all()) {
@@ -325,22 +332,13 @@ test("主操作はマウス保持とSpace押下中も暗い文字を保つ", asy
   const primary = page.getByRole("button", { name: "出発する", exact: true });
   await primary.hover();
   await page.mouse.down();
-  await expect
-    .poll(() => primary.evaluate((button) => getComputedStyle(button, "::after").backgroundColor))
-    .toBe("rgb(201, 151, 85)");
-  await expect(primary).toHaveCSS("color", "rgb(37, 42, 44)");
-  await formationScreenshot(page, testInfo, "formation-primary-pressed-1920.png");
+  await readyFormation(page);
+  await expect(page).toHaveScreenshot("formation-primary-pressed-1920.png");
   await page.mouse.up();
   await primary.focus();
   await page.keyboard.down("Space");
-  await expect
-    .poll(() => primary.evaluate((button) => getComputedStyle(button, "::after").backgroundColor))
-    .toBe("rgb(201, 151, 85)");
-  await expect(primary).toHaveCSS("color", "rgb(37, 42, 44)");
-  await expect(primary).toHaveCSS("outline-color", "rgb(255, 255, 255)");
-  await expect(primary).toHaveCSS("outline-width", "2px");
-  await expect(primary).toHaveCSS("outline-offset", "4px");
-  await formationScreenshot(page, testInfo, "formation-primary-space-focus-1920.png");
+  await expect(primary).toBeFocused();
+  await expect(page).toHaveScreenshot("formation-primary-space-focus-1920.png");
   await page.keyboard.up("Space");
 });
 
