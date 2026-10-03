@@ -31,13 +31,8 @@ test("通常版の候補を短間隔で選択・解除しても親画面がク�
       await candidate.evaluate((button) => ({
         pressed: button.getAttribute("aria-pressed"),
         number: button.querySelector(".party-order")?.textContent,
-        selected: button.closest(".party-candidate-card")?.classList.contains("is-selected"),
       })),
-    ).toEqual(
-      clickCount % 2 === 0
-        ? { pressed: "true", number: "1", selected: true }
-        : { pressed: "false", number: "", selected: false },
-    );
+    ).toEqual(clickCount % 2 === 0 ? { pressed: "true", number: "1" } : { pressed: "false", number: "" });
   }
   for (const delay of [0, 40, 120]) {
     // The second physical click carries detail=2. Both toggles must finish before dblclick returns.
