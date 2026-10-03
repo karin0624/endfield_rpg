@@ -606,7 +606,7 @@ export function mountBattleUi(
     eventToast.classList.remove("play");
     // Reflow restarts the short presentation animation for consecutive events.
     void eventToast.offsetWidth;
-    eventToast.classList.add("play");
+    if (eventType !== "attack") eventToast.classList.add("play");
   }
 
   async function replayEvents(confirmedEvents: readonly BattleEvent[]) {
@@ -648,11 +648,10 @@ export function mountBattleUi(
         const hitLabel = event.type === "skill" ? ` · ${event.hitIndex}発目` : "";
         const label = `${combatantName(event.actorId)} · ${name}`;
         showEventToast(`${label} → ${combatantName(event.targetId)}${hitLabel}`, "attack");
-        await sequence.action(event, label, `${result}${hitLabel}`, () => {
+        await sequence.action(event, combatantName(event.actorId), `${result}${hitLabel}`, () => {
           displayImpact(event);
           message = `${label}：${combatantName(event.targetId)} ${result}${hitLabel}`;
           screenReaderStatus.textContent = message;
-          showEventToast(message, "attack");
         });
       } else if (event.type === "symptom") {
         const detail = `${combatantName(event.actorId)}の${symptomNames[event.kind]}：${formatAmount(event.before)} → ${loadSymptomText(event.kind, event.after)}`;

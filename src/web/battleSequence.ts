@@ -30,7 +30,9 @@ export function createBattleSequence(stage: HTMLElement, renderer: BattlePresent
       [number, targetId],
     ] as const) {
       const rect = renderer.getCombatantScreenRect(id);
-      node.style.left = `${rect?.markerX ?? stage.clientWidth * 0.72}px`;
+      const halfWidth = node.offsetWidth / 2;
+      const x = rect?.markerX ?? stage.clientWidth * 0.72;
+      node.style.left = `${Math.max(halfWidth + 4, Math.min(stage.clientWidth - halfWidth - 4, x))}px`;
       node.style.top = `${rect ? rect.top + rect.height * 0.4 : stage.clientHeight * 0.6}px`;
     }
   }

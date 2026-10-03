@@ -298,6 +298,14 @@ for (const real of [false, true]) {
     await expect(page.locator(".sequence-number")).toHaveText("16 ダメージ · 1発目");
     expect(await page.locator(".party").boundingBox()).toEqual(partyBefore);
     await page.screenshot({ path: testInfo.outputPath(`sequence-${real ? "real" : "ui"}-result.png`) });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.clock.runFor(64);
+    await expect(page.locator(".sequence-number")).toBeVisible();
+    const numberBox = await page.locator(".sequence-number").boundingBox();
+    expect(numberBox?.x).toBeGreaterThanOrEqual(0);
+    expect((numberBox?.x ?? 0) + (numberBox?.width ?? 0)).toBeLessThanOrEqual(390);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath(`sequence-${real ? "real" : "ui"}-mobile.png`), fullPage: true });
     await page.getByRole("button", { name: "演出を省略" }).click();
     await expect(skills).toBeEnabled();
     await expect(page.locator("[data-count]")).toHaveText("確定 1回");

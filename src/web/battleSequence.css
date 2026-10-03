@@ -13,6 +13,7 @@
 .sequence-number {
   position: absolute;
   transform: translate(-50%, -50%);
+  width: max-content;
   max-width: min(16rem, 70%);
   padding: 0.35rem 0.6rem;
   background: var(--surface-base);
@@ -98,4 +99,15 @@
 
 .sequence-controls[hidden] {
   display: none;
+}
+
+@media (max-width: 900px) {
+  .event-toast[data-event="attack"] {
+    top: 4px;
+    width: max-content;
+    max-width: calc(100% - 16px);
+    padding: 4px 8px;
+    font-size: var(--font-size-body);
+    line-height: 1.5;
+  }
 }
