@@ -268,3 +268,80 @@ test("多段・全体攻撃の範囲、取消、各発の結果と一度の疲�
   await expect(result).toContainText("精神疲労 4 → 8");
   await expect(page.getByRole("heading", { name: "戦闘に勝利しました" })).toBeVisible();
 });
+
+for (const real of [false, true]) {
+  test(`代表シーケンス：行動者・着弾・数値・省略・離脱${real ? "（実素材）" : "（UI）"}`, async ({
+    page,
+  }, testInfo) => {
+    test.skip(real && process.env.PLAYWRIGHT_UI === "1", "実素材は通常E2Eで検証");
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    await page.goto(`/tests/fixtures/battle-sequence.html${real ? "?real=1" : ""}`);
+    const skills = page.getByRole("button", { name: "スキル", exact: true });
+    await expect(skills).toBeEnabled({ timeout: 60_000 });
+    await page.clock.install({ time: new Date("2026-10-03T12:00:00Z") });
+    await page.clock.pauseAt(new Date("2026-10-03T12:00:01Z"));
+    await skills.click();
+    await page.getByRole("button", { name: "検証用攻撃", exact: true }).click();
+    const partyBefore = await page.locator(".party").boundingBox();
+    await page.getByRole("button", { name: "使用する", exact: true }).click();
+    const sequence = page.locator(".battle-sequence");
+    await expect(sequence).toHaveAttribute("data-phase", "actor");
+    await expect(page.locator(".sequence-actor")).toContainText("ロッシ");
+    await expect(page.locator("[data-enemy-hp]")).toHaveText("40 / 40");
+    await page.screenshot({ path: testInfo.outputPath(`sequence-${real ? "real" : "ui"}-actor.png`) });
+    await page.clock.runFor(260);
+    await expect(sequence).toHaveAttribute("data-phase", "impact");
+    await expect(page.locator("[data-enemy-hp]")).toHaveText("24 / 40");
+    await page.screenshot({ path: testInfo.outputPath(`sequence-${real ? "real" : "ui"}-impact.png`) });
+    await page.clock.runFor(80);
+    await expect(page.locator(".sequence-number")).toBeVisible();
+    await expect(page.locator(".sequence-number")).toHaveText("16 ダメージ · 1発目");
+    expect(await page.locator(".party").boundingBox()).toEqual(partyBefore);
+    await page.screenshot({ path: testInfo.outputPath(`sequence-${real ? "real" : "ui"}-result.png`) });
+    await page.getByRole("button", { name: "演出を省略" }).click();
+    await expect(skills).toBeEnabled();
+    await expect(page.locator("[data-count]")).toHaveText("確定 1回");
+    await expect(page.locator("[data-skill-result]")).toContainText("精神疲労 0 → 4");
+    await skills.click();
+    await page.getByRole("button", { name: "検証用回復", exact: true }).click();
+    await page.getByRole("button", { name: "使用する", exact: true }).click();
+    await page.getByRole("button", { name: "戦闘を離れる" }).click();
+    await page.getByRole("button", { name: "戦闘を開始" }).click();
+    await expect(skills).toBeEnabled({ timeout: 60_000 });
+    await page.clock.runFor(3000);
+    await expect(page.locator(".battle-sequence")).toBeHidden();
+    await expect(page.locator("[data-enemy-hp]")).toHaveText("40 / 40");
+    await expect(page.locator("[data-count]")).toHaveText("確定 2回");
+  });
+}
+
+test("外れと回復を静止状態で区別し、2倍・即時でも確定は一回", async ({ page }, testInfo) => {
+  await page.goto("/tests/fixtures/battle-sequence.html?miss=1");
+  const skills = page.getByRole("button", { name: "スキル", exact: true });
+  await expect(skills).toBeEnabled();
+  await page.clock.install({ time: new Date("2026-10-03T12:00:00Z") });
+  await page.clock.pauseAt(new Date("2026-10-03T12:00:01Z"));
+  await page.getByRole("combobox", { name: "演出速度" }).selectOption("2");
+  await skills.click();
+  await page.getByRole("button", { name: "検証用攻撃", exact: true }).click();
+  await page.getByRole("button", { name: "使用する", exact: true }).click();
+  await page.clock.runFor(100);
+  await expect(page.locator(".sequence-number")).toHaveText("外れ · 1発目");
+  await expect(page.locator(".sequence-impact")).toBeHidden();
+  await expect(page.locator("[data-enemy-hp]")).toHaveText("40 / 40");
+  await page.clock.runFor(1000);
+  await expect(skills).toBeEnabled();
+  await page.getByRole("combobox", { name: "演出速度" }).selectOption("1");
+  await skills.click();
+  await page.getByRole("button", { name: "検証用回復", exact: true }).click();
+  await page.getByRole("button", { name: "使用する", exact: true }).click();
+  await page.clock.runFor(130);
+  await expect(page.locator(".battle-sequence")).toHaveAttribute("data-kind", "heal");
+  await expect(page.locator(".battle-sequence")).toHaveAttribute("data-motion", "false");
+  await expect(page.locator(".sequence-number")).toContainText("20 回復");
+  await page.screenshot({ path: testInfo.outputPath("sequence-ui-reduced-heal.png") });
+  await page.getByRole("combobox", { name: "演出速度" }).selectOption("0");
+  await expect(skills).toBeEnabled();
+  await expect(page.locator("[data-count]")).toHaveText("確定 2回");
+  await expect(page.locator("[data-skill-result]")).toContainText("精神疲労 4 → 7");
+});

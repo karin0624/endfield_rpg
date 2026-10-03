@@ -1,0 +1,101 @@
+.battle-sequence {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  overflow: hidden;
+  color: var(--text-primary);
+}
+.battle-sequence[hidden] {
+  display: none;
+}
+.sequence-actor,
+.sequence-number {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  max-width: min(16rem, 70%);
+  padding: 0.35rem 0.6rem;
+  background: var(--surface-base);
+  border: 1px solid var(--trim-metal);
+  font-size: var(--font-size-body);
+  line-height: 1.5;
+  text-align: center;
+}
+.sequence-actor {
+  margin-top: 2.5rem;
+}
+.sequence-number {
+  font-size: var(--font-size-emphasis);
+  font-weight: 700;
+}
+.sequence-impact {
+  position: absolute;
+  width: 100px;
+  height: 100px;
+  transform: translate(-50%, -50%);
+}
+.sequence-impact svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.impact-rays {
+  fill: var(--text-primary);
+  stroke: var(--status-danger);
+  stroke-width: 2;
+}
+.recovery-rings {
+  fill: none;
+  stroke: var(--data-hp);
+  stroke-width: 3;
+}
+.battle-sequence:not([data-phase="impact"]) .sequence-impact,
+.battle-sequence:where(:not([data-phase="result"]):not([data-phase="settle"])) .sequence-number,
+.battle-sequence[data-kind="miss"] .sequence-impact,
+.battle-sequence[data-kind="heal"] .impact-rays,
+.battle-sequence:not([data-kind="heal"]) .recovery-rings {
+  visibility: hidden;
+}
+.battle-sequence[data-kind="heal"] .sequence-number {
+  border-color: var(--data-hp);
+}
+.battle-sequence[data-kind="damage"] .sequence-number {
+  border-color: var(--status-danger);
+}
+.battle-sequence[data-phase="impact"][data-motion="true"] .sequence-impact {
+  animation: sequence-strike calc(80ms / var(--sequence-speed, 1)) ease-out both;
+}
+@keyframes sequence-strike {
+  from {
+    transform: translate(-50%, -50%) scale(0.65);
+    opacity: 0.6;
+  }
+  to {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+}
+.sequence-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.75rem;
+  font-size: var(--font-size-caption);
+}
+.sequence-controls select {
+  color: var(--text-primary);
+  background: var(--surface-base);
+  font: inherit;
+}
+.sequence-controls button {
+  font: inherit;
+}
+@media (prefers-reduced-motion: reduce) {
+  .battle-sequence[data-phase="impact"][data-motion="true"] .sequence-impact {
+    animation: none;
+  }
+}
+
+.sequence-controls[hidden] {
+  display: none;
+}

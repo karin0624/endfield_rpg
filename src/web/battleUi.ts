@@ -13,11 +13,12 @@ import { mentalFatigueMultiplier } from "../game/mentalFatigue";
 import { activeSkillBaseAmount, mentalFatigueAffectedQuantity, skillById } from "../game/skills";
 import { canParticipate, effectiveMaxHp } from "../game/status";
 import type { BattlePresentation } from "./battlePresentation";
+import { createBattleSequence } from "./battleSequence";
 import { requiredElement } from "./requiredElement";
 import { formatAmount, loadSymptomText, mentalFatigueText, symptomNames } from "./sessionFeedback";
 import { renderSymptomIcons } from "./symptomIcons";
 
-const EVENT_TOAST_DURATION_MS = 650;
+const EVENT_TOAST_DURATION_MS = 300;
 const ENEMY_TURN_PAUSE_MS = 360;
 
 type Point3 = [number, number, number];
@@ -144,6 +145,7 @@ function makeBattleMarkup(): string {
           <button class="command" type="button" data-cancel-skill>戻る</button>
         </div>
         <p class="skill-result" data-skill-result hidden></p>
+        <div class="sequence-controls"><label>演出 <select data-sequence-speed aria-label="演出速度"><option value="1">1倍</option><option value="2">2倍</option><option value="0">即時</option></select></label><button type="button" data-sequence-skip hidden>演出を省略</button></div>
       </section>
       <section class="party" data-party aria-label="味方の状態"></section>
       <section class="battle-result panel" data-result role="status" aria-live="assertive" hidden>
@@ -186,6 +188,7 @@ export function mountBattleUi(
   const events = new AbortController();
   const eventSignal = events.signal;
   let state = options.initialState ?? createInitialBattle();
+  let displayState = state;
   let selectedTargetId = getFrontmostLivingEnemyId(state);
   let skillPanelOpen = false;
   let selectedSkillId: string | null = null;
@@ -193,7 +196,7 @@ export function mountBattleUi(
   let replayingEvents = false;
   let message = targetPrompt();
   let disposed = false;
-  const animationWaits = new Map<number, () => void>();
+  const sequence = createBattleSequence(stage, battle);
   let markerFrame: number | undefined;
   let overlayFrame: number | undefined;
   let markerLastTime = 0;
@@ -202,6 +205,10 @@ export function mountBattleUi(
   const hud = document.createElement("div");
   hud.innerHTML = makeBattleMarkup();
   board.append(hud);
+  const speedSelect = requiredElement<HTMLSelectElement>(hud, "[data-sequence-speed]");
+  const skipButton = requiredElement<HTMLButtonElement>(hud, "[data-sequence-skip]");
+  speedSelect.addEventListener("change", () => sequence.setSpeed(Number(speedSelect.value)), { signal: eventSignal });
+  skipButton.addEventListener("click", () => sequence.setSpeed(0), { signal: eventSignal });
   const battleUi = requiredElement<HTMLElement>(hud, "[data-battle-ui]");
   const timeline = requiredElement<HTMLOListElement>(hud, "[data-timeline]");
   const party = requiredElement<HTMLElement>(hud, "[data-party]");
@@ -361,13 +368,13 @@ export function mountBattleUi(
   }
 
   function renderTimeline() {
-    const actions = getBattleUpcomingActions(state, 6);
+    const actions = getBattleUpcomingActions(displayState, 6);
     const fragment = document.createDocumentFragment();
     for (const [index, action] of actions.entries()) {
-      const combatant = getCombatant(action.id);
+      const combatant = displayState.combatants.find((member) => member.id === action.id);
       if (combatant === undefined) continue;
-      const isCurrent = index === 0 && action.id === state.currentActorId;
-      const ticks = Math.max(0, action.time - state.logicalTime);
+      const isCurrent = index === 0 && action.id === displayState.currentActorId;
+      const ticks = Math.max(0, action.time - displayState.logicalTime);
       const row = document.createElement("li");
       row.className = `queue-row${isCurrent ? " current" : ""}${combatant.team === "enemy" ? " enemy" : ""}`;
       if (isCurrent) row.setAttribute("aria-current", "step");
@@ -414,14 +421,14 @@ export function mountBattleUi(
 
   function renderCombatants() {
     const allyFragment = document.createDocumentFragment();
-    for (const combatant of state.combatants) {
+    for (const combatant of displayState.combatants) {
       if (combatant.team === "enemy") continue;
       const name = combatantName(combatant.id);
       const maximum = effectiveMaxHp(combatant.maxHp, combatant.status);
       const status = combatant.isAlive ? "" : "戦闘不能";
       const card = document.createElement("article");
-      card.className = `ally-card${combatant.id === state.currentActorId ? " active" : ""}${combatant.isAlive ? "" : " defeated"}`;
-      if (combatant.id === state.currentActorId) card.setAttribute("aria-current", "true");
+      card.className = `ally-card${combatant.id === displayState.currentActorId ? " active" : ""}${combatant.isAlive ? "" : " defeated"}`;
+      if (combatant.id === displayState.currentActorId) card.setAttribute("aria-current", "true");
       card.setAttribute(
         "aria-label",
         `${name}、HP ${formatAmount(combatant.hp)}/${maximum}${status ? `、${status}` : ""}`,
@@ -438,7 +445,7 @@ export function mountBattleUi(
       title.textContent = name;
       const actorStatus = document.createElement("span");
       actorStatus.className = "ally-status";
-      actorStatus.textContent = status || (combatant.id === state.currentActorId ? "" : "待機");
+      actorStatus.textContent = status || (combatant.id === displayState.currentActorId ? "" : "待機");
       heading.append(title, actorStatus);
       const hpLine = document.createElement("div");
       hpLine.className = "hp-line";
@@ -460,7 +467,7 @@ export function mountBattleUi(
 
   function renderEnemyNameplates() {
     for (const [id, nameplate] of enemyNameplates) {
-      const enemy = getCombatant(id);
+      const enemy = displayState.combatants.find((member) => member.id === id);
       if (enemy === undefined) continue;
       const maximum = findInitialCombatant(id)?.hp ?? enemy.hp;
       const defeated = !enemy.isAlive;
@@ -497,6 +504,7 @@ export function mountBattleUi(
 
   function hasSelectedEnemy(): boolean {
     return (
+      !replayingEvents &&
       selectedTargetId !== null &&
       getCombatant(selectedTargetId)?.isAlive === true &&
       state.outcome === "ongoing" &&
@@ -536,6 +544,8 @@ export function mountBattleUi(
   function render() {
     if (disposed) return;
     battleUi.dataset.replaying = String(replayingEvents);
+    skipButton.hidden = !replayingEvents;
+    requiredElement<HTMLElement>(hud, ".sequence-controls").hidden = !options.skillRules && !replayingEvents;
     battleUi.dataset.selectedTarget = selectedTargetId ?? "";
     renderTimeline();
     renderCombatants();
@@ -560,15 +570,22 @@ export function mountBattleUi(
       state.outcome === "victory" ? "敵をすべて倒しました。" : "味方が全員戦闘不能になりました。";
   }
 
-  function animationWait(durationMs: number): Promise<void> {
-    if (reducedMotion.matches) return Promise.resolve();
-    return new Promise((resolve) => {
-      const timer = window.setTimeout(() => {
-        animationWaits.delete(timer);
-        resolve();
-      }, durationMs);
-      animationWaits.set(timer, resolve);
-    });
+  const animationWait = sequence.wait;
+
+  function displayImpact(event: Extract<BattleEvent, { type: "attack" | "miss" | "skill" }>) {
+    displayState = {
+      ...displayState,
+      combatants: displayState.combatants.map((member) => {
+        if (member.id !== event.targetId || event.type === "miss") return member;
+        const hp =
+          event.type === "attack"
+            ? event.targetHpAfter
+            : member.hp + (event.effect === "damage" ? -event.amount : event.amount);
+        return { ...member, hp };
+      }),
+    };
+    renderCombatants();
+    renderEnemyNameplates();
   }
 
   function finishDefeatPresentation(combatantId: string) {
@@ -600,19 +617,13 @@ export function mountBattleUi(
         ? skillById(options.skillRules.catalog, firstSkill.skillId).name
         : firstSkill.skillId;
       skillResult.textContent = `${name}：${skillEvents.map((event) => `${combatantName(event.targetId)} ${event.hitIndex}発目 ${event.hit ? `${formatAmount(event.amount)}${event.effect === "damage" ? "ダメージ" : "回復"}` : "外れ"}`).join(" · ")} · 精神疲労 ${formatAmount(firstSkill.fatigueBefore)} → ${formatAmount(firstSkill.fatigueAfter)}`;
-      skillResult.hidden = false;
+      skillResult.hidden = true;
     }
     let hasReplayedAllyAttack = false;
     let hasPausedBeforeEnemyTurn = false;
     for (const event of confirmedEvents) {
       if (disposed) return;
-      if (event.type === "miss") {
-        const detail = `${combatantName(event.actorId)}の通常攻撃は外れた`;
-        message = detail;
-        showEventToast(detail, "attack");
-        screenReaderStatus.textContent = detail;
-        await animationWait(EVENT_TOAST_DURATION_MS);
-      } else if (event.type === "attack") {
+      if (event.type === "attack" || event.type === "miss" || event.type === "skill") {
         const actorTeam = teamFor(event.actorId);
         if (actorTeam === "enemy" && hasReplayedAllyAttack && !hasPausedBeforeEnemyTurn) {
           eventToast.hidden = true;
@@ -621,29 +632,43 @@ export function mountBattleUi(
           hasPausedBeforeEnemyTurn = true;
         }
         if (actorTeam === "ally") hasReplayedAllyAttack = true;
-        battle.playCombatantEffect(event.actorId, "attack", !reducedMotion.matches);
-        battle.playCombatantEffect(event.targetId, "hit", !reducedMotion.matches);
-        const detail = `${combatantName(event.actorId)}の通常攻撃！ ${combatantName(event.targetId)}に${event.damage}ダメージ`;
-        message = detail;
-        showEventToast(detail, "attack");
-        screenReaderStatus.textContent = detail;
-        await animationWait(EVENT_TOAST_DURATION_MS);
-      } else if (event.type === "skill") {
-        hasReplayedAllyAttack = true;
-        const name = options.skillRules ? skillById(options.skillRules.catalog, event.skillId).name : event.skillId;
-        const detail = `${name}：${combatantName(event.targetId)} ${event.hitIndex}発目 ${formatAmount(event.amount)}${event.effect === "damage" ? "ダメージ" : "回復"}${event.hit ? "" : "（外れ）"}`;
-        message = detail;
-        showEventToast(detail, "attack");
-        screenReaderStatus.textContent = detail;
-        await animationWait(EVENT_TOAST_DURATION_MS);
+        const name =
+          event.type === "skill"
+            ? options.skillRules
+              ? skillById(options.skillRules.catalog, event.skillId).name
+              : event.skillId
+            : "通常攻撃";
+        const result =
+          event.type === "miss" || (event.type === "skill" && !event.hit)
+            ? "外れ"
+            : event.type === "attack"
+              ? `${formatAmount(event.damage)} ダメージ`
+              : `${formatAmount(event.amount)} ${event.effect === "damage" ? "ダメージ" : "回復"}`;
+        const hitLabel = event.type === "skill" ? ` · ${event.hitIndex}発目` : "";
+        const label = `${combatantName(event.actorId)} · ${name}`;
+        showEventToast(`${label} → ${combatantName(event.targetId)}${hitLabel}`, "attack");
+        await sequence.action(event, label, `${result}${hitLabel}`, () => {
+          displayImpact(event);
+          message = `${label}：${combatantName(event.targetId)} ${result}${hitLabel}`;
+          screenReaderStatus.textContent = message;
+          showEventToast(message, "attack");
+        });
       } else if (event.type === "symptom") {
         const detail = `${combatantName(event.actorId)}の${symptomNames[event.kind]}：${formatAmount(event.before)} → ${loadSymptomText(event.kind, event.after)}`;
         skillResult.textContent += ` · ${detail}`;
         screenReaderStatus.textContent = detail;
       } else if (event.type === "combatant-defeated") {
-        battle.playCombatantEffect(event.combatantId, "defeat", !reducedMotion.matches, () => {
-          if (!disposed) finishDefeatPresentation(event.combatantId);
-        });
+        displayState = {
+          ...displayState,
+          combatants: displayState.combatants.map((member) =>
+            member.id === event.combatantId ? { ...member, isAlive: false } : member,
+          ),
+        };
+        renderCombatants();
+        renderEnemyNameplates();
+        await sequence.defeat(event.combatantId);
+        if (disposed) return;
+        finishDefeatPresentation(event.combatantId);
         const detail = `${combatantName(event.combatantId)}は戦闘不能になった`;
         message = detail;
         showEventToast(detail, "defeat");
@@ -658,6 +683,9 @@ export function mountBattleUi(
     }
     if (disposed) return;
     eventToast.hidden = true;
+    displayState = state;
+    skillResult.hidden = !firstSkill;
+    sequence.setSpeed(Number(speedSelect.value));
     replayingEvents = false;
     message =
       state.outcome === "ongoing"
@@ -853,7 +881,9 @@ export function mountBattleUi(
         options.onFinish();
         return;
       }
-      state = createInitialBattle();
+      state = options.initialState ?? createInitialBattle();
+      displayState = state;
+      skillResult.hidden = true;
       selectedTargetId = getFrontmostLivingEnemyId(state);
       replayingEvents = false;
       message = targetPrompt();
@@ -881,11 +911,7 @@ export function mountBattleUi(
 
   return () => {
     disposed = true;
-    for (const [timer, resolve] of animationWaits) {
-      window.clearTimeout(timer);
-      resolve();
-    }
-    animationWaits.clear();
+    sequence.dispose();
     if (markerFrame !== undefined) window.cancelAnimationFrame(markerFrame);
     if (overlayFrame !== undefined) window.cancelAnimationFrame(overlayFrame);
     resizeObserver.disconnect();
