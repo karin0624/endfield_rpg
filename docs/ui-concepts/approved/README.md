@@ -61,3 +61,20 @@
 転送容量を抑えるため、Pillowで無劣化WebPへ形式変換した（`lossless=True, exact=True, method=6`）。4点とも、変換前のPNGと変換後のWebPをそれぞれRGBAへ復号し、寸法および全RGBAバイトが完全一致することを確認した。相違バイトは0。元PNGのバイト列が変換前後で不変であることも確認した。拡大縮小・切り抜き・描き直し・色補正・内容変更はしていない。
 
 この参照追加の親コミットは `419a3da4514146ac6e1b46b25252ff1a3e220ff3`。この変更だけでは画面実装やその検証の完了を意味しない。
+
+## 再現fixtureと実画像比較
+
+`tests/fixtures/party-approved.html`を本番の`mountPartyUi`へ接続する。実装初版はcommit `5b3a2dd`。Playwrightの`party-ui.spec.ts`にある「承認画像の4状態」で、1672×941 CSS px、DPR1、reduced-motion、画像decode・同梱フォントの準備完了後に撮影する。
+
+| 状態 | URL query／操作 | 固定条件 |
+| --- | --- | --- |
+| 通常出発 | `?mode=normal` | ロッシ、ギルベルタ、空き、空き。両名20/20、症状なし |
+| 通常選択 | `?mode=normal`、枠1をクリック | 上記と同じ。選択番号1・2、scroll先頭、hoverなし |
+| 全員HP0 | `?mode=disabled` | 両名0/20、バー空、出発disabled |
+| 症状あり選択 | `?mode=symptoms`、枠1をクリック | ロッシ肉体疲労50／朦朧75、コア適用後13/13、肉体疲労・中度／朦朧・重度。ギルベルタ20/20 |
+
+時計は1日目・昼で固定し可視表示しない。本編のギルベルタ最大HP18は変えず、この独立fixtureだけ画像と同じ最大HP20とする。カードの仮編集中は選択順・欠番を保持し、確定とEscだけで番号順に詰める。
+
+`python3 scripts/compare-party-ui.py test-results test-results/approved-comparison`で4組を生成する。Pillowが必要。画像登録・拡大縮小・色補正・しきい値による合格判定は行わない。唯一の許可領域は資料注記 `(1510,12)–(1664,44)`。全体raw diffはその領域も含む。CIの`party-approval-comparison`には各原画、runtime、50%overlay、raw diff、注記maskのみのdiff、診断範囲、数値とSHA-256を保存する。
+
+現在の実装には背景・人物の輪郭／比率・生成文字・金属材質の差が残る。矩形診断は原因の切り分け用であり許可maskではない。CI成功や操作試験の通過を、画像一致の承認として扱わない。

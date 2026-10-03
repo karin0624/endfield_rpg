@@ -100,7 +100,7 @@
   display: grid;
   place-items: center;
   width: 100%;
-  height: 46.8dvh;
+  height: 46.4dvh;
   min-height: 0;
   margin: 0;
 }
@@ -171,6 +171,17 @@
   backdrop-filter: blur(4px);
   color: #d2d4c780;
   max-width: 95%;
+}
+
+.formation-screen .party-slot:not(.is-occupied) .party-slot-choice::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  top: 56%;
+  left: 18%;
+  width: 64%;
+  height: 100px;
+  background: url("/assets/ui/empty-slot-rule.svg") center top / 100% 100px no-repeat;
 }
 
 .formation-screen .party-slot:not(.is-occupied) .party-slot-portrait {

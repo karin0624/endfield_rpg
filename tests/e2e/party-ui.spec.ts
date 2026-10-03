@@ -11,6 +11,11 @@ for (const count of [12, 24]) {
     const grid = page.getByRole("group", { name: "候補一覧" });
     const choices = grid.locator(".party-candidate");
     await expect(choices).toHaveCount(count);
+    await choices.last().click();
+    await expect(choices.last()).toHaveAttribute("aria-pressed", "false");
+    await expect(grid.locator('.party-candidate[aria-pressed="true"]')).toHaveCount(4);
+    await expect(choices.first()).toHaveAccessibleDescription(/隊列 1/);
+    await expect(page.locator("#state")).toHaveText(before ?? "");
     await expect(page.getByRole("button", { name: "戻る", exact: true })).toBeHidden();
     await choices.nth(1).click();
     await expect(choices.nth(1)).toHaveAttribute("aria-pressed", "false");
