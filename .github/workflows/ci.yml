@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, codex/pr92-recovery-20261003]
   pull_request:
 
 permissions:
@@ -60,5 +60,5 @@ jobs:
             test-results/campaign-*/campaign-*.png
             test-results/party-ui-*/formation-*.png
             test-results/party-ui-*/party-*.png
-          if-no-files-found: ignore
+          if-no-files-found: error
           retention-days: 14

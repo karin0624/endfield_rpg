@@ -247,6 +247,9 @@ test("物品の買物・持込み・帰還・保存を通常画面で通す", as
   await page.keyboard.down("Escape");
   await expect(page.getByRole("heading", { name: "探索先選択", exact: true })).toBeVisible();
   await page.keyboard.up("Escape");
+  await page.getByRole("button", { name: "ダンジョン", exact: true }).click();
+  await page.getByRole("button", { name: "戻る", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "探索先選択", exact: true })).toBeVisible();
   await expect(page.locator("[data-calendar]")).toHaveText("1日目 · 夜");
   await page.getByRole("button", { name: "ホームへ戻る", exact: true }).click();
   await expect(page.getByLabel("持込み個数（HP回復品）")).toHaveValue("1");

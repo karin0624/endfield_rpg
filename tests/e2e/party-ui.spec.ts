@@ -63,6 +63,7 @@ test("長名・未提供画像・他枠の重複と狭幅・低い画面での�
     [320, 844],
     [390, 844],
     [900, 700],
+    [901, 800],
     [1024, 800],
     [1150, 800],
     [1151, 800],
@@ -76,6 +77,10 @@ test("長名・未提供画像・他枠の重複と狭幅・低い画面での�
       const candidates = await page.locator(".party-candidates").boundingBox();
       const preview = await page.locator(".party-current").boundingBox();
       expect((candidates?.x ?? width) + (candidates?.width ?? width)).toBeLessThan(preview?.x ?? 0);
+    } else {
+      const candidates = await page.locator(".party-candidates").boundingBox();
+      const preview = await page.locator(".party-current").boundingBox();
+      expect((preview?.y ?? height) + (preview?.height ?? height)).toBeLessThan(candidates?.y ?? 0);
     }
     await grid.getByRole("button", { name: "ロッシ", exact: true }).click();
     await expect(page.getByRole("button", { name: "入れ替える", exact: true })).toBeDisabled();
@@ -192,6 +197,9 @@ test("共通画面の位置と操作文脈を保ち、選択・focus・非活性
   const confirm = page.getByRole("button", { name: "編成する", exact: true });
   await expect(confirm).toBeDisabled();
   await expect(confirm).toHaveCSS("cursor", "default");
+  await expect(confirm).toHaveCSS("background-color", "rgb(25, 30, 32)");
+  await expect(confirm).toHaveCSS("color", "rgb(190, 197, 192)");
+  await page.screenshot({ path: testInfo.outputPath("formation-primary-disabled-1920.png") });
   await expect(primary).toBeHidden();
   const candidate = page.getByRole("button", { name: "ギルベルタ", exact: true });
   await candidate.focus();
@@ -226,5 +234,9 @@ test("主操作はマウス保持とSpace押下中も暗い文字を保つ", asy
   await page.keyboard.down("Space");
   await expect(primary).toHaveCSS("background-color", "rgb(201, 151, 85)");
   await expect(primary).toHaveCSS("color", "rgb(37, 42, 44)");
+  await expect(primary).toHaveCSS("outline-color", "rgb(255, 255, 255)");
+  await expect(primary).toHaveCSS("outline-width", "2px");
+  await expect(primary).toHaveCSS("outline-offset", "4px");
+  await page.screenshot({ path: testInfo.outputPath("formation-primary-space-focus-1920.png") });
   await page.keyboard.up("Space");
 });
