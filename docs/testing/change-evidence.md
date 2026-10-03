@@ -12,7 +12,7 @@
 | 公開I/O：Vitest＋Vite/Node HTTP | 保存APIの正常系と一部不正入力 | 両APIのmethod/origin/content-type、409並行保存、4096/4097byte境界、500でも旧bytes保持、固定保存先 |
 | UI接続：Playwright | 対象選択、focus、ARIA、保存導線 | 親capture込みの押し直し、native連続入力の各結果、各着弾HP、表示速度・省略・退出後の実論理状態/RNG |
 | 実描画：Playwright＋Babylon.js/WebGL | 初期画面VRT、資源寿命、HTTP取得数、culling | DPR上限、非rootでbuildした実配布、実entryのpagehide/HMR、設定ごとの独立構図VRT |
-| 通常配布：Playwright | タイトル→探索→帰還→保存再開 | 開発API・fixtureを公開しない境界、通常画面10状態の自動画像比較 |
+| 通常配布：Playwright | タイトル→探索→帰還→保存再開 | 開発API・fixtureを公開しない短い境界。通常画面10状態の自動画像比較は明示実行のlong suiteへ保持 |
 
 VRTはブラウザの各層で用いる視覚assertionであり、操作・論理規則・I/Oを代替しない。新規基準は現UIの回帰検出用で、ユーザーの完成画像の承認を新たに取得したという意味ではない。共有フォントの仕上げはユーザーが別作業を明示承認した [Issue #99](https://github.com/karin0624/endfield_rpg/issues/99) へ分ける。読めない・操作できない崩れまで免除しない。
 
@@ -22,6 +22,16 @@ VRTはブラウザの各層で用いる視覚assertionであり、操作・論�
 - 成長関数に渡していない値の不変比較、未使用payloadの自己比較、健康なstateをJSONコピーするだけの回復検証を削除。実保存、負傷・症状・時計を伴う公開操作で保証する。
 - 地面倍率だけの重複した負例を、全設定項目の独立した境界入力表へ統合。値域期待は実装定数から再計算しない。
 - 録画専用caseを品質testのskipから切り離し、専用evidence設定へ移動。動画・撮影・overlayの生成を自動テストの成功として数えない。
+
+## 独立レビュー後の修正
+
+- Vitestのstock JSONだけでは個別retryや `test.fails` を判別しきれないため、公開Reporter APIで `options.fails`・retry回数・残存errorを検査する。実CLIで通常成功／retry成功／期待失敗／suite期待失敗の4条件を検証し、後3条件を非ゼロ終了にした。
+- ブラウザcoverageは終了済みの追加contextも共有fixtureで検出する。分離した実行で通常pageは成功し、browserだけを要求して追加contextを閉じたcaseは拒否された。namespaceから素のrunnerをimportする負例もBiomeが拒否した。遷移前の回収を追加し、ケース別の収集annotationを結果照合に含めた。
+- 両保存APIは4096 bytesのUTF-8入力が「あ」の途中でHTTP chunkへ分割されると旧実装で413となった。raw Bufferで上限を数え、最後にdecodeする修正後は実HTTP回帰が成功した。
+- 構図20項目のcontrol同期・draft・JSON exportは実エディターと描画代替の接続に移した。同じ入力・逆方向同期・export全値・reload全値のassertionを維持して2.3秒で成功した。実地面、設定反映VRT、資源、HMRの保証は実rendererに残す。
+- 背景404の早期失敗後、モデルimportが資源を確保する競合を修正した。同時読込のsettlement後に失敗を通知し、保留モデルを解放するcaseも含む4つの素材失敗caseで資源0のassertionが成功した。全projectの解析runとは区別する。
+- 攻撃／回復の固定時計VRTはPlaywright locatorと同じ整数矩形をpage screenshotへ渡し、paused rAFの安定待ちを避けた。既存画像・許容差を変えず両caseが成功した。
+- 長い通常campaign通しと10状態VRTを `tests/long/` の明示実行へ移した。テスト本文と基準bytesは保持し、既定CIの短い通常配布・UI・settings・renderer境界は継続する。
 
 ## 破壊・修正前との比較
 
@@ -53,9 +63,11 @@ VRTはブラウザの各層で用いる視覚assertionであり、操作・論�
 
 - **UI-B23：初回疲労・症状でもHP行を動かさない。** `tests/e2e/ui/battle-ui.spec.ts` の「初回の疲労と追加症状の表示でもHP行の位置を移動しない」は、document上のHP行座標を比較する。予約34pxに対して可読なラベル2行が72pxを要し、実測で約15.609px移動する。カード内の相対座標へ期待を変更したりskipにせず、失敗を残した。承認済みカード・情報をどう配置するかの判断が必要であり、仕様を実装に合わせて削らない。
 - **UI-V04：画像背景との絶対コントラスト。** VRTで表示回帰は検出するが、文字4.5:1・重要非文字3:1を満たす証明にはならない。標準axeの画像背景検査がincompleteだったため未検証として残す。違反0や目視をテスト成功へ読み替えない。
-- **SAVEITEM-03：版数の枯渇。** 最大安全整数での数量・金額roundtripは公開APIに基づき保証した。版数の最大値と次操作の方針は明文化されておらず、その部分は未定義・未検証として残す。
-
 全実装済み仕様をテストする要求は維持する。上の未解決を残している間は、その要求を達成した・マージ可能とは報告しない。
+
+### 未定義の設計境界
+
+SAVEITEM-03の通常のversion一致・更新・保存は既存／追加テストで検証する。数量・金額の最大安全整数roundtripも公開APIの契約として保証した。versionの枯渇時の最大値・次操作方針は公開仕様にないため、別の設計境界として残す。未定義の極端値から通常契約全体を未テストとしたり、独自の上限・wrap方針を加えたりしない。
 
 ## 標準coverage方式の調査と小規模実証
 

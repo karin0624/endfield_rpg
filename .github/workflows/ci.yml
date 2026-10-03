@@ -63,6 +63,24 @@ jobs:
           echo "base=$PR_BASE" >> coverage/revision.txt
       - run: npm ci
       - run: npm run build
+      - name: Record unchanged baseline bytes for independent review
+        run: |
+          mkdir -p test-results
+          sha256sum tests/e2e/ui/party-ui.spec.ts-snapshots/approved-symptoms-ui-linux.png \
+            tests/e2e/ui/party-ui.spec.ts-snapshots/approved-disabled-ui-linux.png \
+            tests/e2e/ui/party-ui.spec.ts-snapshots/formation-primary-pressed-1920-ui-linux.png \
+            tests/e2e/settings/settings.spec.ts-snapshots/adventure-saved-dialogue-settings-linux.png \
+            > test-results/baseline-sha256.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fixed-ui-baselines-for-review
+          path: |
+            tests/e2e/ui/party-ui.spec.ts-snapshots/approved-symptoms-ui-linux.png
+            tests/e2e/ui/party-ui.spec.ts-snapshots/approved-disabled-ui-linux.png
+            tests/e2e/ui/party-ui.spec.ts-snapshots/formation-primary-pressed-1920-ui-linux.png
+            tests/e2e/settings/settings.spec.ts-snapshots/adventure-saved-dialogue-settings-linux.png
+            test-results/baseline-sha256.txt
+          if-no-files-found: error
       - run: npx playwright test --config playwright.evidence.config.ts
       - uses: actions/upload-artifact@v4
         if: always()
@@ -142,7 +160,7 @@ jobs:
       - run: npm run test:coverage:inside
       - name: Check all analysis-run cases executed and passed
         if: success() || failure()
-        run: node scripts/check-test-execution.mjs playwright test-results/playwright-coverage-discovery.json test-results/playwright-coverage.json
+        run: node scripts/check-test-execution.mjs playwright test-results/playwright-coverage-discovery.json test-results/playwright-coverage.json coverage
       - uses: actions/upload-artifact@v4
         if: always()
         with:

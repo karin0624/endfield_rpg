@@ -50,7 +50,7 @@
   },
   "overrides": [
     {
-      "includes": ["tests/e2e/**/*.spec.ts"],
+      "includes": ["tests/e2e/**/*.spec.ts", "tests/long/**/*.spec.ts"],
       "linter": {
         "rules": {
           "style": {
@@ -59,7 +59,7 @@
               "options": {
                 "paths": {
                   "@playwright/test": {
-                    "importNames": ["test"],
+                    "importNames": ["test", "*", "default"],
                     "message": "Import test from the shared coverage fixture so browser collection cannot be bypassed."
                   }
                 }

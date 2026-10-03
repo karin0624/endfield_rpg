@@ -1,0 +1,112 @@
+import { cleanNormal, save } from "../e2e/campaignHelpers";
+import { collectCoverage, expect, test } from "../e2e/coverage";
+import { formationScreenshot } from "../e2e/formationEvidence";
+
+test("通常版で導入・ホーム・街・編成・戦闘・帰還・保存再開を通す", async ({ page }, info) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  page.on("response", (response) => {
+    // Cached assets may be revalidated with 304 after the save/resume navigation.
+    if (response.url().includes("/assets/") && response.status() >= 400) {
+      errors.push(`${response.status()} ${response.url()}`);
+    }
+  });
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await collectCoverage(page);
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: "ENDFIELD RPG" })).toBeVisible();
+  await expect(page).toHaveScreenshot("campaign-01-title-1920.png");
+  await page.getByRole("button", { name: "新規開始", exact: true }).click();
+  await expect(page).toHaveScreenshot("campaign-02-new-game-confirmation-1920.png");
+  await page.getByRole("button", { name: "実行する", exact: true }).click();
+  await expect(page.locator(".campaign-copy")).toHaveText("（仮テキスト）");
+  await expect(page).toHaveScreenshot("campaign-03-introduction-1920.png");
+  await page.getByRole("button", { name: "ホームへ", exact: true }).click();
+  await cleanNormal(page);
+  await expect(page).toHaveScreenshot("campaign-04-home-1920.png");
+  await page.getByRole("button", { name: "探索先を選ぶ", exact: true }).click();
+  await expect(page.locator("[data-calendar]")).toHaveText("1日目 · 昼");
+  await expect(page).toHaveScreenshot("campaign-05-destinations-1920.png");
+  await page.getByRole("button", { name: "街", exact: true }).click();
+  await cleanNormal(page);
+  await expect(page.getByRole("button", { name: "保存", exact: true })).toHaveCount(0);
+  await expect(page).toHaveScreenshot("campaign-06-town-1920.png");
+  await page.getByRole("button", { name: "市場", exact: true }).click();
+  await expect(page.getByRole("button", { name: "ホームへ戻る" })).toBeHidden();
+  await page.keyboard.press("Space");
+  await page.getByRole("button", { name: "ホームへ戻る" }).click();
+  await expect(page.locator("[data-calendar]")).toHaveText("1日目 · 夜");
+  await page.getByRole("button", { name: "出撃編成を見る" }).click();
+  await expect(page.getByRole("button", { name: "出発する", exact: true })).toBeHidden();
+  await formationScreenshot(page, info, "campaign-formation-home-1920.png");
+  await cleanNormal(page);
+  await page.getByRole("button", { name: "枠 1", exact: true }).click();
+  await formationScreenshot(page, info, "campaign-formation-selection-1920.png");
+  const candidate = page.getByRole("group", { name: "候補一覧" }).getByRole("button", { name: "ロッシ", exact: true });
+  await expect(candidate).toHaveAccessibleDescription(/HP 20\/20.*隊列 1/);
+  await expect(page.locator(".party-candidate-hp").first()).toHaveText("HP 20/20");
+  await expect(page.locator(".party-current")).toHaveCount(0);
+  await page.getByRole("button", { name: /ロッシの詳細/ }).click();
+  await formationScreenshot(page, info, "campaign-formation-details-1920.png");
+  await page.keyboard.press("Tab");
+  const detailsInfo = page.getByRole("region", { name: "能力と状態" });
+  await expect(detailsInfo).toBeFocused();
+  await page.keyboard.press("End");
+  await expect.poll(() => detailsInfo.evaluate((region) => region.scrollTop)).toBeGreaterThan(0);
+  await expect(detailsInfo.locator(".character-details-skill").last()).toBeInViewport({ ratio: 1 });
+  await formationScreenshot(page, info, "campaign-formation-details-bottom-1920.png");
+  await cleanNormal(page);
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "戻る", exact: true }).click();
+  await page.getByRole("button", { name: "探索先を選ぶ", exact: true }).click();
+  await page.getByRole("button", { name: "ダンジョン", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "出発準備", exact: true })).toBeVisible();
+  await formationScreenshot(page, info, "campaign-formation-departure-1920.png");
+  await page.getByRole("button", { name: "出発する", exact: true }).click();
+  await cleanNormal(page);
+  await cleanNormal(page);
+  await page.getByRole("button", { name: "思わぬ遭遇、選択可能" }).click();
+  await page.locator("[data-conversation-stage]").click();
+  await page.getByRole("button", { name: "地図に足跡を記す" }).click();
+  const growth = page.getByRole("region", { name: "レベルアップのスキル選択" });
+  while (await growth.isVisible()) {
+    await cleanNormal(page);
+    await growth.getByRole("button").first().click();
+  }
+  await page.getByRole("button", { name: "ボス、選択可能" }).click();
+  const skills = page.getByRole("button", { name: "スキル", exact: true });
+  await expect(skills).toBeEnabled({ timeout: 60_000 });
+  await expect(page.getByRole("button", { name: "通常攻撃", exact: true })).toBeHidden();
+  await cleanNormal(page);
+  const victory = page.getByRole("heading", { name: "戦闘に勝利しました" });
+  for (let turn = 0; turn < 12 && !(await victory.isVisible()); turn++) {
+    await skills.click();
+    await page.getByRole("button", { name: "攻撃", exact: true }).click();
+    await page.getByRole("button", { name: "使用する", exact: true }).click();
+    await expect(page.locator("[data-battle-ui]")).toHaveAttribute("data-replaying", "false", { timeout: 60_000 });
+  }
+  await expect(victory).toBeVisible();
+  await page.getByRole("button", { name: "戦闘を終えてルートへ戻る" }).click();
+  await page.getByRole("button", { name: "ホームへ帰還", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "ホーム", exact: true })).toBeVisible();
+  await expect(page.locator("[data-calendar]")).toHaveText("2日目 · 昼");
+  await expect(page.locator("[data-town-recovery]")).toContainText("HPが全回復");
+  await expect(page).toHaveScreenshot("campaign-07-returned-home-1920.png");
+  await page.getByRole("button", { name: "保存してタイトルへ戻る", exact: true }).click();
+  await expect(page).toHaveScreenshot("campaign-08-save-confirmation-1920.png");
+  await page.getByRole("button", { name: "実行する", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "ENDFIELD RPG" })).toBeVisible();
+  await expect(page.getByRole("status")).toHaveText("保存しました。");
+  await expect(page).toHaveScreenshot("campaign-09-saved-title-1920.png");
+  const saved = await page.evaluate(() => localStorage.getItem("endfield-rpg-game-save"));
+  await collectCoverage(page);
+  await page.reload();
+  await page.getByRole("button", { name: "続きから" }).dblclick();
+  await expect(page.locator("[data-calendar]")).toHaveText("2日目 · 昼");
+  await cleanNormal(page);
+  await expect(page).toHaveScreenshot("campaign-10-resumed-home-1920.png");
+  await save(page);
+  expect(await page.evaluate(() => localStorage.getItem("endfield-rpg-game-save"))).toBe(saved);
+  expect(errors).toEqual([]);
+});

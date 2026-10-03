@@ -279,6 +279,7 @@ describe("成長保存の入力検証", () => {
     ["初期未満レベル", "growth.characters.0.level", 0],
     ["端数レベル", "growth.characters.0.level", 1.5],
     ["負の余剰XP", "growth.characters.0.experience", -1],
+    ["小数の余剰XP", "growth.characters.0.experience", 5.5],
     ["攻撃補正の水増し", "growth.characters.0.bonus.attackPower", 1],
     ["習得対象の不一致", "characters.0.characterId", "missing"],
     ["初期技欠落", "characters.0.learned", []],

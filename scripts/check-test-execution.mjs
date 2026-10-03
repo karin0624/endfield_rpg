@@ -43,26 +43,27 @@ export function vitestCases(report, discovery = false, root = process.cwd()) {
       return {
         file,
         key: JSON.stringify([file, [...item.ancestorTitles, item.title].join(" > ")]),
-        passed: item.status === "passed",
+        passed: item.status === "passed" && !item.failureMessages?.length,
       };
     }),
   );
 }
 
-export function playwrightCases(report) {
+export function playwrightCases(report, _discovery = false, root = "tests/e2e") {
   const cases = [];
   function visit(suites) {
     for (const suite of suites) {
       for (const spec of suite.specs ?? [])
         for (const test of spec.tests) {
           cases.push({
-            file: `tests/e2e/${spec.file}`,
+            file: `${root}/${spec.file}`,
             key: JSON.stringify([test.projectName, spec.id]),
             passed:
               test.expectedStatus === "passed" &&
               test.results.length === 1 &&
               test.results[0].status === "passed" &&
               test.results[0].retry === 0,
+            coverageRecorded: test.annotations?.some((annotation) => annotation.type === "browser-coverage") ?? false,
           });
         }
       visit(suite.suites ?? []);
@@ -73,9 +74,14 @@ export function playwrightCases(report) {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
-  const [runner, discoveryPath, resultPath] = process.argv.slice(2);
-  if (!["vitest", "playwright"].includes(runner) || !discoveryPath || !resultPath) {
-    throw new Error("Usage: check-test-execution.mjs {vitest|playwright} discovery.json result.json");
+  const [runner, discoveryPath, resultPath, mode] = process.argv.slice(2);
+  if (
+    !["vitest", "playwright"].includes(runner) ||
+    !discoveryPath ||
+    !resultPath ||
+    (mode && !["coverage", "long"].includes(mode))
+  ) {
+    throw new Error("Usage: check-test-execution.mjs {vitest|playwright} discovery.json result.json [coverage|long]");
   }
   const read = (path) => JSON.parse(readFileSync(path, "utf8"));
   const inventory = execFileSync("git", ["ls-files", "-z", "--cached", "--others", "--exclude-standard"], {
@@ -85,20 +91,33 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
   const files = [
     ...new Set(
       inventory.filter(
-        (file) => pattern.test(file) && existsSync(file) && file !== "tests/evidence/battle-video.spec.ts",
+        (file) =>
+          pattern.test(file) &&
+          existsSync(file) &&
+          (runner === "vitest" ||
+            (mode === "long"
+              ? file.startsWith("tests/long/")
+              : !file.startsWith("tests/long/") && !file.startsWith("tests/evidence/"))),
       ),
     ),
   ];
-  const convert = runner === "vitest" ? vitestCases : playwrightCases;
+  const convert =
+    runner === "vitest"
+      ? vitestCases
+      : (report) => playwrightCases(report, false, mode === "long" ? "tests/long" : "tests/e2e");
   const discovery = read(discoveryPath);
   const result = read(resultPath);
   const errors = checkExecution(files, convert(discovery, true), convert(result));
   if (runner === "playwright") {
-    for (const project of ["built", "debug", "ui", "settings"]) {
+    for (const project of mode === "long" ? ["built"] : ["built", "debug", "ui", "settings"]) {
       if (!playwrightCases(result).some((item) => JSON.parse(item.key)[0] === project))
         errors.push(`Missing required project: ${project}`);
     }
     if (result.errors?.length) errors.push("Playwright reported global errors");
+    if (mode === "coverage") {
+      for (const test of playwrightCases(result))
+        if (!test.coverageRecorded) errors.push(`Missing per-case browser coverage collection: ${test.key}`);
+    }
   } else if (!result.success) errors.push("Vitest run was not successful");
   if (errors.length) {
     console.error(errors.join("\n"));

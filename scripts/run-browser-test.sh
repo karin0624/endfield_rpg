@@ -6,7 +6,8 @@ case "${1:-}" in
   ui) inside_script=test:ui:inside ;;
   editor) inside_script=test:editor:inside ;;
   coverage) inside_script=test:coverage:inside ;;
-  *) echo "Usage: $0 {e2e|ui|editor|coverage} [Playwright options]" >&2; exit 2 ;;
+  long) inside_script=test:long:inside ;;
+  *) echo "Usage: $0 {e2e|ui|editor|coverage|long} [Playwright options]" >&2; exit 2 ;;
 esac
 shift
 

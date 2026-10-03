@@ -267,6 +267,7 @@ describe("探索内成長コア", () => {
     })),
     ...[0, -1, 0.1, Number.MAX_SAFE_INTEGER + 1, Number.NaN, Number.POSITIVE_INFINITY].map((requiredExperience) => ({
       ...definition,
+      initial: definition.initial.map((initial) => ({ ...initial, experience: 0 })),
       rules: [{ fromLevel: 4, requiredExperience, bonus: { maxHp: 0, attackPower: 0 } }],
     })),
     ...[-1, Number.NaN, Number.POSITIVE_INFINITY].map((maxHp) => ({
@@ -275,13 +276,23 @@ describe("探索内成長コア", () => {
     })),
     ...[0, 1.5, Number.MAX_SAFE_INTEGER + 1, Number.NaN].map((fromLevel) => ({
       ...definition,
-      rules: [{ ...definition.rules[0], fromLevel }],
+      rules: definition.rules.map((rule, index) => (index === 0 ? { ...rule, fromLevel } : rule)),
     })),
     { ...definition, initial: [{ ...definition.initial[0], level: Number.MAX_SAFE_INTEGER + 1 }] },
     ...[-1, Number.NaN, Number.POSITIVE_INFINITY].flatMap((attackPower) => [
       { ...definition, initial: [{ ...definition.initial[0], bonus: { maxHp: 0, attackPower } }] },
-      { ...definition, rules: [{ ...definition.rules[0], bonus: { maxHp: 0, attackPower } }] },
-      { ...definition, rules: [{ ...definition.rules[0], bonus: { maxHp: attackPower, attackPower: 0 } }] },
+      {
+        ...definition,
+        rules: definition.rules.map((rule, index) =>
+          index === 0 ? { ...rule, bonus: { maxHp: 0, attackPower } } : rule,
+        ),
+      },
+      {
+        ...definition,
+        rules: definition.rules.map((rule, index) =>
+          index === 0 ? { ...rule, bonus: { maxHp: attackPower, attackPower: 0 } } : rule,
+        ),
+      },
     ]),
   ])("不正な設定を拒否する [%#]", (invalid) => {
     expect(() => validateProgressionDefinition(invalid)).toThrow();

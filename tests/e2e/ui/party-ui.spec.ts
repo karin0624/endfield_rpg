@@ -2,6 +2,7 @@ import { collectCoverage, expect, test } from "../coverage";
 import { expectRenderedFont, formationScreenshot, readyFormation } from "../formationEvidence";
 
 test("編成integration: campaign配下の通常入力と選択・押し直し解除をcapture込みで通す", async ({ page }) => {
+  await collectCoverage(page);
   await page.goto("/");
   await page.getByRole("button", { name: "新規開始", exact: true }).click();
   await page.getByRole("button", { name: "実行する", exact: true }).click();
@@ -40,6 +41,7 @@ test("編成integration: campaign配下の通常入力と選択・押し直し�
 
 test("候補の短間隔4連続クリックと複数カード切替を一回ずつ即時反映する", async ({ page }) => {
   await page.setViewportSize({ width: 1920, height: 1080 });
+  await collectCoverage(page);
   await page.goto("/tests/fixtures/party-selection.html?count=12");
   await page.getByRole("button", { name: "枠 1", exact: true }).click();
   const choices = page.locator(".party-candidate");
@@ -74,6 +76,7 @@ test("候補の短間隔4連続クリックと複数カード切替を一回ず�
 
 test("候補の選択・押し直し解除・再選択で枠と番号のVRTが一致する", async ({ page }) => {
   await page.setViewportSize({ width: 1920, height: 1080 });
+  await collectCoverage(page);
   await page.goto("/tests/fixtures/party-selection.html?count=2");
   await page.getByRole("button", { name: "枠 1", exact: true }).click();
   await readyFormation(page);
@@ -110,6 +113,7 @@ test("候補の選択・押し直し解除・再選択で枠と番号のVRTが�
 for (const count of [12, 24]) {
   test(`${count}候補を仮編集し、欠番保持・詳細復帰・確定一回・Esc反映を確認する`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width: 1920, height: 1080 });
+    await collectCoverage(page);
     await page.goto(`/tests/fixtures/party-selection.html?count=${count}`);
     const before = await page.locator("#state").textContent();
     const slot = page.getByRole("button", { name: "枠 2", exact: true });
@@ -181,6 +185,7 @@ test("長名・未提供画像・狭幅・低い画面で詳細と確定へ到�
     [1920, 500],
   ]) {
     await page.setViewportSize({ width, height });
+    await collectCoverage(page);
     await page.goto("/tests/fixtures/party-selection.html?long=1");
     await page.getByRole("button", { name: "枠 4", exact: true }).click();
     const candidate = page
@@ -221,6 +226,7 @@ for (const width of [320, 390, 1920]) {
     page,
   }, testInfo) => {
     await page.setViewportSize({ width, height: 1080 });
+    await collectCoverage(page);
     await page.goto("/tests/fixtures/character-details.html");
     const before = await page.locator("#state").textContent();
     const opener = page.getByRole("button", { name: /長い名前のロッシ.*の詳細/ });
@@ -321,6 +327,7 @@ test("承認画像に対応する4状態を1672×941のVRTで検証する", asyn
 
 test("主操作のマウス保持とSpace押下中の文字・focusをVRTで検証する", async ({ page }) => {
   await page.setViewportSize({ width: 1920, height: 1080 });
+  await collectCoverage(page);
   await page.goto("/tests/fixtures/party-selection.html?count=2");
   for (const slot of await page.locator(".party-slot.is-occupied").all()) {
     const portrait = await slot.locator(".party-slot-portrait").boundingBox();
@@ -363,6 +370,7 @@ test("主操作のマウス保持とSpace押下中の文字・focusをVRTで検�
 test("先頭・中段の長名と3症状が後続カードへ重ならず、精神疲労を詳細でも確認できる", async ({ page }, info) => {
   for (const width of [1920, 1024, 390]) {
     await page.setViewportSize({ width, height: 1080 });
+    await collectCoverage(page);
     await page.goto("/tests/fixtures/party-selection.html?count=12&stress=1");
     await expect(page.locator(".party-slot-symptoms").first()).toContainText("精神疲労・中度");
     await page.getByRole("button", { name: "枠 1", exact: true }).click();
@@ -401,6 +409,7 @@ test("先頭・中段の長名と3症状が後続カードへ重ならず、精�
 });
 
 test("満員候補の詳細も読め、Enter選択とmodal隔離・確定後focusを保つ", async ({ page }) => {
+  await collectCoverage(page);
   await page.goto("/tests/fixtures/party-selection.html?count=12");
   const opener = page.getByRole("button", { name: "枠 2", exact: true });
   await opener.click();
@@ -441,6 +450,7 @@ test("満員候補の詳細も読め、Enter選択とmodal隔離・確定後focu
 
 test("人物画像のHTTP失敗でも候補選択と詳細・復帰を操作できる", async ({ page }) => {
   await page.route(/\/assets\/characters\//, (route) => route.abort());
+  await collectCoverage(page);
   await page.goto("/tests/fixtures/party-selection.html?count=2&mental-low=1");
   await page.getByRole("button", { name: "枠 1", exact: true }).click();
   const card = page.locator(".party-candidate-card").first();
@@ -475,6 +485,7 @@ test("出発不可は全員戦闘不能と空編成の理由を操作の説明�
 });
 
 test("健康な人物詳細は低下がない能力の基礎値と理由を表示しない", async ({ page }) => {
+  await collectCoverage(page);
   await page.goto("/tests/fixtures/party-selection.html?count=2");
   await page.getByRole("button", { name: "枠 1", exact: true }).click();
   await page.getByRole("button", { name: "ロッシの詳細", exact: true }).click();
@@ -488,6 +499,7 @@ test("健康な人物詳細は低下がない能力の基礎値と理由を表�
 
 test("編成のHPバーは全快・半分・空・症状後最大HPの割合を実表示とVRTで示す", async ({ page }) => {
   await page.setViewportSize({ width: 1672, height: 941 });
+  await collectCoverage(page);
   await page.goto("/tests/fixtures/party-approved.html?mode=hp-levels");
   const values = ["HP 20/20", "HP 10/20", "HP 0/20", "HP 6.5/13"];
   const ratios = [1, 0.5, 0, 0.5];
@@ -515,6 +527,7 @@ test("編成のHPバーは全快・半分・空・症状後最大HPの割合を�
 });
 
 test("編成の見出し・名前・本文・詳細数値は同梱書体の実グリフを使う", async ({ page }) => {
+  await collectCoverage(page);
   await page.goto("/tests/fixtures/party-approved.html?mode=symptoms");
   await readyFormation(page);
   await expectRenderedFont(page, ".party-heading .ui-title", "Noto Serif JP", 700);
@@ -630,6 +643,7 @@ for (const width of [320, 1920]) {
 test.describe(() => {
   test.use({ reducedMotion: "no-preference", hasTouch: true, viewport: { width: 320, height: 650 } });
   test("狭幅650px高でもタッチで選択しTabで末尾の詳細と確定へ到達する", async ({ page }) => {
+    await collectCoverage(page);
     await page.goto("http://127.0.0.1:4174/tests/fixtures/party-selection.html?count=12&long=1");
     await page.getByRole("button", { name: "枠 1", exact: true }).tap();
     const first = page.locator(".party-candidate").first();
@@ -671,6 +685,7 @@ test.describe(() => {
 
 test("編成候補の名前とHPは範囲選択とコピーを維持して確定できる", async ({ page }) => {
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await collectCoverage(page);
   await page.goto("/tests/fixtures/party-selection.html?count=2");
   await page.getByRole("button", { name: "枠 1", exact: true }).click();
   for (const text of [page.locator(".party-candidate-name").first(), page.locator(".party-candidate-hp").first()]) {

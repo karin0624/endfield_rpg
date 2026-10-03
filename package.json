@@ -10,7 +10,7 @@
     "dev": "vite",
     "lint": "biome check .",
     "format": "biome check --write .",
-    "check": "npm run lint && tsc --noEmit && mkdir -p test-results && vitest list --no-static-parse --json=test-results/vitest-discovery.json && vitest run --coverage --reporter=default --reporter=json --outputFile.json=test-results/vitest.json && node scripts/check-test-execution.mjs vitest test-results/vitest-discovery.json test-results/vitest.json",
+    "check": "npm run lint && tsc --noEmit && mkdir -p test-results && vitest list --no-static-parse --json=test-results/vitest-discovery.json && vitest run --coverage --reporter=default --reporter=json --reporter=./scripts/vitest-execution-reporter.ts --outputFile.json=test-results/vitest.json && node scripts/check-test-execution.mjs vitest test-results/vitest-discovery.json test-results/vitest.json",
     "build": "node scripts/check-assets.mjs && tsc --noEmit && vite build",
     "test:e2e": "sh scripts/run-browser-test.sh e2e",
     "test:e2e:inside": "npm run build && npm run build:debug && PLAYWRIGHT_JSON_OUTPUT_FILE=test-results/playwright-discovery.json playwright test --list --reporter=json && playwright test && node scripts/check-test-execution.mjs playwright test-results/playwright-discovery.json test-results/playwright.json",
@@ -20,7 +20,9 @@
     "test:editor:inside": "PLAYWRIGHT_EDITOR=1 playwright test --project settings",
     "build:debug": "node scripts/check-assets.mjs && tsc --noEmit && vite build --mode debug --outDir dist-debug",
     "test:coverage": "sh scripts/run-browser-test.sh coverage",
-    "test:coverage:inside": "COVERAGE_BROWSER=1 vite build --outDir dist-coverage && COVERAGE_BROWSER=1 vite build --mode debug --outDir dist-debug-coverage && PLAYWRIGHT_JSON_OUTPUT_FILE=test-results/playwright-coverage-discovery.json playwright test --list --reporter=json && COVERAGE_BROWSER=1 playwright test && node scripts/check-test-execution.mjs playwright test-results/playwright-coverage-discovery.json test-results/playwright-coverage.json"
+    "test:coverage:inside": "COVERAGE_BROWSER=1 vite build --outDir dist-coverage && COVERAGE_BROWSER=1 vite build --mode debug --outDir dist-debug-coverage && PLAYWRIGHT_JSON_OUTPUT_FILE=test-results/playwright-coverage-discovery.json playwright test --list --reporter=json && COVERAGE_BROWSER=1 playwright test && node scripts/check-test-execution.mjs playwright test-results/playwright-coverage-discovery.json test-results/playwright-coverage.json coverage",
+    "test:long": "sh scripts/run-browser-test.sh long",
+    "test:long:inside": "npm run build && PLAYWRIGHT_JSON_OUTPUT_FILE=test-results/playwright-long-discovery.json playwright test --config playwright.long.config.ts --list --reporter=json && playwright test --config playwright.long.config.ts && node scripts/check-test-execution.mjs playwright test-results/playwright-long-discovery.json test-results/playwright-long.json long"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.14",

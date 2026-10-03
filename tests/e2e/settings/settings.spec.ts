@@ -4,6 +4,7 @@ import { collectCoverage, expect, test } from "../coverage";
 
 test("詳細は長い名前と複数症状を狭幅で読め、画像未提供でも能力を表示する", async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 320, height: 844 });
+  await collectCoverage(page);
   await page.goto("/tests/fixtures/party-details.html");
   await page.getByRole("button", { name: "枠 1", exact: true }).click();
   const opener = page.getByRole("button", { name: /^ロッシ.*の詳細$/ });
@@ -74,6 +75,7 @@ async function editSettings(page: Page) {
 }
 
 test("構図設定の静止画を比較する", async ({ page }) => {
+  await collectCoverage(page);
   await page.goto("/?debug=1&edit=1");
   await expect(page.getByRole("button", { name: "標準として保存", exact: true })).toBeEnabled({ timeout: 60_000 });
   await editSettings(page);
@@ -90,6 +92,7 @@ test("構図設定の静止画を比較する", async ({ page }) => {
 test("構図を一時保存・標準保存し、通常表示に反映する", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
+  await collectCoverage(page);
   await page.goto("/?debug=1&edit=1");
   const save = page.getByRole("button", { name: "標準として保存", exact: true });
   const editor = page.getByRole("complementary", { name: "構図設定" });
@@ -115,8 +118,10 @@ test("構図を一時保存・標準保存し、通常表示に反映する", as
   expect(exported).toMatchObject({ version: 2, ...changes });
   await save.click();
   await expect(message).toContainText("標準として保存しました");
+  await collectCoverage(page);
   await page.getByRole("link", { name: "保存済みの通常表示" }).click();
   await expect(page.getByRole("button", { name: "通常攻撃" })).toBeEnabled({ timeout: 60_000 });
+  await collectCoverage(page);
   await page.getByRole("link", { name: "構図設定", exact: true }).click();
   await expect(save).toBeEnabled({ timeout: 60_000 });
   for (const [key, value] of Object.entries(changes))
@@ -132,7 +137,8 @@ test("構図を一時保存・標準保存し、通常表示に反映する", as
   await expect(save).toBeEnabled();
   await fieldInput(page, "allyCenterX").fill("15");
   await expect(save).toBeDisabled();
-  await expect(message).toContainText("地面の範囲外");
+  // Disabled also covers pending work; wait for the real GLB grounding result, as for initial asset readiness.
+  await expect(message).toContainText("地面の範囲外", { timeout: 60_000 });
   await page.getByRole("button", { name: "保存済みに戻す" }).click();
   await expect(save).toBeEnabled();
   expect(errors).toEqual([]);
@@ -152,6 +158,7 @@ test("保存APIは不正な設定や別サイトからの書き込みを拒否�
 });
 
 test("会話画面の立ち絵と本文位置を調整・保存し、通常表示へ反映する", async ({ page }) => {
+  await collectCoverage(page);
   await page.goto("/?debug=1&adventureEdit=1");
   const editor = page.getByRole("complementary", { name: "会話画面の配置設定" });
   const editorHeading = editor.getByRole("heading", { name: "会話画面の配置", exact: true });
@@ -206,6 +213,7 @@ test("会話画面の立ち絵と本文位置を調整・保存し、通常表�
   await page.getByRole("button", { name: "設定に戻る" }).click();
   await editor.getByRole("button", { name: "標準として保存" }).click();
   await expect(editor.getByRole("status")).toContainText("標準として保存しました");
+  await collectCoverage(page);
   await editor.getByRole("link", { name: "保存済みの通常表示" }).click();
   await expect(page.getByRole("heading", { name: "街の広場" })).toBeVisible();
   await page.getByRole("button", { name: "冒険者ギルド", exact: true }).click();
@@ -240,7 +248,8 @@ const battleInputExamples = {
 
 test("構図の全20項目は数値とスライダーが双方向同期しJSONへ出力される", async ({ page }) => {
   await page.setViewportSize({ width: 640, height: 480 });
-  await page.goto("/?debug=1&edit=1");
+  await collectCoverage(page);
+  await page.goto("/tests/fixtures/battle-editor.html");
   await expect(page.getByRole("button", { name: "標準として保存", exact: true })).toBeEnabled({ timeout: 60_000 });
   const adjusted: Record<string, number> = {};
   for (const [key, value] of Object.entries(battleInputExamples)) {
@@ -274,6 +283,7 @@ for (const kind of ["battle", "adventure"] as const) {
 
   test(`${kind}設定は保存の応答待ち・失敗・再試行を通じて編集値と最後の標準を保つ`, async ({ page }) => {
     await page.setViewportSize({ width: 640, height: 480 });
+    await collectCoverage(page);
     await page.goto(`/?debug=1&${query}=1`);
     const panel = page.getByRole("complementary", { name: panelName });
     const save = panel.getByRole("button", { name: "標準として保存", exact: true });
@@ -332,6 +342,7 @@ for (const kind of ["battle", "adventure"] as const) {
         throw new DOMException("Storage denied", "SecurityError");
       };
     }, draftKey);
+    await collectCoverage(page);
     await page.goto(`/?debug=1&${query}=1`);
     const panel = page.getByRole("complementary", { name: panelName });
     const save = panel.getByRole("button", { name: "標準として保存", exact: true });
@@ -376,17 +387,21 @@ test("構図の壊れたdraftは理由を示し標準へ戻り、会話の無効
 });
 
 test("構図の通常表示は未保存draftを使わず、編集へ戻るとdraftだけを復元する", async ({ page }) => {
+  await collectCoverage(page);
   await page.goto("/?debug=1&battle=1");
   await expect(page.getByRole("button", { name: "通常攻撃", exact: true })).toBeEnabled({ timeout: 60_000 });
   const savedView = await page.locator("canvas").screenshot();
+  await collectCoverage(page);
   await page.getByRole("link", { name: "構図設定", exact: true }).click();
   await expect(page.getByRole("button", { name: "標準として保存", exact: true })).toBeEnabled({ timeout: 60_000 });
   await fieldInput(page, "cameraY").fill("12");
+  await collectCoverage(page);
   await page.getByRole("link", { name: "保存済みの通常表示" }).click();
   await expect(page.getByRole("button", { name: "通常攻撃", exact: true })).toBeEnabled({ timeout: 60_000 });
   // A metamorphic visual assertion: adding an editor-only draft must leave the
   // normal rendering identical to the saved view, including actual WebGL pixels.
   expect(await page.locator("canvas").screenshot()).toEqual(savedView);
+  await collectCoverage(page);
   await page.getByRole("link", { name: "構図設定", exact: true }).click();
   await expect(fieldInput(page, "cameraY")).toHaveValue("12", { timeout: 60_000 });
   await expect(page.getByRole("complementary", { name: "構図設定" }).getByRole("status")).toContainText("復元");
@@ -395,6 +410,7 @@ test("構図の通常表示は未保存draftを使わず、編集へ戻るとdra
 for (const mobile of [false, true]) {
   test(`会話の${mobile ? "縦" : "横"}画面設定は立ち絵・本文・送り矢印・選択肢の実配置を動かす`, async ({ page }) => {
     await page.setViewportSize({ width: mobile ? 390 : 1440, height: mobile ? 844 : 1080 });
+    await collectCoverage(page);
     await page.goto("/?debug=1&adventureEdit=1");
     const editor = page.getByRole("complementary", { name: "会話画面の配置設定" });
     const keyFor = (key: string) => (mobile ? `mobile${key[0].toUpperCase()}${key.slice(1)}` : key);

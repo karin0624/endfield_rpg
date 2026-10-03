@@ -1049,6 +1049,18 @@ test("選択マーカーは1個の立体として6秒で一周しreduced-motion�
     for (let n = 0; n < 4; n++) expect(fullTurn[i][n]).toBeCloseTo(initial[i][n], 0);
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.clock.runFor(32);
+  await expect.poll(() => page.evaluate(() => matchMedia("(prefers-reduced-motion: reduce)").matches)).toBe(true);
+  await expect(marker).toBeInViewport();
+  await expect
+    .poll(async () => {
+      const rectangles = await geometry();
+      return (
+        rectangles.length > 1 &&
+        rectangles.every((rectangle) => rectangle.every(Number.isFinite)) &&
+        rectangles.some((rectangle) => rectangle[2] > 0 && rectangle[3] > 0)
+      );
+    })
+    .toBe(true);
   const stopped = await geometry();
   await page.clock.runFor(2000);
   expect(await geometry()).toEqual(stopped);
@@ -1204,7 +1216,26 @@ for (const effect of ["攻撃", "回復"] as const) {
                 ? 180
                 : 0,
       );
-      await expect(stage).toHaveScreenshot(`battle-fx-${state}.png`, { animations: "allow", maxDiffPixels: 0 });
+      // Locator screenshots wait for stable rAF; this deliberately paused frame has no running rAF.
+      await expect(stage).toBeInViewport({ ratio: 1 });
+      const clip = await stage.boundingBox();
+      if (
+        !clip ||
+        ![clip.x, clip.y, clip.width, clip.height].every(Number.isFinite) ||
+        clip.width <= 0 ||
+        clip.height <= 0
+      )
+        throw new Error("The frozen FX stage needs a finite, visible screenshot rectangle");
+      // Match Playwright's enclosing integer rectangle for locator screenshots without waiting on paused rAF.
+      const x = Math.floor(clip.x + 0.001);
+      const y = Math.floor(clip.y + 0.001);
+      const width = Math.ceil(clip.x + clip.width - 0.001) - x;
+      const height = Math.ceil(clip.y + clip.height - 0.001) - y;
+      await expect(page).toHaveScreenshot(`battle-fx-${state}.png`, {
+        clip: { x, y, width, height },
+        animations: "allow",
+        maxDiffPixels: 0,
+      });
     }
     await page.getByRole("button", { name: "演出を省略" }).click();
     if (effect === "攻撃") await expect(page.getByRole("heading", { name: "戦闘に勝利しました" })).toBeVisible();

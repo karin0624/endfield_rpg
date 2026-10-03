@@ -229,7 +229,7 @@ function createEnvironment(
 
   const loadEnvironment = () => {
     environmentReady ??= (async () => {
-      const [, background] = await Promise.all([
+      const preparation = [
         loadGround().then((assets) => {
           if (!assets) return;
           if (environmentDisposed) {
@@ -246,8 +246,13 @@ function createEnvironment(
           }
         }),
         loadTexture(definition.background),
-      ]);
-      if (environmentDisposed) return;
+      ] as const;
+      // A failed image must not report completion while a model import can still allocate GPU resources.
+      const results = await Promise.allSettled(preparation);
+      for (const result of results) if (result.status === "rejected") throw result.reason;
+      const backgroundResult = results[1];
+      if (backgroundResult.status !== "fulfilled" || environmentDisposed) return;
+      const background = backgroundResult.value;
       backdrop = CreatePlane(
         "backdrop",
         { width: environment.backdrop.width, height: environment.backdrop.height },
@@ -457,10 +462,12 @@ function createEnvironment(
     });
     let cancelPreparation: (() => void) | undefined;
     const ready = (async () => {
-      const loaded = await Promise.race([
-        Promise.all([loadEnvironment(), ...layout.actors.map((actor) => loadTexture(actor.image))]),
-        cancelled,
-      ]);
+      const preparation = [loadEnvironment(), ...layout.actors.map((actor) => loadTexture(actor.image))] as const;
+      const settled = Promise.all(preparation).catch(async (error: unknown) => {
+        await Promise.allSettled(preparation);
+        throw error;
+      });
+      const loaded = await Promise.race([settled, cancelled]);
       if (disposed || loaded === undefined) return;
       const [, ...portraits] = loaded;
 

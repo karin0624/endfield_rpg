@@ -87,23 +87,28 @@ describe("公開スキル使用操作", () => {
         skill.id === "test-strike" ? { ...skill, scenes: ["branch"] as const } : skill,
       ),
     };
-    for (const result of [
-      use(state, "friend"),
-      use(state, "enemy", "test-heal"),
-      use(state, "enemy", "test-strike-advanced"),
-      use(state, "enemy", "test-strike", branchOnly),
-      use(state, "enemy", "test-strike", skillCatalog, -1),
+    for (const invoke of [
+      () => use(state, "friend"),
+      () => use(state, "enemy", "test-heal"),
+      () => use(state, "enemy", "test-strike-advanced"),
+      () => use(state, "enemy", "test-strike", branchOnly),
+      () => use(state, "enemy", "test-strike", skillCatalog, -1),
     ]) {
+      const before = structuredClone(state);
+      const result = invoke();
       expect(result.accepted).toBe(false);
-      expect(result.state).toEqual(state);
+      expect(state).toEqual(before);
+      expect(result.state).toEqual(before);
     }
     const accepted = use(state);
     if (!accepted.accepted) throw new Error(accepted.reason);
+    const beforeReplay = structuredClone(accepted.state);
     expect(use(accepted.state, "enemy", "test-strike", skillCatalog, state.logicalTime)).toMatchObject({
       accepted: false,
       reason: "action-not-current",
-      state: accepted.state,
+      state: beforeReplay,
     });
+    expect(accepted.state).toEqual(beforeReplay);
   });
   it("攻撃スキルもseed1の既知値で命中・外れを決め、拒否では乱数を進めない", () => {
     let state = start({ hitRate: 0.5, status: { ...healthyStatus(), haze: 10 } });

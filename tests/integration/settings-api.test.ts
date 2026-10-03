@@ -70,6 +70,32 @@ for (const kind of ["battle", "adventure"] as const) {
       expect(await readFile(file, "utf8")).toBe(saved);
       expect((await fetch(url, { method: "POST", headers, body: original })).status).toBe(200);
     });
+    it("reassembles a valid 4096-byte JSON when a UTF-8 character is split across received chunks", async () => {
+      const { file, original, server, url, headers } = await serve(kind);
+      const compact = JSON.stringify({ ...JSON.parse(original), note: "あ" });
+      const body = Buffer.from(compact + " ".repeat(4096 - Buffer.byteLength(compact)));
+      expect((await fetch(url, { method: "POST", headers, body })).status).toBe(200);
+      const receivedFirstChunk = new Promise<void>((resolve) =>
+        server.once("request", (incoming) => incoming.once("data", () => resolve())),
+      );
+      const streamed = request(url, { method: "POST", headers });
+      const completed = new Promise<number | undefined>((resolve, reject) => {
+        streamed.on("response", (response) => {
+          response.resume();
+          response.on("end", () => resolve(response.statusCode));
+        });
+        streamed.on("error", reject);
+      });
+      const split = body.indexOf(Buffer.from("あ")) + 1;
+      streamed.write(body.subarray(0, split));
+      try {
+        await receivedFirstChunk;
+      } finally {
+        streamed.end(body.subarray(split));
+      }
+      expect(await completed).toBe(200);
+      expect(JSON.parse(await readFile(file, "utf8"))).toEqual(JSON.parse(original));
+    });
     it("rejects a concurrent save with 409 and retains the old file until the first request completes", async () => {
       const { file, original, server, url, headers } = await serve(kind);
       const receiving = new Promise<void>((resolve) =>

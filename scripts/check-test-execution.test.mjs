@@ -81,3 +81,44 @@ it("rejects ambiguous case identities and results outside collection", () => {
     "Execution absent from collection: other",
   );
 });
+
+it("rejects passed Vitest JSON cases retaining errors from an earlier attempt", () => {
+  const report = {
+    testResults: [
+      {
+        name: "/repo/src/example.test.ts",
+        assertionResults: [{ ancestorTitles: [], title: "case", status: "passed", failureMessages: ["first failure"] }],
+      },
+    ],
+  };
+  expect(vitestCases(report, false, "/repo")[0].passed).toBe(false);
+});
+
+it("tracks case-level browser collection and the explicitly-run long suite root", () => {
+  const report = (annotations) => ({
+    suites: [
+      {
+        specs: [
+          {
+            id: "case",
+            file: "campaign.spec.ts",
+            tests: [
+              {
+                projectName: "built",
+                expectedStatus: "passed",
+                results: [{ status: "passed", retry: 0 }],
+                annotations,
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  });
+  expect(playwrightCases(report([]))[0].coverageRecorded).toBe(false);
+  expect(
+    playwrightCases(report([{ type: "browser-coverage", description: "documents=1,mappedEntries=1" }]))[0]
+      .coverageRecorded,
+  ).toBe(true);
+  expect(playwrightCases(report([]), false, "tests/long")[0].file).toBe("tests/long/campaign.spec.ts");
+});

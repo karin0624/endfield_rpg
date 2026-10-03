@@ -377,6 +377,44 @@ for (const failure of ["model-404", "model-invalid", "background-404"] as const)
   });
 }
 
+test("背景の失敗は保留中のモデル読込を完了させてから通知し退出で全資源を解放する", async ({ page }) => {
+  await observeWebGLResources(page);
+  let release = () => {};
+  let requested = () => {};
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const groundRequested = new Promise<void>((resolve) => {
+    requested = resolve;
+  });
+  await page.route("**/assets/ground/ground1.glb", async (route) => {
+    requested();
+    await held;
+    await route.continue();
+  });
+  await page.route("**/assets/backgrounds/landscape1.png", (route) =>
+    route.fulfill({ status: 404, body: "missing background" }),
+  );
+  await page.goto("/tests/fixtures/battle-lifecycle.html");
+  const backgroundFailed = page.waitForResponse(
+    (response) => response.url().endsWith("/assets/backgrounds/landscape1.png") && response.status() === 404,
+  );
+  await page.locator("#full").click();
+  await groundRequested;
+  await backgroundFailed;
+  try {
+    await expect(page.getByLabel("表示状態")).toHaveText("読込中");
+    await expect(page.getByRole("button", { name: "通常攻撃", exact: true })).toHaveCount(0);
+  } finally {
+    release();
+  }
+  await expect(page.getByLabel("表示状態")).toContainText("読込失敗", { timeout: 60_000 });
+  await expect(page.getByLabel("環境読込の完了回数")).toHaveText("1");
+  await page.locator("#dispose").click();
+  await expect(page.getByLabel("表示状態")).toHaveText("破棄済み");
+  await expect.poll(() => webGLResources(page)).toEqual({ Buffer: 0, Texture: 0, Program: 0 });
+});
+
 test("素材準備中は操作を公開せず準備完了後に初めて攻撃できる", async ({ page }) => {
   let release = () => {};
   const held = new Promise<void>((resolve) => {

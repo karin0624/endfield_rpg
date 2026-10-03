@@ -56,7 +56,9 @@ npm ci
 | `npm run build` | 型チェック後に配布用ファイルを`dist/`へ生成する |
 | `npm run test:e2e` | 固定コンテナで配布画面の描画・接続と、描画だけを代替した戦闘UIの実入力を確認する |
 | `npm run test:ui` | 固定コンテナで本番UI・実コアの戦闘操作と複数画面寸法を確認する。地形を描画せず、配布ビルドを必要としない |
-| `npm run test:editor` | 固定コンテナで構図設定のVRT・保存操作・描画資源を単独でを確認する |
+| `npm run test:editor` | 固定コンテナで構図設定のVRT・保存操作・描画資源を単独で確認する |
+| `npm run test:coverage` | 既定の全ブラウザprojectを解析buildで実行し、project別coverageを生成する |
+| `npm run test:long` | 長い通常campaign経路と10状態VRTを明示実行する。通常PR CIには含めない |
 
 `lint`と`check`はwatchモードを使わず、結果を終了コードで返す。Biomeの設定は[`biome.json`](biome.json)。`npm run format`はリポジトリ全体を書き換えるため、変更ファイルだけ整えるときは`npx biome check --write path/to/file`を使う。Codexは[`AGENTS.md`](AGENTS.md)の指示に従い、コード変更後に`npm run check`を実行する。ゲーム本体のテストにはブラウザ、DOM、Babylon.js、WebGLを必要としない。
 

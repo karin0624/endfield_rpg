@@ -36,11 +36,15 @@ export function battleSettingsPlugin(): Plugin {
         if (saving) return reply(409, "保存中です。少し待ってから再度保存してください。");
         saving = true;
         try {
-          let body = "";
+          const chunks: Buffer[] = [];
+          let bytes = 0;
           for await (const chunk of request) {
-            body += chunk.toString();
-            if (Buffer.byteLength(body) > 4096) return reply(413, "設定が大きすぎます。");
+            const buffer = Buffer.from(chunk);
+            bytes += buffer.length;
+            if (bytes > 4096) return reply(413, "設定が大きすぎます。");
+            chunks.push(buffer);
           }
+          const body = Buffer.concat(chunks, bytes).toString("utf8");
           let settings: BattleSettings;
           try {
             settings = parseBattleSettings(JSON.parse(body));
