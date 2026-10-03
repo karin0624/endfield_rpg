@@ -25,3 +25,11 @@
 ## Git管理
 
 `.gitattributes`はGLBとBlendファイルをGit LFS対象にしている。既存チェックアウトでは`git lfs pull`で実体を取得する。PNGは通常のGitで管理し、`dist/`や一時ファイルはコミットしない。
+
+## 出撃準備の生成背景
+
+`art-src/background/departure/endfield-departure-industrial-background.webp`は、承認済みの出撃準備コンセプトから生成した背景の保存用データ。実行用には同一バイト列を`public/assets/backgrounds/endfield-departure-industrial-background.webp`へコピーする。UI、文字、キャラクター、HP表示は別途HTML/CSS等で描画し、背景のみを実行用素材とする。
+
+構図・意匠の主参照は[エンドフィールド公式PlayStation Blog](https://blog.playstation.com/?p=420605)、補助参照は[原作アークナイツのPRTSホーム背景一覧](https://prts.wiki/w/首页场景一览)の「视野」。参照画像そのものは同梱していない。生成物であることは第三者の権利や利用許諾の保証を意味せず、参照元および生成時の利用条件は未確認。
+
+元PNGはChatGPT Libraryの`libfile_e1023fed8d908191a9de2163d1f46e4e`（version 0、`endfield-departure-industrial-background.png`）に保持。SHA-256は`ae343494b6fa167afe7d61749b7d03752f8166a740300505d20ce79da78e734d`。リポジトリには無劣化WebP派生を保存し、元PNGを上書きしない。寸法1672×941を維持し、拡大・色変更・内容変更はせず、RGBAへ復号した全画素の完全一致を検証済み。WebPのSHA-256は`1147382eb2c7a86c42938ab476df1f4d95d24260775326f64694edf5fa307c2f`。WebPも通常のGitで管理する。
