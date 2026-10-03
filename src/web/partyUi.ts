@@ -103,7 +103,7 @@ export function mountPartyUi(root: HTMLElement, options: PartyUiOptions, back: (
   const cards = Array.from({ length: 4 }, (_, slot) => {
     const card = document.createElement("div");
     card.className = "party-slot";
-    card.innerHTML = `<button type="button" class="party-slot-choice" aria-label="枠 ${slot + 1}" aria-describedby="party-slot-name-${slot} party-slot-hp-${slot} party-slot-state-${slot}">
+    card.innerHTML = `<button type="button" class="party-slot-choice ui-frame" aria-label="枠 ${slot + 1}" aria-describedby="party-slot-name-${slot} party-slot-hp-${slot} party-slot-state-${slot}">
       <span class="party-slot-portrait" aria-hidden="true"></span><span class="party-slot-name" id="party-slot-name-${slot}"></span>
       <span class="party-slot-hp" id="party-slot-hp-${slot}"></span></button><div class="party-slot-symptoms" id="party-slot-state-${slot}"></div>
       <button type="button" class="party-detail ui-button">詳細</button>`;
@@ -191,9 +191,7 @@ export function mountPartyUi(root: HTMLElement, options: PartyUiOptions, back: (
     const name = requiredElement<HTMLElement>(root, "[data-pending-name]");
     const summary = requiredElement<HTMLElement>(root, "[data-pending-summary]");
     const reason = requiredElement<HTMLElement>(root, "[data-pending-reason]");
-    name.textContent = member
-      ? `${characterById(options.characters, member.id).name}（未確定）`
-      : "仲間を選んでください";
+    name.textContent = member ? characterById(options.characters, member.id).name : "仲間を選んでください";
     summary.textContent = "";
     const preview = requiredElement<HTMLElement>(root, "[data-pending-portrait]");
     preview.replaceChildren();
@@ -262,7 +260,7 @@ export function mountPartyUi(root: HTMLElement, options: PartyUiOptions, back: (
         const character = characterById(options.characters, member.id);
         const button = document.createElement("button");
         button.type = "button";
-        button.className = "party-candidate";
+        button.className = "party-candidate ui-frame";
         button.value = member.id;
         button.setAttribute("aria-label", character.name);
         const face = document.createElement("span");
@@ -284,7 +282,10 @@ export function mountPartyUi(root: HTMLElement, options: PartyUiOptions, back: (
         ]
           .filter(Boolean)
           .join(" · ");
-        button.append(face, name, hp, state);
+        const info = document.createElement("span");
+        info.className = "party-candidate-info";
+        info.append(name, hp, state);
+        button.append(face, info);
         button.addEventListener("click", () => {
           candidateId = member.id;
           renderPending();

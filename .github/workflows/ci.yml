@@ -60,5 +60,6 @@ jobs:
             test-results/campaign-*/campaign-*.png
             test-results/party-ui-*/formation-*.png
             test-results/party-ui-*/party-*.png
+            test-results/**/*-readiness.json
           if-no-files-found: error
           retention-days: 14

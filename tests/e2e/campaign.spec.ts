@@ -1,4 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
+import { formationScreenshot } from "./formationEvidence";
 
 async function start(page: Page) {
   await page.goto("/");
@@ -18,6 +19,9 @@ async function save(page: Page, title = false) {
 test("通常版で導入・ホーム・街・編成・戦闘・帰還・保存再開を通す", async ({ page }, info) => {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
+  page.on("response", (response) => {
+    if (response.url().includes("/assets/") && !response.ok()) errors.push(`${response.status()} ${response.url()}`);
+  });
   await page.setViewportSize({ width: 1920, height: 1080 });
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "ENDFIELD RPG" })).toBeVisible();
@@ -44,19 +48,19 @@ test("通常版で導入・ホーム・街・編成・戦闘・帰還・保存�
   await expect(page.locator("[data-calendar]")).toHaveText("1日目 · 夜");
   await page.getByRole("button", { name: "出撃編成を見る" }).click();
   await expect(page.getByRole("button", { name: "出発する", exact: true })).toBeHidden();
-  await page.screenshot({ path: info.outputPath("campaign-formation-home-1920.png") });
+  await formationScreenshot(page, info, "campaign-formation-home-1920.png");
   await page.getByRole("button", { name: "枠 1", exact: true }).click();
-  await page.screenshot({ path: info.outputPath("campaign-formation-selection-1920.png") });
+  await formationScreenshot(page, info, "campaign-formation-selection-1920.png");
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: /ロッシの詳細/ }).click();
-  await page.screenshot({ path: info.outputPath("campaign-formation-details-1920.png") });
+  await formationScreenshot(page, info, "campaign-formation-details-1920.png");
   await cleanNormal(page);
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "戻る", exact: true }).click();
   await page.getByRole("button", { name: "探索先を選ぶ", exact: true }).click();
   await page.getByRole("button", { name: "ダンジョン", exact: true }).click();
   await expect(page.getByRole("heading", { name: "出発準備", exact: true })).toBeVisible();
-  await page.screenshot({ path: info.outputPath("campaign-formation-departure-1920.png") });
+  await formationScreenshot(page, info, "campaign-formation-departure-1920.png");
   await page.getByRole("button", { name: "出発する", exact: true }).click();
   await cleanNormal(page);
   await page.getByRole("button", { name: "思わぬ遭遇、選択可能" }).click();
