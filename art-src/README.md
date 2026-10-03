@@ -28,7 +28,7 @@
 
 ## 出撃準備の生成背景
 
-`art-src/background/departure/endfield-departure-industrial-background.webp`は、承認済みの出撃準備コンセプトから生成した背景の保存用データ。実行用には同一バイト列を`public/assets/backgrounds/endfield-departure-industrial-background.webp`へコピーする。UI、文字、キャラクター、HP表示は別途HTML/CSS等で描画し、背景のみを実行用素材とする。
+`art-src/background/departure/endfield-departure-industrial-background.webp`は、承認済みの出撃準備コンセプトから生成した背景の保存用データ。実行用には同一バイト列を`public/assets/backgrounds/endfield-departure-industrial-background.webp`へコピーする。UI、文字、キャラクター、HP表示は別途HTML/CSS等で描画し、背景のみを実行用素材とする。この素材の出典・採用記録は、完成画面の承認を意味しない。必要情報を反映した完成画像の承認と同一解像度比較は[UI開発の必須ゲート](../docs/ui-asset-production.md#ui開発の必須ゲート)に従う。
 
 構図・意匠の主参照は[エンドフィールド公式PlayStation Blog](https://blog.playstation.com/?p=420605)、補助参照は[原作アークナイツのPRTSホーム背景一覧](https://prts.wiki/w/首页场景一览)の「视野」。参照画像そのものは同梱していない。生成物であることは第三者の権利や利用許諾の保証を意味せず、参照元および生成時の利用条件は未確認。
 
