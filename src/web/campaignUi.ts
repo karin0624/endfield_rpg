@@ -320,7 +320,7 @@ export function mountCampaign(root: HTMLDivElement): () => void {
     window.addEventListener(
       "keydown",
       (event) => {
-        if (event.key === "Escape") showHome();
+        if (event.key === "Escape" && !event.repeat && !event.defaultPrevented) showHome();
       },
       { signal: viewEvents.signal },
     );
