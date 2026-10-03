@@ -36,4 +36,6 @@
 
 ## 共通UIのフォント
 
-Noto Serif JP（weight 500）とNoto Sans JP（weight 400）を`public/assets/fonts/`に同梱する。Google Fontsの[Serif JP](https://github.com/google/fonts/tree/main/ofl/notoserifjp)・[Sans JP](https://github.com/google/fonts/tree/main/ofl/notosansjp)の可変TrueType原本をFontToolsで指定weightへ固定し、WOFF2へ可逆圧縮した。グリフを削る部分集合化は行っていない。各原本のSIL Open Font License 1.1を同じディレクトリへ同梱する。CSSでは既存画面に影響しない`Endfield UI Serif` / `Endfield UI Sans`の名前で参照する。
+Noto Serif JP（weight 500・700）とNoto Sans JP（weight 400）を`public/assets/fonts/`に同梱する。Google Fontsの[Serif JP](https://github.com/google/fonts/tree/main/ofl/notoserifjp)・[Sans JP](https://github.com/google/fonts/tree/main/ofl/notosansjp)の可変TrueType原本をFontToolsで指定weightへ固定し、WOFF2へ可逆圧縮した。グリフを削る部分集合化は行っていない。各原本のSIL Open Font License 1.1を同じディレクトリへ同梱する。CSSでは既存画面に影響しない`Endfield UI Serif` / `Endfield UI Sans`の名前で参照する。
+
+編成用の`public/assets/ui/*.svg`は承認画像の罫線・角・材質をHTML部品の背景として再現するためのベクター部品。文字・数値・人物を含まず、完成画面を背景へ貼っていない。生成画像の元レイヤーは未提供であり、元画像との材質一致は未解消。

@@ -43,7 +43,9 @@ export async function formationScreenshot(page: Page, info: TestInfo, filename: 
     nodeId: root.nodeId,
     selector: (await page.locator(".character-details[open]").count())
       ? ".character-details[open] .ui-title"
-      : ".formation-screen .ui-title",
+      : (await page.locator(".party-selection[open]").count())
+        ? ".party-selection[open] .ui-title"
+        : ".formation-screen .ui-title",
   });
   const { fonts } = await session.send("CSS.getPlatformFontsForNode", { nodeId });
   expect(

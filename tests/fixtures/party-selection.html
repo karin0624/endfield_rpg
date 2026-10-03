@@ -9,7 +9,7 @@
     import { characters } from "/src/content/characters.ts";
     import { initialGameOptions } from "/src/content/initialGameOptions.ts";
     import { createInitialGameState } from "/src/game/createInitialGameState.ts";
-    import { applyPartyStatus, editExpeditionParty } from "/src/game/expedition.ts";
+    import { applyPartyStatus, confirmExpeditionParty, editExpeditionParty } from "/src/game/expedition.ts";
     import { createParty } from "/src/game/party.ts";
     import { mountPartyUi } from "/src/web/partyUi.ts";
     import "/src/web/style.css";
@@ -20,17 +20,24 @@
       id: `fixture-${index + 3}`, name: `仲間 ${index + 3}`, maxHp: 200, speed: 100, attackPower: 8,
     }))];
     if (params.has("long")) definitions[definitions.length - 1].name = "長い名前の仲間（折り返しと欠けがないことを確認する表示条件）";
+    const stressIndices = params.has("stress") ? [0, 4, 5] : [];
+    for (const index of stressIndices) definitions[index].name = `長い名前の仲間${index + 1}（折り返しと欠けがないことを確認する表示条件）`;
     let game = { adventure: createInitialGameState(initialGameOptions), party: createParty(definitions, definitions.map(({ id }) => id)), dungeon: null };
     for (let slot = 1; slot < Math.min(4, count); slot++) game = editExpeditionParty(game, slot, definitions[slot].id).state;
     game = applyPartyStatus(game, definitions[definitions.length - 1].id, { kind: "physicalFatigue", amount: 25 }, definitions);
     game = applyPartyStatus(game, definitions[definitions.length - 1].id, { kind: "haze", amount: 25 }, definitions);
+    for (const index of stressIndices) {
+      game = applyPartyStatus(game, definitions[index].id, { kind: "physicalFatigue", amount: 50 }, definitions);
+      game = applyPartyStatus(game, definitions[index].id, { kind: "haze", amount: 75 }, definitions);
+    }
+    if (stressIndices.length) game = { ...game, party: { ...game.party, members: game.party.members.map((member, index) => stressIndices.includes(index) ? { ...member, mentalFatigue: 50 } : member) } };
     let edits = 0;
     const capture = () => { document.querySelector("#state").textContent = JSON.stringify(game); document.querySelector("#edits").textContent = String(edits); };
     document.querySelector("#snapshot").onclick = capture;
     mountPartyUi(document.querySelector("#fixture"), {
       context: params.has("edit") ? "edit" : "departure",
       characters: definitions, getParty: () => game.party, getCalendarLabel: () => "1日目 · 昼",
-      edit: (slot, id) => { edits++; const result = editExpeditionParty(game, slot, id); game = result.state; capture(); return result; },
+      confirm: (slots) => { edits++; const result = confirmExpeditionParty(game, slots); game = result.state; capture(); return result; },
       depart: () => ({ accepted: false, state: game, reason: "action-in-progress" }),
     }, () => {});
     capture();

@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ja">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>承認済み編成画像の比較条件</title>
+  <section class="party-editor" id="fixture" aria-label="出撃編成"></section>
+  <script type="module">
+    import { characters } from "/src/content/characters.ts";
+    import { initialGameOptions } from "/src/content/initialGameOptions.ts";
+    import { createInitialGameState } from "/src/game/createInitialGameState.ts";
+    import { applyPartyStatus, confirmExpeditionParty } from "/src/game/expedition.ts";
+    import { createParty } from "/src/game/party.ts";
+    import { mountPartyUi } from "/src/web/partyUi.ts";
+    import "/src/web/style.css";
+
+    const mode = new URLSearchParams(location.search).get("mode");
+    // Approved comparison data only; production Gilberta remains max HP 18.
+    const definitions = characters.map((character) => ({ ...character, maxHp: 20 }));
+    let game = { adventure: createInitialGameState(initialGameOptions), party: createParty(definitions, ["player", "gilberta"]), dungeon: null };
+    game = confirmExpeditionParty(game, ["player", "gilberta", null, null]).state;
+    if (mode === "symptoms") {
+      game = applyPartyStatus(game, "player", { kind: "physicalFatigue", amount: 50 }, definitions);
+      game = applyPartyStatus(game, "player", { kind: "haze", amount: 75 }, definitions);
+    }
+    if (mode === "disabled") game = { ...game, party: { ...game.party, members: game.party.members.map((member) => ({...member, hp: 0})) } };
+    mountPartyUi(document.querySelector("#fixture"), {
+      characters: definitions, getParty: () => game.party, getCalendarLabel: () => "1日目 · 昼",
+      confirm: (slots) => { const result = confirmExpeditionParty(game, slots); game = result.state; return result; },
+      depart: () => ({ accepted: false, state: game, reason: "action-in-progress" }),
+    }, () => {});
+  </script>
+</html>

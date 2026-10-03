@@ -16,7 +16,8 @@
     import { chooseGrowthSkill, grownCharacters, rewardGrowth } from "/src/game/growthRuntime.ts";
     import { createParty } from "/src/game/party.ts";
     import { resetExplorationSkills } from "/src/game/skillAcquisition.ts";
-    import { mountPartyUi } from "/src/web/partyUi.ts";
+    import { mountCharacterDetailsUi } from "/src/web/characterDetailsUi.ts";
+    import "/src/web/party.css";
     import "/src/web/style.css";
 
     const params = new URLSearchParams(location.search);
@@ -50,11 +51,13 @@
       game = { ...game, growth: result.state };
       capture();
     };
-    mountPartyUi(document.querySelector("#fixture"), {
-      characters: grownCharacters(game, rules), getParty: () => game.party, getCalendarLabel: () => "1日目 · 昼",
-      getDetailsContext: () => ({ characters: grownCharacters(game, rules), baseCharacters: definitions, growth: game.growth, rules }),
-      edit: () => { throw new Error("閲覧中に編集されました"); }, depart: () => { throw new Error("閲覧中に出撃しました"); },
-    }, () => {});
+    const root = document.querySelector("#fixture");
+    const opener = document.createElement("button");
+    opener.textContent = `${definitions[0].name}の詳細`;
+    root.append(opener);
+    const details = mountCharacterDetailsUi(root, grownCharacters(game, rules), () => game.party,
+      () => ({ characters: grownCharacters(game, rules), baseCharacters: definitions, growth: game.growth, rules }));
+    opener.onclick = () => details.open("player", opener);
     capture();
   </script>
 </html>

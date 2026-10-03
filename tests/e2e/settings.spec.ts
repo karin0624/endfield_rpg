@@ -4,9 +4,10 @@ import { expect, type Page, test } from "@playwright/test";
 test("詳細は長い名前と複数症状を狭幅で読め、画像未提供でも能力を表示する", async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 320, height: 844 });
   await page.goto("/tests/fixtures/party-details.html");
+  await page.getByRole("button", { name: "枠 1", exact: true }).click();
   const opener = page.getByRole("button", { name: /^ロッシ.*の詳細$/ });
   await opener.click();
-  const details = page.getByRole("dialog");
+  const details = page.locator(".character-details");
   await expect(details.getByRole("heading", { name: /ロッシ（長い名前/ })).toBeInViewport();
   await expect(details.getByRole("button", { name: "編成へ戻る" })).toBeInViewport();
   await details.getByText(/肉体疲労・軽度/).scrollIntoViewIfNeeded();

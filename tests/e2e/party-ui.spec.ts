@@ -2,64 +2,64 @@ import { expect, test } from "@playwright/test";
 import { formationScreenshot, readyFormation } from "./formationEvidence";
 
 for (const count of [12, 24]) {
-  test(`${count}候補の閲覧と詳細復帰は未確定のまま、確定だけが一度編成を変更する`, async ({ page }, testInfo) => {
+  test(`${count}候補を仮編集し、欠番保持・詳細復帰・確定一回・Esc反映を確認する`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width: 1920, height: 1080 });
     await page.goto(`/tests/fixtures/party-selection.html?count=${count}`);
     const before = await page.locator("#state").textContent();
     const slot = page.getByRole("button", { name: "枠 2", exact: true });
-    await expect(slot).toHaveAccessibleDescription(/ギルベルタ.*HP 18 \/ 18/);
-    await slot.focus();
-    await page.keyboard.press("Enter");
-    const grid = page.getByRole("group", { name: "候補一覧" });
-    await expect(grid.getByRole("button")).toHaveCount(count);
-    await expect(grid.getByRole("button", { name: "ロッシ", exact: true })).toHaveAccessibleDescription(
-      /HP 20 \/ 20.*編成中/,
-    );
-    const candidate = grid.getByRole("button", { name: `仲間 ${count}`, exact: true });
-    await formationScreenshot(page, testInfo, `party-${count}-1920-top.png`);
-    // Real keyboard traversal scrolls the focused candidate into view without selecting it.
-    for (let index = 2; index < count; index++) await page.keyboard.press("Tab");
-    await expect(candidate).toBeFocused();
-    await expect(candidate).toBeInViewport();
-    await page.keyboard.press("Enter");
-    await candidate.dblclick();
-    await expect(candidate).toHaveAttribute("aria-pressed", "true");
-    const handle = await grid.elementHandle();
-    const scroll = await (await handle?.getProperty("scrollTop"))?.jsonValue();
-    const detail = page.getByRole("button", { name: "詳細", exact: true });
-    for (let attempt = 0; attempt < 3; attempt++) {
-      await detail.click();
-      const dialog = page.getByRole("dialog");
-      await expect(dialog.getByRole("heading", { name: `仲間 ${count}`, exact: true })).toBeVisible();
-      await expect(dialog).toContainText("160 / 160");
-      await expect(dialog).toContainText("92.31%");
-      if (attempt === 1) await dialog.getByRole("button", { name: "編成へ戻る" }).click();
-      else await page.keyboard.press("Escape");
-      await expect(detail).toBeFocused();
-      await expect(grid).toHaveJSProperty("scrollTop", scroll);
-      await expect(candidate).toHaveAttribute("aria-pressed", "true");
-      await expect(slot).toContainText("ギルベルタ");
-    }
-    for (const choice of await page.locator(".party-slot-choice").all()) await expect(choice).toBeInViewport();
-    await formationScreenshot(page, testInfo, `party-${count}-1920.png`);
-    await page.keyboard.press("Escape");
-    await expect(slot).toBeFocused();
-    await expect(slot).toContainText("ギルベルタ");
-    await page.getByRole("button", { name: "状態を確認", exact: true }).click();
-    await expect(page.locator("#state")).toHaveText(before ?? "");
-    await expect(page.locator("#edits")).toHaveText("0");
     await slot.click();
-    await expect(grid.getByRole("button", { name: "ギルベルタ", exact: true })).toHaveAttribute("aria-pressed", "true");
-    await candidate.click();
-    await page.getByRole("button", { name: "入れ替える", exact: true }).dblclick();
+    const grid = page.getByRole("group", { name: "候補一覧" });
+    const choices = grid.locator(".party-candidate");
+    await expect(choices).toHaveCount(count);
+    await expect(choices.last()).toBeDisabled();
+    await expect(choices.last()).toHaveAccessibleDescription(/4人まで/);
+    await choices.last().focus();
+    await page.keyboard.press("Enter");
+    await expect(choices.last()).toHaveAttribute("aria-pressed", "false");
+    await expect(grid.locator('.party-candidate[aria-pressed="true"]')).toHaveCount(4);
+    await expect(choices.first()).toHaveAccessibleDescription(/隊列 1/);
+    await expect(page.locator("#state")).toHaveText(before ?? "");
+    await expect(page.getByRole("button", { name: "戻る", exact: true })).toBeHidden();
+    await choices.nth(1).click();
+    await expect(choices.nth(1)).toHaveAttribute("aria-pressed", "false");
+    await expect(choices.nth(2)).toHaveAccessibleDescription(/隊列 3/);
+    const last = choices.last();
+    await choices.nth(1).focus();
+    for (let index = 1; index < count - 1; index++) {
+      await page.keyboard.press("Tab");
+      await page.keyboard.press("Tab");
+    }
+    await expect(last).toBeFocused();
+    await expect(last).toBeInViewport();
+    await page.keyboard.press("Space");
+    await expect(last).toHaveAccessibleDescription(/隊列 2/);
+    const scroll = await grid.evaluate((node) => node.scrollTop);
+    const detail = grid.getByRole("button", { name: `仲間 ${count}の詳細`, exact: true });
+    await detail.click();
+    const dialog = page.locator(".character-details");
+    await expect(dialog).toContainText("160 / 160");
+    await page.keyboard.press("Escape");
+    await expect(detail).toBeFocused();
+    await expect(grid).toHaveJSProperty("scrollTop", scroll);
+    await expect(last).toHaveAccessibleDescription(/隊列 2/);
+    await expect(page.locator("#state")).toHaveText(before ?? "");
+    await formationScreenshot(page, testInfo, `party-${count}-1920.png`);
+    await page.getByRole("button", { name: "確定", exact: true }).dblclick();
     await expect(slot).toContainText(`仲間 ${count}`);
-    await expect(slot).toBeFocused();
     await expect(page.locator("#edits")).toHaveText("1");
+    await slot.click();
+    await choices.first().click();
+    await expect(choices.nth(2)).toHaveAccessibleDescription(/隊列 3/);
+    await page.keyboard.down("Escape");
+    await page.keyboard.down("Escape");
+    await page.keyboard.up("Escape");
+    await expect(page.getByRole("heading", { name: "出発準備", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "枠 1", exact: true })).toContainText(`仲間 ${count}`);
+    await expect(page.locator("#edits")).toHaveText("2");
   });
 }
 
-test("長名・未提供画像・他枠の重複と狭幅・低い画面での確定取消", async ({ page }, testInfo) => {
-  await page.goto("/tests/fixtures/party-selection.html?long=1");
+test("長名・未提供画像・狭幅・低い画面で詳細と確定へ到達できる", async ({ page }, testInfo) => {
   for (const [width, height] of [
     [320, 844],
     [390, 844],
@@ -71,45 +71,39 @@ test("長名・未提供画像・他枠の重複と狭幅・低い画面での�
     [1920, 500],
   ]) {
     await page.setViewportSize({ width, height });
-    const slot = page.getByRole("button", { name: "枠 4", exact: true });
-    await slot.click();
-    const grid = page.getByRole("group", { name: "候補一覧" });
-    if (width > 900) {
-      const candidates = await page.locator(".party-candidates").boundingBox();
-      const preview = await page.locator(".party-current").boundingBox();
-      expect((candidates?.x ?? width) + (candidates?.width ?? width)).toBeLessThan(preview?.x ?? 0);
-    } else {
-      const candidates = await page.locator(".party-candidates").boundingBox();
-      const preview = await page.locator(".party-current").boundingBox();
-      expect((preview?.y ?? height) + (preview?.height ?? height)).toBeLessThan(candidates?.y ?? 0);
-    }
-    await grid.getByRole("button", { name: "ロッシ", exact: true }).click();
-    await expect(page.getByRole("button", { name: "入れ替える", exact: true })).toBeDisabled();
-    await expect(page.getByText("編成中。先に元の枠を空けてください。")).toBeVisible();
-    const candidate = grid.getByRole("button", { name: /^長い名前/ });
-    await candidate.click();
+    await page.goto("/tests/fixtures/party-selection.html?long=1");
+    await page.getByRole("button", { name: "枠 4", exact: true }).click();
+    const candidate = page
+      .getByRole("group", { name: "候補一覧" })
+      .getByRole("button", { name: /^長い名前/, exact: false })
+      .first();
+    await candidate.scrollIntoViewIfNeeded();
     await expect(candidate).toContainText("画像なし");
-    const detail = page.getByRole("button", { name: "詳細", exact: true });
+    const detail = page.getByRole("button", { name: /^長い名前.*の詳細$/ });
     await detail.click();
-    const dialog = page.getByRole("dialog");
+    const dialog = page.locator(".character-details");
     await expect(dialog.getByRole("heading", { name: /^長い名前/ })).toBeVisible();
     await dialog.getByText(/肉体疲労・軽度/).scrollIntoViewIfNeeded();
     await expect(dialog.getByText(/肉体疲労・軽度/)).toBeInViewport();
     await page.keyboard.press("Escape");
     await expect(detail).toBeFocused();
-    const confirm = page.getByRole("button", { name: "入れ替える", exact: true });
+    const card = candidate.locator("..");
+    const cardBox = await card.boundingBox();
+    const hpBox = await card.locator(".party-candidate-hp").boundingBox();
+    expect((hpBox?.y ?? Infinity) + (hpBox?.height ?? 0)).toBeLessThanOrEqual(
+      (cardBox?.y ?? 0) + (cardBox?.height ?? 0),
+    );
+    const confirm = page.getByRole("button", { name: "確定", exact: true });
     await confirm.scrollIntoViewIfNeeded();
     await expect(confirm).toBeInViewport();
-    const bounds = await page.locator(".party-workspace").boundingBox();
+    const bounds = await page.locator(".party-candidates").boundingBox();
     expect(bounds?.x).toBeGreaterThanOrEqual(0);
     expect((bounds?.x ?? width) + (bounds?.width ?? width)).toBeLessThanOrEqual(width);
     await readyFormation(page);
-    await page.locator(".party-editor").screenshot({ path: testInfo.outputPath(`party-long-${width}-${height}.png`) });
-    await page.getByRole("button", { name: "戻る", exact: true }).click();
-    await expect(slot).toBeFocused();
-    await expect(slot).toContainText("仲間 4");
+    await page.screenshot({ path: testInfo.outputPath(`party-long-${width}-${height}.png`) });
+    await confirm.click();
+    await expect(page.getByRole("button", { name: "枠 4", exact: true })).toContainText("仲間 4");
   }
-  await expect(page.locator("#edits")).toHaveText("0");
 });
 
 for (const width of [320, 390, 1920]) {
@@ -183,61 +177,45 @@ test("初期習得の未決と空を区別し、タップで詳細を閉じて�
   await context.close();
 });
 
-test("共通画面の位置と操作文脈を保ち、選択・focus・非活性を区別する", async ({ page }, testInfo) => {
-  await page.setViewportSize({ width: 1920, height: 1080 });
-  await page.goto("/tests/fixtures/party-selection.html?count=2");
-  const title = page.getByRole("heading", { name: "出発準備", exact: true });
-  const primary = page.getByRole("button", { name: "出発する", exact: true });
-  const back = page.getByRole("button", { name: "戻る", exact: true });
-  await readyFormation(page);
-  await expect(title).toHaveCSS("font-size", "48px");
-  expect(await title.boundingBox()).toMatchObject({ x: 64, y: 48 });
-  expect(await primary.boundingBox()).toMatchObject({ x: 1576, y: 968, width: 280, height: 64 });
-  expect(await back.boundingBox()).toMatchObject({ x: 64, y: 976, width: 160, height: 48 });
-  for (const [control, cut] of [
-    [primary, 24],
-    [back, 16],
+test("承認画像の4状態を同じfixtureと1672×941で実撮影する", async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 1672, height: 941 });
+  for (const [name, mode, selection] of [
+    ["departure", "normal", false],
+    ["selection", "normal", true],
+    ["disabled", "disabled", false],
+    ["symptoms", "symptoms", true],
   ] as const) {
-    for (const layer of ["::before", "::after"]) {
-      expect(await control.evaluate((button, pseudo) => getComputedStyle(button, pseudo).clipPath, layer)).toBe(
-        `polygon(${cut}px 0px, calc(100% - ${cut}px) 0px, 100% ${cut}px, 100% calc(100% - ${cut}px), calc(100% - ${cut}px) 100%, ${cut}px 100%, 0px calc(100% - ${cut}px), 0px ${cut}px)`,
-      );
+    await page.goto(`/tests/fixtures/party-approved.html?mode=${mode}`);
+    if (selection) await page.getByRole("button", { name: "枠 1", exact: true }).click();
+    await page.mouse.move(1660, 10);
+    await formationScreenshot(page, testInfo, `approved-${name}.png`);
+    if (name === "disabled") await expect(page.getByRole("button", { name: "出発する", exact: true })).toBeDisabled();
+    if (name === "symptoms") {
+      const card = page.locator(".party-candidate-card").first();
+      await expect(card).toContainText("HP 13/13");
+      await expect(card).toContainText("肉体疲労・中度　朦朧・重度");
+    }
+    if (selection) {
+      for (const card of await page.locator(".party-candidate-card").all())
+        await expect(card).toBeInViewport({ ratio: 1 });
+      await expect(page.getByRole("button", { name: "戻る", exact: true })).toBeHidden();
+      await expect(page.locator(".party-order")).toHaveText(["1", "2"]);
     }
   }
-  await expect(page.getByRole("region", { name: "未確定の候補" })).toBeHidden();
-  await formationScreenshot(page, testInfo, "formation-departure-1920.png");
-  await page.getByRole("button", { name: "枠 3", exact: true }).click();
-  const confirm = page.getByRole("button", { name: "編成する", exact: true });
-  await expect(confirm).toBeDisabled();
-  await expect(confirm).toHaveCSS("cursor", "default");
-  await expect
-    .poll(() => confirm.evaluate((button) => getComputedStyle(button, "::after").backgroundColor))
-    .toBe("rgb(25, 30, 32)");
-  await expect(confirm).toHaveCSS("color", "rgb(190, 197, 192)");
-  await formationScreenshot(page, testInfo, "formation-primary-disabled-1920.png");
-  await expect(primary).toBeHidden();
-  const candidate = page.getByRole("button", { name: "ギルベルタ", exact: true });
-  await candidate.focus();
-  await page.keyboard.press("Space");
-  await expect(candidate).toHaveAttribute("aria-pressed", "true");
-  await expect(candidate).toHaveCSS("outline-width", "2px");
-  expect(await confirm.boundingBox()).toMatchObject({ x: 1576, y: 968, width: 280, height: 64 });
-  await formationScreenshot(page, testInfo, "formation-selection-1920.png");
-  await page.getByRole("button", { name: "詳細", exact: true }).click();
-  await formationScreenshot(page, testInfo, "formation-details-1920.png");
-  await page.keyboard.press("Escape");
-  await page.keyboard.press("Escape");
-  await page.goto("/tests/fixtures/party-selection.html?count=2&edit=1");
-  await expect(page.getByRole("heading", { name: "編成", exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "出発する", exact: true })).toBeHidden();
-  await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.getByRole("button", { name: "枠 2", exact: true }).click();
-  await expect(page.getByRole("button", { name: "ギルベルタ", exact: true })).toHaveAttribute("aria-pressed", "true");
 });
 
 test("主操作はマウス保持とSpace押下中も暗い文字を保つ", async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1920, height: 1080 });
   await page.goto("/tests/fixtures/party-selection.html?count=2");
+  for (const slot of await page.locator(".party-slot.is-occupied").all()) {
+    const portrait = await slot.locator(".party-slot-portrait").boundingBox();
+    const image = await slot.locator("img").boundingBox();
+    const name = await slot.locator(".party-slot-name").boundingBox();
+    expect((image?.y ?? Infinity) + (image?.height ?? 0)).toBeLessThanOrEqual(
+      (portrait?.y ?? 0) + (portrait?.height ?? 0) + 1,
+    );
+    expect(name?.y ?? 0).toBeGreaterThanOrEqual((portrait?.y ?? 0) + (portrait?.height ?? 0));
+  }
   const primary = page.getByRole("button", { name: "出発する", exact: true });
   await primary.hover();
   await page.mouse.down();
@@ -258,4 +236,44 @@ test("主操作はマウス保持とSpace押下中も暗い文字を保つ", asy
   await expect(primary).toHaveCSS("outline-offset", "4px");
   await formationScreenshot(page, testInfo, "formation-primary-space-focus-1920.png");
   await page.keyboard.up("Space");
+});
+
+test("先頭・中段の長名と3症状が後続カードへ重ならず、精神疲労を詳細でも確認できる", async ({ page }, info) => {
+  for (const width of [1920, 1024, 390]) {
+    await page.setViewportSize({ width, height: 1080 });
+    await page.goto("/tests/fixtures/party-selection.html?count=12&stress=1");
+    await expect(page.locator(".party-slot-symptoms").first()).toContainText("精神疲労・中度");
+    await page.getByRole("button", { name: "枠 1", exact: true }).click();
+    const cards = page.locator(".party-candidate-card");
+    for (const index of [0, 4, 5]) {
+      const card = cards.nth(index);
+      const symptoms = card.locator(".party-candidate-symptoms");
+      await expect(symptoms).toHaveText("肉体疲労・中度　朦朧・重度　精神疲労・中度");
+      expect(await symptoms.evaluate((node) => node.scrollWidth <= node.clientWidth)).toBe(true);
+      await card.getByRole("button", { name: /の詳細$/ }).click();
+      await expect(page.locator(".character-details-stats")).toContainText("50（中度）");
+      await page.keyboard.press("Escape");
+      await symptoms.scrollIntoViewIfNeeded();
+      await expect(symptoms).toBeInViewport();
+      await page.screenshot({ path: info.outputPath(`party-stress-${width}-${index}.png`) });
+    }
+    const collisions = await cards.evaluateAll((nodes) =>
+      nodes.flatMap((card, index) => {
+        const rect = card.getBoundingClientRect();
+        const contentBottom = Math.max(
+          ...[".party-candidate-name", ".party-candidate-hp", ".party-detail", ".party-candidate-symptoms"].map(
+            (selector) => card.querySelector(selector)?.getBoundingClientRect().bottom ?? 0,
+          ),
+        );
+        const next = nodes.slice(index + 1).find((node) => {
+          const box = node.getBoundingClientRect();
+          return Math.abs(box.x - rect.x) < 1 && box.top > rect.top;
+        });
+        return contentBottom > rect.bottom + 1 || (next && rect.bottom > next.getBoundingClientRect().top)
+          ? [index]
+          : [];
+      }),
+    );
+    expect(collisions).toEqual([]);
+  }
 });

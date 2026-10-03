@@ -82,6 +82,22 @@ export function setPartySlot(
   return { accepted: true, state: { ...state, slots } };
 }
 
+/** Validate the entire draft before replacing the formation; only confirmation closes gaps. */
+export function confirmPartySelection(
+  state: PartyState,
+  draft: PartySlots,
+):
+  | { readonly accepted: true; readonly state: PartyState }
+  | { readonly accepted: false; readonly state: PartyState; readonly reason: PartyRejection } {
+  if (draft.length !== 4) return { accepted: false, state, reason: "invalid-slot" };
+  const selected = draft.filter((id) => id !== null);
+  if (selected.some((id) => !state.members.some((member) => member.id === id)))
+    return { accepted: false, state, reason: "not-joined" };
+  if (new Set(selected).size !== selected.length) return { accepted: false, state, reason: "duplicate-member" };
+  const slots: PartySlots = [selected[0] ?? null, selected[1] ?? null, selected[2] ?? null, selected[3] ?? null];
+  return { accepted: true, state: { ...state, slots } };
+}
+
 export function getPartyCombatants(
   state: PartyState,
   definitions: readonly CharacterDefinition[],

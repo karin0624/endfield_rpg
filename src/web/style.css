@@ -2065,32 +2065,6 @@ body.dungeon-mode {
 .party-editor[hidden] {
   display: none;
 }
-.party-editor {
-  width: 100%;
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 28px;
-  border: 1px solid var(--text-secondary);
-  background: var(--surface-base);
-  line-height: 1.6;
-}
-.party-editor h2 {
-  margin: 0;
-  font: 500 var(--font-size-title) / 1.4 var(--serif);
-}
-.party-heading {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 24px;
-  margin-bottom: 28px;
-}
-.party-calendar {
-  margin: 0 0 0 auto;
-  color: var(--text-secondary);
-  font: var(--font-size-body) / 1.6 var(--mono);
-}
-.party-slot-symptoms,
 .town-recovery {
   color: var(--text-primary);
   font-size: var(--font-size-body);
@@ -2110,84 +2084,6 @@ body.dungeon-mode {
   background: var(--surface-base);
   font: var(--font-size-body) / 1.6 var(--mono);
 }
-.party-slots {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
-}
-.party-slot {
-  min-width: 0;
-  padding: 12px;
-  border: 1px solid var(--text-secondary);
-  background: var(--surface-pressed);
-}
-.party-slot.is-occupied {
-  border-color: var(--trim-metal);
-  background: var(--surface-selected);
-}
-.party-slot-portrait {
-  display: grid;
-  place-items: center;
-  height: 200px;
-  margin: 8px -12px 0;
-  overflow: hidden;
-  color: var(--text-secondary);
-  font-size: var(--font-size-body);
-}
-.party-character-image {
-  min-width: 0;
-  min-height: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  object-position: center bottom;
-}
-.party-slot-hp {
-  margin: 12px 0;
-  min-height: 1.5em;
-  color: var(--text-secondary);
-  font: var(--font-size-body) / 1.5 var(--mono);
-}
-.is-occupied .party-slot-hp {
-  color: var(--data-hp);
-}
-.party-slot-hp.is-defeated {
-  color: var(--status-danger);
-}
-.party-slots select {
-  width: 100%;
-  min-width: 0;
-  min-height: 44px;
-  padding: 8px;
-  font: inherit;
-  color: var(--text-primary);
-  background: var(--surface-base);
-  border: 1px solid var(--text-secondary);
-}
-
-.party-detail {
-  display: block;
-  min-height: 44px;
-  margin: 12px 0 0 auto;
-  padding: 8px 20px;
-  border: 1px solid var(--text-secondary);
-  background: var(--surface-base);
-  color: var(--text-primary);
-  font-family: inherit;
-  font-size: var(--font-size-body);
-  line-height: 1.5;
-  cursor: pointer;
-}
-.party-detail[hidden] {
-  display: none;
-}
-.party-detail:hover {
-  background: var(--surface-hover);
-}
-.party-detail:active {
-  background: var(--surface-pressed);
-}
-.party-detail:focus-visible,
 .character-details-info:focus-visible,
 .character-details button:focus-visible {
   outline: 2px solid var(--text-primary);
@@ -2296,85 +2192,6 @@ body.dungeon-mode {
     height: min(30dvh, 260px);
   }
 }
-.party-slots select:focus-visible,
-.party-depart:focus-visible,
-.party-back:focus-visible {
-  outline: 2px solid var(--text-primary);
-  outline-offset: 3px;
-}
-.party-slots select:hover {
-  background: var(--surface-hover);
-}
-.party-footer {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 24px;
-  margin-top: 28px;
-}
-.party-footer [hidden] {
-  display: none;
-}
-.party-depart {
-  grid-column: 2;
-}
-.party-back {
-  min-height: 44px;
-  padding: 8px 16px;
-  border: 1px solid var(--text-secondary);
-  border-radius: 0;
-  background: var(--surface-base);
-  color: var(--text-primary);
-  font: var(--font-size-decision) / 1.4 var(--serif);
-}
-.party-back:hover {
-  background: var(--surface-hover);
-}
-.party-back:active {
-  background: var(--surface-pressed);
-}
-.party-footer p {
-  margin: 0;
-  font-size: var(--font-size-body);
-}
-@media (min-width: 1151px) and (max-height: 800px) {
-  .adventure-screen.party-editing .town-view {
-    padding-top: 40px;
-    padding-bottom: 24px;
-  }
-  .party-editor {
-    padding: 20px;
-  }
-  .party-slot-portrait {
-    height: 120px;
-  }
-  .party-footer {
-    margin-top: 16px;
-  }
-}
-@media (max-width: 1150px) {
-  .party-slots {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .party-slot-portrait {
-    height: 144px;
-  }
-  .party-footer {
-    grid-template-columns: 1fr;
-  }
-  .party-depart {
-    grid-column: 1;
-  }
-}
-@media (max-width: 900px) {
-  .adventure-screen.party-editing .town-view {
-    padding: 24px 6% 40px;
-  }
-  .party-editor {
-    padding: 16px;
-  }
-}
-
 /* Trial skill controls retain readable text and scroll within the command area. */
 .command[hidden],
 .skill-panel[hidden],

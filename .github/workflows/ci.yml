@@ -28,7 +28,7 @@ jobs:
       image: mcr.microsoft.com/playwright:v1.63.0-noble
       options: --ipc=host
     steps:
-      - run: apt-get update && apt-get install -y git-lfs ffmpeg
+      - run: apt-get update && apt-get install -y git-lfs ffmpeg python3-pil
       - uses: actions/checkout@v7
         with:
           lfs: true
@@ -46,6 +46,16 @@ jobs:
           retention-days: 14
       - run: npm run test:e2e:inside
         if: success() || failure()
+      - name: Compare approved party UI images
+        if: success() || failure()
+        run: python3 scripts/compare-party-ui.py test-results test-results/approved-comparison
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: party-approval-comparison
+          path: test-results/approved-comparison/
+          if-no-files-found: error
+          retention-days: 14
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
@@ -60,6 +70,7 @@ jobs:
             test-results/campaign-*/campaign-*.png
             test-results/party-ui-*/formation-*.png
             test-results/party-ui-*/party-*.png
+            test-results/party-ui-*/approved-*.png
             test-results/**/*-readiness.json
           if-no-files-found: error
           retention-days: 14
