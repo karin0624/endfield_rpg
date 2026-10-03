@@ -38,7 +38,7 @@ async function editSlot(page: Page, slot: number, id: string) {
 
 test("ルートを横ドラッグでき、表示領域を変えても選択肢を操作できる", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto("/?dungeon=1");
+  await page.goto("/?debug=1&dungeon=1");
   await expect(page.getByRole("region", { name: "遺跡の進路" })).toBeVisible();
   await expect(page.locator("body")).toHaveCSS("overflow", "hidden");
 
@@ -97,7 +97,7 @@ test("ルートを横ドラッグでき、表示領域を変えても選択肢�
 });
 
 test("会話ノードの選択後に探索位置へ戻る", async ({ page }) => {
-  await page.goto("/?dungeon=1");
+  await page.goto("/?debug=1&dungeon=1");
   await page.getByRole("button", { name: "思わぬ遭遇、選択可能" }).click();
   await expect(page.getByText("道の脇に、遺跡へ続く新しい足跡が残っている。")).toBeVisible();
   await page.locator("[data-conversation-stage]").click();
@@ -117,7 +117,7 @@ test("会話ノードの選択後に探索位置へ戻る", async ({ page }) => 
 
 test("390pxのダンジョン戦闘でコマンドまでスクロールして攻撃できる", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/?dungeon=1");
+  await page.goto("/?debug=1&dungeon=1");
   await page.getByRole("button", { name: "戦闘、選択可能" }).click();
 
   const attack = page.getByRole("button", { name: "通常攻撃" });
@@ -141,8 +141,8 @@ test("全滅帰還でHP全回復し、街探索6回で戦闘不能から復帰�
   initial = applyPartyStatus(initial, "player", { kind: "haze", amount: 150 }, characters);
   const seed = serializeGame(initial, saveDefinitions);
   if (!seed.accepted) throw new Error(seed.reason);
-  await page.goto("/");
-  await page.evaluate((data) => localStorage.setItem("endfield-rpg-game-save", data), seed.data);
+  await page.goto("/?debug=1");
+  await page.evaluate((data) => localStorage.setItem("endfield-rpg-debug-save", data), seed.data);
   await page.getByRole("button", { name: "読込", exact: true }).click();
   await page.getByRole("link", { name: "出撃編成を見る" }).click();
   await page.getByRole("button", { name: "出撃", exact: true }).click();
@@ -202,7 +202,7 @@ test("全滅帰還でHP全回復し、街探索6回で戦闘不能から復帰�
 
 test("編成だけを表示し、キーボードで戻っても編集内容を保持する", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto("/");
+  await page.goto("/?debug=1");
   const entry = page.getByRole("link", { name: "出撃編成を見る" });
   const party = page.getByRole("region", { name: "出撃編成", exact: true });
   const back = page.getByRole("button", { name: "戻る", exact: true });
@@ -237,7 +237,7 @@ test("街の4枠を編集して単独出撃し、ボス帰還の回復HPを編�
     if (response.url().includes("/assets/") && !response.ok()) errors.push(`${response.status()} ${response.url()}`);
   });
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto("/");
+  await page.goto("/?debug=1");
   await page.getByRole("link", { name: "出撃編成を見る" }).click();
   const party = page.getByRole("region", { name: "出撃編成", exact: true });
   await expect(party.locator(".party-slot-choice")).toHaveCount(4);
@@ -280,7 +280,7 @@ test("街の4枠を編集して単独出撃し、ボス帰還の回復HPを編�
 
 test("街探索から加入・編成・ボス帰還・再訪まで同じセッションで進む", async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1920, height: 1080 });
-  await page.goto("/");
+  await page.goto("/?debug=1");
   await page.getByRole("link", { name: "出撃編成を見る" }).click();
   const second = page.getByRole("button", { name: "枠 2" });
   await second.click();
@@ -352,7 +352,7 @@ test("キャラ詳細の閲覧だけでは編成・保存内容を変えず、�
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.setViewportSize({ width: 1920, height: 1080 });
-  await page.goto("/");
+  await page.goto("/?debug=1");
   await page.getByRole("button", { name: "同行者を探す（仮）", exact: true }).click();
   await page.keyboard.press("Space");
   await page.getByRole("button", { name: "仲間に迎える" }).click();
@@ -361,7 +361,7 @@ test("キャラ詳細の閲覧だけでは編成・保存内容を変えず、�
   await editSlot(page, 2, "gilberta");
   await page.getByRole("button", { name: "戻る", exact: true }).click();
   await page.getByRole("button", { name: "保存", exact: true }).click();
-  const saved = await page.evaluate(() => localStorage.getItem("endfield-rpg-game-save"));
+  const saved = await page.evaluate(() => localStorage.getItem("endfield-rpg-debug-save"));
   await entry.click();
   const rossi = page.getByRole("button", { name: "ロッシの詳細" });
   const gilberta = page.getByRole("button", { name: "ギルベルタの詳細" });
@@ -444,7 +444,7 @@ test("キャラ詳細の閲覧だけでは編成・保存内容を変えず、�
   await expect(page.locator("[data-party-calendar]")).toHaveText("1日目 · 夜");
   await page.getByRole("button", { name: "戻る", exact: true }).click();
   await page.getByRole("button", { name: "保存", exact: true }).click();
-  expect(await page.evaluate(() => localStorage.getItem("endfield-rpg-game-save"))).toBe(saved);
+  expect(await page.evaluate(() => localStorage.getItem("endfield-rpg-debug-save"))).toBe(saved);
   expect(errors).toEqual([]);
 });
 
@@ -462,8 +462,8 @@ test("初期症状の試験データから実操作で数値回復・全滅帰�
   fixture = applyPartyStatus(fixture, "player", { kind: "haze", amount: 75 }, characters);
   const encoded = serializeGame(fixture, saveDefinitions);
   if (!encoded.accepted) throw new Error(encoded.reason);
-  await page.goto("/");
-  await page.evaluate((data) => localStorage.setItem("endfield-rpg-game-save", data), encoded.data);
+  await page.goto("/?debug=1");
+  await page.evaluate((data) => localStorage.setItem("endfield-rpg-debug-save", data), encoded.data);
   await page.getByRole("button", { name: "読込", exact: true }).click();
   await page.getByRole("link", { name: "出撃編成を見る" }).click();
   await page.getByRole("button", { name: "ロッシの詳細" }).click();
@@ -532,7 +532,7 @@ test("初期症状の試験データから実操作で数値回復・全滅帰�
 
 test("街で保存し、リロード後も加入・編成・時計を読み込み、再読込で進めない", async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1920, height: 1080 });
-  await page.goto("/");
+  await page.goto("/?debug=1");
   await page.getByRole("button", { name: "同行者を探す（仮）", exact: true }).click();
   await expect(page.getByRole("button", { name: "保存", exact: true })).toBeHidden();
   await page.keyboard.press("Space");
@@ -573,25 +573,25 @@ test("街で保存し、リロード後も加入・編成・時計を読み込�
 });
 
 test("壊れた保存とブラウザI/O失敗でもゲームと既存保存を保持する", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/?debug=1");
   await page.getByRole("button", { name: "市場", exact: true }).click();
   await page.keyboard.press("Space");
   await page.getByRole("button", { name: "保存", exact: true }).click();
-  const saved = await page.evaluate(() => localStorage.getItem("endfield-rpg-game-save"));
+  const saved = await page.evaluate(() => localStorage.getItem("endfield-rpg-debug-save"));
   await page.evaluate(() => {
     const original = Storage.prototype.setItem;
     Storage.prototype.setItem = function (key, value) {
-      if (key === "endfield-rpg-game-save") throw new DOMException("quota", "QuotaExceededError");
+      if (key === "endfield-rpg-debug-save") throw new DOMException("quota", "QuotaExceededError");
       return original.call(this, key, value);
     };
   });
   await page.getByRole("button", { name: "保存", exact: true }).click();
   await expect(page.locator("[data-save-status]")).toContainText("保存できません");
-  expect(await page.evaluate(() => localStorage.getItem("endfield-rpg-game-save"))).toBe(saved);
+  expect(await page.evaluate(() => localStorage.getItem("endfield-rpg-debug-save"))).toBe(saved);
   await page.evaluate(() => {
     const original = Storage.prototype.getItem;
     Storage.prototype.getItem = function (key) {
-      if (key === "endfield-rpg-game-save") throw new DOMException("denied", "SecurityError");
+      if (key === "endfield-rpg-debug-save") throw new DOMException("denied", "SecurityError");
       return original.call(this, key);
     };
   });
@@ -599,22 +599,22 @@ test("壊れた保存とブラウザI/O失敗でもゲームと既存保存を�
   await expect(page.locator("[data-save-status]")).toContainText("読み込めません");
   await expect(page.locator("[data-calendar]")).toHaveText("1日目 · 夜");
   await page.reload();
-  await page.evaluate(() => localStorage.setItem("endfield-rpg-game-save", '{"version":4,"party":{}}'));
+  await page.evaluate(() => localStorage.setItem("endfield-rpg-debug-save", '{"version":4,"party":{}}'));
   await page.getByRole("button", { name: "市場", exact: true }).click();
   await page.keyboard.press("Space");
   await page.getByRole("button", { name: "読込", exact: true }).click();
   await expect(page.locator("[data-save-status]")).toContainText("読み込めません");
   await expect(page.locator("[data-calendar]")).toHaveText("1日目 · 夜");
-  expect(await page.evaluate(() => localStorage.getItem("endfield-rpg-game-save"))).toBe('{"version":4,"party":{}}');
-  await page.evaluate(() => localStorage.setItem("endfield-rpg-game-save", '{"version":3,"party":{}}'));
+  expect(await page.evaluate(() => localStorage.getItem("endfield-rpg-debug-save"))).toBe('{"version":4,"party":{}}');
+  await page.evaluate(() => localStorage.setItem("endfield-rpg-debug-save", '{"version":3,"party":{}}'));
   await page.getByRole("button", { name: "読込", exact: true }).click();
   await expect(page.locator("[data-save-status]")).toHaveText("対応していない保存データです。");
   await expect(page.locator("[data-calendar]")).toHaveText("1日目 · 夜");
-  expect(await page.evaluate(() => localStorage.getItem("endfield-rpg-game-save"))).toBe('{"version":3,"party":{}}');
+  expect(await page.evaluate(() => localStorage.getItem("endfield-rpg-debug-save"))).toBe('{"version":3,"party":{}}');
 });
 
 test("通常探索のスキル使用を次戦・帰還・保存読込・街回復へつなぐ", async ({ page }, testInfo) => {
-  await page.goto("/");
+  await page.goto("/?debug=1");
   await page.getByRole("link", { name: "出撃編成を見る" }).click();
   await page.getByRole("button", { name: "出撃", exact: true }).click();
   await page.getByRole("button", { name: "戦闘、選択可能" }).click();
@@ -654,7 +654,7 @@ test("通常探索のスキル使用を次戦・帰還・保存読込・街回�
   await page.getByRole("button", { name: "街へ戻る", exact: true }).click();
   await expect(page.locator("[data-town-recovery]")).toContainText("精神疲労 22");
   await page.getByRole("button", { name: "保存", exact: true }).click();
-  const saved = await page.evaluate(() => localStorage.getItem("endfield-rpg-game-save"));
+  const saved = await page.evaluate(() => localStorage.getItem("endfield-rpg-debug-save"));
   expect(JSON.parse(saved ?? "{}").party.members[0].mentalFatigue).toBe(22);
   expect(JSON.parse(saved ?? "{}").growth.growth.characters[0]).toMatchObject({ level: 1, experience: 0 });
   expect(
@@ -662,14 +662,14 @@ test("通常探索のスキル使用を次戦・帰還・保存読込・街回�
   ).toEqual(["test-strike", "test-heal"]);
   await page.reload();
   await page.getByRole("button", { name: "読込", exact: true }).dblclick();
-  expect(await page.evaluate(() => localStorage.getItem("endfield-rpg-game-save"))).toBe(saved);
+  expect(await page.evaluate(() => localStorage.getItem("endfield-rpg-debug-save"))).toBe(saved);
   await page.getByRole("button", { name: "市場", exact: true }).click();
   await page.keyboard.press("Space");
   await expect(page.locator("[data-town-recovery]")).toContainText("精神疲労：22 → 12");
   await page.getByRole("button", { name: "保存", exact: true }).click();
   expect(
     await page.evaluate(
-      () => JSON.parse(localStorage.getItem("endfield-rpg-game-save") ?? "{}").party.members[0].mentalFatigue,
+      () => JSON.parse(localStorage.getItem("endfield-rpg-debug-save") ?? "{}").party.members[0].mentalFatigue,
     ),
   ).toBe(12);
   await page.screenshot({ path: testInfo.outputPath("skill-town-recovery.png") });

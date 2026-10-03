@@ -1,0 +1,128 @@
+/* Campaign composition only. Shared party, town and battle art belongs to #78/#80. */
+.campaign-screen {
+  min-height: 100dvh;
+  position: relative;
+  isolation: isolate;
+  padding: 3rem 6vw;
+  color: var(--text-primary);
+  background: var(--surface-base);
+  display: flex;
+  flex-direction: column;
+  overflow: clip;
+}
+.campaign-art {
+  position: absolute;
+  z-index: -1;
+  inset: 0 0 0 45%;
+  border-left: 1px solid var(--trim-metal);
+  background: var(--surface-pressed);
+  pointer-events: none;
+}
+.campaign-art img {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center bottom;
+}
+.campaign-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid var(--trim-metal);
+  margin-bottom: 3rem;
+}
+.campaign-header h1 {
+  font-family: "Yu Mincho", serif;
+  font-size: var(--font-size-display);
+  letter-spacing: 0.05em;
+  line-height: 1.4;
+}
+.campaign-header p {
+  padding: 0.5rem;
+  background: var(--surface-base);
+  font-size: var(--font-size-body);
+}
+.campaign-header p:empty {
+  display: none;
+}
+.campaign-content {
+  width: min(32rem, 42%);
+  margin-block: auto;
+}
+.campaign-copy,
+.campaign-status {
+  font-size: var(--font-size-body);
+  line-height: 1.6;
+  background: var(--surface-base);
+}
+.campaign-commands {
+  display: grid;
+  gap: 0.75rem;
+  margin-block: 2rem;
+}
+.campaign-command {
+  text-align: left;
+  min-height: 3.5rem;
+  padding: 0.875rem 1.25rem;
+  border: 1px solid var(--trim-metal);
+  border-radius: 0;
+  background: var(--surface-base);
+  color: var(--text-primary);
+  font-family: "Yu Mincho", serif;
+  font-size: var(--font-size-decision);
+  line-height: 1.4;
+}
+.campaign-command:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+.campaign-command:active:not(:disabled) {
+  background: var(--surface-pressed);
+}
+.campaign-command:focus-visible {
+  outline: 2px solid var(--text-primary);
+  outline-offset: 3px;
+}
+.campaign-command:disabled {
+  cursor: default;
+  opacity: 0.65;
+}
+.campaign-command.is-primary {
+  border-left: 5px solid var(--action-primary);
+  background: var(--surface-selected);
+}
+[data-campaign-screen="intro"] .campaign-content,
+[data-campaign-screen="confirm"] .campaign-content {
+  width: min(44rem, 100%);
+  margin-inline: auto;
+  padding: 2rem;
+  background: var(--surface-base);
+  border: 1px solid var(--trim-metal);
+}
+[data-campaign-screen="party"] .campaign-content {
+  width: 100%;
+}
+[data-campaign-screen="party"] .campaign-art {
+  display: none;
+}
+@media (max-width: 800px) {
+  .campaign-screen {
+    padding: 1.5rem;
+  }
+  .campaign-header {
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+  }
+  .campaign-content {
+    width: 100%;
+  }
+  .campaign-art {
+    inset: 0;
+    opacity: 0.2;
+  }
+  [data-campaign-screen="intro"] .campaign-content,
+  [data-campaign-screen="confirm"] .campaign-content {
+    padding: 1rem;
+  }
+}

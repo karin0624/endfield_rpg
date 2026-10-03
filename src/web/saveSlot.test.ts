@@ -6,7 +6,7 @@ import { saveDefinitions } from "../content/saveDefinitions";
 import { createInitialGameState } from "../game/createInitialGameState";
 import { beginTownExploration } from "../game/expedition";
 import { createParty } from "../game/party";
-import { GAME_SAVE_KEY, loadSlot, saveSlot } from "./saveSlot";
+import { DEBUG_SAVE_KEY, GAME_SAVE_KEY, loadSlot, saveSlot, writeSlot } from "./saveSlot";
 
 function game() {
   return {
@@ -43,4 +43,28 @@ it("保存・読込失敗と会話中の拒否は現在状態と既存保存を�
   expect(current.party.members[0].hp).toBe(20);
   expect(values.get("editor-draft")).toBe("keep");
   expect(values.get(GAME_SAVE_KEY)).toBe("broken");
+});
+
+it("通常v4保存とデバッグ保存を分離し、保存失敗を明示する", () => {
+  const values = new Map<string, string>();
+  const storage = () => ({
+    getItem: (key: string) => values.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      values.set(key, value);
+    },
+  });
+  expect(writeSlot(game(), saveDefinitions, storage).saved).toBe(true);
+  const normal = values.get(GAME_SAVE_KEY);
+  const started = beginTownExploration(game(), "market", initialAdventure).state;
+  expect(writeSlot(started, saveDefinitions, storage, DEBUG_SAVE_KEY).saved).toBe(false);
+  expect(loadSlot(game(), saveDefinitions, storage, DEBUG_SAVE_KEY).state).toBeUndefined();
+  expect(writeSlot(game(), saveDefinitions, storage, DEBUG_SAVE_KEY).saved).toBe(true);
+  expect(values.get(GAME_SAVE_KEY)).toBe(normal);
+  expect(loadSlot(game(), saveDefinitions, storage).state?.party.slots).toEqual(["player", null, null, null]);
+  expect(
+    writeSlot(game(), saveDefinitions, () => {
+      throw new Error("denied");
+    }).saved,
+  ).toBe(false);
+  expect(values.get(GAME_SAVE_KEY)).toBe(normal);
 });
