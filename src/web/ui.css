@@ -105,6 +105,7 @@
 .ui-screen .ui-primary:active:not(:disabled),
 .ui-dialog .ui-primary:active:not(:disabled) {
   background: var(--ui-primary-pressed);
+  color: var(--ui-on-primary);
 }
 .ui-screen .ui-button:disabled,
 .ui-dialog .ui-button:disabled {
@@ -115,6 +116,8 @@
   box-shadow: none;
   cursor: default;
 }
+.ui-screen .ui-button:focus-visible,
+.ui-dialog .ui-button:focus-visible,
 .ui-screen :is(button, summary):focus-visible,
 .ui-dialog :is(button, [tabindex]):focus-visible {
   outline: 2px solid var(--ui-focus);

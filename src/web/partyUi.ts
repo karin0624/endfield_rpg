@@ -155,6 +155,7 @@ export function mountPartyUi(root: HTMLElement, options: PartyUiOptions, back: (
       }
       if (event.key !== "Escape" || event.repeat || root.querySelector("dialog[open]")) return;
       event.preventDefault();
+      event.stopPropagation();
       goBack();
     },
     { signal: events.signal },

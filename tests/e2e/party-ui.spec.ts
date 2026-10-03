@@ -63,6 +63,7 @@ test("長名・未提供画像・他枠の重複と狭幅・低い画面での�
     [320, 844],
     [390, 844],
     [900, 700],
+    [1024, 800],
     [1150, 800],
     [1151, 800],
     [1920, 500],
@@ -71,6 +72,11 @@ test("長名・未提供画像・他枠の重複と狭幅・低い画面での�
     const slot = page.getByRole("button", { name: "枠 4", exact: true });
     await slot.click();
     const grid = page.getByRole("group", { name: "候補一覧" });
+    if (width > 900) {
+      const candidates = await page.locator(".party-candidates").boundingBox();
+      const preview = await page.locator(".party-current").boundingBox();
+      expect((candidates?.x ?? width) + (candidates?.width ?? width)).toBeLessThan(preview?.x ?? 0);
+    }
     await grid.getByRole("button", { name: "ロッシ", exact: true }).click();
     await expect(page.getByRole("button", { name: "入れ替える", exact: true })).toBeDisabled();
     await expect(page.getByText("編成中。先に元の枠を空けてください。")).toBeVisible();
@@ -204,4 +210,21 @@ test("共通画面の位置と操作文脈を保ち、選択・focus・非活性
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.getByRole("button", { name: "枠 2", exact: true }).click();
   await expect(page.getByRole("button", { name: "ギルベルタ", exact: true })).toHaveAttribute("aria-pressed", "true");
+});
+
+test("主操作はマウス保持とSpace押下中も暗い文字を保つ", async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await page.goto("/tests/fixtures/party-selection.html?count=2");
+  const primary = page.getByRole("button", { name: "出発する", exact: true });
+  await primary.hover();
+  await page.mouse.down();
+  await expect(primary).toHaveCSS("background-color", "rgb(201, 151, 85)");
+  await expect(primary).toHaveCSS("color", "rgb(37, 42, 44)");
+  await page.screenshot({ path: testInfo.outputPath("formation-primary-pressed-1920.png") });
+  await page.mouse.up();
+  await primary.focus();
+  await page.keyboard.down("Space");
+  await expect(primary).toHaveCSS("background-color", "rgb(201, 151, 85)");
+  await expect(primary).toHaveCSS("color", "rgb(37, 42, 44)");
+  await page.keyboard.up("Space");
 });

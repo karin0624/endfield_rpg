@@ -56,6 +56,9 @@ jobs:
         if: always()
         with:
           name: campaign-flow-previews
-          path: test-results/campaign-*/campaign-*.png
+          path: |
+            test-results/campaign-*/campaign-*.png
+            test-results/party-ui-*/formation-*.png
+            test-results/party-ui-*/party-*.png
           if-no-files-found: ignore
           retention-days: 14

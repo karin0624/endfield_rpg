@@ -57,6 +57,8 @@
   display: block;
 }
 .formation-screen.party-editor .party-current {
+  min-width: 0;
+
   height: 100%;
   min-height: 0;
 }
@@ -79,6 +81,10 @@
   min-height: 0;
 }
 .formation-screen.party-editor .party-slot-choice {
+  width: 100%;
+  border-radius: 0;
+  font: var(--ui-body-size) / 1.5 var(--ui-font);
+
   display: flex;
   flex-direction: column;
   padding: 0;
@@ -148,22 +154,42 @@
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 3rem;
 }
-.formation-screen.party-editor .party-candidates {
+.formation-screen.party-editor .party-candidates:not([hidden]) {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+
   min-height: 0;
   background: #252a2cdd;
   padding: 1rem;
   border: 1px solid var(--ui-metal);
 }
 .formation-screen.party-editor .party-candidates h3 {
+  font: var(--ui-body-size) / 1.5 var(--ui-font);
+
   margin: 0 0 1rem;
 }
 .formation-screen.party-editor .party-candidate-grid {
+  display: grid;
+  align-content: start;
+  grid-auto-rows: max-content;
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  scrollbar-gutter: stable;
+
   grid-template-columns: repeat(auto-fill, minmax(175px, 1fr));
   gap: 1rem;
   padding: 6px;
   max-height: none;
 }
 .formation-screen.party-editor .party-candidate {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  border-radius: 0;
+
   min-width: 0;
   margin: 0;
   padding: 0.75rem;
@@ -187,6 +213,9 @@
   color: var(--ui-selection);
 }
 .formation-screen.party-editor .party-candidate-face {
+  display: grid;
+  place-items: center;
+
   height: 180px;
   flex-basis: 180px;
   background: var(--ui-pressed);
@@ -195,6 +224,8 @@
   object-fit: contain;
 }
 .formation-screen.party-editor .party-candidate-state {
+  min-height: 1.5em;
+
   color: var(--ui-muted);
 }
 .formation-screen.party-editor.is-selecting .party-current {
@@ -221,7 +252,7 @@
 .formation-screen.party-editor.is-selecting .party-slot-symptoms {
   display: none;
 }
-.formation-screen.party-editor .party-pending {
+.formation-screen.party-editor .party-pending:not([hidden]) {
   display: grid;
   grid-template-rows: minmax(0, 1fr) auto;
   min-height: 0;
@@ -235,7 +266,7 @@
 }
 .formation-screen.party-editor .party-preview-info {
   padding: 1rem;
-  background: #252a2cf5;
+  background: var(--ui-surface);
   border-top: 1px solid var(--ui-metal);
   max-height: 45dvh;
   overflow-y: auto;
@@ -251,6 +282,10 @@
   color: var(--ui-danger);
 }
 .formation-screen.party-editor .party-pending-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+
   margin-top: 0.75rem;
 }
 .character-details.ui-dialog {
@@ -428,7 +463,7 @@
   .formation-screen.party-editor.is-selecting .party-current {
     grid-template-rows: auto auto;
   }
-  .formation-screen.party-editor .party-pending {
+  .formation-screen.party-editor .party-pending:not([hidden]) {
     grid-template-rows: auto auto;
   }
 }
@@ -442,4 +477,23 @@
   .ui-dialog .character-details-portrait {
     height: 100%;
   }
+}
+
+@media (min-width: 901px) {
+  .formation-screen.party-editor.is-selecting .party-candidates {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .formation-screen.party-editor.is-selecting .party-current {
+    grid-column: 2;
+    grid-row: 1;
+  }
+}
+
+.formation-screen.party-editor :is(.party-slot-choice, .party-candidate):active {
+  background: var(--ui-pressed);
+}
+
+.formation-screen.party-editor[hidden] {
+  display: none;
 }
