@@ -254,7 +254,10 @@ test("共有装備2組を2人へ割り当て、重複・HP増加回復を防い�
   await page.getByLabel("ロッシの武器").selectOption("weapon-1");
   await page.getByLabel("ロッシの防具").selectOption("armor-1");
   await expect(page.locator(".campaign-copy")).toContainText("ロッシ · HP 20/24 · 攻撃力 9");
-  await expect(page.getByLabel("ギルベルタの武器").locator('option[value="weapon-1"]')).toBeDisabled();
+  await expect(page.getByLabel("ギルベルタの武器").locator('option[value="weapon-1"]')).toHaveJSProperty(
+    "disabled",
+    true,
+  );
   await page.getByLabel("ギルベルタの武器").selectOption("weapon-2");
   await page.getByLabel("ギルベルタの防具").selectOption("armor-2");
   await expect(page.locator(".campaign-copy")).toContainText("ギルベルタ · HP 18/22 · 攻撃力 7");
