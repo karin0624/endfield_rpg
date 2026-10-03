@@ -554,22 +554,18 @@ function createEnvironment(
         const progress = Math.min(1, (now - effect.startedAt) / effect.durationMs);
         const pulse = Math.sin(Math.PI * progress);
         if (effect.type === "attack") {
-          const emphasis = pulse * 0.07;
-          actor.plane.scaling.set(1 + emphasis, 1 + emphasis, 1);
           actor.material.emissiveColor = Color3.Lerp(Color3.White(), new Color3(1, 0.72, 0.28), pulse * 0.5);
         } else if (effect.type === "hit") {
-          actor.plane.position.x = actor.basePlaneX + Math.sin(progress * Math.PI * 12) * 0.11 * (1 - progress);
           actor.material.emissiveColor = Color3.Lerp(Color3.White(), new Color3(1, 0.42, 0.32), pulse * 0.8);
         } else {
-          actor.plane.scaling.set(1, 1 - progress * 0.44, 1);
-          actor.plane.visibility = 1 - progress * 0.48;
+          actor.plane.visibility = 1 - progress;
         }
         if (progress >= 1) {
           actor.effect = undefined;
           actor.plane.position.x = actor.basePlaneX;
           actor.plane.position.y = actor.basePlaneY;
-          actor.plane.scaling.set(1, actor.alive ? 1 : 0.56, 1);
-          actor.plane.visibility = actor.alive ? 1 : 0.52;
+          actor.plane.scaling.set(1, 1, 1);
+          actor.plane.visibility = actor.alive ? 1 : 0;
           actor.material.emissiveColor = Color3.White();
           if (effect.type === "defeat") {
             actor.plane.setEnabled(false);
@@ -675,8 +671,8 @@ function createEnvironment(
           actor.effect = undefined;
           actor.plane.position.x = actor.basePlaneX;
           actor.plane.position.y = actor.basePlaneY;
-          actor.plane.scaling.set(1, actor.alive ? 1 : 0.56, 1);
-          actor.plane.visibility = actor.alive ? 1 : 0.52;
+          actor.plane.scaling.set(1, 1, 1);
+          actor.plane.visibility = actor.alive ? 1 : 0;
           actor.material.emissiveColor = Color3.White();
           if (type === "defeat") {
             actor.plane.setEnabled(false);

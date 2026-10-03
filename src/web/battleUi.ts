@@ -664,7 +664,7 @@ export function mountBattleUi(
         const hitLabel = event.type === "skill" ? ` · ${event.hitIndex}発目` : "";
         const label = `${combatantName(event.actorId)} · ${name}`;
         showEventToast(`${label} → ${combatantName(event.targetId)}${hitLabel}`, "attack");
-        await sequence.action(event, label, `${result}${hitLabel}`, () => {
+        await sequence.action(event, name, result, () => {
           displayImpact(event);
           message = `${label}：${combatantName(event.targetId)} ${result}${hitLabel}`;
           screenReaderStatus.textContent = message;
@@ -674,7 +674,7 @@ export function mountBattleUi(
         resultSummary = `HP回復品：${combatantName(event.targetId)}のHPを${formatAmount(event.amount)}回復 · 精神疲労は変化なし`;
         hasReplayedAllyAttack = true;
         showEventToast(`${label} → ${combatantName(event.targetId)}`, "recovery");
-        await sequence.action(event, label, `${formatAmount(event.amount)} 回復`, () => {
+        await sequence.action(event, "HP回復品", `${formatAmount(event.amount)} 回復`, () => {
           displayState = {
             ...displayState,
             combatants: displayState.combatants.map((member) =>
