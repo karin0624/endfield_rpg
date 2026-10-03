@@ -196,6 +196,8 @@ test("承認画像の4状態を同じfixtureと1672×941で実撮影する", asy
       await expect(card).toContainText("肉体疲労・中度　朦朧・重度");
     }
     if (selection) {
+      for (const card of await page.locator(".party-candidate-card").all())
+        await expect(card).toBeInViewport({ ratio: 1 });
       await expect(page.getByRole("button", { name: "戻る", exact: true })).toBeHidden();
       await expect(page.locator(".party-order")).toHaveText(["1", "2"]);
     }
