@@ -329,9 +329,43 @@ for (const carried of [1, 2]) {
       await expect(trigger).toBeDisabled();
       await expect(page.getByRole("button", { name: "戦闘、選択可能", exact: true })).toBeFocused();
       await page.keyboard.press("Enter");
-      await expect(page.getByRole("button", { name: "通常攻撃", exact: true })).toBeEnabled({ timeout: 60_000 });
+      await expect(page.getByRole("button", { name: "スキル", exact: true })).toBeEnabled({ timeout: 60_000 });
     }
     await cleanNormal(page);
     expect(errors).toEqual([]);
   });
 }
+
+test("通常戦闘で持込み物品を一度だけ使い敵行動の後に入力へ戻る", async ({ page }, info) => {
+  await start(page);
+  await page.getByRole("button", { name: "探索先を選ぶ", exact: true }).click();
+  await page.getByRole("button", { name: "街", exact: true }).click();
+  await page.getByRole("button", { name: "市場", exact: true }).click();
+  await page.getByRole("button", { name: "買物", exact: true }).click();
+  const shop = page.getByRole("dialog", { name: "市場の買物" });
+  await shop.getByLabel("購入個数").fill("1");
+  await shop.getByRole("button", { name: "購入する" }).click();
+  await shop.getByRole("button", { name: "買物を閉じる" }).click();
+  await page.locator("[data-dialogue-text]").click();
+  await page.getByRole("button", { name: "ホームへ戻る", exact: true }).click();
+  await page.getByRole("button", { name: "装備を整える", exact: true }).click();
+  await page.getByLabel("ロッシの防具").selectOption("armor-1");
+  await expect(page.locator(".campaign-copy")).toContainText("HP 20/24");
+  await page.getByRole("button", { name: "ホームへ戻る", exact: true }).click();
+  await page.getByLabel("持込み個数（HP回復品）").fill("1");
+  await page.getByRole("button", { name: "探索先を選ぶ", exact: true }).click();
+  await page.getByRole("button", { name: "ダンジョン", exact: true }).click();
+  await page.getByRole("button", { name: "戦闘、選択可能", exact: true }).click();
+  const item = page.getByRole("button", { name: "物品（HP回復品 ×1）", exact: true });
+  await expect(item).toBeEnabled({ timeout: 60_000 });
+  await item.click();
+  const dialog = page.getByRole("dialog", { name: "HP回復品の使用" });
+  await expect(dialog).toContainText("回復見込み +4 HP");
+  await dialog.getByRole("button", { name: "使用する", exact: true }).click();
+  await expect(page.getByRole("button", { name: "スキル", exact: true })).toBeEnabled({ timeout: 60_000 });
+  await expect(page.locator("[data-skill-result]")).toContainText("HPを4回復 · 精神疲労は変化なし");
+  await expect(page.getByRole("button", { name: "物品（HP回復品 ×0）", exact: true })).toBeDisabled();
+  await expect(page.locator("[data-calendar]")).toHaveText("1日目 · 夜");
+  await page.screenshot({ path: info.outputPath("campaign-items-battle-recovery.png") });
+  await cleanNormal(page);
+});

@@ -1,4 +1,4 @@
-/** IDs are shared by home stock and exploration loot. No production catalogue yet. */
+/** IDs are shared by home stock and exploration loot. */
 export type ItemDefinition =
   | { readonly id: string; readonly kind: "consumable"; readonly hpRecovery: number }
   | { readonly id: string; readonly kind: "material" }

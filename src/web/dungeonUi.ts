@@ -625,6 +625,36 @@ export function mountDungeonUi(
         disposeBattleUi = mountBattleUi(battleBoard, currentScene, {
           initialState: activity.state,
           allowBasicAttack: options.allowBasicAttack,
+          itemCount: options.getItems
+            ? () => {
+                const items = options.getItems?.();
+                return items ? bagItemQuantity(items, recoveryItemId) : 0;
+              }
+            : undefined,
+          useItem: options.getItems
+            ? (battleState, actorId, targetId) => {
+                const items = options.getItems?.();
+                if (!items) return { accepted: false, reason: "物品がありません" };
+                const result = options.dispatch({
+                  type: "item",
+                  itemId: recoveryItemId,
+                  actorId,
+                  targetId,
+                  explorationId: state.expeditionActionId ?? -1,
+                  expectedVersion: items.version,
+                  expectedNodeId: state.currentNodeId,
+                  expectedActionTime: battleState.logicalTime,
+                });
+                if (!result.accepted || !result.battleState) return { accepted: false, reason: "使用できません" };
+                dungeonState = result.state;
+                return {
+                  accepted: true,
+                  state: result.battleState,
+                  events: result.events,
+                  itemRecovery: result.itemRecovery,
+                };
+              }
+            : undefined,
           skillRules: options.skillRules,
           useSkill: (battleState, actorId, targetId, skillId) => {
             const result = options.dispatch({
