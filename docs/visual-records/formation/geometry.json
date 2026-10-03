@@ -1,0 +1,27 @@
+{
+  "viewport": {
+    "width": 1920,
+    "height": 1080
+  },
+  "boxes": {
+    "title": {
+      "x": 64,
+      "y": 48,
+      "width": 1641.453125,
+      "height": 44.796875
+    },
+    "primary": {
+      "x": 1576,
+      "y": 968,
+      "width": 280,
+      "height": 64
+    },
+    "back": {
+      "x": 64,
+      "y": 976,
+      "width": 160,
+      "height": 48
+    }
+  },
+  "pageErrors": []
+}

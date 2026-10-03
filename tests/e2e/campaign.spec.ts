@@ -231,6 +231,7 @@ test("物品の買物・持込み・帰還・保存を通常画面で通す", as
   await page.screenshot({ path: info.outputPath("campaign-items-home.png") });
   await page.getByRole("button", { name: "探索先を選ぶ", exact: true }).click();
   await page.getByRole("button", { name: "ダンジョン", exact: true }).click();
+  await page.getByRole("button", { name: "出発する", exact: true }).click();
   await page.getByRole("button", { name: "物品（HP回復品 ×1）", exact: true }).click();
   const item = page.getByRole("dialog", { name: "HP回復品の使用" });
   await expect(item).toContainText("HPは満タン");
@@ -310,6 +311,7 @@ for (const carried of [1, 2]) {
     await page.getByLabel("持込み個数（HP回復品）").fill(String(carried));
     await page.getByRole("button", { name: "探索先を選ぶ", exact: true }).click();
     await page.getByRole("button", { name: "ダンジョン", exact: true }).click();
+    await page.getByRole("button", { name: "出発する", exact: true }).click();
     await page.getByRole("button", { name: `物品（HP回復品 ×${carried}）`, exact: true }).click();
     const recovery = page.getByRole("dialog", { name: "HP回復品の使用" });
     await expect(recovery).toContainText("回復見込み +4 HP");
@@ -358,6 +360,7 @@ test("通常戦闘で持込み物品を一度だけ使い敵行動の後に入�
   await page.getByLabel("持込み個数（HP回復品）").fill("1");
   await page.getByRole("button", { name: "探索先を選ぶ", exact: true }).click();
   await page.getByRole("button", { name: "ダンジョン", exact: true }).click();
+  await page.getByRole("button", { name: "出発する", exact: true }).click();
   await page.getByRole("button", { name: "戦闘、選択可能", exact: true }).click();
   const item = page.getByRole("button", { name: "物品（HP回復品 ×1）", exact: true });
   await expect(item).toBeEnabled({ timeout: 60_000 });

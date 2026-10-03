@@ -432,3 +432,14 @@
     grid-template-rows: auto auto;
   }
 }
+
+@media (min-width: 901px) {
+  .ui-dialog .character-details-body {
+    align-items: stretch;
+    margin-top: 0;
+    overflow: hidden;
+  }
+  .ui-dialog .character-details-portrait {
+    height: 100%;
+  }
+}
