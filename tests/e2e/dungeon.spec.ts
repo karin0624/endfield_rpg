@@ -146,7 +146,7 @@ test("全滅帰還でHP全回復し、街探索6回で戦闘不能から復帰�
   await page.evaluate((data) => localStorage.setItem("endfield-rpg-debug-save", data), seed.data);
   await page.getByRole("button", { name: "読込", exact: true }).click();
   await page.getByRole("link", { name: "出撃編成を見る" }).click();
-  await page.getByRole("button", { name: "出撃", exact: true }).click();
+  await page.getByRole("button", { name: "出発する", exact: true }).click();
   await page.getByRole("button", { name: "戦闘、選択可能" }).click();
 
   const attack = page.getByRole("button", { name: "通常攻撃" });
@@ -165,7 +165,7 @@ test("全滅帰還でHP全回復し、街探索6回で戦闘不能から復帰�
   await page.getByRole("link", { name: "出撃編成を見る" }).click();
   await expect(page.locator(".party-slot-hp").first()).toHaveText("HP 20 / 20");
   await expect(page.locator(".party-slot-symptoms").first()).toContainText("戦闘参加不可（あと街探索6回）");
-  await expect(page.getByRole("button", { name: "出撃" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "出発する" })).toBeDisabled();
   await page.screenshot({ path: testInfo.outputPath("defeat-party-1920.png") });
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.locator("[data-party-calendar]")).toBeInViewport();
@@ -192,14 +192,14 @@ test("全滅帰還でHP全回復し、街探索6回で戦闘不能から復帰�
     }
     await page.getByRole("link", { name: "出撃編成を見る" }).click();
     await expect(page.locator(".party-slot-hp").first()).toHaveText("HP 20 / 20");
-    if (step < 6) await expect(page.getByRole("button", { name: "出撃" })).toBeDisabled();
-    else await expect(page.getByRole("button", { name: "出撃" })).toBeEnabled();
+    if (step < 6) await expect(page.getByRole("button", { name: "出発する" })).toBeDisabled();
+    else await expect(page.getByRole("button", { name: "出発する" })).toBeEnabled();
     await page.getByRole("button", { name: "戻る", exact: true }).click();
   }
   await expect(page.locator("[data-calendar]")).toHaveText("4日目 · 夜");
   await page.screenshot({ path: testInfo.outputPath("recovered-town-1920.png") });
   await page.getByRole("link", { name: "出撃編成を見る" }).click();
-  await page.getByRole("button", { name: "出撃" }).click();
+  await page.getByRole("button", { name: "出発する" }).click();
   await expect(page.getByRole("region", { name: "遺跡の進路" })).toBeVisible();
   await expect(page.locator("[data-calendar]")).toHaveText("4日目 · 夜");
 });
@@ -246,7 +246,7 @@ test("街の4枠を編集して単独出撃し、ボス帰還の回復HPを編�
   const party = page.getByRole("region", { name: "出撃編成", exact: true });
   await expect(party.locator(".party-slot-choice")).toHaveCount(4);
   await editSlot(page, 1, "");
-  const depart = page.getByRole("button", { name: "出撃" });
+  const depart = page.getByRole("button", { name: "出発する" });
   await expect(depart).toBeDisabled();
   await expect(party.getByRole("status")).toContainText("出撃する仲間を1人以上");
   await editSlot(page, 4, "player");
@@ -292,7 +292,7 @@ test("街探索から加入・編成・ボス帰還・再訪まで同じセッ�
     page.getByRole("group", { name: "候補一覧" }).getByRole("button", { name: "ギルベルタ", exact: true }),
   ).toHaveCount(0);
   await page.keyboard.press("Escape");
-  await expect(page.getByRole("button", { name: "出撃", exact: true })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "出発する", exact: true })).toBeEnabled();
   await page.getByRole("button", { name: "戻る", exact: true }).click();
   await page.getByRole("button", { name: "同行者を探す（仮）", exact: true }).click();
   await expect(page.getByText("ギルベルタに同行を相談する。（仮イベント）")).toBeVisible();
@@ -307,7 +307,7 @@ test("街探索から加入・編成・ボス帰還・再訪まで同じセッ�
   await expect(page.locator(".party-slot").nth(1)).toContainText("HP 18 / 18");
   await expect(page.locator(".party-slot").nth(1).locator("img")).toHaveJSProperty("naturalWidth", 1024);
   await page.screenshot({ path: testInfo.outputPath("joined-party-1920.png") });
-  await page.getByRole("button", { name: "出撃", exact: true }).click();
+  await page.getByRole("button", { name: "出発する", exact: true }).click();
   await expect(page.locator("[data-calendar]")).toHaveText("1日目 · 夜");
   await page.screenshot({ path: testInfo.outputPath("party-route-1920.png") });
   await page.getByRole("button", { name: "思わぬ遭遇、選択可能" }).click();
@@ -347,7 +347,7 @@ test("街探索から加入・編成・ボス帰還・再訪まで同じセッ�
   await expect(page.locator("[data-calendar]")).toHaveText("2日目 · 夜");
   await page.getByRole("link", { name: "出撃編成を見る" }).click();
   await expect(second).toContainText("ギルベルタ");
-  await page.getByRole("button", { name: "出撃", exact: true }).click();
+  await page.getByRole("button", { name: "出発する", exact: true }).click();
   await expect(page.getByRole("region", { name: "遺跡の進路" })).toBeVisible();
   await expect(page.locator("[data-calendar]")).toHaveText("2日目 · 夜");
 });
@@ -499,7 +499,7 @@ test("初期症状の試験データから実操作で数値回復・全滅帰�
   await expect(details).toContainText("13 / 14");
   await expect(details.getByText("82.19%", { exact: true })).toBeVisible();
   await page.keyboard.press("Escape");
-  await page.getByRole("button", { name: "出撃", exact: true }).click();
+  await page.getByRole("button", { name: "出発する", exact: true }).click();
   await page.getByRole("button", { name: "戦闘、選択可能" }).click();
   const attack = page.getByRole("button", { name: "通常攻撃" });
   await expect(attack).toBeEnabled({ timeout: 60_000 });
@@ -534,7 +534,7 @@ test("初期症状の試験データから実操作で数値回復・全滅帰�
   await expect(details.getByText("84.51%", { exact: true })).toBeVisible();
   await expect(details).toContainText("基礎最大HP 20");
   await page.keyboard.press("Escape");
-  await expect(page.getByRole("button", { name: "出撃", exact: true })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "出発する", exact: true })).toBeDisabled();
 });
 
 test("街で保存し、リロード後も加入・編成・時計を読み込み、再読込で進めない", async ({ page }, testInfo) => {
@@ -623,7 +623,7 @@ test("壊れた保存とブラウザI/O失敗でもゲームと既存保存を�
 test("通常探索のスキル使用を次戦・帰還・保存読込・街回復へつなぐ", async ({ page }, testInfo) => {
   await page.goto("/?debug=1");
   await page.getByRole("link", { name: "出撃編成を見る" }).click();
-  await page.getByRole("button", { name: "出撃", exact: true }).click();
+  await page.getByRole("button", { name: "出発する", exact: true }).click();
   await page.getByRole("button", { name: "戦闘、選択可能" }).click();
   const skills = page.getByRole("button", { name: "スキル", exact: true });
   await expect(skills).toBeEnabled({ timeout: 60_000 });

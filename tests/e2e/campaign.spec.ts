@@ -43,12 +43,15 @@ test("通常版で導入・ホーム・街・編成・戦闘・帰還・保存�
   await page.getByRole("button", { name: "ホームへ戻る" }).click();
   await expect(page.locator("[data-calendar]")).toHaveText("1日目 · 夜");
   await page.getByRole("button", { name: "出撃編成を見る" }).click();
+  await expect(page.getByRole("button", { name: "出発する", exact: true })).toBeHidden();
   await page.getByRole("button", { name: /ロッシの詳細/ }).click();
   await cleanNormal(page);
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "戻る", exact: true }).click();
   await page.getByRole("button", { name: "探索先を選ぶ", exact: true }).click();
   await page.getByRole("button", { name: "ダンジョン", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "出発準備", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "出発する", exact: true }).click();
   await cleanNormal(page);
   await page.getByRole("button", { name: "思わぬ遭遇、選択可能" }).click();
   await page.locator("[data-conversation-stage]").click();

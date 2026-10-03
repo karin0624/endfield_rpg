@@ -2,6 +2,7 @@ import { loadSymptomDefinition } from "../content/loadSymptomDefinition";
 import { type CharacterDefinition, characterById, type PartyState } from "../game/party";
 import { canParticipate, effectiveHitRate, effectiveMaxHp, healthyStatus } from "../game/status";
 import { type CharacterDetailsContext, characterLearning, learnedSkillText } from "./characterDetailsText";
+import "./party.css";
 import { characterPortraitUrl } from "./characterPortrait";
 import { requiredElement } from "./requiredElement";
 import { formatAmount, loadSymptomText, mentalFatigueText, symptomLabel } from "./sessionFeedback";
@@ -13,11 +14,11 @@ export function mountCharacterDetailsUi(
   getContext?: () => CharacterDetailsContext,
 ) {
   const dialog = document.createElement("dialog");
-  dialog.className = "character-details";
+  dialog.className = "character-details ui-dialog";
   dialog.setAttribute("aria-labelledby", "character-details-name");
-  dialog.innerHTML = `<header class="character-details-heading">
-    <button type="button" class="party-back" data-details-back>編成へ戻る</button>
-    <h2 id="character-details-name"></h2></header>
+  dialog.innerHTML = `<footer class="ui-actions"><button type="button" class="ui-button ui-back" data-details-back>編成へ戻る</button></footer>
+    <header class="character-details-heading">
+    <h2 class="ui-title" id="character-details-name"></h2></header>
     <div class="character-details-body"><div class="character-details-portrait" data-details-portrait></div>
     <div class="character-details-info" tabindex="0" role="region" aria-label="能力と状態"><dl class="character-details-stats" data-details-stats></dl>
     <p class="character-details-symptoms" data-details-symptoms></p>

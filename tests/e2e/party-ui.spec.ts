@@ -169,3 +169,39 @@ test("初期習得の未決と空を区別し、タップで詳細を閉じて�
   }
   await context.close();
 });
+
+test("共通画面の位置と操作文脈を保ち、選択・focus・非活性を区別する", async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await page.goto("/tests/fixtures/party-selection.html?count=2");
+  const title = page.getByRole("heading", { name: "出発準備", exact: true });
+  const primary = page.getByRole("button", { name: "出発する", exact: true });
+  const back = page.getByRole("button", { name: "戻る", exact: true });
+  await expect(title).toHaveCSS("font-size", "32px");
+  expect(await title.boundingBox()).toMatchObject({ x: 64, y: 48 });
+  expect(await primary.boundingBox()).toMatchObject({ x: 1576, y: 968, width: 280, height: 64 });
+  expect(await back.boundingBox()).toMatchObject({ x: 64, y: 976, width: 160, height: 48 });
+  await expect(page.getByRole("region", { name: "未確定の候補" })).toBeHidden();
+  await page.screenshot({ path: testInfo.outputPath("formation-departure-1920.png") });
+  await page.getByRole("button", { name: "枠 3", exact: true }).click();
+  const confirm = page.getByRole("button", { name: "編成する", exact: true });
+  await expect(confirm).toBeDisabled();
+  await expect(confirm).toHaveCSS("cursor", "default");
+  await expect(primary).toBeHidden();
+  const candidate = page.getByRole("button", { name: "ギルベルタ", exact: true });
+  await candidate.focus();
+  await page.keyboard.press("Space");
+  await expect(candidate).toHaveAttribute("aria-pressed", "true");
+  await expect(candidate).toHaveCSS("outline-width", "2px");
+  expect(await confirm.boundingBox()).toMatchObject({ x: 1576, y: 968, width: 280, height: 64 });
+  await page.screenshot({ path: testInfo.outputPath("formation-selection-1920.png") });
+  await page.getByRole("button", { name: "詳細", exact: true }).click();
+  await page.screenshot({ path: testInfo.outputPath("formation-details-1920.png") });
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("Escape");
+  await page.goto("/tests/fixtures/party-selection.html?count=2&edit=1");
+  await expect(page.getByRole("heading", { name: "編成", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "出発する", exact: true })).toBeHidden();
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.getByRole("button", { name: "枠 2", exact: true }).click();
+  await expect(page.getByRole("button", { name: "ギルベルタ", exact: true })).toHaveAttribute("aria-pressed", "true");
+});
