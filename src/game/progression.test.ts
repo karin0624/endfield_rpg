@@ -278,7 +278,7 @@ describe("探索内成長コア", () => {
       ...definition,
       rules: definition.rules.map((rule, index) => (index === 0 ? { ...rule, fromLevel } : rule)),
     })),
-    { ...definition, initial: [{ ...definition.initial[0], level: Number.MAX_SAFE_INTEGER + 1 }] },
+    { ...definition, initial: [{ ...definition.initial[0], level: Number.MAX_SAFE_INTEGER + 1, experience: 0 }] },
     ...[-1, Number.NaN, Number.POSITIVE_INFINITY].flatMap((attackPower) => [
       { ...definition, initial: [{ ...definition.initial[0], bonus: { maxHp: 0, attackPower } }] },
       {
