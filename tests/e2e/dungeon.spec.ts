@@ -163,12 +163,14 @@ test("全滅帰還でHP全回復し、街探索6回で戦闘不能から復帰�
   await expect(page.locator("[data-town-recovery]")).toContainText("戦闘参加不可（あと街探索6回）");
   await page.screenshot({ path: testInfo.outputPath("defeat-town-1920.png") });
   await page.getByRole("link", { name: "出撃編成を見る" }).click();
-  await expect(page.locator(".party-slot-hp").first()).toHaveText("HP 20 / 20");
+  await expect(page.locator(".party-slot-hp").first()).toHaveText("HP 20 / 20 · 戦闘参加不可");
   await expect(page.locator(".party-slot-symptoms").first()).toContainText("戦闘参加不可（あと街探索6回）");
   await expect(page.getByRole("button", { name: "出発する" })).toBeDisabled();
   await page.screenshot({ path: testInfo.outputPath("defeat-party-1920.png") });
   await page.setViewportSize({ width: 390, height: 844 });
+  await page.locator("[data-party-calendar]").scrollIntoViewIfNeeded();
   await expect(page.locator("[data-party-calendar]")).toBeInViewport();
+  await page.getByRole("button", { name: "戻る", exact: true }).scrollIntoViewIfNeeded();
   await expect(page.getByRole("button", { name: "戻る", exact: true })).toBeInViewport();
   await page.screenshot({ path: testInfo.outputPath("defeat-party-390.png"), fullPage: true });
   await page.setViewportSize({ width: 1920, height: 1080 });
@@ -191,7 +193,9 @@ test("全滅帰還でHP全回復し、街探索6回で戦闘不能から復帰�
       await page.getByRole("button", { name: "読込", exact: true }).click();
     }
     await page.getByRole("link", { name: "出撃編成を見る" }).click();
-    await expect(page.locator(".party-slot-hp").first()).toHaveText("HP 20 / 20");
+    await expect(page.locator(".party-slot-hp").first()).toHaveText(
+      step < 6 ? "HP 20 / 20 · 戦闘参加不可" : "HP 20 / 20",
+    );
     if (step < 6) await expect(page.getByRole("button", { name: "出発する" })).toBeDisabled();
     else await expect(page.getByRole("button", { name: "出発する" })).toBeEnabled();
     await page.getByRole("button", { name: "戻る", exact: true }).click();
@@ -218,7 +222,7 @@ test("編成だけを表示し、キーボードで戻っても編集内容を�
   await expect(page.getByRole("heading", { name: "街の広場" })).toBeHidden();
   await expect(back).toBeFocused();
   await page.keyboard.press("Tab");
-  await expect(party.getByLabel("枠 1", { exact: true })).toBeFocused();
+  await expect(party.getByRole("button", { name: "出発する", exact: true })).toBeFocused();
   await editSlot(page, 1, "");
   await editSlot(page, 4, "player");
   for (let reopen = 0; reopen < 2; reopen++) {
