@@ -125,7 +125,7 @@ export function mountDungeonUi(
         <div class="dungeon-route-background" data-route-background aria-hidden="true">
           <img src="${assetUrl("backgrounds/dungeon-route.png")}" alt="" />
         </div>
-        <button type="button" class="dungeon-town-link" data-return-town>${options.returnLabel ?? "街へ戻る"}</button>
+        <button type="button" class="dungeon-town-link" data-return-town data-single-activation>${options.returnLabel ?? "街へ戻る"}</button>
         <p class="dungeon-calendar" data-calendar></p>
         <div class="dungeon-route-viewport" data-route-viewport tabindex="0" aria-label="横へドラッグして移動できる遺跡ルート">
           <div class="dungeon-route-world" data-route-world>
@@ -163,7 +163,7 @@ export function mountDungeonUi(
         <p class="dungeon-eyebrow">EXPEDITION RESULT</p>
         <h1 id="dungeon-outcome-title" data-outcome-title></h1>
         <p data-outcome-detail></p>
-        <button type="button" class="dungeon-outcome-return" data-return-town>${options.returnLabel ?? "街へ戻る"}</button>
+        <button type="button" class="dungeon-outcome-return" data-return-town data-single-activation>${options.returnLabel ?? "街へ戻る"}</button>
       </section>
       <section data-growth-screen hidden></section>
       <p class="sr-only" data-dungeon-status role="status" aria-live="polite"></p>
@@ -367,6 +367,7 @@ export function mountDungeonUi(
       const button = document.createElement("button");
       button.className = `dungeon-route-node type-${node.type}${current ? " is-current" : ""}${canSelect ? " is-available" : ""}${pastUnselected ? " is-past-unselected" : ""}${resolved ? " is-resolved" : ""}`;
       button.type = "button";
+      button.dataset.singleActivation = "";
       button.disabled = !canSelect;
       button.style.left = `${position.x}%`;
       button.style.top = `${position.y}%`;
@@ -513,6 +514,7 @@ export function mountDungeonUi(
       const button = document.createElement("button");
       button.className = "conversation-choice";
       button.type = "button";
+      button.dataset.singleActivation = "";
       button.dataset.optionId = option.id;
       const marker = createChoiceMarker();
       const number = document.createElement("span");
@@ -730,7 +732,7 @@ export function mountDungeonUi(
   conversationStage.addEventListener(
     "click",
     (event) => {
-      if ((event.target as Element).closest("button") !== null) return;
+      if ((event.target as Element).closest("button") !== null || event.detail > 1) return;
       const scene = getCurrentDungeonConversationScene(dungeonState, initialAdventure);
       if (scene?.type === "line") applyDungeonResult(options.dispatch({ type: "advance" }));
     },

@@ -109,6 +109,8 @@ UI操作を変更するPRは、受入仕様・テストID（ファイルとケ�
 | --- | --- | --- |
 | 同じ候補を選択し、押し直すと解除。通常入力を待たせない | `src/web/partySelection.test.ts`：解除・追加・欠番保持 | `tests/e2e/party-ui.spec.ts`：`編成integration: campaign配下の通常入力と選択・押し直し解除をcapture込みで通す`、`候補の短間隔4連続クリックと複数カード切替を一回ずつ即時反映する` |
 | 通常版の親を通っても選択／解除し、確定・出発の二重呼出しは防ぐ | `src/game/expedition.test.ts`：一括確定 | `tests/e2e/campaign.spec.ts`：`通常版の候補を短間隔で選択・解除しても親画面がクリックを捨てない`、上記party-uiのcallback回数検証 |
+| 成長確定のdouble-clickで次の選択権を消費しない | 既存の成長権利・候補保持の単体テスト | `tests/e2e/battle-ui.spec.ts`：`成長確定のdouble-clickで同じ位置の次の選択権まで消費しない`（Lv2確定後もLv3が残る） |
+| 場所への遷移・会話送りはdouble-clickでも1段階だけ | 既存の会話状態遷移テスト | `tests/e2e/campaign.spec.ts`：`通常版の街遷移と会話送りはdouble-clickで次の段階まで進まない` |
 
 ## 複数日の受入を再確認する
 

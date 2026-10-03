@@ -103,8 +103,8 @@ export function mountAdventureUi(
           <nav class="town-places" data-town-places aria-label="街の場所"></nav>
           <div class="town-utility-controls">
             ${options?.party ? '<a class="dungeon-entry" href="#party-editor">出撃編成を見る</a>' : ""}
-            ${options?.debug ? '<button type="button" class="battle-entry" data-save>保存</button><button type="button" class="battle-entry" data-load>読込</button>' : ""}
-            ${options?.onHome ? '<button type="button" class="battle-entry" data-home>ホームへ戻る</button>' : ""}
+            ${options?.debug ? '<button type="button" class="battle-entry" data-save data-single-activation>保存</button><button type="button" class="battle-entry" data-load data-single-activation>読込</button>' : ""}
+            ${options?.onHome ? '<button type="button" class="battle-entry" data-home data-single-activation>ホームへ戻る</button>' : ""}
             ${options?.debug ? '<a class="battle-entry" href="?debug=1&battle=1">戦闘デモを見る</a>' : ""}
             ${import.meta.env.DEV && options?.debug ? '<a class="adventure-editor-entry" href="?debug=1&adventureEdit=1">会話画面の配置設定</a>' : ""}
           </div>
@@ -226,6 +226,7 @@ export function mountAdventureUi(
       const button = document.createElement("button");
       button.className = "town-place";
       button.type = "button";
+      button.dataset.singleActivation = "";
       button.dataset.placeId = place.id;
       button.setAttribute("aria-label", place.label);
 
@@ -290,6 +291,7 @@ export function mountAdventureUi(
       const button = document.createElement("button");
       button.className = "conversation-choice";
       button.type = "button";
+      button.dataset.singleActivation = "";
       button.dataset.optionId = option.id;
       const marker = createTetrahedron();
       const number = document.createElement("span");
@@ -361,7 +363,7 @@ export function mountAdventureUi(
   conversationStage.addEventListener(
     "click",
     (event) => {
-      if ((event.target as Element).closest("button") !== null) return;
+      if ((event.target as Element).closest("button") !== null || event.detail > 1) return;
       const scene = getCurrentConversationScene(state, initialAdventure);
       if (scene?.type === "line") performTownCommand({ type: "advance" });
     },

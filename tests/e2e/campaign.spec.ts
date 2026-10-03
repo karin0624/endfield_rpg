@@ -44,6 +44,19 @@ test("通常版の候補を短間隔で選択・解除しても親画面がク�
   await expect(page.getByRole("button", { name: "枠 1", exact: true })).toContainText("ロッシ");
 });
 
+test("通常版の街遷移と会話送りはdouble-clickで次の段階まで進まない", async ({ page }) => {
+  await start(page);
+  await page.getByRole("button", { name: "探索先を選ぶ", exact: true }).click();
+  await page.getByRole("button", { name: "街", exact: true }).click();
+  await page.getByRole("button", { name: "冒険者ギルド", exact: true }).dblclick();
+  const text = page.locator("[data-dialogue-text]");
+  expect(await text.textContent()).toBe("ロッシは掲示板の前で足を止めた。");
+  await page.locator("[data-dialogue-panel]").dblclick();
+  expect(await text.textContent()).toBe("ギルベルタが掲示板の前で会釈した。");
+  await page.locator("[data-dialogue-panel]").click();
+  await expect(page.getByRole("button", { name: /掲示板の依頼について聞く/ })).toBeVisible();
+});
+
 test("通常版で導入・ホーム・街・編成・戦闘・帰還・保存再開を通す", async ({ page }, info) => {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));

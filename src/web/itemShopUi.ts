@@ -9,12 +9,13 @@ export function mountItemShop(host: HTMLElement, options: ItemShopOptions) {
   const events = new AbortController();
   const trigger = document.createElement("button");
   trigger.type = "button";
+  trigger.dataset.singleActivation = "";
   trigger.className = "command item-shop-trigger";
   trigger.textContent = "買物";
   const dialog = document.createElement("dialog");
   dialog.className = "item-dialog";
   dialog.setAttribute("aria-label", "市場の買物");
-  dialog.innerHTML = `<h2>市場の買物</h2><p>HP回復品 · HP${itemSettings.hpRecovery}回復 · 価格${itemSettings.recoveryPrice}</p><p data-shop-balance></p><label>購入個数<input type="number" min="1" step="1" value="1" data-shop-quantity /></label><p role="status" data-shop-result></p><div class="item-actions"><button class="command" type="button" data-shop-buy>購入する</button><button class="command" type="button" data-shop-close>買物を閉じる</button></div>`;
+  dialog.innerHTML = `<h2>市場の買物</h2><p>HP回復品 · HP${itemSettings.hpRecovery}回復 · 価格${itemSettings.recoveryPrice}</p><p data-shop-balance></p><label>購入個数<input type="number" min="1" step="1" value="1" data-shop-quantity /></label><p role="status" data-shop-result></p><div class="item-actions"><button class="command" type="button" data-shop-buy data-single-activation>購入する</button><button class="command" type="button" data-shop-close data-single-activation>買物を閉じる</button></div>`;
   const quantity = dialog.querySelector<HTMLInputElement>("input") as HTMLInputElement;
   const buy = dialog.querySelector<HTMLButtonElement>("[data-shop-buy]") as HTMLButtonElement;
   const status = dialog.querySelector<HTMLElement>("[data-shop-result]") as HTMLElement;

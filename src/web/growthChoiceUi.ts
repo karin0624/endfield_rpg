@@ -41,6 +41,7 @@ export function mountGrowthChoice(
     const known = learned.find((entry) => entry.skillId === skillId);
     const button = document.createElement("button");
     button.type = "button";
+    button.dataset.singleActivation = "";
     const name = document.createElement("strong");
     name.textContent = skill.name;
     const detail = document.createElement("span");
@@ -55,8 +56,11 @@ export function mountGrowthChoice(
     button.append(name, detail, description);
     button.addEventListener(
       "click",
-      () =>
-        choose({ explorationId: state.explorationId, characterId: choice.characterId, level: choice.level, skillId }),
+      (event) => {
+        // Choosing can synchronously mount the next offer at the same pointer position.
+        if (event.detail > 1) return;
+        choose({ explorationId: state.explorationId, characterId: choice.characterId, level: choice.level, skillId });
+      },
       { signal: events.signal },
     );
     panel.append(button);
