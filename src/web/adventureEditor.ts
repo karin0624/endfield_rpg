@@ -30,7 +30,7 @@ export function mountAdventureEditor(app: HTMLDivElement, preview: Preview, init
     <header>
       <p class="adventure-eyebrow">DEVELOPMENT / CONVERSATION</p>
       <h1>会話画面の配置</h1>
-      <a href="${import.meta.env.BASE_URL}">保存済みの通常表示</a>
+      <a href="${import.meta.env.BASE_URL}?debug=1">保存済みの通常表示</a>
     </header>
     <div class="adventure-editor-actions">
       <button type="button" data-preview-only>画面だけで確認</button>

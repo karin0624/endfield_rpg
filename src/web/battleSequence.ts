@@ -24,6 +24,8 @@ export function createBattleSequence(stage: HTMLElement, renderer: BattlePresent
   let actorId = "";
   let targetId = "";
   function position() {
+    if (disposed) return;
+    renderer.refreshCombatantScreenPositions();
     for (const [node, id] of [
       [actor, actorId],
       [impact, targetId],
@@ -107,7 +109,7 @@ export function createBattleSequence(stage: HTMLElement, renderer: BattlePresent
       await wait(120);
       if (disposed) return;
       phase("prepare");
-      renderer.playCombatantEffect(actorId, "attack", !motion.matches && speed !== 0, undefined, 140 / (speed || 1));
+      if (!motion.matches && speed !== 0) renderer.playCombatantEffect(actorId, "attack", true, undefined, 140 / speed);
       await wait(motion.matches ? 0 : 140);
       if (disposed) return;
       phase("impact");
@@ -115,8 +117,8 @@ export function createBattleSequence(stage: HTMLElement, renderer: BattlePresent
       await wait(motion.matches ? 0 : 80);
       if (disposed) return;
       phase("result");
-      if (hit && !heal)
-        renderer.playCombatantEffect(targetId, "hit", !motion.matches && speed !== 0, undefined, 240 / (speed || 1));
+      if (hit && !heal && !motion.matches && speed !== 0)
+        renderer.playCombatantEffect(targetId, "hit", true, undefined, 240 / speed);
       await wait(380);
       if (disposed) return;
       phase("settle");

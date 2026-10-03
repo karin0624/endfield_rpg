@@ -34,7 +34,7 @@ jobs:
           lfs: true
       - run: npm ci
       - run: npm run build
-      - run: npx playwright test --project ui --grep '代表シーケンス.*実素材'
+      - run: PLAYWRIGHT_EDITOR=1 npx playwright test --project ui --grep '代表シーケンス.*実素材'
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -42,11 +42,18 @@ jobs:
           path: test-results/**/sequence-*.png
           if-no-files-found: ignore
           retention-days: 14
-      - run: npx playwright test --project built --project ui
+      - run: npm run test:e2e:inside
         if: success() || failure()
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: browser-test-results
           path: test-results/
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: campaign-flow-previews
+          path: test-results/campaign-*/campaign-*.png
+          if-no-files-found: ignore
           retention-days: 14

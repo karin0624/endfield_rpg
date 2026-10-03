@@ -72,7 +72,7 @@ async function editSettings(page: Page) {
 }
 
 test("構図設定の静止画を比較する", async ({ page }) => {
-  await page.goto("/?edit=1");
+  await page.goto("/?debug=1&edit=1");
   await expect(page.getByRole("button", { name: "標準として保存", exact: true })).toBeEnabled({ timeout: 60_000 });
   await editSettings(page);
   await expect(page.locator("canvas")).toHaveScreenshot("edited-battle-scene.png");
@@ -88,7 +88,7 @@ test("構図設定の静止画を比較する", async ({ page }) => {
 test("構図を一時保存・標準保存し、通常表示に反映する", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
-  await page.goto("/?edit=1");
+  await page.goto("/?debug=1&edit=1");
   const save = page.getByRole("button", { name: "標準として保存", exact: true });
   const editor = page.getByRole("complementary", { name: "構図設定" });
   const message = editor.getByRole("status");
@@ -147,7 +147,7 @@ test("保存APIは不正な設定や別サイトからの書き込みを拒否�
 });
 
 test("会話画面の立ち絵と本文位置を調整・保存し、通常表示へ反映する", async ({ page }) => {
-  await page.goto("/?adventureEdit=1");
+  await page.goto("/?debug=1&adventureEdit=1");
   const editor = page.getByRole("complementary", { name: "会話画面の配置設定" });
   const editorHeading = editor.getByRole("heading", { name: "会話画面の配置", exact: true });
   await expect(editorHeading).toBeVisible();

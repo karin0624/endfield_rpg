@@ -13,11 +13,12 @@
     "check": "npm run lint && tsc --noEmit && vitest run",
     "build": "node scripts/check-assets.mjs && tsc --noEmit && vite build",
     "test:e2e": "sh scripts/run-browser-test.sh e2e",
-    "test:e2e:inside": "npm run build && playwright test --project built --project ui",
+    "test:e2e:inside": "npm run build && npm run build:debug && playwright test --project built --project debug --project ui",
     "test:ui": "sh scripts/run-browser-test.sh ui",
     "test:ui:inside": "PLAYWRIGHT_UI=1 playwright test --project ui",
     "test:editor": "sh scripts/run-browser-test.sh editor",
-    "test:editor:inside": "PLAYWRIGHT_EDITOR=1 playwright test --project settings"
+    "test:editor:inside": "PLAYWRIGHT_EDITOR=1 playwright test --project settings",
+    "build:debug": "node scripts/check-assets.mjs && tsc --noEmit && vite build --mode debug --outDir dist-debug"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.14",

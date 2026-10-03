@@ -285,7 +285,6 @@ function createEnvironment(
       const scaleX = canvas.clientWidth / engine.getRenderWidth();
       const scaleY = canvas.clientHeight / engine.getRenderHeight();
       for (const actor of actors) {
-        if (actor.layout.team !== "enemy") continue;
         if (!actor.plane.isEnabled()) {
           actor.screenRect = undefined;
           continue;
@@ -627,10 +626,10 @@ function createEnvironment(
         updateActorPositions(true);
         needsRender = true;
       },
-      /** キャッシュした敵の画面範囲。全員分を同じ描画フレームで更新する。 */
+      /** キャッシュした全戦闘者の画面範囲。味方への演出も実投影を使う。 */
       getCombatantScreenRect(id: string): ScreenRect | undefined {
         const actor = findActor(id);
-        if (actor === undefined || actor.layout.team !== "enemy") return undefined;
+        if (actor === undefined) return undefined;
         return actor.screenRect;
       },
       /** カメラの前方へ最も近い敵を、現在の3D配置から選ぶ。 */

@@ -72,14 +72,16 @@ export function mountAdventureUi(
     initialState: GameState;
     getCalendarLabel: () => string;
     getFeedback: () => readonly string[];
-    saveMessage: string;
-    save: () => string;
-    load: () => string;
+    saveMessage?: string;
+    save?: () => string;
+    load?: () => string;
     dispatch: (
       command: TownUiCommand,
       actionId: number | null,
     ) => AdventureActionResult & { readonly recruitedNames?: readonly string[]; readonly actionId?: number };
-    party: PartyUiOptions;
+    party?: PartyUiOptions;
+    onHome?: () => void;
+    debug?: boolean;
   },
 ) {
   root.innerHTML = `
@@ -98,10 +100,11 @@ export function mountAdventureUi(
           </header>
           <nav class="town-places" data-town-places aria-label="街の場所"></nav>
           <div class="town-utility-controls">
-            ${options ? '<a class="dungeon-entry" href="#party-editor">出撃編成を見る</a>' : ""}
-            ${options ? '<button type="button" class="battle-entry" data-save>保存</button><button type="button" class="battle-entry" data-load>読込</button>' : ""}
-            <a class="battle-entry" href="?battle=1">戦闘デモを見る</a>
-            ${import.meta.env.DEV ? '<a class="adventure-editor-entry" href="?adventureEdit=1">会話画面の配置設定</a>' : ""}
+            ${options?.party ? '<a class="dungeon-entry" href="#party-editor">出撃編成を見る</a>' : ""}
+            ${options?.debug ? '<button type="button" class="battle-entry" data-save>保存</button><button type="button" class="battle-entry" data-load>読込</button>' : ""}
+            ${options?.onHome ? '<button type="button" class="battle-entry" data-home>ホームへ戻る</button>' : ""}
+            ${options?.debug ? '<a class="battle-entry" href="?debug=1&battle=1">戦闘デモを見る</a>' : ""}
+            ${import.meta.env.DEV && options?.debug ? '<a class="adventure-editor-entry" href="?debug=1&adventureEdit=1">会話画面の配置設定</a>' : ""}
           </div>
           <section id="party-editor" class="party-editor" aria-label="出撃編成" data-party-editor></section>
         </section>
@@ -147,7 +150,7 @@ export function mountAdventureUi(
     if (open) partyEditor.querySelector<HTMLButtonElement>("[data-party-back]")?.focus();
     else partyEntry?.focus();
   }
-  const disposeParty = options ? mountPartyUi(partyEditor, options.party, () => setPartyOpen(false)) : undefined;
+  const disposeParty = options?.party ? mountPartyUi(partyEditor, options.party, () => setPartyOpen(false)) : undefined;
   partyEditor.hidden = true;
   partyEntry?.addEventListener(
     "click",
@@ -158,14 +161,16 @@ export function mountAdventureUi(
     { signal: events.signal },
   );
   let disposed = false;
-  if (options) {
+  root.querySelector("[data-home]")?.addEventListener("click", () => options?.onHome?.(), { signal: events.signal });
+  if (options?.debug) {
     const saveStatus = requiredElement<HTMLElement>(root, "[data-save-status]");
-    saveStatus.textContent = options.saveMessage;
+    saveStatus.textContent = options.saveMessage ?? "";
     saveStatus.hidden = !options.saveMessage;
     for (const [selector, action] of [
       ["[data-save]", options.save],
       ["[data-load]", options.load],
     ] as const) {
+      if (!action) continue;
       requiredElement<HTMLButtonElement>(root, selector).addEventListener(
         "click",
         () => {

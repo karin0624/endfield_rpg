@@ -101,6 +101,7 @@ export type BattleUiAttackResult =
 
 export interface BattleUiOptions {
   readonly initialState?: BattleState;
+  readonly allowBasicAttack?: boolean;
   readonly skillRules?: BattleSkillRules;
   readonly useSkill?: (
     state: BattleState,
@@ -169,6 +170,7 @@ export function mountBattleUi(
   battle: BattlePresentation,
   options: BattleUiOptions = {},
 ): () => void {
+  const allowBasicAttack = options.allowBasicAttack ?? options.skillRules === undefined;
   const initialCombatants = options.combatants ?? initialBattleCombatants;
   const combatantName = (id: string) => {
     const name = options.displayNames?.[id] ?? presentation[id]?.name ?? id;
@@ -290,8 +292,8 @@ export function mountBattleUi(
 
   function targetPrompt(): string {
     return selectedTargetId === null
-      ? "通常攻撃できる敵がいません。"
-      : `対象：${combatantName(selectedTargetId)}。通常攻撃で攻撃します。敵をクリックすると対象を切り替えます。`;
+      ? "選択できる敵がいません。"
+      : `対象：${combatantName(selectedTargetId)}。スキルを選択します。敵をクリックすると対象を切り替えます。`;
   }
 
   function positionTargetMarker() {
@@ -622,7 +624,7 @@ export function mountBattleUi(
     }
     let hasReplayedAllyAttack = false;
     let hasPausedBeforeEnemyTurn = false;
-    for (const event of confirmedEvents) {
+    for (const [eventIndex, event] of confirmedEvents.entries()) {
       if (disposed) return;
       if (event.type === "attack" || event.type === "miss" || event.type === "skill") {
         const actorTeam = teamFor(event.actorId);
@@ -656,7 +658,29 @@ export function mountBattleUi(
       } else if (event.type === "symptom") {
         const detail = `${combatantName(event.actorId)}の${symptomNames[event.kind]}：${formatAmount(event.before)} → ${loadSymptomText(event.kind, event.after)}`;
         resultSummary += ` · ${detail}`;
+        // The next attack records HP after onset and before enemy damage; do not
+        // borrow the final HP when a later enemy has already damaged this actor.
+        const nextAttack = confirmedEvents
+          .slice(eventIndex + 1)
+          .find((later) => later.type === "attack" && later.targetId === event.actorId);
+        const confirmed = state.combatants.find((member) => member.id === event.actorId);
+        displayState = {
+          ...displayState,
+          combatants: displayState.combatants.map((member) =>
+            member.id !== event.actorId
+              ? member
+              : {
+                  ...member,
+                  status: { ...member.status, [event.kind]: event.after },
+                  mentalFatigue: confirmed?.mentalFatigue ?? member.mentalFatigue,
+                  hp: nextAttack?.type === "attack" ? nextAttack.targetHpBefore : (confirmed?.hp ?? member.hp),
+                },
+          ),
+        };
+        renderCombatants();
+        showEventToast(detail, "symptom");
         screenReaderStatus.textContent = detail;
+        await animationWait(EVENT_TOAST_DURATION_MS);
       } else if (event.type === "combatant-defeated") {
         displayState = {
           ...displayState,
@@ -704,14 +728,14 @@ export function mountBattleUi(
     if (target === undefined || target.team !== "enemy" || !target.isAlive) return;
     // Selecting the active target again keeps it selected; there is no deselect state.
     selectedTargetId = targetId;
-    message = `${combatantName(targetId)}を攻撃対象に選択しました。通常攻撃で攻撃します。`;
+    message = `${combatantName(targetId)}を攻撃対象に選択しました。スキルを選択します。`;
     render();
   }
 
   function attackSelectedTarget() {
     const actorId = state.currentActorId;
     const targetId = selectedTargetId;
-    if (targetId === null || replayingEvents || actorId === null || !currentActorIsAlly()) return;
+    if (!allowBasicAttack || targetId === null || replayingEvents || actorId === null || !currentActorIsAlly()) return;
     const target = getCombatant(targetId);
     if (target === undefined || target.team !== "enemy" || !target.isAlive) return;
     replayingEvents = true;
@@ -743,7 +767,7 @@ export function mountBattleUi(
     skillsButton.hidden = !rules || skillPanelOpen;
     skillsButton.disabled = !canAct;
     skillPanel.hidden = !skillPanelOpen || !canAct;
-    attackButton.hidden = skillPanelOpen;
+    attackButton.hidden = skillPanelOpen || !allowBasicAttack;
     if (!rules || !skillPanelOpen || !canAct) return;
     const actor = state.combatants.find((member) => member.id === state.currentActorId);
     if (!actor) return;

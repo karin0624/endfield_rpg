@@ -25,12 +25,35 @@ const definitions: readonly BattleCombatantDefinition[] = [
     maxHp: 30,
     attackPower: 8,
     hitRate: query.has("miss") ? 0 : 1,
+    ...(query.has("symptom")
+      ? { mentalFatigue: 100, status: { physicalFatigue: 75, haze: 75, incapacityRecoverySteps: null } }
+      : {}),
     learnedSkills: [
       { skillId: "test-strike", type: "active", origin: "initial", acquisition: "initial" },
       { skillId: "test-heal", type: "active", origin: "initial", acquisition: "initial" },
     ],
   },
-  { id: "slime", team: "enemy", speed: 40, hp: 40, attackPower: 4 },
+  ...(query.has("party")
+    ? [
+        {
+          id: "gilberta",
+          team: "ally" as const,
+          speed: 90,
+          hp: 4,
+          maxHp: 30,
+          attackPower: 6,
+          learnedSkills: [
+            {
+              skillId: "test-heal",
+              type: "active" as const,
+              origin: "initial" as const,
+              acquisition: "initial" as const,
+            },
+          ],
+        },
+      ]
+    : []),
+  { id: "slime", team: "enemy", speed: query.has("party") || query.has("symptom") ? 80 : 40, hp: 40, attackPower: 4 },
 ];
 const app = requiredElement<HTMLElement>(document, "#app");
 app.innerHTML = `<button type="button" data-exit>戦闘を離れる</button><button type="button" data-reenter>戦闘を開始</button><output data-count>確定 0回</output><main class="battle-screen"><div class="game-board"><section class="stage"><canvas></canvas></section></div></main>`;
