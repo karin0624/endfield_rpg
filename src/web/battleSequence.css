@@ -49,7 +49,8 @@
 }
 /* Each cue enters, rests and exits; no permanent HUD element is animated. */
 .battle-sequence:where(:not([data-phase="impact"]):not([data-phase="result"])) .sequence-impact,
-.battle-sequence:where(:not([data-phase="result"]):not([data-phase="settle"])) .sequence-number,
+.battle-sequence:where(:not([data-phase="impact"]):not([data-phase="result"]):not([data-phase="settle"]))
+  .sequence-number,
 .battle-sequence[data-kind="miss"] .sequence-impact,
 .battle-sequence[data-kind="heal"] .impact-rays,
 .battle-sequence:not([data-kind="heal"]) .recovery-rings {
@@ -71,8 +72,8 @@
 .battle-sequence:is([data-phase="impact"], [data-phase="result"])[data-motion="true"] .sequence-impact {
   animation: sequence-strike calc(240ms / var(--sequence-impact-speed, 1)) ease-out both;
 }
-.battle-sequence[data-phase="result"][data-motion="true"] .sequence-number {
-  animation: sequence-result-enter calc(380ms / var(--sequence-result-speed, 1)) linear both;
+.battle-sequence:is([data-phase="impact"], [data-phase="result"])[data-motion="true"] .sequence-number {
+  animation: sequence-result-enter calc(380ms / var(--sequence-impact-speed, 1)) linear both;
 }
 .battle-sequence[data-phase="settle"][data-motion="true"] .sequence-number {
   animation: sequence-result-exit calc(120ms / var(--sequence-settle-speed, 1)) ease-in both;
