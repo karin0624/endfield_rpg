@@ -20,7 +20,10 @@ test("通常版で導入・ホーム・街・編成・戦闘・帰還・保存�
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   page.on("response", (response) => {
-    if (response.url().includes("/assets/") && !response.ok()) errors.push(`${response.status()} ${response.url()}`);
+    // Cached assets may be revalidated with 304 after the save/resume navigation.
+    if (response.url().includes("/assets/") && response.status() >= 400) {
+      errors.push(`${response.status()} ${response.url()}`);
+    }
   });
   await page.setViewportSize({ width: 1920, height: 1080 });
   await page.goto("/");
