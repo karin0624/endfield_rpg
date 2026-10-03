@@ -452,9 +452,20 @@ export function mountDungeonUi(
           });
           if (!result.accepted) return false;
           const event = result.itemRecovery;
-          branchResult = event?.type === "item-recovery" ? `HP回復品：HPを${event.amount}回復。` : "";
+          const target = result.state.party.find((p) => p.id === targetId);
+          branchResult =
+            event && target
+              ? `HP回復品：HPを${event.amount}回復。${options.displayNames[target.id] ?? target.id} HP ${target.hp} · 精神疲労 ${target.mentalFatigue ?? 0}。`
+              : "";
           applyDungeonResult(result);
           return true;
+        },
+        afterUse: () => {
+          const next =
+            routeScreen.querySelector<HTMLButtonElement>(".item-trigger:not(:disabled)") ??
+            routeNodes.querySelector<HTMLButtonElement>("button:not(:disabled)") ??
+            routeScreen.querySelector<HTMLButtonElement>("[data-return-town]");
+          next?.focus();
         },
       }).dispose;
     let resultLabel = routeScreen.querySelector<HTMLParagraphElement>(".branch-skill-result");

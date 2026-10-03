@@ -12,6 +12,7 @@ export function mountRecoveryItemUi(
     names: Readonly<Record<string, string>>;
     canUse: () => boolean;
     use: (targetId: string) => boolean;
+    afterUse?: () => void;
   },
 ) {
   const events = new AbortController();
@@ -72,8 +73,11 @@ export function mountRecoveryItemUi(
       if (use.disabled) return;
       use.disabled = true;
       if (options.use(target.value)) {
-        dialog.close();
-        render();
+        if (dialog.isConnected) {
+          dialog.close();
+          render();
+        }
+        options.afterUse?.();
       } else {
         updatePreview();
         preview.textContent = "使用できませんでした。対象と所持数を確認してください。";
