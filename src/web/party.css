@@ -244,18 +244,21 @@
   background-image:
     url("/assets/ui/primary-inset.svg"),
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 18'%3E%3Cpath d='M3 3l6 6-6 6' fill='none' stroke='%23252a2c' stroke-width='2'/%3E%3C/svg%3E"),
-    url("/assets/ui/metal-grain.svg"), linear-gradient(120deg, #ffffff25, #dfaf7020);
+    url("/assets/ui/amber-etching.svg"), url("/assets/ui/metal-grain.svg"),
+    linear-gradient(120deg, #ffffff25, #dfaf7020);
   background-size:
     100% 100%,
     18px 28px,
+    100% 100%,
     128px 128px,
     100% 100%;
   background-position:
     center,
     right 36px center,
     center,
+    center,
     center;
-  background-repeat: no-repeat, no-repeat, repeat, no-repeat;
+  background-repeat: no-repeat, no-repeat, no-repeat, repeat, no-repeat;
 }
 
 .formation-screen .party-footer .ui-back::after {
@@ -322,6 +325,7 @@
   right: 5.5%;
   top: 12.54%;
   bottom: 15.94%;
+  backdrop-filter: blur(7px) contrast(0.8);
   background:
     url("/assets/ui/selection-panel.svg") center / 100% 100% no-repeat,
     url("/assets/ui/metal-grain.svg");
@@ -765,7 +769,8 @@
   background-image:
     url("/assets/ui/confirm-inset.svg"),
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 18'%3E%3Cpath d='M3 3l6 6-6 6' fill='none' stroke='%23252a2c' stroke-width='2'/%3E%3C/svg%3E"),
-    url("/assets/ui/metal-grain.svg"), linear-gradient(120deg, #ffffff25, #dfaf7020);
+    url("/assets/ui/amber-etching.svg"), url("/assets/ui/metal-grain.svg"),
+    linear-gradient(120deg, #ffffff25, #dfaf7020);
 }
 
 @media (max-width: 900px), (max-height: 650px) {
