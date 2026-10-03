@@ -3,7 +3,6 @@ import { type ItemCatalog, type ItemState, receiveItems } from "./items";
 export interface ItemOffer {
   readonly itemId: string;
   readonly unitPrice: number;
-  readonly stock: number;
 }
 /** Caller supplies the currency balance and a current quote. No calendar or recovery operation. */
 export function purchaseItem(
@@ -20,15 +19,8 @@ export function purchaseItem(
 ) {
   const rejected = { accepted: false as const, items, balance, offer };
   if (items.exploration?.destination !== "town" || items.exploration.id !== input.explorationId) return rejected;
-  if (!Number.isSafeInteger(input.quantity) || input.quantity <= 0 || input.quantity > offer.stock) return rejected;
-  if (
-    !Number.isSafeInteger(balance) ||
-    balance < 0 ||
-    !Number.isSafeInteger(offer.unitPrice) ||
-    offer.unitPrice < 0 ||
-    !Number.isSafeInteger(offer.stock) ||
-    offer.stock < 0
-  )
+  if (!Number.isSafeInteger(input.quantity) || input.quantity <= 0) return rejected;
+  if (!Number.isSafeInteger(balance) || balance < 0 || !Number.isSafeInteger(offer.unitPrice) || offer.unitPrice < 0)
     throw new Error("購入用の調整値が不正です");
   const cost = input.quantity * offer.unitPrice;
   if (!Number.isSafeInteger(cost) || cost > balance) return rejected;
@@ -44,6 +36,6 @@ export function purchaseItem(
     accepted: true as const,
     items: result.state,
     balance: balance - cost,
-    offer: { ...offer, stock: offer.stock - input.quantity },
+    offer,
   };
 }

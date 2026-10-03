@@ -5,11 +5,11 @@ import { itemTrials } from "../content/itemTrials";
 import { advanceBattleToNextActor, type BattleCombatantDefinition, createBattleState } from "./battle";
 import { createDungeonState, enterNextDungeonNode } from "./dungeon";
 import { consumeBagItem, createItemState, packItems } from "./items";
-import { useBattleRecoveryItem, useBranchRecoveryItem } from "./itemUse";
+import { previewRecoveryItem, useBattleRecoveryItem, useBranchRecoveryItem } from "./itemUse";
 import { healthyStatus } from "./status";
 
 const catalog = itemTrials.catalog;
-const hp = "trial-hp-recovery";
+const hp = "hp-recovery";
 const ally: BattleCombatantDefinition = {
   id: "ally",
   team: "ally",
@@ -37,7 +37,6 @@ const input = {
   expectedVersion: 1,
   explorationId: 7,
   itemId: hp,
-  origin: "carried" as const,
   targetId: "ally",
   actorId: "ally",
   expectedActionTime: 100,
@@ -122,7 +121,7 @@ describe("消耗品のHP回復", () => {
   it("使い切った品物ではHPも手番も更新しない", () => {
     let stock = items();
     for (let i = 0; i < 2; i++) {
-      const consumed = consumeBagItem(stock, stock.version, hp, "carried", catalog);
+      const consumed = consumeBagItem(stock, stock.version, hp, catalog);
       if (!consumed.accepted) throw new Error(consumed.reason);
       stock = consumed.state;
     }
@@ -131,17 +130,41 @@ describe("消耗品のHP回復", () => {
     expect(result.battle.currentActorId).toBe("ally");
     expect(result.battle.combatants.find((c) => c.id === "ally")?.hp).toBe(5);
   });
-  it("満タンへの有効使用は回復0でも1個と1行動を消費する", () => {
+  it("満タン対象は実回復0で使用できず個数と手番を消費しない", () => {
     const result = useBattleRecoveryItem(
       items(),
       battle({ ...ally, hp: 20 }),
       { ...input, targetId: "target" },
       catalog,
     );
-    expect(result.accepted).toBe(true);
-    if (result.accepted) expect(result.event.amount).toBe(0);
-    expect(result.items.exploration?.bag[0].quantity).toBe(1);
-    expect(result.battle.currentActorId).toBe("target");
+    expect(result.accepted).toBe(false);
+    expect(result.items.exploration?.bag[0].quantity).toBe(2);
+    expect(result.battle.currentActorId).toBe("ally");
+    expect(previewRecoveryItem({ ...ally, hp: 20 }, hp, catalog)).toEqual({
+      usable: false,
+      amount: 0,
+      reason: "no-recovery",
+    });
+  });
+  it("対象選択へ有効上限を考慮した回復見込みと拒否理由を返す", () => {
+    expect(previewRecoveryItem({ ...ally, hp: 17 }, hp, catalog)).toEqual({ usable: true, amount: 3 });
+    expect(previewRecoveryItem({ ...ally, hp: 0 }, hp, catalog)).toEqual({
+      usable: false,
+      amount: 0,
+      reason: "invalid-target",
+    });
+    expect(previewRecoveryItem(ally, "unknown", catalog)).toEqual({ usable: false, amount: 0, reason: "invalid-item" });
+    const start = dungeon();
+    const full = { ...start, party: [{ ...ally, hp: 20 }] };
+    const result = useBranchRecoveryItem(
+      items(),
+      full,
+      { ...input, expectedNodeId: full.currentNodeId },
+      catalog,
+      initialDungeon,
+    );
+    expect(result.accepted).toBe(false);
+    expect(result.items.exploration?.bag[0].quantity).toBe(2);
   });
   it("回復量の別案を注入できる", () => {
     const result = useBattleRecoveryItem(items(), battle(), input, [{ id: hp, kind: "consumable", hpRecovery: 3 }]);

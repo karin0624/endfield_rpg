@@ -1,26 +1,31 @@
 import { advanceBattleToNextActor, type BattleCombatantDefinition, type BattleState } from "./battle";
 import { completeCurrentAction } from "./battleTimeline";
 import { type DungeonDefinition, type DungeonState, getAvailableDungeonNodes } from "./dungeon";
-import { type BagStack, consumeBagItem, type ItemCatalog, type ItemState } from "./items";
+import { consumeBagItem, type ItemCatalog, type ItemState } from "./items";
 import { canParticipate, effectiveMaxHp, healthyStatus } from "./status";
 
 export interface RecoveryItemInput {
   readonly expectedVersion: number;
   readonly explorationId: number;
   readonly itemId: string;
-  readonly origin: BagStack["origin"];
   readonly targetId: string;
 }
-function healTarget<T extends BattleCombatantDefinition>(
-  target: T | undefined,
+/** Target eligibility and actual recovery for selection UI; turn/session guards remain action-level checks. */
+export function previewRecoveryItem(
+  target: BattleCombatantDefinition | undefined,
   itemId: string,
   catalog: ItemCatalog,
-): T | null {
+):
+  | { readonly usable: true; readonly amount: number }
+  | { readonly usable: false; readonly amount: 0; readonly reason: "invalid-target" | "invalid-item" | "no-recovery" } {
   const item = catalog.find(({ id }) => id === itemId);
-  if (target?.team !== "ally" || !canParticipate(target.hp, target.status) || item?.kind !== "consumable") return null;
+  if (item?.kind !== "consumable") return { usable: false, amount: 0, reason: "invalid-item" };
+  if (target?.team !== "ally" || !canParticipate(target.hp, target.status))
+    return { usable: false, amount: 0, reason: "invalid-target" };
   if (!Number.isFinite(item.hpRecovery) || item.hpRecovery <= 0) throw new Error("回復量は正の有限値です");
   const maxHp = effectiveMaxHp(target.maxHp ?? target.hp, target.status ?? healthyStatus());
-  return { ...target, hp: Math.min(maxHp, target.hp + item.hpRecovery) };
+  const amount = Math.min(Math.max(0, maxHp - target.hp), item.hpRecovery);
+  return amount > 0 ? { usable: true, amount } : { usable: false, amount: 0, reason: "no-recovery" };
 }
 
 /** Pure atomic operation. Caller commits both states before displaying the event. */
@@ -42,9 +47,10 @@ export function useBattleRecoveryItem(
   )
     return rejected;
   const target = battle.combatants.find(({ id }) => id === input.targetId);
-  const healed = healTarget(target, input.itemId, catalog);
-  if (!healed || !target) return rejected;
-  const consumed = consumeBagItem(items, input.expectedVersion, input.itemId, input.origin, catalog);
+  const preview = previewRecoveryItem(target, input.itemId, catalog);
+  if (!preview.usable || !target) return { ...rejected, preview };
+  const healed = { ...target, hp: target.hp + preview.amount };
+  const consumed = consumeBagItem(items, input.expectedVersion, input.itemId, catalog);
   if (!consumed.accepted) return rejected;
   const combatants = battle.combatants.map((c) => (c.id === healed.id ? healed : c));
   const timeline = completeCurrentAction({ ...battle, combatants });
@@ -87,9 +93,10 @@ export function useBranchRecoveryItem(
   )
     return rejected;
   const target = dungeon.party.find(({ id }) => id === input.targetId);
-  const healed = healTarget(target, input.itemId, catalog);
-  if (!healed || !target) return rejected;
-  const consumed = consumeBagItem(items, input.expectedVersion, input.itemId, input.origin, catalog);
+  const preview = previewRecoveryItem(target, input.itemId, catalog);
+  if (!preview.usable || !target) return { ...rejected, preview };
+  const healed = { ...target, hp: target.hp + preview.amount };
+  const consumed = consumeBagItem(items, input.expectedVersion, input.itemId, catalog);
   if (!consumed.accepted) return rejected;
   return {
     accepted: true as const,

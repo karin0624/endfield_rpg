@@ -122,12 +122,15 @@ export function acquireImportantItem(state: ItemState, itemId: string, catalog: 
     state: { ...state, version: state.version + 1, importantIds: [...state.importantIds, itemId] },
   };
 }
-/** Selection of origin is explicit; no hidden carried-first/acquired-first consumption rule. */
+/** UI sees one count; origin is internal accounting only. */
+export function bagItemQuantity(state: ItemState, itemId: string): number {
+  return state.exploration?.bag.filter((s) => s.itemId === itemId).reduce((total, s) => total + s.quantity, 0) ?? 0;
+}
+/** Consume carried stock first, then acquired stock, without asking the player. */
 export function consumeBagItem(
   state: ItemState,
   expectedVersion: number,
   itemId: string,
-  origin: BagStack["origin"],
   catalog: ItemCatalog,
 ): ItemResult {
   if (state.version !== expectedVersion) return { accepted: false, state, reason: "stale-input" };
@@ -135,7 +138,9 @@ export function consumeBagItem(
   if (!exploration) return { accepted: false, state, reason: "wrong-place" };
   if (catalog.find(({ id }) => id === itemId)?.kind !== "consumable")
     return { accepted: false, state, reason: "invalid-item" };
-  const stack = exploration.bag.find((s) => s.itemId === itemId && s.origin === origin);
+  const stack =
+    exploration.bag.find((s) => s.itemId === itemId && s.origin === "carried") ??
+    exploration.bag.find((s) => s.itemId === itemId && s.origin === "acquired");
   if (!stack) return { accepted: false, state, reason: "insufficient-stock" };
   return {
     accepted: true,
