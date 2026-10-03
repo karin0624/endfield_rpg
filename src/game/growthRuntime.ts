@@ -1,4 +1,5 @@
 import type { BattleSkillRules } from "./battle";
+import { equippedCharacters } from "./equipmentRuntime";
 import type { ExpeditionGame } from "./expedition";
 import type { CharacterDefinition } from "./party";
 import type { ExperienceReward, ProgressionDefinition } from "./progression";
@@ -45,7 +46,7 @@ export function growthStats(id: string, state: ExplorationSkills | undefined, ru
   return { maxHp, attackPower, basicAttackBonus };
 }
 export function grownCharacters(game: ExpeditionGame, rules: BattleSkillRules): readonly CharacterDefinition[] {
-  return (rules.growth?.characters ?? []).map((character) => {
+  return equippedCharacters(game, rules.growth?.characters ?? []).map((character) => {
     const bonus = growthStats(character.id, game.growth, rules);
     return {
       ...character,
@@ -62,7 +63,7 @@ export function projectGrowth(
 ): ExpeditionGame {
   if (!rules.growth) return game;
   const members = game.party.members.map((member) => {
-    const base = rules.growth?.characters.find(({ id }) => id === member.id);
+    const base = equippedCharacters(game, rules.growth?.characters ?? []).find(({ id }) => id === member.id);
     if (!base) throw new Error("成長のキャラクター定義がありません");
     const status = member.status ?? healthyStatus();
     const before = effectiveMaxHp(base.maxHp + growthStats(member.id, previous, rules).maxHp, status);
@@ -79,7 +80,9 @@ export function projectGrowth(
           ...game.dungeon,
           randomState: game.randomState ?? game.dungeon.randomState,
           party: game.dungeon.party.map((participant) => {
-            const base = rules.growth?.characters.find(({ id }) => id === participant.id);
+            const base = equippedCharacters(game, rules.growth?.characters ?? []).find(
+              ({ id }) => id === participant.id,
+            );
             const member = members.find(({ id }) => id === participant.id);
             if (!base || !member) throw new Error("成長の参加者がありません");
             const bonus = growthStats(member.id, game.growth, rules);

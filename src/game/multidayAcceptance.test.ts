@@ -91,7 +91,7 @@ describe("Issue46: 公開操作による複数日受入", () => {
       for (let i = 0; i < 2; i++) {
         const written = serializeGame(game, save);
         if (!written.accepted) throw new Error(written.reason);
-        expect(JSON.parse(written.data).version).toBe(4);
+        expect(JSON.parse(written.data).version).toBe(5);
         const read = deserializeGame(written.data, save);
         if (!read.accepted) throw new Error(read.reason);
         expect(read.state).toMatchObject({

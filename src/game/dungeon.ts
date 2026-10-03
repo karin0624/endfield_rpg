@@ -25,6 +25,7 @@ import {
   performBattleSkillAndAdvanceToAllyInput,
 } from "./battle";
 import type { GameState } from "./createInitialGameState";
+import type { ItemRecoveryEvent } from "./items";
 import { applyAdditionalLoadSymptom } from "./loadSymptoms";
 import { mentalFatigueMultiplier } from "./mentalFatigue";
 import { activeSkillBaseAmount, mentalFatigueAffectedQuantity } from "./skills";
@@ -114,6 +115,7 @@ export type DungeonActionResult =
       readonly accepted: true;
       readonly state: DungeonState;
       readonly events: BattleEvent[];
+      readonly itemRecovery?: ItemRecoveryEvent;
       /** Final battle state for the screen result after the activity returns to the route. */
       readonly battleState?: BattleState;
     }
@@ -487,7 +489,7 @@ export function chooseDungeonConversationOption(
 }
 
 /** Resolve a player attack and any following enemy actions with the shared battle rules. */
-function resolveDungeonBattleAction(
+export function resolveDungeonBattleAction(
   state: DungeonState,
   definition: DungeonDefinition,
   act: (battle: BattleState) => BasicAttackResult,
