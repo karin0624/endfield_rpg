@@ -659,8 +659,10 @@ export function mountBattleUi(
           event.type === "miss" || (event.type === "skill" && !event.hit)
             ? "外れ"
             : event.type === "attack"
-              ? `${formatAmount(event.damage)} ダメージ`
-              : `${formatAmount(event.amount)} ${event.effect === "damage" ? "ダメージ" : "回復"}`;
+              ? `−${formatAmount(event.damage)}`
+              : event.effect === "damage"
+                ? `−${formatAmount(event.amount)}`
+                : `${formatAmount(event.amount)} 回復`;
         const hitLabel = event.type === "skill" ? ` · ${event.hitIndex}発目` : "";
         const label = `${combatantName(event.actorId)} · ${name}`;
         showEventToast(`${label} → ${combatantName(event.targetId)}${hitLabel}`, "attack");

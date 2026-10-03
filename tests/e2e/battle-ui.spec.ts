@@ -294,10 +294,12 @@ for (const real of [false, true]) {
     await page.clock.runFor(260);
     await expect(sequence).toHaveAttribute("data-phase", "impact");
     await expect(page.locator("[data-enemy-hp]")).toHaveText("24 / 40");
+    await expect(page.locator(".sequence-number")).toBeVisible();
+    await expect(page.locator(".sequence-number")).toHaveText("−16");
     await page.screenshot({ path: testInfo.outputPath(`sequence-${real ? "real" : "ui"}-impact.png`) });
     await page.clock.runFor(80);
     await expect(page.locator(".sequence-number")).toBeVisible();
-    await expect(page.locator(".sequence-number")).toHaveText("16 ダメージ");
+    await expect(page.locator(".sequence-number")).toHaveText("−16");
     expect(await page.locator(".party").boundingBox()).toEqual(partyBefore);
     await page.screenshot({ path: testInfo.outputPath(`sequence-${real ? "real" : "ui"}-result.png`) });
     await page.setViewportSize({ width: 390, height: 844 });
@@ -404,7 +406,7 @@ for (const real of [false, true]) {
     expect(Math.abs((player?.x ?? 0) - (gilberta?.x ?? 0))).toBeGreaterThan(20);
     await page.screenshot({ path: testInfo.outputPath(`sequence-${real ? "real" : "ui"}-heal-player.png`) });
     await page.clock.runFor(1200);
-    await expect(number).toHaveText("4 ダメージ");
+    await expect(number).toHaveText("−4");
     const damage = await number.boundingBox();
     expect(
       Math.abs((player?.x ?? 0) + (player?.width ?? 0) / 2 - (damage?.x ?? 0) - (damage?.width ?? 0) / 2),
@@ -435,7 +437,7 @@ test("スキル専用の本編導線と、回復→発症のHP制限→敵の被
   await expect(page.locator("[data-event-toast]")).toContainText("肉体疲労：75 → 78");
   await expect(page.locator(".hp-line")).toHaveText("HP16/ 16");
   await page.clock.runFor(1000);
-  await expect(page.locator(".sequence-number")).toHaveText("4 ダメージ");
+  await expect(page.locator(".sequence-number")).toHaveText("−4");
   await expect(page.locator(".hp-line")).toHaveText("HP12/ 16");
   await page.getByRole("button", { name: "演出を省略" }).click();
   await expect(skills).toBeEnabled();
