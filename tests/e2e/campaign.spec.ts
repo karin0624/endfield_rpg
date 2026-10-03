@@ -8,7 +8,7 @@ async function start(page: Page) {
   await page.getByRole("button", { name: "ホームへ", exact: true }).click();
 }
 async function cleanNormal(page: Page) {
-  await expect(page.getByText(/戦闘デモ|デバッグ|検証用|構図設定|配置設定/)).toHaveCount(0);
+  await expect(page.getByText(/戦闘デモ|デバッグ|検証用|構図設定|配置設定|未実装/)).toHaveCount(0);
 }
 async function save(page: Page, title = false) {
   await page.getByRole("button", { name: title ? "保存してタイトルへ戻る" : "保存", exact: true }).click();
@@ -19,14 +19,24 @@ test("通常版で導入・ホーム・街・編成・戦闘・帰還・保存�
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.setViewportSize({ width: 1920, height: 1080 });
-  await start(page);
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: "ENDFIELD RPG" })).toBeVisible();
+  await page.screenshot({ path: info.outputPath("campaign-01-title-1920.png") });
+  await page.getByRole("button", { name: "新規開始", exact: true }).click();
+  await page.screenshot({ path: info.outputPath("campaign-02-new-game-confirmation-1920.png") });
+  await page.getByRole("button", { name: "実行する", exact: true }).click();
+  await expect(page.locator(".campaign-copy")).toHaveText("（仮テキスト）");
+  await page.screenshot({ path: info.outputPath("campaign-03-introduction-1920.png") });
+  await page.getByRole("button", { name: "ホームへ", exact: true }).click();
   await cleanNormal(page);
-  await page.screenshot({ path: info.outputPath("campaign-home-1920.png") });
+  await page.screenshot({ path: info.outputPath("campaign-04-home-1920.png") });
   await page.getByRole("button", { name: "探索先を選ぶ", exact: true }).click();
   await expect(page.locator("[data-calendar]")).toHaveText("1日目 · 昼");
+  await page.screenshot({ path: info.outputPath("campaign-05-destinations-1920.png") });
   await page.getByRole("button", { name: "街", exact: true }).click();
   await cleanNormal(page);
   await expect(page.getByRole("button", { name: "保存", exact: true })).toHaveCount(0);
+  await page.screenshot({ path: info.outputPath("campaign-06-town-1920.png") });
   await page.getByRole("button", { name: "市場", exact: true }).click();
   await expect(page.getByRole("button", { name: "ホームへ戻る" })).toBeHidden();
   await page.keyboard.press("Space");
@@ -60,19 +70,25 @@ test("通常版で導入・ホーム・街・編成・戦闘・帰還・保存�
   await expect(page.getByRole("heading", { name: "ホーム", exact: true })).toBeVisible();
   await expect(page.locator("[data-calendar]")).toHaveText("2日目 · 昼");
   await expect(page.locator("[data-town-recovery]")).toContainText("HPが全回復");
-  await save(page, true);
+  await page.screenshot({ path: info.outputPath("campaign-07-returned-home-1920.png") });
+  await page.getByRole("button", { name: "保存してタイトルへ戻る", exact: true }).click();
+  await page.screenshot({ path: info.outputPath("campaign-08-save-confirmation-1920.png") });
+  await page.getByRole("button", { name: "実行する", exact: true }).click();
   await expect(page.getByRole("heading", { name: "ENDFIELD RPG" })).toBeVisible();
+  await expect(page.getByRole("status")).toHaveText("保存しました。");
+  await page.screenshot({ path: info.outputPath("campaign-09-saved-title-1920.png") });
   const saved = await page.evaluate(() => localStorage.getItem("endfield-rpg-game-save"));
   await page.reload();
   await page.getByRole("button", { name: "続きから" }).dblclick();
   await expect(page.locator("[data-calendar]")).toHaveText("2日目 · 昼");
   await cleanNormal(page);
+  await page.screenshot({ path: info.outputPath("campaign-10-resumed-home-1920.png") });
   await save(page);
   expect(await page.evaluate(() => localStorage.getItem("endfield-rpg-game-save"))).toBe(saved);
   expect(errors).toEqual([]);
 });
 
-test("移動は時間を消費せず、取消・新規開始は既存保存を消さない", async ({ page }, info) => {
+test("移動は時間を消費せず、取消・新規開始は既存保存を消さない", async ({ page }) => {
   await start(page);
   await save(page);
   const saved = await page.evaluate(() => localStorage.getItem("endfield-rpg-game-save"));
@@ -83,7 +99,6 @@ test("移動は時間を消費せず、取消・新規開始は既存保存を�
     await page.keyboard.press("Escape");
     await expect(page.locator("[data-calendar]")).toHaveText("1日目 · 昼");
     expect(await page.locator("body").evaluate((el) => el.scrollWidth <= window.innerWidth)).toBe(true);
-    await page.screenshot({ path: info.outputPath(`campaign-home-${width}.png`), fullPage: true });
   }
   await page.getByRole("button", { name: "探索先を選ぶ", exact: true }).click();
   await page.getByRole("button", { name: "街", exact: true }).click();
@@ -148,6 +163,19 @@ test("明示デバッグ入口と保存を通常版から隔離する", async ({
     await expect(page.getByRole("heading", { name: "ENDFIELD RPG" })).toBeVisible();
     await cleanNormal(page);
   }
+  // App screens do not add history entries. Browser Back/Forward revisits URLs,
+  // and must not turn a production build into a debug session.
+  await page.goBack();
+  await expect(page).toHaveURL(/debug=1&battle=1$/);
+  await expect(page.getByRole("heading", { name: "ENDFIELD RPG" })).toBeVisible();
+  await cleanNormal(page);
+  await page.goForward();
+  await expect(page).toHaveURL(/debug=1&dungeon=1$/);
+  await expect(page.getByRole("heading", { name: "ENDFIELD RPG" })).toBeVisible();
+  await cleanNormal(page);
+  expect(await page.evaluate(() => localStorage.getItem("endfield-rpg-game-save"))).toBe(saved);
+  await page.getByRole("button", { name: "続きから" }).click();
+  await expect(page.locator("[data-calendar]")).toHaveText("1日目 · 昼");
   // Dedicated debug build; copy a pre-existing normal slot onto this origin to test key isolation.
   await page.goto("http://127.0.0.1:4175/?debug=1");
   await page.evaluate((data) => localStorage.setItem("endfield-rpg-game-save", data ?? ""), saved);

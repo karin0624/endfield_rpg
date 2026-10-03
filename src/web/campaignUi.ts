@@ -197,11 +197,7 @@ export function mountCampaign(root: HTMLDivElement): () => void {
     report.hidden = report.childElementCount === 0;
     requiredElement<HTMLElement>(root, ".campaign-copy").append(report);
     nav.append(button("探索先を選ぶ", showDestinations, true), button("出撃編成を見る", showParty));
-    const equipment = button("装備変更", () => {});
-    equipment.disabled = true;
-    equipment.setAttribute("aria-describedby", "equipment-status");
     nav.append(
-      equipment,
       button("保存", () => save(false)),
       button("保存してタイトルへ戻る", () => save(true)),
       button("タイトルへ戻る", () =>
@@ -213,10 +209,6 @@ export function mountCampaign(root: HTMLDivElement): () => void {
         ),
       ),
     );
-    const hint = document.createElement("p");
-    hint.id = "equipment-status";
-    hint.textContent = "装備変更は未実装です。";
-    requiredElement<HTMLElement>(root, ".campaign-copy").append(hint);
   }
   function showDestinations(message = "") {
     const nav = screen("探索先選択", "destinations", message);
