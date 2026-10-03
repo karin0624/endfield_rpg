@@ -212,6 +212,7 @@ export function mountBattleUi(
   speedSelect.addEventListener("change", () => sequence.setSpeed(Number(speedSelect.value)), { signal: eventSignal });
   skipButton.addEventListener("click", () => sequence.setSpeed(0), { signal: eventSignal });
   const battleUi = requiredElement<HTMLElement>(hud, "[data-battle-ui]");
+  if (options.skillRules) battleUi.dataset.skillBattle = "true";
   const timeline = requiredElement<HTMLOListElement>(hud, "[data-timeline]");
   const party = requiredElement<HTMLElement>(hud, "[data-party]");
   const skillsButton = requiredElement<HTMLButtonElement>(hud, "[data-skills]");

@@ -387,6 +387,7 @@ for (const real of [false, true]) {
       await page.clock.runFor(340);
     }
     const number = page.locator(".sequence-number");
+    const partyBefore = await page.locator(".party").boundingBox();
     await heal("gilberta");
     await expect(number).toHaveText("23 回復 · 1発目");
     const gilberta = await number.boundingBox();
@@ -408,6 +409,8 @@ for (const real of [false, true]) {
     await page.getByRole("button", { name: "演出を省略" }).click();
     await expect(skills).toBeEnabled();
     await expect(page.locator("[data-count]")).toHaveText("確定 2回");
+    expect(await page.locator(".party").boundingBox()).toEqual(partyBefore);
+    await expect(page.locator(".party")).toBeInViewport({ ratio: 1 });
   });
 }
 

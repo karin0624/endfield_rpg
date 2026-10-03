@@ -56,7 +56,7 @@ const definitions: readonly BattleCombatantDefinition[] = [
   { id: "slime", team: "enemy", speed: query.has("party") || query.has("symptom") ? 80 : 40, hp: 40, attackPower: 4 },
 ];
 const app = requiredElement<HTMLElement>(document, "#app");
-app.innerHTML = `<button type="button" data-exit>戦闘を離れる</button><button type="button" data-reenter>戦闘を開始</button><output data-count>確定 0回</output><main class="battle-screen"><div class="game-board"><section class="stage"><canvas></canvas></section></div></main>`;
+app.innerHTML = `<aside class="sequence-fixture-controls"><button type="button" data-exit>戦闘を離れる</button><button type="button" data-reenter>戦闘を開始</button><output data-count>確定 0回</output></aside><main class="battle-screen"><div class="game-board"><section class="stage"><canvas></canvas></section></div></main>`;
 const board = requiredElement<HTMLDivElement>(app, ".game-board");
 const canvas = requiredElement<HTMLCanvasElement>(app, "canvas");
 const settings = parseBattleSettings(savedSettings);

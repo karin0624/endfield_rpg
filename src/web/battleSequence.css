@@ -103,3 +103,13 @@
     display: none;
   }
 }
+
+/* Reserve the first fatigue/status row before the first skill is used. */
+.battle-ui[data-skill-battle] .ally-details .symptom-icons {
+  display: flex;
+  min-height: calc(var(--font-size-body) * 1.5 + 10px);
+  margin-top: 6px;
+}
+.battle-ui[data-skill-battle] .ally-details .symptom-icons[hidden] {
+  visibility: hidden;
+}
