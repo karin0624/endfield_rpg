@@ -40,10 +40,6 @@
   margin: 0;
   align-items: start;
 }
-.formation-screen.party-editor .party-guidance {
-  margin: 0;
-  grid-column: 1;
-}
 .formation-screen.party-editor .party-calendar {
   margin: 0;
   padding: 0.5rem 1rem;
@@ -157,6 +153,9 @@
 .formation-screen.party-editor :where(.party-slot:not(.is-occupied)) .party-slot-hp {
   visibility: hidden;
 }
+.formation-screen.party-editor :where(.party-slot:not(.is-occupied)) .party-slot-name {
+  visibility: hidden;
+}
 .formation-screen.party-editor .party-slot-hp.is-defeated {
   color: var(--ui-danger);
 }
@@ -182,7 +181,7 @@
 }
 .formation-screen.party-editor.is-selecting .party-workspace {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 384px);
   gap: 3rem;
 }
 .formation-screen.party-editor .party-candidates:not([hidden]) {
@@ -195,19 +194,20 @@
   padding: 0;
   border: 0;
 }
-.formation-screen.party-editor .party-candidates h3 {
+.formation-screen.party-editor .party-candidates > h3 {
   display: none;
 }
 .formation-screen.party-editor .party-candidate-grid {
   display: grid;
   align-content: start;
   grid-auto-rows: max-content;
-  flex: 1;
+  flex: 0 1 auto;
   overflow-y: auto;
   min-height: 0;
   scrollbar-gutter: stable;
 
-  grid-template-columns: repeat(auto-fill, minmax(175px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(175px, 280px));
+  justify-content: center;
   gap: 1.5rem;
   padding: 6px;
   max-height: none;
@@ -245,10 +245,6 @@
   --ui-frame-line: 2px;
   box-shadow: none;
 }
-.formation-screen.party-editor .party-candidate[aria-pressed="true"] .party-candidate-state::after {
-  content: " · 選択中";
-  color: var(--ui-selection);
-}
 .formation-screen.party-editor .party-candidate-face {
   display: grid;
   place-items: center;
@@ -260,20 +256,35 @@
 .formation-screen.party-editor .party-candidate-face .party-character-image {
   object-fit: contain;
 }
-.formation-screen.party-editor .party-candidate-state {
-  min-height: 1.5em;
-
-  color: var(--ui-muted);
+.formation-screen.party-editor .party-membership {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  display: flex;
+  gap: 4px;
+  flex-direction: column;
+  padding: 6px;
+  background: var(--ui-surface);
+}
+.formation-screen.party-editor .party-membership i {
+  width: 8px;
+  height: 8px;
+  border: 1px solid var(--ui-metal);
+}
+.formation-screen.party-editor .party-membership .is-filled {
+  background: var(--ui-ink);
 }
 .formation-screen.party-editor.is-selecting .party-current {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  align-content: start;
   gap: 1rem;
 }
 .formation-screen.party-editor.is-selecting .party-slots {
   width: 100%;
-  max-width: 400px;
-  margin: 0 0 0 auto;
+  max-width: none;
+  grid-template-columns: minmax(0, 1fr);
+  margin: 0;
   gap: 0.75rem;
   height: auto;
   align-items: start;
@@ -282,14 +293,19 @@
   display: block;
 }
 .formation-screen.party-editor.is-selecting .party-slot-choice {
-  height: 88px;
+  height: 96px;
+  flex-direction: row;
+  align-items: center;
   justify-content: center;
 }
 .formation-screen.party-editor.is-selecting .party-slot-name {
-  display: none;
+  display: block;
+  background: none;
 }
 .formation-screen.party-editor.is-selecting .party-slot-portrait {
-  height: 86px;
+  height: 94px;
+  width: 76px;
+  flex-shrink: 0;
 }
 .formation-screen.party-editor.is-selecting .party-slot-name {
   font: var(--ui-body-size) / 1.4 var(--ui-font);
@@ -301,30 +317,26 @@
 }
 .formation-screen.party-editor .party-pending:not([hidden]) {
   display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-rows: auto;
+  flex-shrink: 0;
   min-height: 0;
-  margin: 0;
+  margin: 1rem 0 0;
   padding: 0;
   border: 0;
 }
-.formation-screen.party-editor .party-preview {
-  min-height: 0;
-  text-align: center;
-}
-.formation-screen.party-editor .party-preview-info {
+.formation-screen.party-editor .party-candidate-details {
   display: grid;
+  width: fit-content;
+  min-width: min(100%, 280px);
+  max-width: 100%;
+  margin-inline: auto;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 0.25rem 1rem;
   padding: 0.75rem 1rem;
   background: var(--ui-surface);
-  border-top: 1px solid var(--ui-metal);
+  border-top: 0;
   max-height: 45dvh;
   overflow-y: auto;
-}
-.formation-screen.party-editor .party-pending h3 {
-  font: 500 var(--ui-name-size) / 1.4 var(--ui-heading-font);
-  margin: 0;
-  grid-column: 1;
 }
 .formation-screen.party-editor .party-pending p {
   margin: 0;
@@ -344,7 +356,7 @@
 
   margin-top: 0;
   grid-column: 2;
-  grid-row: 1 / span 2;
+  grid-row: 1 / span 3;
   align-self: center;
 }
 .character-details.ui-dialog {
@@ -376,11 +388,6 @@
   grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
   gap: 2rem;
 }
-.ui-dialog .character-details-scroll-hint {
-  margin: 0 0 0 auto;
-  color: var(--ui-muted);
-  font: var(--ui-body-size) / 1.6 var(--ui-font);
-}
 .ui-dialog .character-details-portrait {
   min-height: 0;
 }
@@ -395,7 +402,26 @@
   max-height: none;
   overflow-y: auto;
   scrollbar-gutter: stable;
-  padding: 0.5rem 0.5rem 1.5rem;
+  padding: 0.5rem 1.75rem 1.5rem 0.5rem;
+}
+/* Local covers hide each edge cue only when that end of the content is reached. */
+.ui-dialog :is(.character-details-info, .character-details-body) {
+  background-image:
+    linear-gradient(var(--ui-surface), var(--ui-surface)), linear-gradient(var(--ui-surface), var(--ui-surface)),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 8'%3E%3Cpath d='M2 7l6-6 6 6' fill='none' stroke='%23939e9a' stroke-width='2'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 8'%3E%3Cpath d='M2 1l6 6 6-6' fill='none' stroke='%23939e9a' stroke-width='2'/%3E%3C/svg%3E");
+  background-size:
+    100% 24px,
+    100% 24px,
+    16px 8px,
+    16px 8px;
+  background-position:
+    center top,
+    center bottom,
+    right 20px top 4px,
+    right 20px bottom 4px;
+  background-attachment: local, local, scroll, scroll;
+  background-repeat: no-repeat;
 }
 .ui-dialog :is(.character-details-info, .character-details-body)::-webkit-scrollbar {
   width: 12px;
@@ -447,16 +473,26 @@
   .formation-screen.party-editor.is-selecting .party-slots {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
-  .formation-screen.party-editor .party-preview {
-    height: 220px;
-  }
-  .formation-screen.party-editor .party-preview-info {
+  .formation-screen.party-editor .party-candidate-details {
     max-height: none;
     grid-template-columns: minmax(0, 1fr);
   }
   .formation-screen.party-editor .party-pending-actions {
     grid-column: 1;
     grid-row: auto;
+  }
+  .formation-screen.party-editor .party-membership {
+    flex-direction: row;
+  }
+  .formation-screen.party-editor.is-selecting .party-slot-name {
+    display: none;
+  }
+  .formation-screen.party-editor.is-selecting .party-slot-choice {
+    height: 88px;
+  }
+  .formation-screen.party-editor.is-selecting .party-slot-portrait {
+    height: 86px;
+    width: 100%;
   }
   .formation-screen.party-editor .party-candidate-grid {
     max-height: 50dvh;
@@ -494,6 +530,7 @@
   .ui-dialog .character-details-info {
     overflow: visible;
     flex-shrink: 0;
+    background: none;
   }
 }
 @media (min-width: 901px) and (max-height: 750px) {
@@ -504,8 +541,25 @@
   .formation-screen.party-editor .party-slot-portrait {
     height: 30dvh;
   }
-  .formation-screen.party-editor .party-preview-info {
+  .formation-screen.party-editor .party-candidate-details {
     max-height: 34dvh;
+  }
+  .formation-screen.party-editor.is-selecting .party-slots {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .formation-screen.party-editor.is-selecting .party-slot-name {
+    display: none;
+  }
+  .formation-screen.party-editor.is-selecting .party-slot-choice {
+    height: 88px;
+  }
+  .formation-screen.party-editor.is-selecting .party-slot-portrait {
+    width: 100%;
+    height: 86px;
+  }
+  .formation-screen.party-editor .party-membership {
+    display: grid;
+    grid-template-columns: repeat(2, 8px);
   }
 }
 /* Campaign owns navigation; this screen owns its single heading and viewport. */
@@ -521,9 +575,6 @@
 }
 .formation-screen.party-editor [hidden] {
   display: none;
-}
-.formation-screen.party-editor .party-candidate-grid:not(:has(button:nth-child(3))) {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 @media (min-width: 901px) {
   .formation-screen.party-editor:not(.is-selecting) .party-slots {
@@ -542,8 +593,8 @@
     margin-top: 0;
   }
   .formation-screen.party-editor .party-candidate-grid:not(:has(button:nth-child(3))) .party-candidate-face {
-    height: min(34dvh, 360px);
-    flex-basis: min(34dvh, 360px);
+    height: min(32dvh, 280px);
+    flex-basis: min(32dvh, 280px);
   }
 }
 .ui-dialog .character-details-heading {
@@ -576,6 +627,7 @@
     align-items: stretch;
     margin-top: 0;
     overflow: hidden;
+    background: none;
   }
   .ui-dialog .character-details-portrait {
     height: 100%;
@@ -598,5 +650,16 @@
 }
 
 .formation-screen.party-editor[hidden] {
+  display: none;
+}
+
+.formation-screen .party-current-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+.formation-screen:not(.is-selecting) .party-current-actions {
+  display: none;
+}
+.formation-screen.is-selecting .party-slot:not(.is-occupied) .party-slot-name {
   display: none;
 }

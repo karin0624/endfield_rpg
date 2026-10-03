@@ -45,11 +45,6 @@
         "src": "http://127.0.0.1:4180/assets/characters/rossi/face.png",
         "width": 256,
         "height": 320
-      },
-      {
-        "src": "http://127.0.0.1:4180/assets/characters/rossi/expressions/neutral.png",
-        "width": 1024,
-        "height": 1536
       }
     ]
   },

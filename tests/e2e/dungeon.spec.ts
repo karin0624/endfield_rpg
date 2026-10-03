@@ -257,7 +257,7 @@ test("街の4枠を編集して単独出撃し、ボス帰還の回復HPを編�
   await page.getByRole("button", { name: "枠 2", exact: true }).click();
   await page.getByRole("group", { name: "候補一覧" }).getByRole("button", { name: "ロッシ", exact: true }).click();
   await expect(page.getByRole("button", { name: "編成する", exact: true })).toBeDisabled();
-  await expect(page.getByText("編成中。先に元の枠を空けてください。")).toBeVisible();
+  await expect(page.getByText("先に元の枠を空けてください。")).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(party.getByLabel("枠 2", { exact: true })).toContainText("空き枠に追加");
   await expect(page.locator(".party-slot-hp").nth(3)).toHaveText("HP 20 / 20");

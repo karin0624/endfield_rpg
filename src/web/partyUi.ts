@@ -5,7 +5,7 @@ import type { CharacterDetailsContext } from "./characterDetailsText";
 import { mountCharacterDetailsUi } from "./characterDetailsUi";
 import { characterPortraitUrl } from "./characterPortrait";
 import { requiredElement } from "./requiredElement";
-import { formatAmount, mentalFatigueText } from "./sessionFeedback";
+import { formatAmount } from "./sessionFeedback";
 import { renderSymptomIcons } from "./symptomIcons";
 import "./party.css";
 
@@ -35,17 +35,15 @@ export function mountPartyUi(root: HTMLElement, options: PartyUiOptions, back: (
   root.classList.add("ui-screen", "formation-screen");
   const departure = options.context !== "edit" && !!options.depart;
   root.innerHTML = `<header class="party-heading ui-heading">
-    <h2 id="party-title" class="ui-title"></h2><p class="party-calendar" data-party-calendar></p>
-    <p class="party-guidance">枠を選んで仲間を変更</p></header>
+    <h2 id="party-title" class="ui-title"></h2><p class="party-calendar" data-party-calendar></p></header>
     <div class="party-workspace"><section class="party-candidates" aria-label="加入済みの仲間" hidden>
-    <h3 data-selection-title>加入済みの仲間</h3><div class="party-candidate-grid" role="group" aria-label="候補一覧"></div></section>
-    <div class="party-current"><div class="party-slots" data-party-slots></div>
+    <h3 data-selection-title>加入済みの仲間</h3><div class="party-candidate-grid" role="group" aria-label="候補一覧"></div>
     <section class="party-pending" aria-label="未確定の候補" hidden>
-    <div class="party-preview" aria-hidden="true" data-pending-portrait></div>
-    <div class="party-preview-info"><h3 data-pending-name></h3><p data-pending-summary></p>
+    <div class="party-candidate-details"><h3 class="sr-only" data-pending-name></h3><p data-pending-summary></p>
     <div data-pending-symptoms></div><p data-pending-reason></p>
-    <div class="party-pending-actions"><button type="button" class="party-detail ui-button" data-candidate-details>詳細</button>
-    <button type="button" class="ui-button" data-remove>外す</button></div></div></section></div></div>
+    <div class="party-pending-actions"><button type="button" class="party-detail ui-button" data-candidate-details>詳細</button></div></div></section></section>
+    <div class="party-current"><div class="party-slots" data-party-slots></div>
+    <div class="party-current-actions"><button type="button" class="ui-button" data-remove>外す</button></div></div></div>
     <footer class="party-footer ui-actions"><button class="party-back ui-button ui-back" type="button" data-party-back>戻る</button>
     <p data-party-status role="status" aria-live="polite"></p>
     <button type="button" class="ui-button ui-primary" data-confirm>編成する</button>
@@ -191,22 +189,20 @@ export function mountPartyUi(root: HTMLElement, options: PartyUiOptions, back: (
     const name = requiredElement<HTMLElement>(root, "[data-pending-name]");
     const summary = requiredElement<HTMLElement>(root, "[data-pending-summary]");
     const reason = requiredElement<HTMLElement>(root, "[data-pending-reason]");
-    name.textContent = member ? characterById(options.characters, member.id).name : "仲間を選んでください";
+    name.textContent = member ? characterById(options.characters, member.id).name : "";
+    requiredElement<HTMLElement>(root, ".party-candidate-details").hidden = !member;
     summary.textContent = "";
-    const preview = requiredElement<HTMLElement>(root, "[data-pending-portrait]");
-    preview.replaceChildren();
-    if (member) portrait(preview, member.id);
     renderSymptomIcons(
       requiredElement<HTMLElement>(root, "[data-pending-symptoms]"),
       member?.status ?? healthyStatus(),
       member?.mentalFatigue ?? 0,
     );
     if (member) {
-      summary.textContent = `${memberHp(member.id)} · 精神疲労 ${mentalFatigueText(member.mentalFatigue ?? 0)}`;
+      summary.textContent = memberHp(member.id);
     }
     const duplicate = member && party.slots.some((id, slot) => id === member.id && slot !== editingSlot);
     reason.textContent = [
-      duplicate ? "編成中。先に元の枠を空けてください。" : "",
+      duplicate ? "先に元の枠を空けてください。" : "",
       member && !canParticipate(member.hp, member.status) ? "戦闘参加不可。街探索で回復できます。" : "",
     ]
       .filter(Boolean)
@@ -270,14 +266,15 @@ export function mountPartyUi(root: HTMLElement, options: PartyUiOptions, back: (
         const name = document.createElement("span");
         name.textContent = character.name;
         const hp = document.createElement("span");
+        hp.hidden = true;
         hp.id = `party-candidate-hp-${grid.childElementCount}`;
         hp.textContent = memberHp(member.id);
         const state = document.createElement("span");
-        state.className = "party-candidate-state";
+        state.hidden = true;
         state.id = `party-candidate-state-${grid.childElementCount}`;
         button.setAttribute("aria-describedby", `${hp.id} ${state.id}`);
         state.textContent = [
-          party.slots.includes(member.id) ? "編成中" : "",
+          party.slots.includes(member.id) ? `編成中・枠 ${party.slots.indexOf(member.id) + 1}` : "",
           !canParticipate(member.hp, member.status) ? "戦闘不能" : "",
         ]
           .filter(Boolean)
@@ -286,6 +283,18 @@ export function mountPartyUi(root: HTMLElement, options: PartyUiOptions, back: (
         info.className = "party-candidate-info";
         info.append(name, hp, state);
         button.append(face, info);
+        const assignedSlot = party.slots.indexOf(member.id);
+        if (assignedSlot !== -1) {
+          const mark = document.createElement("span");
+          mark.className = "party-membership";
+          mark.setAttribute("aria-hidden", "true");
+          for (let slot = 0; slot < 4; slot++) {
+            const pip = document.createElement("i");
+            pip.classList.toggle("is-filled", slot === assignedSlot);
+            mark.append(pip);
+          }
+          button.append(mark);
+        }
         button.addEventListener("click", () => {
           candidateId = member.id;
           renderPending();

@@ -54,6 +54,17 @@ test("通常版で導入・ホーム・街・編成・戦闘・帰還・保存�
   await formationScreenshot(page, info, "campaign-formation-home-1920.png");
   await page.getByRole("button", { name: "枠 1", exact: true }).click();
   await formationScreenshot(page, info, "campaign-formation-selection-1920.png");
+  const candidate = page.getByRole("group", { name: "候補一覧" }).getByRole("button", { name: "ロッシ", exact: true });
+  await expect(candidate).toHaveAccessibleDescription(/HP 20 \/ 20.*編成中・枠 1/);
+  await expect(candidate.getByText("HP 20 / 20", { exact: true })).toBeHidden();
+  await expect(candidate.getByText("編成中・枠 1", { exact: true })).toBeHidden();
+  await expect(page.getByText("HP 20 / 20", { exact: true }).filter({ visible: true })).toHaveCount(1);
+  expect(
+    await page
+      .locator(".formation-screen img:visible")
+      .evaluateAll((images) => images.every((image) => (image as HTMLImageElement).currentSrc.endsWith("/face.png"))),
+  ).toBe(true);
+  await expect(page.getByText("枠を選んで仲間を変更", { exact: true })).toHaveCount(0);
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: /ロッシの詳細/ }).click();
   await formationScreenshot(page, info, "campaign-formation-details-1920.png");

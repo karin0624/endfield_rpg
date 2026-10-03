@@ -85,7 +85,7 @@ test("長名・未提供画像・他枠の重複と狭幅・低い画面での�
     }
     await grid.getByRole("button", { name: "ロッシ", exact: true }).click();
     await expect(page.getByRole("button", { name: "入れ替える", exact: true })).toBeDisabled();
-    await expect(page.getByText("編成中。先に元の枠を空けてください。")).toBeVisible();
+    await expect(page.getByText("先に元の枠を空けてください。")).toBeVisible();
     const candidate = grid.getByRole("button", { name: /^長い名前/ });
     await candidate.click();
     await expect(candidate).toContainText("画像なし");
@@ -223,6 +223,13 @@ test("共通画面の位置と操作文脈を保ち、選択・focus・非活性
   await expect(candidate).toHaveCSS("outline-width", "2px");
   expect(await confirm.boundingBox()).toMatchObject({ x: 1576, y: 968, width: 280, height: 64 });
   await formationScreenshot(page, testInfo, "formation-selection-1920.png");
+  await expect(candidate.getByText("HP 14 / 14", { exact: true })).toBeHidden();
+  await expect(page.getByText("HP 14 / 14", { exact: true }).filter({ visible: true })).toHaveCount(1);
+  expect(
+    await page
+      .locator(".formation-screen img:visible")
+      .evaluateAll((images) => images.every((image) => (image as HTMLImageElement).currentSrc.endsWith("/face.png"))),
+  ).toBe(true);
   await page.getByRole("button", { name: "詳細", exact: true }).click();
   await formationScreenshot(page, testInfo, "formation-details-1920.png");
   await page.keyboard.press("Escape");
