@@ -1,364 +1,496 @@
 @import "./ui.css";
 
-/* The same full-screen shell is used by campaign, debug and isolated fixtures. */
-.adventure-screen.party-editing .town-view:has(.formation-screen) {
+/* Live UI geometry at the approved 1672 × 941 viewport; images remain separate assets. */
+.adventure-screen.party-editing .town-view:has(.formation-screen),
+.campaign-screen[data-campaign-screen="party"] {
   padding: 0;
   display: block;
 }
+.campaign-screen[data-campaign-screen="party"] > .campaign-header {
+  display: none;
+}
+
 .formation-screen.party-editor {
   position: relative;
   isolation: isolate;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  gap: var(--ui-section-gap);
   width: 100%;
   max-width: none;
-  min-height: 100dvh;
   height: 100dvh;
+  min-height: 100dvh;
   margin: 0;
-  padding: var(--ui-inset-y) var(--ui-inset-x);
-  border: 0;
-  background: var(--ui-surface);
-}
-.formation-screen.party-editor::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  background:
-    linear-gradient(90deg, #151b20a6, #151b2033 65%),
-    url("/assets/backgrounds/endfield-departure-industrial-background.webp") center 43% / cover;
-  pointer-events: none;
-}
-.formation-screen.party-editor.is-selecting::before {
-  filter: brightness(0.78);
-}
-.formation-screen.party-editor .party-heading {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 0.5rem 2rem;
-  margin: 0;
-  align-items: start;
-}
-.formation-screen.party-editor .party-calendar {
-  margin: 0;
-  padding: 0.5rem 1rem;
-  background: var(--ui-surface);
-  color: var(--ui-muted);
-  font-size: var(--ui-body-size);
-  font-family: var(--ui-font);
-  font-variant-numeric: tabular-nums;
-}
-.formation-screen.party-editor .party-workspace {
-  min-height: 0;
-  height: auto;
-  display: block;
-}
-.formation-screen.party-editor .party-current {
-  min-width: 0;
-
-  height: 100%;
-  min-height: 0;
-}
-.formation-screen.party-editor .party-slots {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 2rem;
-  height: 100%;
-  max-width: 1600px;
-  margin: auto;
-  align-items: end;
-}
-.formation-screen.party-editor .party-slot {
-  display: grid;
-  grid-template-rows: auto auto 44px;
   padding: 0;
   border: 0;
-  background: transparent;
-  max-height: 100%;
-  min-height: 0;
+  background: url("/assets/backgrounds/endfield-departure-industrial-background.webp") center / cover;
 }
-.formation-screen.party-editor .party-slot-choice {
-  width: 100%;
-  border-radius: 0;
-  font: var(--ui-body-size) / 1.5 var(--ui-font);
 
-  display: flex;
-  flex-direction: column;
-  padding: 0;
-  border: 1px solid transparent;
-  background: transparent;
-  --ui-control-fill: #252a2c40;
-  --ui-control-edge: #b9c2bc99;
-  color: var(--ui-ink);
-  min-height: 0;
-}
-.formation-screen.party-editor .is-occupied .party-slot-choice {
-  background: transparent;
-  border-color: transparent;
-}
-.formation-screen.party-editor:not(.is-selecting) :where(.is-occupied) .party-slot-choice::before,
-.formation-screen.party-editor:not(.is-selecting) :where(.is-occupied) .party-slot-choice::after {
+.formation-screen.party-editor[hidden] {
   display: none;
 }
-.formation-screen.party-editor:not(.is-selecting) :where(.party-slot:not(.is-occupied)) .party-slot-choice::before {
-  top: min(10dvh, 100px);
+
+.formation-screen .party-heading {
+  position: absolute;
+  top: calc(5.1% - 5px);
+  left: 4.18%;
+  right: 4.18%;
+  margin: 0;
+  border: 0;
+  padding: 0;
 }
-.formation-screen.party-editor:not(.is-selecting) :where(.party-slot:not(.is-occupied)) .party-slot-choice::after {
-  top: calc(min(10dvh, 100px) + 1px);
+
+.formation-screen .party-heading .ui-title {
+  font: 700 3.25rem / 1.4 var(--ui-heading-font);
+  letter-spacing: 0.06em;
+  text-shadow: 0 2px 3px #131919b3;
+  color: var(--ui-ink);
 }
-.formation-screen.party-editor .party-slot-choice:hover {
-  --ui-control-edge: var(--ui-selection);
+
+.formation-screen .party-heading::after {
+  content: "";
+  position: absolute;
+  top: 70px;
+  left: -4.56%;
+  width: 36%;
+  height: 1px;
+  background: linear-gradient(90deg, #deddd4 45%, #deddd400);
 }
-.formation-screen.party-editor .party-slot-portrait {
+
+.formation-screen .party-workspace {
+  position: absolute;
+  left: 12.86%;
+  width: 75.12%;
+  top: 28.1%;
+  bottom: 12%;
+}
+
+.formation-screen .party-slots {
+  display: grid;
+  grid-template-columns: 324fr 324fr 294fr 314fr;
+  gap: 0;
+  height: 100%;
+  align-items: start;
+}
+
+.formation-screen .party-slot {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border: 0;
+  background: none;
+  padding: 0;
+}
+
+.formation-screen .party-slot-choice {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  color: var(--ui-ink);
+  background: none;
+  font-family: var(--ui-heading-font);
+  cursor: pointer;
+}
+
+.formation-screen .party-slot-portrait {
   display: grid;
   place-items: center;
-  height: clamp(180px, 52dvh, 600px);
   width: 100%;
-  margin: 0;
-  flex-shrink: 1;
+  height: 46.8dvh;
   min-height: 0;
-  font: var(--ui-body-size) / 1.4 var(--ui-font);
+  margin: 0;
 }
-.formation-screen.party-editor :where(.party-slot:not(.is-occupied)) .party-slot-portrait {
-  font-size: 2rem;
-  color: var(--ui-muted);
-}
-.formation-screen.party-editor .party-character-image {
+
+.formation-screen .party-character-image {
   width: 100%;
   height: 100%;
   object-fit: contain;
   object-position: bottom;
 }
-.formation-screen.party-editor .party-slot-name,
-.formation-screen.party-editor .party-slot-hp {
-  display: block;
-  width: fit-content;
-  max-width: 100%;
-  align-self: center;
-  margin: 0;
-  padding: 0.25rem 0.5rem;
-  background: var(--ui-surface);
-  line-height: 1.5;
-}
-.formation-screen.party-editor .party-slot-name {
-  font: 500 var(--ui-name-size) / 1.4 var(--ui-heading-font);
-}
-.formation-screen.party-editor .party-slot-hp {
-  font: var(--ui-body-size) / 1.5 var(--ui-font);
-  font-variant-numeric: tabular-nums;
-  color: var(--ui-hp);
-  min-height: 2rem;
-}
-.formation-screen.party-editor :where(.party-slot:not(.is-occupied)) .party-slot-hp {
-  visibility: hidden;
-}
-.formation-screen.party-editor :where(.party-slot:not(.is-occupied)) .party-slot-name {
-  visibility: hidden;
-}
-.formation-screen.party-editor .party-slot-hp.is-defeated {
-  color: var(--ui-danger);
-}
-.formation-screen.party-editor .party-slot-symptoms {
-  background: var(--ui-surface);
-  width: fit-content;
-  max-width: 100%;
-  justify-self: center;
-}
-.formation-screen.party-editor .party-slot > .party-detail {
-  margin-top: 0.5rem;
-  justify-self: center;
-  grid-row: 3;
-}
-.formation-screen.party-editor .party-footer {
-  margin: 0;
-  display: flex;
-  gap: 1rem;
-}
-.formation-screen.party-editor .party-footer p {
-  background: var(--ui-surface);
-  padding: 0.5rem;
-}
-.formation-screen.party-editor.is-selecting .party-workspace {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 384px);
-  gap: 3rem;
-}
-.formation-screen.party-editor .party-candidates:not([hidden]) {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
 
-  min-height: 0;
-  background: transparent;
+.formation-screen .party-slot-name {
+  position: relative;
+  display: block;
+  padding: 10px 12px 14px;
+  margin: 0;
+  font: 700 1.75rem / 1.3 var(--ui-heading-font);
+  letter-spacing: 0.12em;
+  text-shadow: 0 2px 3px #161b1c;
+}
+
+.formation-screen .party-slot-name::after {
+  content: "";
+  position: absolute;
+  left: -20%;
+  right: -20%;
+  bottom: 0;
+  height: 12px;
+  background: url("/assets/ui/name-rule.svg") center / 100% 12px no-repeat;
+}
+
+.formation-screen .party-hp-bar {
+  display: block;
+  width: 192px;
+  max-width: 75%;
+  height: 8px;
+  border: 1px solid #d9dccf;
+  background: #242827b8;
+  box-shadow: 0 1px 3px #0009;
+}
+
+.formation-screen .party-hp-bar > i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(#d5e9c4, #add69d);
+}
+
+.formation-screen .party-slot-choice > .party-hp-bar {
+  margin-top: 6px;
+}
+
+.formation-screen .party-slot-hp {
+  margin-top: 2px;
+  font: 1rem / 1.4 var(--ui-font);
+  text-shadow: 0 1px 3px #000;
+  color: var(--ui-ink);
+}
+
+.formation-screen .party-slot-symptoms {
+  font: 1rem / 1.4 var(--ui-font);
+}
+
+.formation-screen .party-slot:not(.is-occupied) .party-slot-choice {
+  margin-top: 6.16dvh;
+  width: 222px;
+  height: 39.53dvh;
+  background: url("/assets/ui/card-metal.svg") center / 100% 100% no-repeat;
+  backdrop-filter: blur(4px);
+  color: #d2d4c780;
+  max-width: 95%;
+}
+
+.formation-screen .party-slot:not(.is-occupied) .party-slot-portrait {
+  height: 100%;
+  font: 200 2.5rem / 1 var(--ui-heading-font);
+  padding-bottom: 118px;
+}
+
+.formation-screen .party-footer {
+  position: absolute;
+  left: 3.59%;
+  right: 1.91%;
+  bottom: 5.42%;
+  min-height: 86px;
+  display: flex;
+  align-items: end;
+  gap: 16px;
+  padding: 0;
+  margin: 0;
+}
+
+.formation-screen .party-footer .ui-primary {
+  width: 21.23vw;
+  min-width: 280px;
+  min-height: 86px;
+  font-size: 2.25rem;
+  font-weight: 700;
+  --ui-cut-size: 2.5rem;
+}
+
+.formation-screen .party-footer .ui-back {
+  width: 11.96vw;
+  min-width: 180px;
+  min-height: 52px;
+  font-size: 1.5rem;
+  --ui-cut-size: 1.5rem;
+}
+
+.formation-screen .party-footer .ui-button::before {
+  background: linear-gradient(125deg, #e3e1d4, #6d7372 35%, #d1d3ca 75%, #969a95);
+}
+
+.formation-screen .party-footer .ui-button::after {
+  inset: 1px;
+  box-shadow: none;
+  background-image: url("/assets/ui/metal-grain.svg"), linear-gradient(120deg, #ffffff16, #10181940);
+}
+
+.formation-screen .party-footer .ui-primary::before {
+  background: linear-gradient(120deg, #eed6a2, #856c4f, #f7d5a0);
+}
+
+.formation-screen .party-footer .ui-primary::after {
+  box-shadow:
+    inset 0 0 0 1px #68563c,
+    inset 0 0 0 5px #eed19a,
+    inset 0 0 0 6px #8868479c;
+  background-image:
+    url("/assets/ui/primary-inset.svg"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 18'%3E%3Cpath d='M3 3l6 6-6 6' fill='none' stroke='%23252a2c' stroke-width='2'/%3E%3C/svg%3E"),
+    url("/assets/ui/metal-grain.svg"), linear-gradient(120deg, #ffffff25, #dfaf7020);
+  background-size:
+    100% 100%,
+    18px 28px,
+    128px 128px,
+    100% 100%;
+  background-position:
+    center,
+    right 36px center,
+    center,
+    center;
+  background-repeat: no-repeat, no-repeat, repeat, no-repeat;
+}
+
+.formation-screen .party-footer .ui-back::after {
+  background-image:
+    url("/assets/ui/back-inset.svg"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 18'%3E%3Cpath d='M9 3L3 9l6 6' fill='none' stroke='%23ece9df' stroke-width='2'/%3E%3C/svg%3E"),
+    url("/assets/ui/metal-grain.svg");
+  background-size:
+    100% 100%,
+    18px 26px,
+    128px 128px;
+  background-position:
+    center,
+    left 22px center,
+    center;
+  background-repeat: no-repeat, no-repeat, repeat;
+}
+
+.formation-screen .party-footer .ui-primary:disabled {
+  --ui-control-fill: #494540;
+  color: #b2ada5;
+}
+
+.formation-screen .party-footer .ui-primary:disabled::before {
+  background: linear-gradient(120deg, #9b9c94, #4d4d4a, #a7a8a0);
+}
+
+.formation-screen .party-footer .ui-primary:disabled::after {
+  box-shadow: none;
+  filter: grayscale(1);
+}
+
+.formation-screen.is-selecting > :is(.party-heading, .party-workspace, .party-footer) {
+  visibility: hidden;
+}
+
+.formation-screen .party-selection {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  margin: 0;
   padding: 0;
   border: 0;
-}
-.formation-screen.party-editor .party-candidates > h3 {
-  display: none;
-}
-.formation-screen.party-editor .party-candidate-grid {
-  display: grid;
-  align-content: start;
-  grid-auto-rows: max-content;
-  flex: 0 1 auto;
-  overflow-y: auto;
-  min-height: 0;
-  scrollbar-gutter: stable;
-
-  grid-template-columns: repeat(auto-fit, minmax(175px, 280px));
-  justify-content: center;
-  gap: 1.5rem;
-  padding: 6px;
-  max-height: none;
-}
-.formation-screen.party-editor .party-candidate {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 6px;
-  border-radius: 0;
-
-  min-width: 0;
-  margin: 0;
-  padding: 1rem;
-  border: 1px solid transparent;
   color: var(--ui-ink);
   background: transparent;
-  --ui-control-fill: #252a2ccc;
-  font: var(--ui-body-size) / 1.5 var(--ui-font);
-  overflow-wrap: anywhere;
+  overflow: hidden;
+  isolation: isolate;
 }
-.formation-screen.party-editor .party-candidate:hover {
-  --ui-control-fill: var(--ui-hover);
-}
-.formation-screen.party-editor .party-candidate-info {
-  display: grid;
-  gap: 0.375rem;
-  padding: 0.75rem;
-  background: var(--ui-surface);
-}
-.formation-screen.party-editor .party-candidate[aria-pressed="true"],
-.formation-screen.party-editor .party-slot-choice[aria-pressed="true"] {
-  --ui-control-fill: var(--ui-selected-surface);
-  --ui-control-edge: var(--ui-selection);
-  --ui-frame-line: 2px;
-  box-shadow: none;
-}
-.formation-screen.party-editor .party-candidate-face {
-  display: grid;
-  place-items: center;
 
-  height: 180px;
-  flex-basis: 180px;
+.formation-screen .party-selection::backdrop {
   background: transparent;
+  backdrop-filter: blur(3px);
 }
-.formation-screen.party-editor .party-candidate-face .party-character-image {
-  object-fit: contain;
-}
-.formation-screen.party-editor .party-membership {
+
+.formation-screen .party-selection::before {
+  content: "";
   position: absolute;
-  top: 1rem;
-  right: 1rem;
-  display: flex;
-  gap: 4px;
-  flex-direction: column;
-  padding: 6px;
-  background: var(--ui-surface);
+  z-index: -1;
+  pointer-events: none;
+  left: 5.44%;
+  right: 5.5%;
+  top: 12.54%;
+  bottom: 15.94%;
+  background:
+    url("/assets/ui/selection-panel.svg") center / 100% 100% no-repeat,
+    url("/assets/ui/metal-grain.svg");
 }
-.formation-screen.party-editor .party-membership i {
-  width: 8px;
-  height: 8px;
-  border: 1px solid var(--ui-metal);
+
+.formation-screen .party-selection .party-heading {
+  left: 9.33%;
+  top: calc(14.88% - 5px);
+  right: 29%;
 }
-.formation-screen.party-editor .party-membership .is-filled {
-  background: var(--ui-ink);
+
+.formation-screen .party-selection .party-heading::after {
+  left: -6.37%;
+  top: 70px;
+  width: 92%;
 }
-.formation-screen.party-editor.is-selecting .party-current {
-  display: grid;
-  grid-template-rows: auto auto;
-  align-content: start;
-  gap: 1rem;
-}
-.formation-screen.party-editor.is-selecting .party-slots {
-  width: 100%;
-  max-width: none;
-  grid-template-columns: minmax(0, 1fr);
-  margin: 0;
-  gap: 0.75rem;
-  height: auto;
-  align-items: start;
-}
-.formation-screen.party-editor.is-selecting .party-slot {
-  display: block;
-}
-.formation-screen.party-editor.is-selecting .party-slot-choice {
-  height: 96px;
-  flex-direction: row;
-  align-items: center;
-  justify-content: center;
-}
-.formation-screen.party-editor.is-selecting .party-slot-name {
-  display: block;
-  background: none;
-}
-.formation-screen.party-editor.is-selecting .party-slot-portrait {
-  height: 94px;
-  width: 76px;
-  flex-shrink: 0;
-}
-.formation-screen.party-editor.is-selecting .party-slot-name {
-  font: var(--ui-body-size) / 1.4 var(--ui-font);
-  padding: 0.25rem;
-}
-.formation-screen.party-editor.is-selecting .party-slot-hp,
-.formation-screen.party-editor.is-selecting .party-slot-symptoms {
-  display: none;
-}
-.formation-screen.party-editor .party-pending:not([hidden]) {
-  display: grid;
-  grid-template-rows: auto;
-  flex-shrink: 0;
-  min-height: 0;
-  margin: 1rem 0 0;
+
+.formation-screen .party-candidates {
+  position: absolute;
+  left: calc(10.53% + 2px);
+  right: 9%;
+  top: 29.33%;
+  bottom: 22.85%;
   padding: 0;
   border: 0;
+  background: none;
 }
-.formation-screen.party-editor .party-candidate-details {
-  display: grid;
-  width: fit-content;
-  min-width: min(100%, 280px);
-  max-width: 100%;
-  margin-inline: auto;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 0.25rem 1rem;
-  padding: 0.75rem 1rem;
-  background: var(--ui-surface);
-  border-top: 0;
-  max-height: 45dvh;
-  overflow-y: auto;
-}
-.formation-screen.party-editor .party-pending p {
-  margin: 0;
-  grid-column: 1;
-}
-.formation-screen.party-editor [data-pending-reason] {
-  color: var(--ui-danger);
-  grid-column: 1 / -1;
-}
-.formation-screen.party-editor [data-pending-symptoms] {
-  grid-column: 1 / -1;
-}
-.formation-screen.party-editor .party-pending-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
 
-  margin-top: 0;
-  grid-column: 2;
-  grid-row: 1 / span 3;
-  align-self: center;
+.formation-screen .party-candidate-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 276px);
+  gap: 22px;
+  height: 100%;
+  max-height: none;
+  overflow-y: auto;
+  padding: 6px;
+  margin: -6px;
+  align-content: start;
+  column-gap: 24px;
 }
+
+.formation-screen .party-candidate-card {
+  position: relative;
+  width: 276px;
+  height: 442px;
+  isolation: isolate;
+  padding: 8px;
+  background: url("/assets/ui/card-metal.svg") center / 100% 100% no-repeat;
+}
+
+.formation-screen .party-candidate-card.is-selected::after {
+  content: "";
+  position: absolute;
+  inset: -5px;
+  z-index: -1;
+  pointer-events: none;
+  background: url("/assets/ui/card-selected.svg") center / 100% 100% no-repeat;
+}
+
+.formation-screen .party-candidate {
+  position: static;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.formation-screen .party-candidate-face {
+  display: grid;
+  justify-items: center;
+  height: 325px;
+  overflow: hidden;
+}
+
+.formation-screen .party-candidate-face .party-character-image {
+  width: 158%;
+  max-width: none;
+  height: auto;
+  align-self: start;
+  object-position: top;
+  transform: translateY(-9px);
+}
+
+.formation-screen .party-order {
+  position: absolute;
+  top: 8px;
+  left: 20px;
+  font: 500 3rem / 1.4 var(--ui-heading-font);
+  color: #d0e6bd;
+  text-shadow: 0 1px 3px #112318;
+}
+
+.formation-screen .party-candidate-name {
+  display: block;
+  padding: 8px;
+  background: #252a2c9c;
+  border: 1px solid #b0b5a373;
+  font: 700 1.5rem / 1.4 var(--ui-heading-font);
+  letter-spacing: 0.05em;
+  clip-path: polygon(
+    9px 0,
+    calc(100% - 9px) 0,
+    100% 9px,
+    100% calc(100% - 9px),
+    calc(100% - 9px) 100%,
+    9px 100%,
+    0 calc(100% - 9px),
+    0 9px
+  );
+}
+
+.formation-screen .party-candidate-info {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  margin: 6px 12px 0;
+  gap: 2px 12px;
+  background: none;
+  padding: 0;
+}
+
+.formation-screen .party-candidate-hp {
+  font: 500 1.25rem / 1.2 var(--ui-heading-font);
+}
+
+.formation-screen .party-candidate-info .party-hp-bar {
+  grid-column: 1;
+  grid-row: 2;
+  width: 160px;
+  max-width: 100%;
+}
+
+.formation-screen .party-detail {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  align-self: center;
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--ui-ink);
+  font: 500 1.25rem / 1.4 var(--ui-heading-font);
+  cursor: pointer;
+  margin: 0;
+  min-height: 28px;
+}
+
+.formation-screen .party-candidate-symptoms {
+  display: block;
+  white-space: nowrap;
+  font: 1rem / 1.3 var(--ui-font);
+  text-align: center;
+}
+
+.formation-screen .has-symptoms .party-candidate-info {
+  margin-top: 4px;
+  row-gap: 0;
+}
+
+.formation-screen .party-selection .party-footer {
+  left: 4.3%;
+  right: 4.3%;
+  bottom: 5.74%;
+  height: 10.63%;
+  min-height: 90px;
+  padding: 12px 16px 16px 28px;
+  align-items: center;
+  background: url("/assets/ui/selection-footer.svg") center / 100% 100% no-repeat;
+  padding-bottom: 12px;
+}
+
+.formation-screen .party-selection .party-footer .ui-primary {
+  width: 17.34vw;
+  min-width: 240px;
+  min-height: 70px;
+  font-size: 2rem;
+  --ui-cut-size: 2rem;
+}
+
 .character-details.ui-dialog {
   padding: 2rem;
   width: calc(100% - 8rem);
@@ -368,35 +500,44 @@
   border: 1px solid var(--ui-metal);
   background: var(--ui-surface);
 }
+
 .character-details.ui-dialog[open] {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 2rem;
 }
+
 .character-details.ui-dialog::backdrop {
   background: #11191cba;
   backdrop-filter: blur(6px);
 }
+
 .ui-dialog .character-details-heading {
   margin: 0;
   padding: 0 0 1rem;
   border-bottom: 1px solid var(--ui-metal);
   background: none;
+  grid-row: 1;
 }
+
 .ui-dialog .character-details-body {
   min-height: 0;
   grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
   gap: 2rem;
+  grid-row: 2;
 }
+
 .ui-dialog .character-details-portrait {
   min-height: 0;
 }
+
 .ui-dialog .character-details-image {
   width: 100%;
   height: 100%;
   max-height: 100%;
   object-fit: contain;
 }
+
 .ui-dialog .character-details-info {
   min-height: 0;
   max-height: none;
@@ -404,7 +545,7 @@
   scrollbar-gutter: stable;
   padding: 0.5rem 1.75rem 1.5rem 0.5rem;
 }
-/* Local covers hide each edge cue only when that end of the content is reached. */
+
 .ui-dialog :is(.character-details-info, .character-details-body) {
   background-image:
     linear-gradient(var(--ui-surface), var(--ui-surface)), linear-gradient(var(--ui-surface), var(--ui-surface)),
@@ -423,92 +564,137 @@
   background-attachment: local, local, scroll, scroll;
   background-repeat: no-repeat;
 }
+
 .ui-dialog :is(.character-details-info, .character-details-body)::-webkit-scrollbar {
   width: 12px;
 }
+
 .ui-dialog :is(.character-details-info, .character-details-body)::-webkit-scrollbar-track {
   background: var(--ui-pressed);
 }
+
 .ui-dialog :is(.character-details-info, .character-details-body)::-webkit-scrollbar-thumb {
   border: 3px solid var(--ui-pressed);
   background: var(--ui-metal);
 }
+
 .character-details.ui-dialog .character-details-stats dd {
   font: var(--ui-emphasis-size) / 1.6 var(--ui-font);
   font-variant-numeric: tabular-nums;
 }
+
 .character-details.ui-dialog .character-details-stats p {
   font: var(--ui-body-size) / 1.6 var(--ui-font);
   color: var(--ui-muted);
 }
+
 .ui-dialog .ui-actions {
   margin: 0;
+  grid-row: 3;
 }
-@media (max-width: 900px) {
+
+@media (max-width: 900px), (max-height: 650px) {
   .formation-screen.party-editor {
     height: auto;
-    min-height: 100dvh;
+    padding: 24px 16px;
   }
-  .formation-screen.party-editor .party-heading {
-    grid-template-columns: minmax(0, 1fr);
+  .formation-screen .party-heading,
+  .formation-screen .party-selection .party-heading {
+    position: relative;
+    inset: auto;
   }
-  .formation-screen.party-editor .party-calendar {
-    grid-row: 2;
-    justify-self: start;
+  .formation-screen .party-heading .ui-title {
+    font-size: 2rem;
   }
-  .formation-screen.party-editor .party-slots {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 1rem;
-  }
-  .formation-screen.party-editor .party-slot-portrait {
-    height: 240px;
-  }
-  .formation-screen.party-editor.is-selecting .party-workspace {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 1.5rem;
-  }
-  .formation-screen.party-editor.is-selecting .party-current {
-    grid-row: 1;
-  }
-  .formation-screen.party-editor.is-selecting .party-slots {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-  .formation-screen.party-editor .party-candidate-details {
-    max-height: none;
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .formation-screen.party-editor .party-pending-actions {
-    grid-column: 1;
-    grid-row: auto;
-  }
-  .formation-screen.party-editor .party-membership {
-    flex-direction: row;
-  }
-  .formation-screen.party-editor.is-selecting .party-slot-name {
+  .formation-screen .party-heading::after {
     display: none;
   }
-  .formation-screen.party-editor.is-selecting .party-slot-choice {
-    height: 88px;
-  }
-  .formation-screen.party-editor.is-selecting .party-slot-portrait {
-    height: 86px;
+  .formation-screen .party-workspace {
+    position: relative;
+    inset: auto;
     width: 100%;
+    margin: 24px 0;
   }
-  .formation-screen.party-editor .party-candidate-grid {
-    max-height: 50dvh;
-    min-height: 220px;
+  .formation-screen .party-slots {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px 12px;
   }
-  .formation-screen.party-editor .party-candidate-face {
-    height: 128px;
-    flex-basis: 128px;
+  .formation-screen .party-slot-portrait {
+    height: 240px;
   }
-  .formation-screen.party-editor .party-footer {
+  .formation-screen .party-slot-name {
+    font-size: 1.5rem;
+  }
+  .formation-screen .party-slot:not(.is-occupied) .party-slot-choice {
+    margin-top: 40px;
+    height: 200px;
+    width: 90%;
+  }
+  .formation-screen .party-footer,
+  .formation-screen .party-selection .party-footer {
+    position: relative;
+    inset: auto;
+    height: auto;
+    width: 100%;
+    padding: 12px;
     flex-wrap: wrap;
   }
-  .formation-screen.party-editor .party-footer p {
-    flex-basis: 100%;
-    order: -1;
+  .formation-screen .party-footer .ui-primary,
+  .formation-screen .party-selection .party-footer .ui-primary {
+    width: auto;
+    min-width: 150px;
+    min-height: 56px;
+    font-size: 1.5rem;
+  }
+  .formation-screen .party-footer .ui-back {
+    width: auto;
+    min-width: 120px;
+    font-size: 1.25rem;
+  }
+  .formation-screen .party-selection {
+    padding: 24px 16px;
+    overflow-y: auto;
+  }
+  .formation-screen .party-selection::before {
+    inset: 12px 8px;
+    position: fixed;
+  }
+  .formation-screen .party-candidates {
+    position: relative;
+    inset: auto;
+    margin: 24px 0;
+  }
+  .formation-screen .party-candidate-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-height: 65dvh;
+    min-height: 240px;
+  }
+  .formation-screen .party-candidate-card {
+    width: auto;
+    height: auto;
+    min-height: 340px;
+  }
+  .formation-screen .party-candidate-face {
+    height: 200px;
+  }
+  .formation-screen .party-candidate-name {
+    font-size: 1.125rem;
+  }
+  .formation-screen .party-candidate-info {
+    grid-template-columns: 1fr;
+    margin: 6px 2px;
+  }
+  .formation-screen .party-detail {
+    grid-column: 1;
+    grid-row: 3;
+    text-align: right;
+    font-size: 1rem;
+  }
+  .formation-screen .party-candidate-hp {
+    font-size: 1rem;
+  }
+  .formation-screen .party-candidate-symptoms {
+    white-space: normal;
   }
   .character-details.ui-dialog {
     width: calc(100% - 2rem);
@@ -533,92 +719,48 @@
     background: none;
   }
 }
-@media (min-width: 901px) and (max-height: 750px) {
-  .formation-screen.party-editor {
-    --ui-inset-y: 1.5rem;
-    --ui-section-gap: 1rem;
+.formation-screen .party-slot.is-occupied {
+  background: none;
+  border: 0;
+}
+
+.formation-screen .party-heading::before {
+  content: "";
+  position: absolute;
+  left: -41px;
+  top: 65px;
+  width: 10px;
+  height: 10px;
+  border: 1px solid #d3d4c9;
+  transform: rotate(45deg);
+}
+
+.formation-screen .party-selection .party-heading::before {
+  left: -25px;
+  top: 65px;
+}
+
+.formation-screen .party-selection .party-heading .ui-title {
+  font-size: 3.125rem;
+}
+
+.formation-screen .party-selection .party-footer .ui-primary::after {
+  background-image:
+    url("/assets/ui/confirm-inset.svg"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 18'%3E%3Cpath d='M3 3l6 6-6 6' fill='none' stroke='%23252a2c' stroke-width='2'/%3E%3C/svg%3E"),
+    url("/assets/ui/metal-grain.svg"), linear-gradient(120deg, #ffffff25, #dfaf7020);
+}
+
+@media (max-width: 900px), (max-height: 650px) {
+  .formation-screen .party-heading,
+  .formation-screen .party-selection .party-heading {
+    top: auto;
   }
-  .formation-screen.party-editor .party-slot-portrait {
-    height: 30dvh;
-  }
-  .formation-screen.party-editor .party-candidate-details {
-    max-height: 34dvh;
-  }
-  .formation-screen.party-editor.is-selecting .party-slots {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .formation-screen.party-editor.is-selecting .party-slot-name {
+  .formation-screen .party-heading::before {
     display: none;
   }
-  .formation-screen.party-editor.is-selecting .party-slot-choice {
-    height: 88px;
-  }
-  .formation-screen.party-editor.is-selecting .party-slot-portrait {
-    width: 100%;
-    height: 86px;
-  }
-  .formation-screen.party-editor .party-membership {
-    display: grid;
-    grid-template-columns: repeat(2, 8px);
-  }
-}
-/* Campaign owns navigation; this screen owns its single heading and viewport. */
-.campaign-screen[data-campaign-screen="party"] {
-  padding: 0;
-}
-.campaign-screen[data-campaign-screen="party"] > .campaign-header {
-  display: none;
-}
-.campaign-screen[data-campaign-screen="party"] > .campaign-content {
-  margin: 0;
-  width: 100%;
-}
-.formation-screen.party-editor [hidden] {
-  display: none;
-}
-@media (min-width: 901px) {
-  .formation-screen.party-editor:not(.is-selecting) .party-slots {
-    grid-template-rows: minmax(0, 1fr) auto 44px;
-    row-gap: 0.5rem;
-  }
-  .formation-screen.party-editor:not(.is-selecting) .party-slot {
-    grid-row: 1 / span 3;
-    grid-template-rows: subgrid;
-    align-self: stretch;
-  }
-  .formation-screen.party-editor:not(.is-selecting) .party-slot-choice {
-    align-self: end;
-  }
-  .formation-screen.party-editor .party-slot > .party-detail {
-    margin-top: 0;
-  }
-  .formation-screen.party-editor .party-candidate-grid:not(:has(button:nth-child(3))) .party-candidate-face {
-    height: min(32dvh, 280px);
-    flex-basis: min(32dvh, 280px);
-  }
-}
-.ui-dialog .character-details-heading {
-  grid-row: 1;
-}
-.ui-dialog .character-details-body {
-  grid-row: 2;
-}
-.ui-dialog .ui-actions {
-  grid-row: 3;
-}
-@media (max-width: 900px) {
-  .formation-screen.party-editor {
-    display: flex;
-    flex-direction: column;
-  }
-  .formation-screen.party-editor .party-current {
-    height: auto;
-  }
-  .formation-screen.party-editor.is-selecting .party-current {
-    grid-template-rows: auto auto;
-  }
-  .formation-screen.party-editor .party-pending:not([hidden]) {
-    grid-template-rows: auto auto;
+  .formation-screen .party-candidates {
+    left: auto;
   }
 }
 
@@ -632,34 +774,4 @@
   .ui-dialog .character-details-portrait {
     height: 100%;
   }
-}
-
-@media (min-width: 901px) {
-  .formation-screen.party-editor.is-selecting .party-candidates {
-    grid-column: 1;
-    grid-row: 1;
-  }
-  .formation-screen.party-editor.is-selecting .party-current {
-    grid-column: 2;
-    grid-row: 1;
-  }
-}
-
-.formation-screen.party-editor :is(.party-slot-choice, .party-candidate):active {
-  --ui-control-fill: var(--ui-pressed);
-}
-
-.formation-screen.party-editor[hidden] {
-  display: none;
-}
-
-.formation-screen .party-current-actions {
-  display: flex;
-  justify-content: flex-end;
-}
-.formation-screen:not(.is-selecting) .party-current-actions {
-  display: none;
-}
-.formation-screen.is-selecting .party-slot:not(.is-occupied) .party-slot-name {
-  display: none;
 }

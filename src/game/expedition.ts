@@ -32,9 +32,11 @@ import { type MentalFatigueDefinition, recoverMentalFatigue } from "./mentalFati
 import {
   type CharacterDefinition,
   characterById,
+  confirmPartySelection,
   departureRejection,
   getPartyCombatants,
   type PartyRejection,
+  type PartySlots,
   type PartyState,
   type RecruitmentRejection,
   recruitPartyMember,
@@ -86,6 +88,17 @@ export function editExpeditionParty(state: ExpeditionGame, slot: number, id: str
   if (state.dungeon !== null || state.adventure.mode !== "town")
     return { accepted: false, state, reason: "not-in-town" };
   const result = setPartySlot(state.party, slot, id);
+  return result.accepted
+    ? { accepted: true, state: { ...state, party: result.state } }
+    : { accepted: false, state, reason: result.reason };
+}
+
+/** Commit a complete quick-selection draft without exposing intermediate slot edits. */
+export function confirmExpeditionParty(state: ExpeditionGame, draft: PartySlots): ExpeditionResult {
+  if (hasPendingGrowth(state)) return { accepted: false, state, reason: "action-in-progress" };
+  if (state.dungeon !== null || state.adventure.mode !== "town")
+    return { accepted: false, state, reason: "not-in-town" };
+  const result = confirmPartySelection(state.party, draft);
   return result.accepted
     ? { accepted: true, state: { ...state, party: result.state } }
     : { accepted: false, state, reason: result.reason };

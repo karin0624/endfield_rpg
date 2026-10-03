@@ -1,3 +1,9 @@
+@font-face {
+  font-family: "Endfield UI Serif";
+  src: url("/assets/fonts/noto-serif-jp-700.woff2") format("woff2");
+  font-weight: 700;
+  font-display: swap;
+}
 /* Shared screen geometry and controls. Opt in with ui-screen or ui-dialog. */
 @font-face {
   font-family: "Endfield UI Serif";

@@ -11,13 +11,14 @@ import {
   actInTown,
   applyPartyStatus,
   beginTownExploration,
+  confirmExpeditionParty,
   departOnExpedition,
   type ExpeditionGame,
   type ExpeditionResult,
   editExpeditionParty,
   leaveExpedition,
 } from "./expedition";
-import { type CharacterDefinition, createParty } from "./party";
+import { type CharacterDefinition, createParty, type PartySlots } from "./party";
 
 const companions: readonly CharacterDefinition[] = [
   ...characters,
@@ -46,6 +47,56 @@ function act(state: ExpeditionGame, command: Parameters<typeof actInExpedition>[
 }
 
 describe("仲間と出撃編成", () => {
+  it("編成全体を一度に確定し、欠番だけ詰めて仲間状態を保持する", () => {
+    const state = accepted(editExpeditionParty(newGame(["player", "gilberta", "reserve"]), 1, "gilberta"));
+    const before = structuredClone(state);
+    const swapped = accepted(confirmExpeditionParty(state, ["gilberta", "player", null, null]));
+    expect(swapped.party.slots).toEqual(["gilberta", "player", null, null]);
+    const draft: PartySlots = [null, "gilberta", null, "reserve"];
+    const result = accepted(confirmExpeditionParty(state, draft));
+    expect(result).toEqual({ ...before, party: { ...before.party, slots: ["gilberta", "reserve", null, null] } });
+    expect(state).toEqual(before);
+    expect(draft).toEqual([null, "gilberta", null, "reserve"]);
+  });
+
+  it("全体確定の不正入力では元編成を一部も変更しない", () => {
+    const state = newGame(["player", "gilberta"]);
+    const before = structuredClone(state);
+    for (const [draft, reason] of [
+      [["gilberta", "missing", null, null], "not-joined"],
+      [["gilberta", "gilberta", null, null], "duplicate-member"],
+      [["gilberta", "reserve", null, null], "not-joined"],
+      [["player", null, null, null, null], "invalid-slot"],
+    ] as const) {
+      expect(confirmExpeditionParty(state, draft as PartySlots)).toEqual({ accepted: false, state: before, reason });
+      expect(state).toEqual(before);
+    }
+  });
+
+  it.each([0, 1, 2, 3, 4])("%i人の全体確定を許可し、空編成の拒否は出発時に行う", (count) => {
+    const ids = ["player", "gilberta", "scout", "guard"];
+    const state = newGame([...ids, "reserve"]);
+    const draft = ids.map((id, index) => (index < count ? id : null)) as unknown as PartySlots;
+    const result = accepted(confirmExpeditionParty(state, draft));
+    expect(result.party.slots).toEqual(draft);
+    expect(result.party.members).toEqual(state.party.members);
+    expect(departOnExpedition(result, companions, initialDungeon, initialAdventure)).toMatchObject(
+      count === 0 ? { accepted: false, reason: "empty-party" } : { accepted: true },
+    );
+  });
+
+  it("会話・探索中の全体確定を拒否し、元の状態を保持する", () => {
+    const initial = newGame(["player", "gilberta"]);
+    const conversation = selectTownPlace(initial.adventure, "town-square", initialAdventure);
+    if (!conversation.accepted) throw new Error(conversation.reason);
+    for (const state of [{ ...initial, adventure: conversation.state }, depart(initial)])
+      expect(confirmExpeditionParty(state, ["gilberta", null, null, null])).toEqual({
+        accepted: false,
+        state,
+        reason: "not-in-town",
+      });
+  });
+
   it("ロッシだけの新規ゲームから3枠空けて出撃する", () => {
     const state = newGame();
     expect(state.party.members.map(({ id, hp }) => ({ id, hp }))).toEqual([{ id: "player", hp: 20 }]);

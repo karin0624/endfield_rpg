@@ -55,17 +55,9 @@ test("通常版で導入・ホーム・街・編成・戦闘・帰還・保存�
   await page.getByRole("button", { name: "枠 1", exact: true }).click();
   await formationScreenshot(page, info, "campaign-formation-selection-1920.png");
   const candidate = page.getByRole("group", { name: "候補一覧" }).getByRole("button", { name: "ロッシ", exact: true });
-  await expect(candidate).toHaveAccessibleDescription(/HP 20 \/ 20.*編成中・枠 1/);
-  await expect(candidate.getByText("HP 20 / 20", { exact: true })).toBeHidden();
-  await expect(candidate.getByText("編成中・枠 1", { exact: true })).toBeHidden();
-  await expect(page.getByText("HP 20 / 20", { exact: true }).filter({ visible: true })).toHaveCount(1);
-  expect(
-    await page
-      .locator(".formation-screen img:visible")
-      .evaluateAll((images) => images.every((image) => (image as HTMLImageElement).currentSrc.endsWith("/face.png"))),
-  ).toBe(true);
-  await expect(page.getByText("枠を選んで仲間を変更", { exact: true })).toHaveCount(0);
-  await page.keyboard.press("Escape");
+  await expect(candidate).toHaveAccessibleDescription(/HP 20\/20.*隊列 1/);
+  await expect(page.locator(".party-candidate-hp").first()).toHaveText("HP 20/20");
+  await expect(page.locator(".party-current")).toHaveCount(0);
   await page.getByRole("button", { name: /ロッシの詳細/ }).click();
   await formationScreenshot(page, info, "campaign-formation-details-1920.png");
   await page.keyboard.press("Tab");
@@ -76,6 +68,7 @@ test("通常版で導入・ホーム・街・編成・戦闘・帰還・保存�
   await expect(detailsInfo.locator(".character-details-skill").last()).toBeInViewport({ ratio: 1 });
   await formationScreenshot(page, info, "campaign-formation-details-bottom-1920.png");
   await cleanNormal(page);
+  await page.keyboard.press("Escape");
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "戻る", exact: true }).click();
   await page.getByRole("button", { name: "探索先を選ぶ", exact: true }).click();
@@ -263,7 +256,7 @@ test("物品の買物・持込み・帰還・保存を通常画面で通す", as
   await page.getByRole("button", { name: "探索先を選ぶ", exact: true }).click();
   await page.getByRole("button", { name: "ダンジョン", exact: true }).click();
   await page.getByRole("button", { name: "枠 1", exact: true }).click();
-  await page.getByRole("button", { name: "詳細", exact: true }).click();
+  await page.getByRole("button", { name: "ロッシの詳細", exact: true }).click();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("heading", { name: "仲間を選択", exact: true })).toBeVisible();
   await page.keyboard.press("Escape");

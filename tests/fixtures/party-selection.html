@@ -9,7 +9,7 @@
     import { characters } from "/src/content/characters.ts";
     import { initialGameOptions } from "/src/content/initialGameOptions.ts";
     import { createInitialGameState } from "/src/game/createInitialGameState.ts";
-    import { applyPartyStatus, editExpeditionParty } from "/src/game/expedition.ts";
+    import { applyPartyStatus, confirmExpeditionParty, editExpeditionParty } from "/src/game/expedition.ts";
     import { createParty } from "/src/game/party.ts";
     import { mountPartyUi } from "/src/web/partyUi.ts";
     import "/src/web/style.css";
@@ -30,7 +30,7 @@
     mountPartyUi(document.querySelector("#fixture"), {
       context: params.has("edit") ? "edit" : "departure",
       characters: definitions, getParty: () => game.party, getCalendarLabel: () => "1日目 · 昼",
-      edit: (slot, id) => { edits++; const result = editExpeditionParty(game, slot, id); game = result.state; capture(); return result; },
+      confirm: (slots) => { edits++; const result = confirmExpeditionParty(game, slots); game = result.state; capture(); return result; },
       depart: () => ({ accepted: false, state: game, reason: "action-in-progress" }),
     }, () => {});
     capture();

@@ -11,9 +11,9 @@ import {
   actInExpedition,
   actInTown,
   beginTownExploration,
+  confirmExpeditionParty,
   departOnExpedition,
   type ExpeditionGame,
-  editExpeditionParty,
   type GameActionCompletion,
   leaveExpedition,
 } from "../game/expedition";
@@ -171,8 +171,8 @@ if (!battleMode) {
               }),
               getParty: () => game.party,
               getCalendarLabel: () => calendarLabel(game.clock),
-              edit: (slot, id) => {
-                const result = editExpeditionParty(game, slot, id);
+              confirm: (slots) => {
+                const result = confirmExpeditionParty(game, slots);
                 game = result.state;
                 return result;
               },
