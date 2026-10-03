@@ -85,12 +85,20 @@ test("移動は時間を消費せず、取消・新規開始は既存保存を�
     expect(await page.locator("body").evaluate((el) => el.scrollWidth <= window.innerWidth)).toBe(true);
     await page.screenshot({ path: info.outputPath(`campaign-home-${width}.png`), fullPage: true });
   }
+  await page.getByRole("button", { name: "探索先を選ぶ", exact: true }).click();
+  await page.getByRole("button", { name: "街", exact: true }).click();
+  await page.getByRole("button", { name: "市場", exact: true }).click();
+  await page.keyboard.press("Space");
+  await page.getByRole("button", { name: "ホームへ戻る" }).click();
+  await expect(page.locator("[data-calendar]")).toHaveText("1日目 · 夜");
   await page.getByRole("button", { name: "タイトルへ戻る", exact: true }).click();
   await page.keyboard.press("Escape");
+  await expect(page.locator("[data-calendar]")).toHaveText("1日目 · 夜");
   await expect(page.getByRole("heading", { name: "ホーム", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "タイトルへ戻る", exact: true }).click();
   await page.getByRole("button", { name: "実行する" }).click();
-  await page.getByRole("button", { name: "新規開始" }).click();
+  await page.getByRole("button", { name: "新規開始" }).dblclick();
+  await expect(page.getByRole("heading", { name: "新しく始めますか" })).toBeVisible();
   await page.getByRole("button", { name: "実行する" }).click();
   await page.getByRole("button", { name: "タイトルへ戻る" }).click();
   expect(await page.evaluate(() => localStorage.getItem("endfield-rpg-game-save"))).toBe(saved);
