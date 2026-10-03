@@ -50,3 +50,63 @@ export function equipmentStats(
     throw new Error("装備補正後の能力値が不正です");
   return { ...base, maxHp, attackPower };
 }
+
+export interface EquipmentInstance {
+  readonly instanceId: string;
+  readonly definitionId: string;
+}
+export interface SharedEquipment {
+  readonly owned: readonly EquipmentInstance[];
+  readonly assignments: readonly ({ readonly characterId: string } & EquipmentLoadout)[];
+}
+/** Loadout slots store shared physical instance IDs. */
+export function assignEquipment(
+  state: SharedEquipment,
+  location: "home" | "exploration",
+  characterId: string,
+  slot: EquipmentSlot,
+  instanceId: string | null,
+  catalog: readonly EquipmentDefinition[],
+): { readonly accepted: boolean; readonly state: SharedEquipment } {
+  if (location !== "home") return { accepted: false, state };
+  if (instanceId !== null) {
+    const instance = state.owned.find((e) => e.instanceId === instanceId);
+    if (
+      !instance ||
+      !catalog.some((e) => e.id === instance.definitionId && e.slot === slot) ||
+      state.assignments.some(
+        (a) => a.characterId !== characterId && (a.weapon === instanceId || a.armor === instanceId),
+      )
+    )
+      return { accepted: false, state };
+  }
+  const previous = state.assignments.find((a) => a.characterId === characterId) ?? { characterId, ...emptyEquipment };
+  return {
+    accepted: true,
+    state: {
+      ...state,
+      assignments: [
+        ...state.assignments.filter((a) => a.characterId !== characterId),
+        { ...previous, [slot]: instanceId },
+      ],
+    },
+  };
+}
+export function assignedEquipmentStats(
+  base: CharacterDefinition,
+  state: SharedEquipment,
+  catalog: readonly EquipmentDefinition[],
+): CharacterDefinition {
+  const assignment = state.assignments.find((a) => a.characterId === base.id) ?? emptyEquipment;
+  const definitionId = (instanceId: string | null) => {
+    if (instanceId === null) return null;
+    const instance = state.owned.find((e) => e.instanceId === instanceId);
+    if (!instance) throw new Error("所持していない装備です");
+    return instance.definitionId;
+  };
+  return equipmentStats(
+    base,
+    { weapon: definitionId(assignment.weapon), armor: definitionId(assignment.armor) },
+    catalog,
+  );
+}

@@ -1,5 +1,6 @@
 import { initialAdventure } from "../content/initialAdventure";
 import { initialDungeon } from "../content/initialDungeon";
+import { recoveryItemId } from "../content/itemSettings";
 import type { ConversationPresentation } from "../game/adventure";
 import type { BattleCombatantDefinition, BattleSkillRules, BattleState } from "../game/battle";
 import {
@@ -9,6 +10,7 @@ import {
   getCurrentDungeonConversationScene,
 } from "../game/dungeon";
 import type { DungeonCommand } from "../game/expedition";
+import { bagItemQuantity, type ItemState } from "../game/items";
 import type { ExplorationSkills } from "../game/skillAcquisition";
 import savedAdventureSettings from "./adventure-settings.json";
 import { applyAdventureSettings, parseAdventureSettings } from "./adventureSettings";
@@ -19,6 +21,7 @@ import { parseBattleSettings } from "./battleSettings";
 import { mountBattleUi } from "./battleUi";
 import { mountBranchSkillUi } from "./branchSkillUi";
 import { mountGrowthChoice } from "./growthChoiceUi";
+import { mountRecoveryItemUi } from "./itemRecoveryUi";
 import { requiredElement } from "./requiredElement";
 
 const assetUrl = (path: string) => `${import.meta.env.BASE_URL}assets/${path}`;
@@ -97,6 +100,7 @@ export function mountDungeonUi(
   root: HTMLDivElement,
   options: {
     initialState: DungeonState;
+    getItems?: () => ItemState | undefined;
     getGrowth?: () => ExplorationSkills | undefined;
     chooseGrowth?: (input: {
       explorationId: string;
@@ -198,6 +202,7 @@ export function mountDungeonUi(
   const conversationSettings = parseAdventureSettings(savedAdventureSettings);
   applyAdventureSettings(conversationScreen, conversationSettings);
   outcomeScreen.style.backgroundImage = `linear-gradient(180deg, #171d19d9, #171d19ee), url("${assetUrl("backgrounds/dungeon-route.png")}")`;
+  let disposeBranchItems: (() => void) | undefined;
   let disposeBranchSkills: (() => void) | undefined;
   let branchResult = "";
   let dungeonState = options.initialState;
@@ -217,6 +222,8 @@ export function mountDungeonUi(
   const nodeButtons = new Map<string, HTMLButtonElement>();
 
   function showView(view: "route" | "conversation" | "battle" | "outcome" | "growth"): void {
+    disposeBranchItems?.();
+    disposeBranchItems = undefined;
     disposeBranchSkills?.();
     disposeBranchSkills = undefined;
     growthScreen.hidden = view !== "growth";
@@ -423,6 +430,33 @@ export function mountDungeonUi(
           routeScreen.querySelector<HTMLButtonElement>(".branch-skill-trigger")?.focus();
         },
       );
+    if (options.getItems)
+      disposeBranchItems = mountRecoveryItemUi(routeScreen, {
+        count: () => {
+          const items = options.getItems?.();
+          return items ? bagItemQuantity(items, recoveryItemId) : 0;
+        },
+        targets: () => dungeonState.party,
+        names: options.displayNames,
+        canUse: () => dungeonState.outcome === "ongoing" && dungeonState.activity === null,
+        use: (targetId) => {
+          const items = options.getItems?.();
+          if (!items) return false;
+          const result = options.dispatch({
+            type: "branch-item",
+            itemId: recoveryItemId,
+            targetId,
+            explorationId: dungeonState.expeditionActionId ?? -1,
+            expectedVersion: items.version,
+            expectedNodeId: dungeonState.currentNodeId,
+          });
+          if (!result.accepted) return false;
+          const event = result.itemRecovery;
+          branchResult = event?.type === "item-recovery" ? `HP回復品：HPを${event.amount}回復。` : "";
+          applyDungeonResult(result);
+          return true;
+        },
+      }).dispose;
     let resultLabel = routeScreen.querySelector<HTMLParagraphElement>(".branch-skill-result");
     if (!resultLabel) {
       resultLabel = document.createElement("p");
@@ -749,6 +783,7 @@ export function mountDungeonUi(
   if (!renderGrowth()) renderRoute();
   return () => {
     disposeGrowth?.();
+    disposeBranchItems?.();
     disposeBranchSkills?.();
     disposed = true;
     disposeBattle();

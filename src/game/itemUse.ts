@@ -1,6 +1,17 @@
-import { advanceBattleToNextActor, type BattleCombatantDefinition, type BattleState } from "./battle";
+import {
+  advanceBattleToNextActor,
+  advanceBattleToNextAllyInput,
+  type BattleCombatantDefinition,
+  type BattleState,
+} from "./battle";
 import { completeCurrentAction } from "./battleTimeline";
-import { type DungeonDefinition, type DungeonState, getAvailableDungeonNodes } from "./dungeon";
+import {
+  type DungeonActionResult,
+  type DungeonDefinition,
+  type DungeonState,
+  getAvailableDungeonNodes,
+  resolveDungeonBattleAction,
+} from "./dungeon";
 import { consumeBagItem, type ItemCatalog, type ItemState } from "./items";
 import { canParticipate, effectiveMaxHp, healthyStatus } from "./status";
 
@@ -104,4 +115,41 @@ export function useBranchRecoveryItem(
     dungeon: { ...dungeon, party: dungeon.party.map((c) => (c.id === healed.id ? healed : c)) },
     event: { type: "item-recovery" as const, itemId: input.itemId, targetId: target.id, amount: healed.hp - target.hp },
   };
+}
+
+export type DungeonItemInput = RecoveryItemInput & { readonly expectedNodeId: string } & (
+    | { readonly type: "item"; readonly actorId: string; readonly expectedActionTime: number }
+    | { readonly type: "branch-item" }
+  );
+/** Bind the pure item operation to this exploration/node before running the existing enemy loop. */
+export function performDungeonRecoveryItem(
+  items: ItemState,
+  dungeon: DungeonState,
+  input: DungeonItemInput,
+  catalog: ItemCatalog,
+  route: DungeonDefinition,
+): { readonly items: ItemState; readonly result: DungeonActionResult } {
+  const reject = (): { items: ItemState; result: DungeonActionResult } => ({
+    items,
+    result: { accepted: false, state: dungeon, reason: "battle:action-not-current", events: [] },
+  });
+  if (dungeon.expeditionActionId !== input.explorationId || dungeon.currentNodeId !== input.expectedNodeId)
+    return reject();
+  if (input.type === "branch-item") {
+    const used = useBranchRecoveryItem(items, dungeon, input, catalog, route);
+    return used.accepted
+      ? { items: used.items, result: { accepted: true, state: used.dungeon, events: [], itemRecovery: used.event } }
+      : reject();
+  }
+  let nextItems = items;
+  let itemRecovery: import("./items").ItemRecoveryEvent | undefined;
+  const result = resolveDungeonBattleAction(dungeon, route, (battle) => {
+    const used = useBattleRecoveryItem(items, battle, input, catalog);
+    if (!used.accepted) return { accepted: false, state: battle, reason: "action-not-current", events: [] };
+    nextItems = used.items;
+    itemRecovery = used.event;
+    const loop = advanceBattleToNextAllyInput(used.battle);
+    return { accepted: true, state: loop.state, events: loop.events };
+  });
+  return { items: nextItems, result: result.accepted ? { ...result, itemRecovery } : result };
 }

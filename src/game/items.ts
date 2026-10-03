@@ -202,3 +202,11 @@ export function returnItems(
     state: { ...state, version: state.version + 1, home: mergeStacks([...state.home, ...kept]), exploration: null },
   };
 }
+
+export interface ItemRecoveryEvent {
+  readonly type: "item-recovery";
+  readonly actorId?: string;
+  readonly targetId: string;
+  readonly itemId: string;
+  readonly amount: number;
+}
