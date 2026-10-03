@@ -288,7 +288,7 @@ for (const real of [false, true]) {
     await page.getByRole("button", { name: "使用する", exact: true }).click();
     const sequence = page.locator(".battle-sequence");
     await expect(sequence).toHaveAttribute("data-phase", "actor");
-    await expect(page.locator(".sequence-actor")).toContainText("ロッシ");
+    await expect(page.locator(".sequence-actor")).toHaveText("検証用攻撃");
     await expect(page.locator("[data-enemy-hp]")).toHaveText("40 / 40");
     await page.screenshot({ path: testInfo.outputPath(`sequence-${real ? "real" : "ui"}-actor.png`) });
     await page.clock.runFor(260);
@@ -297,7 +297,7 @@ for (const real of [false, true]) {
     await page.screenshot({ path: testInfo.outputPath(`sequence-${real ? "real" : "ui"}-impact.png`) });
     await page.clock.runFor(80);
     await expect(page.locator(".sequence-number")).toBeVisible();
-    await expect(page.locator(".sequence-number")).toHaveText("16 ダメージ · 1発目");
+    await expect(page.locator(".sequence-number")).toHaveText("16 ダメージ");
     expect(await page.locator(".party").boundingBox()).toEqual(partyBefore);
     await page.screenshot({ path: testInfo.outputPath(`sequence-${real ? "real" : "ui"}-result.png`) });
     await page.setViewportSize({ width: 390, height: 844 });
@@ -347,7 +347,7 @@ test("外れと回復を静止状態で区別し、2倍・即時でも確定は�
   await page.getByRole("button", { name: "検証用攻撃", exact: true }).click();
   await page.getByRole("button", { name: "使用する", exact: true }).click();
   await page.clock.runFor(100);
-  await expect(page.locator(".sequence-number")).toHaveText("外れ · 1発目");
+  await expect(page.locator(".sequence-number")).toHaveText("外れ");
   await expect(page.locator(".sequence-impact")).toBeHidden();
   await expect(page.locator("[data-enemy-hp]")).toHaveText("40 / 40");
   await page.clock.runFor(1000);
@@ -360,6 +360,10 @@ test("外れと回復を静止状態で区別し、2倍・即時でも確定は�
   await expect(page.locator(".battle-sequence")).toHaveAttribute("data-kind", "heal");
   await expect(page.locator(".battle-sequence")).toHaveAttribute("data-motion", "false");
   await expect(page.locator(".sequence-number")).toContainText("20 回復");
+  await expect(page.locator(".sequence-number")).toHaveCSS("animation-name", "none");
+  const stillNumber = await page.locator(".sequence-number").boundingBox();
+  await page.clock.runFor(80);
+  expect(await page.locator(".sequence-number").boundingBox()).toEqual(stillNumber);
   await page.screenshot({ path: testInfo.outputPath("sequence-ui-reduced-heal.png") });
   await page.getByRole("combobox", { name: "演出速度" }).selectOption("0");
   await expect(skills).toBeEnabled();
@@ -389,13 +393,13 @@ for (const real of [false, true]) {
     const number = page.locator(".sequence-number");
     const partyBefore = await page.locator(".party").boundingBox();
     await heal("gilberta");
-    await expect(number).toHaveText("23 回復 · 1発目");
+    await expect(number).toHaveText("23 回復");
     const gilberta = await number.boundingBox();
     await page.screenshot({ path: testInfo.outputPath(`sequence-${real ? "real" : "ui"}-heal-gilberta.png`) });
     await page.getByRole("button", { name: "演出を省略" }).click();
     await expect(skills).toBeEnabled();
     await heal("player");
-    await expect(number).toHaveText("20 回復 · 1発目");
+    await expect(number).toHaveText("20 回復");
     const player = await number.boundingBox();
     expect(Math.abs((player?.x ?? 0) - (gilberta?.x ?? 0))).toBeGreaterThan(20);
     await page.screenshot({ path: testInfo.outputPath(`sequence-${real ? "real" : "ui"}-heal-player.png`) });
@@ -425,7 +429,7 @@ test("スキル専用の本編導線と、回復→発症のHP制限→敵の被
   await page.getByRole("button", { name: "検証用回復", exact: true }).click();
   await page.getByRole("button", { name: "使用する", exact: true }).click();
   await page.clock.runFor(130);
-  await expect(page.locator(".sequence-number")).toHaveText("7 回復 · 1発目");
+  await expect(page.locator(".sequence-number")).toHaveText("7 回復");
   await expect(page.locator(".hp-line")).toHaveText("HP17/ 17");
   await page.clock.runFor(390);
   await expect(page.locator("[data-event-toast]")).toContainText("肉体疲労：75 → 78");
@@ -543,4 +547,30 @@ test("代表シーケンス：通常1倍の操作動画（実素材）", async (
       { stdio: "pipe" },
     );
   }
+});
+
+test("技名と結果は動いて出入りし、常設HUDと確定回数は変わらない", async ({ page }) => {
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.goto("/tests/fixtures/battle-sequence.html");
+  const skills = page.getByRole("button", { name: "スキル", exact: true });
+  await expect(skills).toBeEnabled();
+  await page.clock.install({ time: new Date("2026-10-03T12:00:00Z") });
+  await page.clock.pauseAt(new Date("2026-10-03T12:00:01Z"));
+  const partyBefore = await page.locator(".party").boundingBox();
+  await skills.click();
+  await page.getByRole("button", { name: "検証用攻撃", exact: true }).click();
+  await page.getByRole("button", { name: "使用する", exact: true }).click();
+  await expect(page.locator("[data-event-toast]")).toBeHidden();
+  await page.clock.runFor(340);
+  const number = page.locator(".sequence-number");
+  await expect(number).toBeVisible();
+  const first = await number.boundingBox();
+  if (!first) throw new Error("結果の表示位置がありません");
+  await expect.poll(async () => first.y - ((await number.boundingBox())?.y ?? first.y)).toBeGreaterThan(3);
+  await page.clock.runFor(1000);
+  await expect(skills).toBeEnabled();
+  await expect(number).toBeHidden();
+  await expect(page.locator("[data-count]")).toHaveText("確定 1回");
+  expect(await page.locator(".party").boundingBox()).toEqual(partyBefore);
 });
