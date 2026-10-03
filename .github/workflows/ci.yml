@@ -28,18 +28,20 @@ jobs:
       image: mcr.microsoft.com/playwright:v1.63.0-noble
       options: --ipc=host
     steps:
-      - run: apt-get update && apt-get install -y git-lfs
+      - run: apt-get update && apt-get install -y git-lfs ffmpeg
       - uses: actions/checkout@v7
         with:
           lfs: true
       - run: npm ci
       - run: npm run build
-      - run: PLAYWRIGHT_EDITOR=1 npx playwright test --project ui --grep '代表シーケンス.*実素材'
+      - run: BATTLE_SEQUENCE_VIDEO=1 PLAYWRIGHT_EDITOR=1 npx playwright test --project ui --grep '代表シーケンス.*実素材'
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: battle-sequence-evidence
-          path: test-results/**/sequence-*.png
+          path: |
+            test-results/**/sequence-*.png
+            test-results/**/sequence-*.mp4
           if-no-files-found: ignore
           retention-days: 14
       - run: npm run test:e2e:inside
