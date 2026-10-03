@@ -57,6 +57,13 @@ test("通常版で導入・ホーム・街・編成・戦闘・帰還・保存�
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: /ロッシの詳細/ }).click();
   await formationScreenshot(page, info, "campaign-formation-details-1920.png");
+  await page.keyboard.press("Tab");
+  const detailsInfo = page.getByRole("region", { name: "能力と状態" });
+  await expect(detailsInfo).toBeFocused();
+  await page.keyboard.press("End");
+  await expect.poll(() => detailsInfo.evaluate((region) => region.scrollTop)).toBeGreaterThan(0);
+  await expect(detailsInfo.locator(".character-details-skill").last()).toBeInViewport({ ratio: 1 });
+  await formationScreenshot(page, info, "campaign-formation-details-bottom-1920.png");
   await cleanNormal(page);
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "戻る", exact: true }).click();

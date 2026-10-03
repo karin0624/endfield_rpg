@@ -18,9 +18,10 @@ export function mountCharacterDetailsUi(
   dialog.setAttribute("aria-labelledby", "character-details-name");
   dialog.innerHTML = `<footer class="ui-actions"><button type="button" class="ui-button ui-back" data-details-back>編成へ戻る</button></footer>
     <header class="character-details-heading">
-    <h2 class="ui-title" id="character-details-name"></h2></header>
+    <h2 class="ui-title" id="character-details-name"></h2>
+    <p class="character-details-scroll-hint" id="character-details-scroll-hint">能力・習得はスクロールして確認</p></header>
     <div class="character-details-body"><div class="character-details-portrait" data-details-portrait></div>
-    <div class="character-details-info" tabindex="0" role="region" aria-label="能力と状態"><dl class="character-details-stats" data-details-stats></dl>
+    <div class="character-details-info" tabindex="0" role="region" aria-label="能力と状態" aria-describedby="character-details-scroll-hint"><dl class="character-details-stats" data-details-stats></dl>
     <p class="character-details-symptoms" data-details-symptoms></p>
     <p class="character-details-unavailable" data-details-unavailable></p>
     <section class="character-details-skills" aria-label="習得スキル" data-details-skills></section></div></div>`;

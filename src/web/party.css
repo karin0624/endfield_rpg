@@ -376,6 +376,11 @@
   grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
   gap: 2rem;
 }
+.ui-dialog .character-details-scroll-hint {
+  margin: 0 0 0 auto;
+  color: var(--ui-muted);
+  font: var(--ui-body-size) / 1.6 var(--ui-font);
+}
 .ui-dialog .character-details-portrait {
   min-height: 0;
 }
@@ -389,7 +394,18 @@
   min-height: 0;
   max-height: none;
   overflow-y: auto;
-  padding: 0.5rem;
+  scrollbar-gutter: stable;
+  padding: 0.5rem 0.5rem 1.5rem;
+}
+.ui-dialog :is(.character-details-info, .character-details-body)::-webkit-scrollbar {
+  width: 12px;
+}
+.ui-dialog :is(.character-details-info, .character-details-body)::-webkit-scrollbar-track {
+  background: var(--ui-pressed);
+}
+.ui-dialog :is(.character-details-info, .character-details-body)::-webkit-scrollbar-thumb {
+  border: 3px solid var(--ui-pressed);
+  background: var(--ui-metal);
 }
 .character-details.ui-dialog .character-details-stats dd {
   font: var(--ui-emphasis-size) / 1.6 var(--ui-font);
