@@ -40,16 +40,6 @@
   --ui-font: "Endfield UI Sans", "Noto Sans CJK JP", "Yu Gothic", sans-serif;
   --ui-heading-font: "Endfield UI Serif", "Noto Serif CJK JP", "Yu Mincho", serif;
   --ui-cut-size: 0.75rem;
-  --ui-cut-path: polygon(
-    var(--ui-cut-size) 0,
-    calc(100% - var(--ui-cut-size)) 0,
-    100% var(--ui-cut-size),
-    100% calc(100% - var(--ui-cut-size)),
-    calc(100% - var(--ui-cut-size)) 100%,
-    var(--ui-cut-size) 100%,
-    0 calc(100% - var(--ui-cut-size)),
-    0 var(--ui-cut-size)
-  );
 }
 .ui-screen,
 .ui-dialog {
@@ -82,6 +72,17 @@
   --ui-control-fill: var(--ui-surface);
   --ui-control-edge: var(--ui-metal);
   --ui-frame-line: 1px;
+  /* Resolve the path here so primary/back overrides use their own cut size. */
+  --ui-cut-path: polygon(
+    var(--ui-cut-size) 0,
+    calc(100% - var(--ui-cut-size)) 0,
+    100% var(--ui-cut-size),
+    100% calc(100% - var(--ui-cut-size)),
+    calc(100% - var(--ui-cut-size)) 100%,
+    var(--ui-cut-size) 100%,
+    0 calc(100% - var(--ui-cut-size)),
+    0 var(--ui-cut-size)
+  );
   --ui-inner-cut: calc(var(--ui-cut-size) + var(--ui-frame-line) * 0.4142);
 }
 :is(.ui-screen, .ui-dialog) :is(.ui-button, .ui-frame)::before,

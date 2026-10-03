@@ -7,7 +7,7 @@
 - [仲間選択](selection-1920.webp)：未確定候補、右側プレビュー、小さい4枠。初期仲間はロッシのみ。
 - [キャラ詳細](details-1920.webp)：実HP・能力・症状・習得、読取り専用。
 
-[位置計測](geometry.json)は通常画面のDOM bbox。pageerrorは0件。[読込確認](readiness.json)には顔PNGのHTTP 200・自然寸法256×320、使用フォントのCDP記録を残す。概念図は[別の資料](../../ui-concepts/README.md)であり、この記録は画像を一枚貼りした画面ではない。
+[位置計測](geometry.json)は通常画面のDOM bboxと主操作24px・戻る16pxの角落ちのcomputed style。pageerrorは0件。[読込確認](readiness.json)には顔PNGのHTTP 200・自然寸法256×320、使用フォントのCDP記録を残す。概念図は[別の資料](../../ui-concepts/README.md)であり、この記録は画像を一枚貼りした画面ではない。
 
 多数候補・長文・症状・非活性の検証は`tests/e2e/party-ui.spec.ts`の隔離fixtureを使い、実ゲームへ仲間や症状を追加しない。固定Playwrightコンテナの画面はテスト出力に残る。背景・人物の取得を失敗させた追加確認では暗い下地と名前・HP・操作を保持する。配布ビルドと実素材の通しE2EはPRのActions結果を参照する。
 

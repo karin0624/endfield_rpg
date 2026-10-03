@@ -194,6 +194,16 @@ test("共通画面の位置と操作文脈を保ち、選択・focus・非活性
   expect(await title.boundingBox()).toMatchObject({ x: 64, y: 48 });
   expect(await primary.boundingBox()).toMatchObject({ x: 1576, y: 968, width: 280, height: 64 });
   expect(await back.boundingBox()).toMatchObject({ x: 64, y: 976, width: 160, height: 48 });
+  for (const [control, cut] of [
+    [primary, 24],
+    [back, 16],
+  ] as const) {
+    for (const layer of ["::before", "::after"]) {
+      expect(await control.evaluate((button, pseudo) => getComputedStyle(button, pseudo).clipPath, layer)).toBe(
+        `polygon(${cut}px 0px, calc(100% - ${cut}px) 0px, 100% ${cut}px, 100% calc(100% - ${cut}px), calc(100% - ${cut}px) 100%, ${cut}px 100%, 0px calc(100% - ${cut}px), 0px ${cut}px)`,
+      );
+    }
+  }
   await expect(page.getByRole("region", { name: "未確定の候補" })).toBeHidden();
   await formationScreenshot(page, testInfo, "formation-departure-1920.png");
   await page.getByRole("button", { name: "枠 3", exact: true }).click();

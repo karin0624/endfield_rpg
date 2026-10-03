@@ -23,5 +23,31 @@
       "height": 48
     }
   },
-  "pageErrors": []
+  "pageErrors": [],
+  "controlShapes": [
+    {
+      "text": "戻る",
+      "cut": "1rem",
+      "before": "polygon(16px 0px, calc(100% - 16px) 0px, 100% 16px, 100% calc(100% - 16px), calc(100% - 16px) 100%, 16px 100%, 0px calc(100% - 16px), 0px 16px)",
+      "after": "polygon(16px 0px, calc(100% - 16px) 0px, 100% 16px, 100% calc(100% - 16px), calc(100% - 16px) 100%, 16px 100%, 0px calc(100% - 16px), 0px 16px)"
+    },
+    {
+      "text": "編成する",
+      "cut": "1.5rem",
+      "before": "polygon(24px 0px, calc(100% - 24px) 0px, 100% 24px, 100% calc(100% - 24px), calc(100% - 24px) 100%, 24px 100%, 0px calc(100% - 24px), 0px 24px)",
+      "after": "polygon(24px 0px, calc(100% - 24px) 0px, 100% 24px, 100% calc(100% - 24px), calc(100% - 24px) 100%, 24px 100%, 0px calc(100% - 24px), 0px 24px)"
+    },
+    {
+      "text": "出発する",
+      "cut": "1.5rem",
+      "before": "polygon(24px 0px, calc(100% - 24px) 0px, 100% 24px, 100% calc(100% - 24px), calc(100% - 24px) 100%, 24px 100%, 0px calc(100% - 24px), 0px 24px)",
+      "after": "polygon(24px 0px, calc(100% - 24px) 0px, 100% 24px, 100% calc(100% - 24px), calc(100% - 24px) 100%, 24px 100%, 0px calc(100% - 24px), 0px 24px)"
+    },
+    {
+      "text": "編成へ戻る",
+      "cut": "1rem",
+      "before": "polygon(16px 0px, calc(100% - 16px) 0px, 100% 16px, 100% calc(100% - 16px), calc(100% - 16px) 100%, 16px 100%, 0px calc(100% - 16px), 0px 16px)",
+      "after": "polygon(16px 0px, calc(100% - 16px) 0px, 100% 16px, 100% calc(100% - 16px), calc(100% - 16px) 100%, 16px 100%, 0px calc(100% - 16px), 0px 16px)"
+    }
+  ]
 }
