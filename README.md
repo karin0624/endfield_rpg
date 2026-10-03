@@ -18,7 +18,7 @@
 | [specs/battle.md](specs/battle.md) | タイムライン戦闘、通常攻撃、勝敗の状態・操作・受入例 |
 | [specs/visuals.md](specs/visuals.md) | 戦闘画面の配置・構図設定・描画 |
 | [specs/design-guidelines.md](specs/design-guidelines.md) | UIの配色、部品、操作状態、マーカー |
-| [docs/ui-asset-production.md](docs/ui-asset-production.md) | AIによるUI用画像の制作手順 |
+| [docs/ui-asset-production.md](docs/ui-asset-production.md) | UI完成画像の承認・再承認・pixel diff・PR審査と画像制作の手順 |
 | [docs/testing.md](docs/testing.md) | Nodeテスト、ブラウザE2E、VRTの責務と実行環境 |
 | [docs/documentation.md](docs/documentation.md) | 文書の役割、仕様とADRの書き分け、更新規則 |
 | [docs/adr/](docs/adr/) | 採用した判断とその経緯 |

@@ -5,7 +5,7 @@
 - 仕様・責務境界を確認するときは[specs/overview.md](specs/overview.md)を参照する。
 - 実装順・依存関係を確認するときは[docs/milestones.md](docs/milestones.md)を参照する。
 - 環境構築・実行コマンド・ソース構成を確認するときは[README.md](README.md)を参照する。
-- UI・AI生成アセットを追加・変更するときは[specs/design-guidelines.md](specs/design-guidelines.md)を参照する。
+- UIを追加・変更するときは[docs/ui-asset-production.md](docs/ui-asset-production.md#ui開発の必須ゲート)の完成画像承認→実装→同解像度pixel diff→PR審査を必須とし、[specs/design-guidelines.md](specs/design-guidelines.md)も参照する。未承認変更は画像改訂・再承認まで実装を止める。
 - AIでUI用画像を制作するときは[docs/ui-asset-production.md](docs/ui-asset-production.md)を参照する。
 - 文書を追加・変更するときは[docs/documentation.md](docs/documentation.md)の書き分けと更新規則に従う。
 
