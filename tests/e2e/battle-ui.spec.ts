@@ -526,7 +526,7 @@ test("代表シーケンス：通常1倍の操作動画（実素材）", async (
         "-i",
         output,
         "-t",
-        String(cuts[index + 1] - from + 0.5),
+        String(index === cuts.length - 2 ? duration : cuts[index + 1] - from + 0.5),
         "-an",
         "-c:v",
         "libx264",
