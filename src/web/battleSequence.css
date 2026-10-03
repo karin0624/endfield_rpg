@@ -22,9 +22,6 @@
   line-height: 1.5;
   text-align: center;
 }
-.sequence-actor {
-  margin-top: 2.5rem;
-}
 .sequence-number {
   font-size: var(--font-size-emphasis);
   font-weight: 700;
@@ -103,11 +100,6 @@
 
 @media (max-width: 900px) {
   .event-toast[data-event="attack"] {
-    top: 4px;
-    width: max-content;
-    max-width: calc(100% - 16px);
-    padding: 4px 8px;
-    font-size: var(--font-size-body);
-    line-height: 1.5;
+    display: none;
   }
 }

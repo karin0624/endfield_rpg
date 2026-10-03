@@ -648,7 +648,7 @@ export function mountBattleUi(
         const hitLabel = event.type === "skill" ? ` · ${event.hitIndex}発目` : "";
         const label = `${combatantName(event.actorId)} · ${name}`;
         showEventToast(`${label} → ${combatantName(event.targetId)}${hitLabel}`, "attack");
-        await sequence.action(event, combatantName(event.actorId), `${result}${hitLabel}`, () => {
+        await sequence.action(event, label, `${result}${hitLabel}`, () => {
           displayImpact(event);
           message = `${label}：${combatantName(event.targetId)} ${result}${hitLabel}`;
           screenReaderStatus.textContent = message;

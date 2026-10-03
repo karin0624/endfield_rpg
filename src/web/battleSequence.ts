@@ -33,7 +33,9 @@ export function createBattleSequence(stage: HTMLElement, renderer: BattlePresent
       const halfWidth = node.offsetWidth / 2;
       const x = rect?.markerX ?? stage.clientWidth * 0.72;
       node.style.left = `${Math.max(halfWidth + 4, Math.min(stage.clientWidth - halfWidth - 4, x))}px`;
-      node.style.top = `${rect ? rect.top + rect.height * 0.4 : stage.clientHeight * 0.6}px`;
+      const y = (rect ? rect.top + rect.height * 0.4 : stage.clientHeight * 0.6) + (node === actor ? 48 : 0);
+      const halfHeight = node.offsetHeight / 2;
+      node.style.top = `${Math.max(halfHeight + 4, Math.min(stage.clientHeight - halfHeight - 4, y))}px`;
     }
   }
   const observer = new ResizeObserver(position);
