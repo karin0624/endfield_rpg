@@ -130,6 +130,7 @@ jobs:
             test-results/**/formation-*.png
             test-results/**/party-*.png
             test-results/**/approved-*.png
+            test-results/**/hp-onset-*.png
             test-results/**/*-readiness.json
           if-no-files-found: error
           retention-days: 14

@@ -174,3 +174,8 @@
 .battle-ui[data-skill-battle] .ally-details .symptom-icons[hidden] {
   visibility: hidden;
 }
+
+/* The stage still clips its own drawing; overflowing disclosures remain reachable below it. */
+.game-board:has(.battle-ui[data-party-overflow]) {
+  overflow: visible;
+}

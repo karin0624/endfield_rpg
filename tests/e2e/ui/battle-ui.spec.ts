@@ -961,38 +961,66 @@ test.describe(() => {
   });
 });
 
-test("初回の疲労と追加症状の表示でもHP行の位置を移動しない", async ({ page }) => {
-  await page.goto("/tests/fixtures/battle-contracts.html?onset=1");
-  const player = page.locator(".ally-card").filter({ hasText: "Player" });
-  await expect(player.locator("summary")).toHaveCount(0);
-  const hpPosition = () =>
-    player.evaluate((card) => {
-      const line = card.querySelector(".hp-line");
-      if (!line) throw new Error("HP line missing");
-      const hp = line.getBoundingClientRect();
-      return {
-        hp: { x: hp.x + window.scrollX, y: hp.y + window.scrollY },
-        rows: [card, ...card.querySelectorAll(".symptom-icons, summary")].map((element) => ({
-          tag: element.className || element.tagName,
-          width: element.getBoundingClientRect().width,
-          height: element.getBoundingClientRect().height,
-          font: getComputedStyle(element).fontSize,
-          lineHeight: getComputedStyle(element).lineHeight,
-        })),
-      };
+for (const fontPercent of [100, 200]) {
+  test(`初回の疲労と追加症状の表示でもHP行の位置を移動しない（文字${fontPercent}%）`, async ({ page }, info) => {
+    await page.goto("/tests/fixtures/battle-contracts.html?onset=1");
+    await page.addStyleTag({ content: `html { font-size: ${fontPercent}% }` });
+    await expect
+      .poll(async () =>
+        page.locator(".party").evaluate((party) => {
+          const height = party.getBoundingClientRect().height;
+          return [...party.querySelectorAll(".ally-card")].every(
+            (card) => card.getBoundingClientRect().height === height,
+          );
+        }),
+      )
+      .toBe(true);
+    const player = page.locator(".ally-card").filter({ hasText: "Player" });
+    await expect(player.locator("summary")).toHaveCount(0);
+    const hpPosition = () =>
+      player.evaluate((card) => {
+        const line = card.querySelector(".hp-line");
+        if (!line) throw new Error("HP line missing");
+        const hp = line.getBoundingClientRect();
+        return {
+          hp: { x: hp.x + window.scrollX, y: hp.y + window.scrollY },
+          rows: [card, ...card.querySelectorAll(".symptom-icons, summary")].map((element) => ({
+            tag: element.className || element.tagName,
+            width: element.getBoundingClientRect().width,
+            height: element.getBoundingClientRect().height,
+            font: getComputedStyle(element).fontSize,
+            lineHeight: getComputedStyle(element).lineHeight,
+          })),
+        };
+      });
+    const hpBefore = await hpPosition();
+    await page.screenshot({ path: info.outputPath(`hp-onset-before-${fontPercent}.png`), fullPage: true });
+    await page.getByRole("button", { name: "スキル", exact: true }).click();
+    await page.getByRole("button", { name: "検証用攻撃", exact: true }).click();
+    await page.getByRole("button", { name: "使用する", exact: true }).click();
+    await page.getByRole("button", { name: "演出を省略" }).click();
+    await expect(page.getByRole("button", { name: "スキル", exact: true })).toBeEnabled();
+    await expect(player.locator("summary")).toHaveCount(2);
+    await expect(player).toContainText("HP15/ 15");
+    const hpAfter = await hpPosition();
+    expect(hpAfter.hp, JSON.stringify({ before: hpBefore.rows, after: hpAfter.rows })).toEqual(hpBefore.hp);
+    await info.attach("HP位置と症状行", {
+      body: JSON.stringify({ fontPercent, before: hpBefore, after: hpAfter }, null, 2),
+      contentType: "application/json",
     });
-  const hpBefore = await hpPosition();
-  await page.getByRole("button", { name: "スキル", exact: true }).click();
-  await page.getByRole("button", { name: "検証用攻撃", exact: true }).click();
-  await page.getByRole("button", { name: "使用する", exact: true }).click();
-  await page.getByRole("button", { name: "演出を省略" }).click();
-  await expect(page.getByRole("button", { name: "スキル", exact: true })).toBeEnabled();
-  await expect(player.locator("summary")).toHaveCount(2);
-  await expect(player).toContainText("HP15/ 15");
-  const hpAfter = await hpPosition();
-  expect(hpAfter.hp, JSON.stringify({ before: hpBefore.rows, after: hpAfter.rows })).toEqual(hpBefore.hp);
-});
-
+    await page.screenshot({ path: info.outputPath(`hp-onset-after-${fontPercent}.png`), fullPage: true });
+    for (const summary of await player.locator("summary").all()) {
+      await summary.scrollIntoViewIfNeeded();
+      await expect(summary).toBeInViewport({ ratio: 1 });
+      await summary.focus();
+      await page.keyboard.press("Enter");
+      const description = summary.locator("..").locator(".symptom-description");
+      await description.scrollIntoViewIfNeeded();
+      await expect(description).toBeInViewport({ ratio: 1 });
+      await page.keyboard.press("Enter");
+    }
+  });
+}
 test("分岐回復は控えと不能者を除外し未習得技と非分岐技を選ばせない", async ({ page }) => {
   await collectCoverage(page);
   await page.goto("/tests/fixtures/battle-contracts.html?branch=1&unavailable=1");

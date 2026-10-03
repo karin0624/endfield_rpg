@@ -31,6 +31,9 @@ VRTはブラウザの各層で用いる視覚assertionであり、操作・論�
 - 構図20項目のcontrol同期・draft・JSON exportは実エディターと描画代替の接続に移した。同じ入力・逆方向同期・export全値・reload全値のassertionを維持して2.3秒で成功した。実地面、設定反映VRT、資源、HMRの保証は実rendererに残す。
 - 背景404の早期失敗後、モデルimportが資源を確保する競合を修正した。同時読込のsettlement後に失敗を通知し、保留モデルを解放するcaseも含む4つの素材失敗caseで資源0のassertionが成功した。全projectの解析runとは区別する。
 - 攻撃／回復の固定時計VRTはPlaywright locatorと同じ整数矩形をpage screenshotへ渡し、paused rAFの安定待ちを避けた。既存画像・許容差を変えず両caseが成功した。
+- 初回症状によるカード拡大でHPが上へ動く不具合は、既存の上端を保って情報を下へ展開する修正へ進めた。通常／文字200%の公開座標、説明のキーボード展開・到達性を検証し、初期画面は通常・文字200%・320px幅で修正前との全体pixel diffが0だった。最終CI結果とは区別する。
+- 解析buildのJavaScript sourcemap設定でCSS minificationも無効になっていたため、CSSは通常buildと同じminificationを明示した。ルートVRTの基準・許容差は変更しない。
+- 品質scriptへのPlaywright引数が末尾の結果検査へ渡る問題を修正した。3モードで`--update-snapshots`等がrunnerへ届き、全件の発見・結果照合は維持されることを確認した。
 - 長い通常campaign通しと10状態VRTを `tests/long/` の明示実行へ移した。テスト本文と基準bytesは保持し、既定CIの短い通常配布・UI・settings・renderer境界は継続する。
 
 ## 破壊・修正前との比較
@@ -53,7 +56,7 @@ VRTはブラウザの各層で用いる視覚assertionであり、操作・論�
 
 | 固定監査の領域 | 具体的な不足への対応 | 残る区別・限界 |
 | --- | --- | --- |
-| UI（UI-C/P/D/B/E/V） | 通常保存・取消・focus、クイック編成の各入力結果、各着弾、実コアのRNG、routeの狭幅、全設定control、実font使用、必要状態VRT。入口は `tests/e2e/built/campaign.spec.ts` と `tests/e2e/{debug,ui,settings}/` | UI-B23のHP位置不変は下記の失敗を残す。UI-V04の絶対コントラストは未検証。全画面タイポグラフィの仕上げは承認済みIssue #99へ分けるが、現在のfont読込・実使用と狭幅操作の保証を混同しない |
+| UI（UI-C/P/D/B/E/V） | 通常保存・取消・focus、クイック編成の各入力結果、各着弾、実コアのRNG、routeの狭幅、全設定control、実font使用、必要状態VRT。入口は `tests/e2e/built/campaign.spec.ts` と `tests/e2e/{debug,ui,settings}/` | UI-B23のHP位置不変は修正と回帰テストを追加し、最終CIを待つ。UI-V04の絶対コントラストは未検証。全画面タイポグラフィの仕上げは承認済みIssue #99へ分けるが、現在のfont読込・実使用と狭幅操作の保証を混同しない |
 | 進行・保存（ADV/DUN/EXP/GROW/REC/SAVE等） | `definitionContracts.test.ts` のDAG/条件分岐負例、`growthRuntime.test.ts` の保証技/習得境界、`multidayAcceptance.test.ts` と `save.test.ts` の公開状態の引継ぎ・拒否 | 公開数量・金額の保存不一致は修正。将来コンテンツや未確定バランスを実装済み保証へ含めない |
 | 物品・装備（ITEM/EQUIP/SAVEITEM） | `items.test.ts` の各回優先消費と成功合算、`itemUse.test.ts` の古い入力拒否、`inventoryIntegration.test.ts` の購入→探索→帰還→保存と実戦闘の回復後被弾、装備＋育成＋疲労 | SAVEITEM-03で監査者が推定したversionの包括上限は公開仕様にない。通常版数の保持・不正値拒否は検証するが、version枯渇時の方針は未定義・未検証 |
 | 戦闘（BAT-T/A/S/F/L等） | `battleContracts.test.ts` の独立した入力/HP/時刻/出来事/確率等値境界、`skills.test.ts` 等の対象と拒否、Playwrightの途中表示と速度・省略・退出後の論理結果 | BAT-D01〜04の途中速度変更・割込・SP・戦略AI・本編へのmulti/all技提供・最終バランスは未実装計画。実装済みmulti/all runtimeの不足へ読み替えない |
@@ -61,9 +64,12 @@ VRTはブラウザの各層で用いる視覚assertionであり、操作・論�
 
 ### 未解決の実装仕様
 
-- **UI-B23：初回疲労・症状でもHP行を動かさない。** `tests/e2e/ui/battle-ui.spec.ts` の「初回の疲労と追加症状の表示でもHP行の位置を移動しない」は、document上のHP行座標を比較する。予約34pxに対して可読なラベル2行が72pxを要し、実測で約15.609px移動する。カード内の相対座標へ期待を変更したりskipにせず、失敗を残した。承認済みカード・情報をどう配置するかの判断が必要であり、仕様を実装に合わせて削らない。
 - **UI-V04：画像背景との絶対コントラスト。** VRTで表示回帰は検出するが、文字4.5:1・重要非文字3:1を満たす証明にはならない。標準axeの画像背景検査がincompleteだったため未検証として残す。違反0や目視をテスト成功へ読み替えない。
 全実装済み仕様をテストする要求は維持する。上の未解決を残している間は、その要求を達成した・マージ可能とは報告しない。
+
+### HP位置の修正前後の検証
+
+初期画面は通常・文字200%・320px幅の同じ条件で修正前と全体pixel diffが0だった。通常のdocument上のHP行は`817.03125→801.421875`だったものが`817.03125→817.03125`となり、文字200%では`697.828125→557.421875`が`697.828125→697.828125`となった。320px幅はステージ下へ縦積みするため、上の行動結果パネルの拡大で修正前後とも`737.78125→826.5625`となる。狭幅のdocument座標まで固定したとは報告しない。基準画像を更新せず、初期構図を維持する修正の範囲と別のflow変化をレビューで照合する。
 
 ### 未定義の設計境界
 
