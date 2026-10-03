@@ -22,7 +22,13 @@ export default defineConfig({
     launchOptions: { args: ["--enable-unsafe-swiftshader"] },
   },
   projects: [
-    { name: "built", testMatch: ["battle.spec.ts", "dungeon.spec.ts"] },
+    { name: "built", testMatch: ["campaign.spec.ts"] },
+    {
+      name: "debug",
+      testMatch: ["battle.spec.ts", "dungeon.spec.ts"],
+      snapshotPathTemplate: "{testDir}/{testFilePath}-snapshots/{arg}-built-{platform}{ext}",
+      use: { baseURL: "http://127.0.0.1:4175" },
+    },
     {
       name: "ui",
       testMatch: ["battle-ui.spec.ts", "party-ui.spec.ts", "acceptance-ui.spec.ts"],
@@ -44,6 +50,10 @@ export default defineConfig({
           },
         ]
       : [
+          {
+            command: "npx vite preview --outDir dist-debug --host 127.0.0.1 --port 4175 --strictPort",
+            wait: { stdout: /Local:\s+http:\/\/127\.0\.0\.1:4175\// },
+          },
           {
             command: "npx vite preview --host 127.0.0.1 --port 4173 --strictPort",
             wait: { stdout: /Local:\s+http:\/\/127\.0\.0\.1:4173\// },
