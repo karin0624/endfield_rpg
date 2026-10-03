@@ -84,6 +84,12 @@ test("長名・未提供画像・狭幅・低い画面で詳細と確定へ到�
     await expect(dialog.getByText(/肉体疲労・軽度/)).toBeInViewport();
     await page.keyboard.press("Escape");
     await expect(detail).toBeFocused();
+    const card = candidate.locator("..");
+    const cardBox = await card.boundingBox();
+    const hpBox = await card.locator(".party-candidate-hp").boundingBox();
+    expect((hpBox?.y ?? Infinity) + (hpBox?.height ?? 0)).toBeLessThanOrEqual(
+      (cardBox?.y ?? 0) + (cardBox?.height ?? 0),
+    );
     const confirm = page.getByRole("button", { name: "確定", exact: true });
     await confirm.scrollIntoViewIfNeeded();
     await expect(confirm).toBeInViewport();
@@ -196,6 +202,15 @@ test("承認画像の4状態を同じfixtureと1672×941で実撮影する", asy
 test("主操作はマウス保持とSpace押下中も暗い文字を保つ", async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1920, height: 1080 });
   await page.goto("/tests/fixtures/party-selection.html?count=2");
+  for (const slot of await page.locator(".party-slot.is-occupied").all()) {
+    const portrait = await slot.locator(".party-slot-portrait").boundingBox();
+    const image = await slot.locator("img").boundingBox();
+    const name = await slot.locator(".party-slot-name").boundingBox();
+    expect((image?.y ?? Infinity) + (image?.height ?? 0)).toBeLessThanOrEqual(
+      (portrait?.y ?? 0) + (portrait?.height ?? 0) + 1,
+    );
+    expect(name?.y ?? 0).toBeGreaterThanOrEqual((portrait?.y ?? 0) + (portrait?.height ?? 0));
+  }
   const primary = page.getByRole("button", { name: "出発する", exact: true });
   await primary.hover();
   await page.mouse.down();
