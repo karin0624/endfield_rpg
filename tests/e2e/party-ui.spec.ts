@@ -1,6 +1,112 @@
 import { expect, test } from "@playwright/test";
 import { formationScreenshot, readyFormation } from "./formationEvidence";
 
+test("編成integration: campaign配下の通常入力と選択・押し直し解除をcapture込みで通す", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "新規開始", exact: true }).click();
+  await page.getByRole("button", { name: "実行する", exact: true }).click();
+  await page.getByRole("button", { name: "ホームへ", exact: true }).click();
+  const quantity = page.getByRole("spinbutton", { name: "持込み個数（HP回復品）" });
+  expect(
+    await quantity.evaluate((input) => {
+      const event = new MouseEvent("click", { bubbles: true, cancelable: true, detail: 2 });
+      input.dispatchEvent(event);
+      return event.defaultPrevented;
+    }),
+  ).toBe(false);
+  await page.getByRole("button", { name: "出撃編成を見る", exact: true }).click();
+  await page.getByRole("button", { name: "枠 1", exact: true }).click();
+  const candidate = page.locator(".party-candidate").first();
+  await candidate.focus();
+  await page.keyboard.press("Space");
+  // A single synchronous dispatch sequence includes both real mounted capture ancestors.
+  // Synthetic integration input does not replace the native pointer tests below and in campaign.spec.ts.
+  const states = await candidate.evaluate((button) =>
+    [1, 2, 3].map((detail) => {
+      const prevented = ["mousedown", "mouseup", "click"].map((type) => {
+        const event = new MouseEvent(type, { bubbles: true, cancelable: true, detail });
+        button.dispatchEvent(event);
+        return event.defaultPrevented;
+      });
+      return { selected: button.getAttribute("aria-pressed"), prevented };
+    }),
+  );
+  expect(states).toEqual([
+    { selected: "true", prevented: [false, false, false] },
+    { selected: "false", prevented: [false, false, false] },
+    { selected: "true", prevented: [false, false, false] },
+  ]);
+});
+
+test("候補の短間隔4連続クリックと複数カード切替を一回ずつ即時反映する", async ({ page }) => {
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await page.goto("/tests/fixtures/party-selection.html?count=12");
+  await page.getByRole("button", { name: "枠 1", exact: true }).click();
+  const choices = page.locator(".party-candidate");
+  const box = await choices.first().boundingBox();
+  if (!box) throw new Error("候補カードが表示されていません");
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  for (let clickCount = 1; clickCount <= 4; clickCount++) {
+    // Real browser click counts, with no sleep, locator actionability wait, or retry assertion between inputs.
+    await page.mouse.down({ clickCount });
+    await page.mouse.up({ clickCount });
+    expect(await choices.first().getAttribute("aria-pressed")).toBe(String(clickCount % 2 === 0));
+  }
+  for (const [index, selected] of [
+    [0, false],
+    [1, false],
+    [4, true],
+    [0, true],
+    [4, false],
+    [1, true],
+  ] as const) {
+    const target = await choices.nth(index).boundingBox();
+    if (!target) throw new Error("候補カードが表示されていません");
+    await page.mouse.click(target.x + target.width / 2, target.y + target.height / 2);
+    expect(await choices.nth(index).getAttribute("aria-pressed")).toBe(String(selected));
+  }
+  expect(await page.locator("#edits").textContent()).toBe("0");
+  await page.getByRole("button", { name: "確定", exact: true }).dblclick();
+  await expect(page.locator("#edits")).toHaveText("1");
+  await page.getByRole("button", { name: "出発する", exact: true }).dblclick();
+  await expect(page.locator("#departures")).toHaveText("1");
+});
+
+test("候補の選択・押し直し解除・再選択で枠と番号のVRTが一致する", async ({ page }) => {
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await page.goto("/tests/fixtures/party-selection.html?count=2");
+  await page.getByRole("button", { name: "枠 1", exact: true }).click();
+  await readyFormation(page);
+  const candidate = page.locator(".party-candidate").first();
+  const card = page.locator(".party-candidate-card").first();
+  await candidate.focus();
+  await page.keyboard.press("Space");
+  const box = await card.boundingBox();
+  const buttonBox = await candidate.boundingBox();
+  if (!box || !buttonBox) throw new Error("候補カードが表示されていません");
+  // Include the outer selection brackets, portrait, number, name, HP/bar, and detail action. No masks.
+  const clip = {
+    x: Math.floor(box.x) - 8,
+    y: Math.floor(box.y) - 8,
+    width: Math.ceil(box.width) + 16,
+    height: Math.ceil(box.height) + 16,
+  };
+  await page.mouse.move(buttonBox.x + buttonBox.width / 2, buttonBox.y + buttonBox.height / 2);
+  for (const clickCount of [1, 2, 3]) {
+    await page.mouse.down({ clickCount });
+    await page.mouse.up({ clickCount });
+    expect(await candidate.getAttribute("aria-pressed")).toBe(String(clickCount !== 2));
+    await expect(page).toHaveScreenshot(
+      clickCount === 2 ? "party-candidate-unselected.png" : "party-candidate-selected.png",
+      {
+        clip,
+        animations: "disabled",
+        maxDiffPixels: 0,
+      },
+    );
+  }
+});
+
 for (const count of [12, 24]) {
   test(`${count}候補を仮編集し、欠番保持・詳細復帰・確定一回・Esc反映を確認する`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width: 1920, height: 1080 });

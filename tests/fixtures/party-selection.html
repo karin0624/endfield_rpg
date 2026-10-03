@@ -4,7 +4,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>編成候補の表示条件テスト</title>
   <div class="adventure-screen party-editing"><div class="town-view"><section class="party-editor" id="fixture" aria-label="出撃編成"></section></div></div>
-  <button type="button" id="snapshot">状態を確認</button><output hidden id="state"></output><output hidden id="edits"></output>
+  <button type="button" id="snapshot">状態を確認</button><output hidden id="state"></output><output hidden id="edits"></output><output hidden id="departures">0</output>
   <script type="module">
     import { characters } from "/src/content/characters.ts";
     import { initialGameOptions } from "/src/content/initialGameOptions.ts";
@@ -32,13 +32,14 @@
     }
     if (stressIndices.length) game = { ...game, party: { ...game.party, members: game.party.members.map((member, index) => stressIndices.includes(index) ? { ...member, mentalFatigue: 50 } : member) } };
     let edits = 0;
+    let departures = 0;
     const capture = () => { document.querySelector("#state").textContent = JSON.stringify(game); document.querySelector("#edits").textContent = String(edits); };
     document.querySelector("#snapshot").onclick = capture;
     mountPartyUi(document.querySelector("#fixture"), {
       context: params.has("edit") ? "edit" : "departure",
       characters: definitions, getParty: () => game.party, getCalendarLabel: () => "1日目 · 昼",
       confirm: (slots) => { edits++; const result = confirmExpeditionParty(game, slots); game = result.state; capture(); return result; },
-      depart: () => ({ accepted: false, state: game, reason: "action-in-progress" }),
+      depart: () => { document.querySelector("#departures").textContent = String(++departures); return { accepted: false, state: game, reason: "action-in-progress" }; },
     }, () => {});
     capture();
   </script>
