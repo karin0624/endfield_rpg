@@ -44,6 +44,9 @@
   background: var(--surface-base);
   font-size: var(--font-size-body);
 }
+.campaign-header p:empty {
+  display: none;
+}
 .campaign-content {
   width: min(32rem, 42%);
   margin-block: auto;
