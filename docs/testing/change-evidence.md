@@ -25,6 +25,7 @@ VRTはブラウザの各層で用いる視覚assertionであり、操作・論�
 
 ## 独立レビュー後の修正
 
+- 品質scriptの引数転送に対し、古い成功JSONを残して`--grep built --reporter=list`と`--list --reporter=list`を実CLIで実行すると、部分実行／未実行が古い結果で成功する経路を再現した。実行前にdiscovery/resultを削除し今回のJSON新規生成を必須にした後、全4project成功経路は通り、後2条件は拒否された。ブラウザを使わない実runnerの回帰としてVitestで実行する。
 - Vitestのstock JSONだけでは個別retryや `test.fails` を判別しきれないため、公開Reporter APIで `options.fails`・retry回数・残存errorを検査する。実CLIで通常成功／retry成功／期待失敗／suite期待失敗の4条件を検証し、後3条件を非ゼロ終了にした。
 - ブラウザcoverageは終了済みの追加contextも共有fixtureで検出する。分離した実行で通常pageは成功し、browserだけを要求して追加contextを閉じたcaseは拒否された。namespaceから素のrunnerをimportする負例もBiomeが拒否した。遷移前の回収を追加し、ケース別の収集annotationを結果照合に含めた。
 - 両保存APIは4096 bytesのUTF-8入力が「あ」の途中でHTTP chunkへ分割されると旧実装で413となった。raw Bufferで上限を数え、最後にdecodeする修正後は実HTTP回帰が成功した。
@@ -56,7 +57,7 @@ VRTはブラウザの各層で用いる視覚assertionであり、操作・論�
 
 | 固定監査の領域 | 具体的な不足への対応 | 残る区別・限界 |
 | --- | --- | --- |
-| UI（UI-C/P/D/B/E/V） | 通常保存・取消・focus、クイック編成の各入力結果、各着弾、実コアのRNG、routeの狭幅、全設定control、実font使用、必要状態VRT。入口は `tests/e2e/built/campaign.spec.ts` と `tests/e2e/{debug,ui,settings}/` | UI-B23のHP位置不変は修正と回帰テストを追加し、最終CIを待つ。UI-V04の絶対コントラストは未検証。全画面タイポグラフィの仕上げは承認済みIssue #99へ分けるが、現在のfont読込・実使用と狭幅操作の保証を混同しない |
+| UI（UI-C/P/D/B/E/V） | 通常保存・取消・focus、クイック編成の各入力結果、各着弾、実コアのRNG、routeの狭幅、全設定control、実font使用、必要状態VRT。入口は `tests/e2e/built/campaign.spec.ts` と `tests/e2e/{debug,ui,settings}/` | UI-B23のHP位置不変は修正と回帰テストを追加し、最終CIを待つ。UI-V04は既存Playerカードの条件付き保証を追加したが、画像上の編成名・halo・重要非文字を含む全体は未検証。全画面タイポグラフィの仕上げは承認済みIssue #99へ分けるが、現在のfont読込・実使用と狭幅操作の保証を混同しない |
 | 進行・保存（ADV/DUN/EXP/GROW/REC/SAVE等） | `definitionContracts.test.ts` のDAG/条件分岐負例、`growthRuntime.test.ts` の保証技/習得境界、`multidayAcceptance.test.ts` と `save.test.ts` の公開状態の引継ぎ・拒否 | 公開数量・金額の保存不一致は修正。将来コンテンツや未確定バランスを実装済み保証へ含めない |
 | 物品・装備（ITEM/EQUIP/SAVEITEM） | `items.test.ts` の各回優先消費と成功合算、`itemUse.test.ts` の古い入力拒否、`inventoryIntegration.test.ts` の購入→探索→帰還→保存と実戦闘の回復後被弾、装備＋育成＋疲労 | SAVEITEM-03で監査者が推定したversionの包括上限は公開仕様にない。通常版数の保持・不正値拒否は検証するが、version枯渇時の方針は未定義・未検証 |
 | 戦闘（BAT-T/A/S/F/L等） | `battleContracts.test.ts` の独立した入力/HP/時刻/出来事/確率等値境界、`skills.test.ts` 等の対象と拒否、Playwrightの途中表示と速度・省略・退出後の論理結果 | BAT-D01〜04の途中速度変更・割込・SP・戦略AI・本編へのmulti/all技提供・最終バランスは未実装計画。実装済みmulti/all runtimeの不足へ読み替えない |
@@ -64,12 +65,20 @@ VRTはブラウザの各層で用いる視覚assertionであり、操作・論�
 
 ### 未解決の実装仕様
 
-- **UI-V04：画像背景との絶対コントラスト。** VRTで表示回帰は検出するが、文字4.5:1・重要非文字3:1を満たす証明にはならない。標準axeの画像背景検査がincompleteだったため未検証として残す。違反0や目視をテスト成功へ読み替えない。
+- **UI-V04：画像背景との絶対コントラスト。** 下記の既存Playerカードは条件付きで4.5:1を検証する。一方、編成名や見出しの画像／pseudo背景・blur halo、重要非文字3:1は未確定として残す。標準axeのincompleteは不適合の証明でも成功でもない。試作画素解析器はhaloの既知条件で誤判定したため採用しない。VRT・違反0・目視を絶対コントラストの保証へ読み替えない。
 全実装済み仕様をテストする要求は維持する。上の未解決を残している間は、その要求を達成した・マージ可能とは報告しない。
 
 ### HP位置の修正前後の検証
 
-初期画面は通常・文字200%・320px幅の同じ条件で修正前と全体pixel diffが0だった。通常のdocument上のHP行は`817.03125→801.421875`だったものが`817.03125→817.03125`となり、文字200%では`697.828125→557.421875`が`697.828125→697.828125`となった。320px幅はステージ下へ縦積みするため、上の行動結果パネルの拡大で修正前後とも`737.78125→826.5625`となる。狭幅のdocument座標まで固定したとは報告しない。基準画像を更新せず、初期構図を維持する修正の範囲と別のflow変化をレビューで照合する。
+初期画面は通常・文字200%・320px幅の同じ条件で修正前と全体pixel diffが0だった。通常のdocument上のHP行は`817.03125→801.421875`だったものが`817.03125→817.03125`となり、文字200%では`697.828125→557.421875`が`697.828125→697.828125`となった。320px幅はステージ下へ縦積みするため、上の行動結果パネルの拡大で修正前後とも`737.78125→826.5625`となる。狭幅の後続3カードでは症状行の拡大も加わりHPが126.78125px移動する。仕様は900px以下の縦積みとHP不動を同じ節で規定し、後者に明示的なviewport除外はないため、全幅解決やPC専用条件とは扱わない。狭幅のdocument座標まで固定する受入範囲と追加情報のflow配置はレビュー判断を残す。基準画像を更新せず、初期構図を維持する修正の範囲と別のflow変化をレビューで照合する。
+
+### 既存plateの限定したcontrast保証
+
+`tests/e2e/plateContrast.ts` は実入力で到達したPlayerカードの名前・待機状態・HP表記を対象に、通常と文字200%、無症状と初回症状後で確認する。実DOMの文字全域被覆、単色plate、不透明な文字、祖先・文字経路のopacity/filter/blend/mask/pseudo overlay不在をassertする。plateとbox/text shadowの色範囲をsource-overの十分条件として扱い、画像下地を全sRGB範囲へ広げたWCAG相対輝度の下限を丸めず比較する。色の一致だけの見た目proxyではなく、成立条件と4.5:1の公開基準を確認する限定保証である。
+
+このfixtureのplateは初期`#3c463e`、待機後`#232825`、alpha1、影には`#445045`等がある。本文・補助文字の下限は両状態・両文字サイズで**4.584813721131425:1**だった。文字fillをplateと同色へ一時変更した実ブラウザ入力ではassertionが拒否し、復元後に成功する。数式は白黒21:1、白文字／黒plate alpha0.6の既知値5.74183648145415:1、丸めると境界を誤る`#777`と`#767676`の値、foregroundが可能背景範囲内にある負例をVitestで確認する。alpha0.6の例は現CSSの値ではない。
+
+この保証は編成の画像上の文字、blur halo、祖先opacityを持つ敗北カード、非文字マーカーへ転用しない。基準画像・UI外観は変更せず、既存VRTは構図と視覚回帰を別に担う。計算根拠は[WCAG文字contrast](https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html)と[source-over合成](https://www.w3.org/TR/compositing-1/)を参照する。
 
 ### 未定義の設計境界
 

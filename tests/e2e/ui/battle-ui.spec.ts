@@ -1,4 +1,5 @@
 import { collectCoverage, expect, test } from "../coverage";
+import { assertBattleCardContrast } from "../plateContrast";
 
 test("敵を選んで攻撃すると対象のHPが更新される", async ({ page }) => {
   await page.goto("/tests/fixtures/battle-ui.html?demo=1");
@@ -977,6 +978,14 @@ for (const fontPercent of [100, 200]) {
       .toBe(true);
     const player = page.locator(".ally-card").filter({ hasText: "Player" });
     await expect(player.locator("summary")).toHaveCount(0);
+    const contrastBefore = await assertBattleCardContrast(player);
+    if (fontPercent === 100) {
+      const lowContrast = await page.addStyleTag({
+        content: ".ally-card .hp-line b { -webkit-text-fill-color: #232825 !important }",
+      });
+      await expect(assertBattleCardContrast(player)).rejects.toThrow(/4\.5/);
+      await lowContrast.evaluate((style) => style.parentNode?.removeChild(style));
+    }
     const hpPosition = () =>
       player.evaluate((card) => {
         const line = card.querySelector(".hp-line");
@@ -1004,6 +1013,11 @@ for (const fontPercent of [100, 200]) {
     await expect(player).toContainText("HP15/ 15");
     const hpAfter = await hpPosition();
     expect(hpAfter.hp, JSON.stringify({ before: hpBefore.rows, after: hpAfter.rows })).toEqual(hpBefore.hp);
+    const contrastAfter = await assertBattleCardContrast(player);
+    await info.attach("Playerの既存plateによる文字contrast下限", {
+      body: JSON.stringify({ fontPercent, before: contrastBefore, after: contrastAfter }, null, 2),
+      contentType: "application/json",
+    });
     await info.attach("HP位置と症状行", {
       body: JSON.stringify({ fontPercent, before: hpBefore, after: hpAfter }, null, 2),
       contentType: "application/json",
