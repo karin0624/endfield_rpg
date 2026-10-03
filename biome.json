@@ -47,5 +47,27 @@
         "organizeImports": "on"
       }
     }
-  }
+  },
+  "overrides": [
+    {
+      "includes": ["tests/e2e/**/*.spec.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "paths": {
+                  "@playwright/test": {
+                    "importNames": ["test"],
+                    "message": "Import test from the shared coverage fixture so browser collection cannot be bypassed."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
 }

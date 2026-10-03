@@ -2,6 +2,11 @@ import type { BattleSettings } from "../../src/web/battleSettings";
 
 export const groundCullingViews: Readonly<Record<string, Partial<BattleSettings>>> = {
   default: {},
+  "only-ground-scale": { groundScale: 1.2 },
+  "only-formation-x": { allyCenterX: 4.5, enemyCenterX: -4.5 },
+  "only-formation-z": { allyCenterZ: 2, enemyCenterZ: -0.5 },
+  "only-backdrop": { backdropScale: 0.9, backdropX: 3, backdropY: 9, backdropZ: -10 },
+  "only-camera": { cameraY: 7.2 },
   left: { cameraX: -1.1 },
   right: { cameraX: 0.9 },
   up: { cameraY: 7.2 },

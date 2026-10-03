@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { collectCoverage, expect, test } from "../coverage";
 
 test("敵を選んで攻撃すると対象のHPが更新される", async ({ page }) => {
   await page.goto("/tests/fixtures/battle-ui.html?demo=1");
@@ -255,8 +255,16 @@ test("多段・全体攻撃の範囲、取消、各発の結果と一度の疲�
     if (name.startsWith("全体")) {
       await expect(preview).toContainText("対象：生存中の敵全体（スライム A、スライム B）");
       await expect(page.locator("[data-target-indicator]")).toBeHidden();
+      await expect(page.locator(".enemy-hitbox")).toHaveCount(2);
+      for (const target of await page.locator(".enemy-hitbox").all()) {
+        await expect(target).toBeDisabled();
+        await expect(target).toHaveAttribute("aria-pressed", "true");
+      }
+      await page.locator(".enemy-hitbox").first().click({ force: true });
+      await expect(page.locator('.enemy-hitbox[aria-pressed="true"]')).toHaveCount(2);
+      await expect(preview).toContainText("対象：生存中の敵全体（スライム A、スライム B）");
     } else {
-      await expect(preview).toContainText("1体・1発あたり 4 × 3回");
+      await expect(preview).toContainText("1体・1発あたり 4 × 3回（撃破時は打切り）");
       await expect(preview).toContainText("対象：スライム A");
     }
     await page.keyboard.press("Escape");
@@ -289,7 +297,6 @@ for (const real of [false, true]) {
   test(`代表シーケンス：行動者・着弾・数値・省略・離脱${real ? "（実素材）" : "（UI）"}`, async ({
     page,
   }, testInfo) => {
-    test.skip(real && process.env.PLAYWRIGHT_UI === "1", "実素材は通常E2Eで検証");
     await page.setViewportSize({ width: 1920, height: 1080 });
     await page.emulateMedia({ reducedMotion: "no-preference" });
     await page.goto(`/tests/fixtures/battle-sequence.html${real ? "?real=1" : ""}`);
@@ -392,7 +399,6 @@ for (const real of [false, true]) {
   test(`代表シーケンス：複数味方の回復と被弾は各自の位置に出る${real ? "（実素材）" : "（UI）"}`, async ({
     page,
   }, testInfo) => {
-    test.skip(real && process.env.PLAYWRIGHT_UI === "1", "実素材は通常E2Eで検証");
     await page.setViewportSize({ width: 1920, height: 1080 });
     await page.emulateMedia({ reducedMotion: "no-preference" });
     await page.goto(`/tests/fixtures/battle-sequence.html?party=1${real ? "&real=1" : ""}`);
@@ -534,14 +540,30 @@ test("結果の入場と退場の途中で速度を変えても現在の補間�
   await page.getByRole("button", { name: "検証用攻撃", exact: true }).click();
   await page.getByRole("button", { name: "使用する", exact: true }).click();
   await page.clock.runFor(200);
-  await expect(number).toHaveCSS("animation-duration", "0.19s");
+  await expect(page.locator(".battle-sequence")).toHaveAttribute("data-phase", "result");
+  await number.evaluate((element) => {
+    for (const animation of element.getAnimations()) {
+      animation.pause();
+      animation.currentTime = 70;
+    }
+  });
+  const resultFrame = await number.boundingBox();
   await speed.selectOption("1");
-  await expect(number).toHaveCSS("animation-duration", "0.19s");
+  expect(await number.boundingBox()).toEqual(resultFrame);
+  await expect(page.locator(".battle-sequence")).toHaveAttribute("data-phase", "result");
   await expect(skills).toBeDisabled();
   await page.clock.runFor(160);
-  await expect(number).toHaveCSS("animation-duration", "0.12s");
+  await expect(page.locator(".battle-sequence")).toHaveAttribute("data-phase", "settle");
+  await number.evaluate((element) => {
+    for (const animation of element.getAnimations()) {
+      animation.pause();
+      animation.currentTime = 30;
+    }
+  });
+  const settleFrame = await number.boundingBox();
   await speed.selectOption("2");
-  await expect(number).toHaveCSS("animation-duration", "0.12s");
+  expect(await number.boundingBox()).toEqual(settleFrame);
+  await expect(page.locator(".battle-sequence")).toHaveAttribute("data-phase", "settle");
   await page.clock.runFor(100);
   await expect(number).toBeVisible();
   await expect(skills).toBeDisabled();
@@ -551,7 +573,7 @@ test("結果の入場と退場の途中で速度を変えても現在の補間�
   await expect(page.locator("[data-count]")).toHaveText("確定 1回");
 });
 
-for (const presentation of ["normal", "double-speed", "skip", "exit"] as const) {
+for (const presentation of ["normal", "double-speed", "instant", "skip", "exit"] as const) {
   test(`表示操作${presentation}は確定済みHP・時計・疲労・乱数と次入力を変えない`, async ({ page }) => {
     await page.goto("/tests/fixtures/battle-sequence.html");
     const skills = page.getByRole("button", { name: "スキル", exact: true });
@@ -563,8 +585,8 @@ for (const presentation of ["normal", "double-speed", "skip", "exit"] as const) 
         (
           window as unknown as {
             inspectBattleSequence: () => {
-              confirmedState: import("../../src/game/battle").BattleState;
-              commandInput: import("../../src/game/battle").BattleState;
+              confirmedState: import("../../../src/game/battle").BattleState;
+              commandInput: import("../../../src/game/battle").BattleState;
             };
           }
         ).inspectBattleSequence(),
@@ -584,6 +606,7 @@ for (const presentation of ["normal", "double-speed", "skip", "exit"] as const) 
       { id: "slime", hp: 24, mentalFatigue: 0 },
     ]);
     if (presentation === "double-speed") await page.getByRole("combobox", { name: "演出速度" }).selectOption("2");
+    if (presentation === "instant") await page.getByRole("combobox", { name: "演出速度" }).selectOption("0");
     if (presentation === "skip") await page.getByRole("button", { name: "演出を省略" }).click();
     if (presentation === "exit") await page.getByRole("button", { name: "戦闘を離れる" }).click();
     await page.clock.runFor(5000);
@@ -621,6 +644,7 @@ test("多段攻撃は各着弾まで次のHPを先取りせず1発目から順�
     [3, 6, 2],
   ]) {
     await expect(sequence).toHaveAttribute("data-phase", "actor");
+    await expect(page.locator("[data-skill-result]")).toBeHidden();
     await expect(target).toContainText(`${before} / 14`);
     await page.clock.runFor(260);
     await expect(sequence).toHaveAttribute("data-phase", "impact");
@@ -630,4 +654,584 @@ test("多段攻撃は各着弾まで次のHPを先取りせず1発目から順�
     await expect(page.locator('[data-enemy-label="slime-2"]')).toContainText("14 / 14");
     await page.clock.runFor(580);
   }
+  await page.getByRole("button", { name: "演出を省略" }).click();
+  await expect(page.locator("[data-skill-result]")).toBeVisible();
+  await expect(page.locator("[data-skill-result]")).toContainText("3発目");
+});
+
+test("スキル参照・対象選択・取消はHP症状時計乱数を保持し次入力へ渡す", async ({ page }) => {
+  await page.goto("/tests/fixtures/battle-sequence.html?party=1");
+  const skills = page.getByRole("button", { name: "スキル", exact: true });
+  await expect(skills).toBeEnabled();
+  const inspect = () =>
+    page.evaluate(() =>
+      (
+        window as unknown as { inspectBattleSequence: () => { confirmedState: unknown; commandInput: unknown } }
+      ).inspectBattleSequence(),
+    );
+  const before = (await inspect()).confirmedState;
+  expect(before).toMatchObject({
+    logicalTime: 100,
+    randomState: 1,
+    currentActorId: "player",
+    combatants: [
+      { hp: 10, mentalFatigue: 0, status: { physicalFatigue: 0, haze: 0, incapacityRecoverySteps: null } },
+      { hp: 4 },
+      { hp: 40 },
+    ],
+  });
+  for (const cancel of ["Escape", "戻る"]) {
+    await skills.click();
+    await page.getByRole("button", { name: "検証用回復", exact: true }).click();
+    await page.getByRole("combobox", { name: "回復対象" }).selectOption("gilberta");
+    if (cancel === "Escape") await page.keyboard.press("Escape");
+    else await page.getByRole("button", { name: "戻る", exact: true }).click();
+    expect((await inspect()).confirmedState).toEqual(before);
+    await expect(page.locator("[data-count]")).toHaveText("確定 0回");
+  }
+  await skills.click();
+  await page.getByRole("button", { name: "検証用攻撃", exact: true }).click();
+  await page.getByRole("button", { name: "使用する", exact: true }).click();
+  expect((await inspect()).commandInput).toEqual(before);
+});
+
+test("全体攻撃はA撃破の退場後にBへ移り各着弾の対象HPだけを更新する", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.goto("/tests/fixtures/battle-ui.html?multi=1");
+  await page.getByRole("button", { name: "戦闘、選択可能" }).click();
+  const skills = page.getByRole("button", { name: "スキル", exact: true });
+  await expect(skills).toBeEnabled();
+  await page.clock.install();
+  await page.clock.pauseAt(new Date(Date.now() + 1000));
+  await skills.click();
+  await page.getByRole("button", { name: "全体攻撃（試験入力）", exact: true }).click();
+  await page.getByRole("button", { name: "使用する", exact: true }).click();
+  await page.clock.runFor(260);
+  await expect(page.locator('[data-enemy-label="slime"]')).toContainText("0 / 14");
+  await expect(page.locator('[data-enemy-label="slime-2"]')).toContainText("14 / 14");
+  await expect(page.locator("[data-screen-reader-status]")).toContainText("スライム A −14 · 1発目");
+  await page.clock.runFor(1120);
+  await expect(page.locator(".battle-sequence")).toHaveAttribute("data-phase", "actor");
+  await expect(page.locator('[data-enemy-label="slime"]')).toBeHidden();
+  await expect(page.locator('[data-enemy-label="slime-2"]')).toContainText("14 / 14");
+  await page.clock.runFor(260);
+  await expect(page.locator('[data-enemy-label="slime-2"]')).toContainText("0 / 14");
+  await expect(page.locator("[data-screen-reader-status]")).toContainText("スライム B −14 · 1発目");
+  await page.clock.runFor(1500);
+  await expect(page.getByRole("heading", { name: "戦闘に勝利しました" })).toBeVisible();
+});
+
+for (const phase of ["prepare", "impact", "defeat"] as const) {
+  test(`速度変更は${phase}の既存待機を短縮せず次段階に反映する`, async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    await page.goto("/tests/fixtures/battle-sequence.html?lethal=1&no-completion=1");
+    const skills = page.getByRole("button", { name: "スキル", exact: true });
+    await expect(skills).toBeEnabled();
+    await page.clock.install();
+    await page.clock.pauseAt(new Date(Date.now() + 1000));
+    await skills.click();
+    await page.getByRole("button", { name: "検証用攻撃", exact: true }).click();
+    await page.getByRole("button", { name: "使用する", exact: true }).click();
+    const sequence = page.locator(".battle-sequence");
+    const number = page.locator(".sequence-number");
+    await expect(sequence).toHaveAttribute("data-phase", "actor");
+    await expect(number).toBeHidden();
+    await expect(page.locator("[data-enemy-hp]")).toHaveText("12 / 12");
+    await page.clock.runFor(120);
+    await expect(sequence).toHaveAttribute("data-phase", "prepare");
+    await expect(number).toBeHidden();
+    if (phase !== "prepare") await page.clock.runFor(140);
+    if (phase === "defeat") await page.clock.runFor(580);
+    await page.getByRole("combobox", { name: "演出速度" }).selectOption("2");
+    const duration = phase === "prepare" ? 140 : phase === "impact" ? 80 : 240;
+    await page.clock.runFor(duration - 1);
+    if (phase === "defeat") {
+      await expect(page.locator("#app")).toHaveAttribute("data-defeat", "playing");
+      await expect(page.locator("[data-enemy-label]")).toBeVisible();
+    } else {
+      await expect(sequence).toHaveAttribute("data-phase", phase);
+      await expect(number)[phase === "prepare" ? "toBeHidden" : "toBeVisible"]();
+      await expect(page.locator("[data-enemy-hp]")).toHaveText(phase === "prepare" ? "12 / 12" : "0 / 12");
+    }
+    await page.clock.runFor(1);
+    if (phase === "defeat") {
+      await expect(page.locator("#app")).toHaveAttribute("data-defeat", "finished");
+      await expect(page.locator("[data-enemy-label]")).toBeHidden();
+    } else {
+      await expect(sequence).toHaveAttribute("data-phase", phase === "prepare" ? "impact" : "result");
+      await expect(number).toHaveText("−12");
+      await expect(number).toBeVisible();
+      await expect(page.locator("[data-enemy-hp]")).toHaveText("0 / 12");
+      await page.clock.runFor(phase === "prepare" ? 39 : 189);
+      await expect(sequence).toHaveAttribute("data-phase", phase === "prepare" ? "impact" : "result");
+      await page.clock.runFor(1);
+      await expect(sequence).toHaveAttribute("data-phase", phase === "prepare" ? "result" : "settle");
+    }
+    await page.clock.runFor(2000);
+    await expect(page.getByRole("heading", { name: "戦闘に勝利しました" })).toBeVisible();
+    await expect(page.locator("[data-count]")).toHaveText("確定 1回");
+  });
+}
+
+for (const interruptAt of [260, 840, 1380]) {
+  test(`致死攻撃の${interruptAt}msで離脱しても旧着弾・退場・勝敗を再入場へ流さない`, async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    await page.goto("/tests/fixtures/battle-sequence.html?lethal=1&no-completion=1");
+    const skills = page.getByRole("button", { name: "スキル", exact: true });
+    await expect(skills).toBeEnabled();
+    await page.clock.install();
+    await page.clock.pauseAt(new Date(Date.now() + 1000));
+    await skills.click();
+    await page.getByRole("button", { name: "検証用攻撃", exact: true }).click();
+    await page.getByRole("button", { name: "使用する", exact: true }).click();
+    await page.clock.runFor(interruptAt);
+    await expect(page.locator("[data-count]")).toHaveText("確定 1回");
+    await page.getByRole("button", { name: "戦闘を離れる" }).click();
+    await page.getByRole("button", { name: "戦闘を開始" }).click();
+    await expect(skills).toBeEnabled();
+    await page.clock.runFor(3000);
+    await expect(page.locator(".battle-sequence")).toBeHidden();
+    await expect(page.locator("[data-enemy-hp]")).toHaveText("12 / 12");
+    await expect(page.getByRole("heading", { name: "戦闘に勝利しました" })).toBeHidden();
+    await expect(page.locator("[data-count]")).toHaveText("確定 1回");
+    await skills.click();
+    await expect(page.locator("[data-skill-fatigue]")).toContainText("精神疲労 0");
+  });
+}
+
+test("再生途中のreduced-motion切替は結果を静止させ読み取り時間を保持する", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.goto("/tests/fixtures/battle-sequence.html");
+  const skills = page.getByRole("button", { name: "スキル", exact: true });
+  await expect(skills).toBeEnabled();
+  await page.clock.install();
+  await page.clock.pauseAt(new Date(Date.now() + 1000));
+  await skills.click();
+  await page.getByRole("button", { name: "検証用攻撃", exact: true }).click();
+  await page.getByRole("button", { name: "使用する", exact: true }).click();
+  await page.clock.runFor(260);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect(page.locator(".battle-sequence")).toHaveAttribute("data-motion", "false");
+  const number = page.locator(".sequence-number");
+  const still = await number.boundingBox();
+  await page.clock.runFor(459);
+  await expect(number).toBeVisible();
+  expect(await number.boundingBox()).toEqual(still);
+  await expect(skills).toBeDisabled();
+  await expect(page.locator("[data-enemy-hp]")).toHaveText("24 / 40");
+  await page.clock.runFor(1);
+  await expect(page.locator(".battle-sequence")).toHaveAttribute("data-phase", "settle");
+  // The reduced-motion settle phase schedules a zero-delay browser task.
+  await page.clock.runFor(1);
+  await expect(number).toBeHidden();
+  await expect(skills).toBeEnabled();
+  await expect(page.locator("[data-count]")).toHaveText("確定 1回");
+});
+
+for (const count of [3, 4]) {
+  test(`${count}人編成と控えを公開partyから渡し行動順・現在actor・撃破後の選択を表示する`, async ({ page }) => {
+    await page.setViewportSize({ width: 900, height: 1000 });
+    await page.goto(`/tests/fixtures/battle-contracts.html?count=${count}`);
+    const cards = page.locator(".ally-card");
+    await expect(cards).toHaveCount(count);
+    await expect(cards).toHaveText(
+      count === 3 ? [/Player/, /Ally2/, /Ally3/] : [/Player/, /Ally2/, /Ally3/, /Blocked/],
+    );
+    await expect(page.getByRole("region", { name: "味方の状態" })).not.toContainText("Reserve");
+    const queue = page.locator(".queue-row");
+    await expect(queue.first()).toHaveAttribute("aria-current", "step");
+    await expect(queue.first()).toHaveAttribute("aria-label", "Player");
+    await expect(queue.first().locator(".queue-value")).toHaveCount(0);
+    await expect(queue.first()).not.toContainText(/行動中|0 tick/);
+    await expect(queue.locator(".queue-value")).toHaveText(
+      count === 3 ? ["11", "25", "100", "122", "150"] : ["11", "25", "43", "100", "122"],
+    );
+    const selected = page.getByRole("button", { name: /Enemy C、HP .*攻撃対象に選択/ });
+    await expect(selected).toHaveAttribute("aria-pressed", "true");
+    for (let n = 0; n < 3; n++) {
+      await selected.click();
+      await expect(selected).toHaveAttribute("aria-pressed", "true");
+    }
+    const survivor = page.locator('[data-enemy-label="slime-2"]');
+    const relativeSurvivor = async () => {
+      const [box, stage] = await Promise.all([survivor.boundingBox(), page.locator(".stage").boundingBox()]);
+      if (!box || !stage) throw new Error("生存敵の札が見つかりません");
+      return { x: box.x - stage.x, y: box.y - stage.y, width: box.width, height: box.height };
+    };
+    const survivorBefore = await relativeSurvivor();
+    const skills = page.getByRole("button", { name: "スキル", exact: true });
+    await skills.click();
+    await expect(page.locator("[data-skill-list]").getByRole("button")).toHaveText(["検証用攻撃", "検証用回復"]);
+    await page.getByRole("button", { name: "検証用攻撃", exact: true }).click();
+    await page.getByRole("button", { name: "使用する", exact: true }).click();
+    await page.getByRole("button", { name: "演出を省略" }).click();
+    await expect(skills).toBeEnabled();
+    await expect(selected).toBeHidden();
+    await expect(page.locator('[data-enemy-label="third-enemy"]')).toBeHidden();
+    await expect(page.getByRole("button", { name: /Enemy B、HP .*攻撃対象に選択/ })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(await relativeSurvivor()).toEqual(survivorBefore);
+    await expect(queue.first()).toHaveAttribute("aria-label", "Ally2");
+    await expect(queue.locator(".queue-value")).toHaveText(
+      count === 3 ? ["14", "89", "111", "139", "189"] : ["14", "32", "89", "111", "139"],
+    );
+    await expect(page.locator(".ally-card[aria-current=true]")).toContainText("Ally2");
+    await skills.click();
+    await expect(page.locator("[data-skill-list]").getByRole("button")).toHaveText(["検証用回復"]);
+  });
+}
+
+test("回復と物品は生存条件・別対象予測・取消・失敗後の再選択を保つ", async ({ page }) => {
+  await page.goto("/tests/fixtures/battle-contracts.html?unavailable=1&refuse-once=1");
+  const skills = page.getByRole("button", { name: "スキル", exact: true });
+  await skills.click();
+  await page.getByRole("button", { name: "検証用回復", exact: true }).click();
+  const healing = page.getByRole("combobox", { name: "回復対象" });
+  await expect(healing.locator("option")).toHaveText(["Player · HP 28 / 30", "Ally2 · HP 10 / 30"]);
+  await healing.selectOption("gilberta");
+  await expect(healing).toHaveValue("gilberta");
+  await page.keyboard.press("Escape");
+  await expect(skills).toBeFocused();
+  const inspect = () =>
+    page.evaluate(() => (window as unknown as { inspectBattleContracts: () => unknown }).inspectBattleContracts());
+  const before = await inspect();
+  const item = page.getByRole("button", { name: "物品（HP回復品 ×2）", exact: true });
+  for (const cancel of ["戻る", "Escape"]) {
+    await item.click();
+    const dialog = page.getByRole("dialog", { name: "HP回復品の使用" });
+    await dialog.getByRole("combobox", { name: "対象" }).selectOption("gilberta");
+    if (cancel === "戻る") await dialog.getByRole("button", { name: cancel, exact: true }).click();
+    else await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
+    await expect(item).toBeFocused();
+    expect(await inspect()).toEqual(before);
+  }
+  await item.click();
+  const dialog = page.getByRole("dialog", { name: "HP回復品の使用" });
+  const target = dialog.getByRole("combobox", { name: "対象" });
+  await expect(target.locator("option")).toHaveText([
+    "Player · HP 28/30",
+    "Ally2 · HP 10/30",
+    "Ally3 · HP 0/30",
+    "Blocked · HP 10/30",
+  ]);
+  await expect(dialog).toContainText("回復見込み +2 HP");
+  await target.selectOption("gilberta");
+  await expect(dialog).toContainText("回復見込み +8 HP");
+  for (const unavailable of ["third", "blocked"]) {
+    await target.selectOption(unavailable);
+    await expect(dialog).toContainText("この対象には使用できません。");
+    await expect(dialog.getByRole("button", { name: "使用する", exact: true })).toBeDisabled();
+  }
+  await target.selectOption("gilberta");
+  await dialog.getByRole("button", { name: "使用する", exact: true }).click();
+  await expect(dialog).toContainText("使用できませんでした。対象と所持数を確認してください。");
+  expect(await inspect()).toEqual(before);
+  await target.selectOption("player");
+  await expect(dialog).toContainText("回復見込み +2 HP");
+  await target.selectOption("gilberta");
+  await dialog.getByRole("button", { name: "使用する", exact: true }).click();
+  await expect(dialog).toBeHidden();
+  await page.getByRole("button", { name: "演出を省略" }).click();
+  await expect(page.getByRole("button", { name: "物品（HP回復品 ×1）", exact: true })).toBeEnabled();
+  await expect(page.locator(".ally-card").filter({ hasText: "Ally2" })).toContainText("HP18/ 30");
+});
+
+test.describe(() => {
+  test.use({ reducedMotion: "no-preference", hasTouch: true, viewport: { width: 390, height: 900 } });
+  test("小正値を含む全症状アイコンを実タッチとキーボードで展開できる", async ({ page }) => {
+    await page.goto("/tests/fixtures/battle-contracts.html?symptoms=1");
+    const card = page.locator(".ally-card").filter({ hasText: "Player" });
+    await expect(card.locator("summary")).toHaveCount(4);
+    for (const [label, detail] of [
+      ["肉体疲労・なし", "最大HP × 99.01%（あと街探索1回）"],
+      ["朦朧・なし", "命中率 × 99.67%（あと街探索1回）"],
+      ["戦闘不能", "戦闘参加不可（あと街探索6回）"],
+      ["精神疲労・なし", "負荷付きスキル効果 × 99.01%（あと街探索1回）"],
+    ]) {
+      const summary = card.locator("summary").filter({ hasText: label });
+      await summary.tap();
+      await expect(card.getByText(detail, { exact: true })).toBeVisible();
+      await summary.focus();
+      await page.keyboard.press("Enter");
+      await expect(card.getByText(detail, { exact: true })).toBeHidden();
+    }
+  });
+});
+
+test("初回の疲労と追加症状の表示でもHP行の位置を移動しない", async ({ page }) => {
+  await page.goto("/tests/fixtures/battle-contracts.html?onset=1");
+  const player = page.locator(".ally-card").filter({ hasText: "Player" });
+  await expect(player.locator("summary")).toHaveCount(0);
+  const hpPosition = () =>
+    player.evaluate((card) => {
+      const line = card.querySelector(".hp-line");
+      if (!line) throw new Error("HP line missing");
+      const hp = line.getBoundingClientRect();
+      return {
+        hp: { x: hp.x + window.scrollX, y: hp.y + window.scrollY },
+        rows: [card, ...card.querySelectorAll(".symptom-icons, summary")].map((element) => ({
+          tag: element.className || element.tagName,
+          width: element.getBoundingClientRect().width,
+          height: element.getBoundingClientRect().height,
+          font: getComputedStyle(element).fontSize,
+          lineHeight: getComputedStyle(element).lineHeight,
+        })),
+      };
+    });
+  const hpBefore = await hpPosition();
+  await page.getByRole("button", { name: "スキル", exact: true }).click();
+  await page.getByRole("button", { name: "検証用攻撃", exact: true }).click();
+  await page.getByRole("button", { name: "使用する", exact: true }).click();
+  await page.getByRole("button", { name: "演出を省略" }).click();
+  await expect(page.getByRole("button", { name: "スキル", exact: true })).toBeEnabled();
+  await expect(player.locator("summary")).toHaveCount(2);
+  await expect(player).toContainText("HP15/ 15");
+  const hpAfter = await hpPosition();
+  expect(hpAfter.hp, JSON.stringify({ before: hpBefore.rows, after: hpAfter.rows })).toEqual(hpBefore.hp);
+});
+
+test("分岐回復は控えと不能者を除外し未習得技と非分岐技を選ばせない", async ({ page }) => {
+  await collectCoverage(page);
+  await page.goto("/tests/fixtures/battle-contracts.html?branch=1&unavailable=1");
+  const open = page.getByRole("button", { name: "分岐で回復", exact: true });
+  await open.click();
+  const dialog = page.getByRole("dialog", { name: "分岐の回復スキル" });
+  await expect(dialog.getByRole("button")).toHaveText(["Player", "Ally2", "取消"]);
+  await dialog.getByRole("button", { name: "Ally2", exact: true }).click();
+  await expect(dialog.getByRole("button")).toHaveText(["検証用回復 · 精神疲労 +3", "取消"]);
+  await dialog.getByRole("button", { name: "検証用回復 · 精神疲労 +3", exact: true }).click();
+  await expect(dialog.getByRole("button")).toHaveText(["Player HP 28/30", "Ally2 HP 10/30", "取消"]);
+  await page.keyboard.press("Escape");
+  await expect(open).toBeFocused();
+  await collectCoverage(page);
+  await page.goto("/tests/fixtures/battle-contracts.html?branch=1");
+  await page.getByRole("button", { name: "分岐で回復", exact: true }).click();
+  await dialog.getByRole("button", { name: "Ally3", exact: true }).click();
+  await expect(dialog).toContainText("分岐で使える回復スキルを習得していません。");
+  await expect(dialog.getByRole("button")).toHaveText(["取消"]);
+  await collectCoverage(page);
+  await page.goto("/tests/fixtures/battle-contracts.html?branch=1&allblocked=1");
+  await page.getByRole("button", { name: "分岐で回復", exact: true }).click();
+  await expect(dialog).toContainText("回復スキルを使える仲間がいません。");
+  await expect(dialog.getByRole("button")).toHaveText(["取消"]);
+});
+
+test("選択マーカーは1個の立体として6秒で一周しreduced-motionで静止する", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.clock.install({ time: new Date("2026-10-03T12:00:00Z") });
+  await page.clock.pauseAt(new Date("2026-10-03T12:00:01Z"));
+  await page.goto("/tests/fixtures/battle-contracts.html");
+  const marker = page.locator("[data-target-indicator]");
+  await expect(marker).toBeVisible();
+  await expect(marker).toHaveCount(1);
+  await expect(marker).toHaveText("");
+  await page.clock.runFor(32);
+  const geometry = () =>
+    marker.locator("polygon").evaluateAll((polygons) =>
+      polygons
+        .map((polygon) => {
+          const rect = polygon.getBoundingClientRect();
+          return [rect.x, rect.y, rect.width, rect.height];
+        })
+        .sort((a, b) => a[0] - b[0] || a[1] - b[1]),
+    );
+  const initial = await geometry();
+  expect(initial.length).toBeGreaterThan(1);
+  await page.clock.runFor(1500);
+  expect(await geometry()).not.toEqual(initial);
+  await page.clock.runFor(4500);
+  const fullTurn = await geometry();
+  expect(fullTurn.length).toBe(initial.length);
+  for (let i = 0; i < initial.length; i++)
+    for (let n = 0; n < 4; n++) expect(fullTurn[i][n]).toBeCloseTo(initial[i][n], 0);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.clock.runFor(32);
+  const stopped = await geometry();
+  await page.clock.runFor(2000);
+  expect(await geometry()).toEqual(stopped);
+  await expect(marker).toBeInViewport();
+});
+
+test("分岐回復はノードと時計を進めず会話・必須選択・戦闘・終了中には出ない", async ({ page }) => {
+  await page.goto("/tests/fixtures/battle-ui.html?growth=1");
+  const inspect = () =>
+    page.evaluate(() =>
+      (
+        window as unknown as {
+          inspectBattleUiGame: () => { clock: unknown; dungeon: { currentNodeId: string; resolvedNodeIds: string[] } };
+        }
+      ).inspectBattleUiGame(),
+    );
+  const before = await inspect();
+  const open = page.getByRole("button", { name: "分岐で回復", exact: true });
+  await open.click();
+  const dialog = page.getByRole("dialog", { name: "分岐の回復スキル" });
+  await dialog.getByRole("button", { name: "ロッシ", exact: true }).click();
+  await dialog.getByRole("button", { name: /検証用回復/ }).click();
+  await dialog.getByRole("button", { name: /ロッシ HP/ }).click();
+  const after = await inspect();
+  expect(after.clock).toEqual(before.clock);
+  expect(after.dungeon.currentNodeId).toBe(before.dungeon.currentNodeId);
+  expect(after.dungeon.resolvedNodeIds).toEqual(before.dungeon.resolvedNodeIds);
+  await page.getByRole("button", { name: "思わぬ遭遇、選択可能" }).click();
+  await expect(open).toHaveCount(0);
+  await page.locator("[data-conversation-stage]").click();
+  await page.getByRole("button", { name: "地図に足跡を記す" }).click();
+  const growth = page.getByRole("region", { name: "レベルアップのスキル選択" });
+  await expect(growth).toBeVisible();
+  await expect(open).toHaveCount(0);
+  while (await growth.isVisible()) await growth.getByRole("button").first().click();
+  await expect(open).toBeVisible();
+  await page.getByRole("button", { name: "ボス、選択可能" }).click();
+  await expect(page.getByRole("button", { name: "通常攻撃", exact: true })).toBeEnabled();
+  await expect(open).toHaveCount(0);
+  for (let n = 0; n < 10 && !(await page.getByRole("heading", { name: "戦闘に勝利しました" }).isVisible()); n++) {
+    await page.getByRole("button", { name: "通常攻撃", exact: true }).click();
+    await expect(page.locator("[data-battle-ui]")).toHaveAttribute("data-replaying", "false");
+  }
+  await expect(page.getByRole("heading", { name: "戦闘に勝利しました" })).toBeVisible();
+  await expect(open).toHaveCount(0);
+});
+
+test("多段攻撃の命中と外れを各発の結果に残し命中分だけHPを減らす", async ({ page }) => {
+  await page.goto("/tests/fixtures/battle-ui.html?multi=1&miss=1");
+  await page.getByRole("button", { name: "戦闘、選択可能" }).click();
+  await page.getByRole("button", { name: /スライム A、HP .*攻撃対象に選択/ }).click();
+  await page.getByRole("button", { name: "スキル", exact: true }).click();
+  await page.getByRole("button", { name: "連続攻撃（試験入力）", exact: true }).click();
+  await page.getByRole("button", { name: "使用する", exact: true }).click();
+  await page.getByRole("button", { name: "演出を省略" }).click();
+  await expect(page.locator("[data-skill-result]")).toContainText(
+    "スライム A 1発目 4ダメージ · スライム A 2発目 4ダメージ · スライム A 3発目 外れ",
+  );
+  await expect(page.locator("[data-skill-result]")).toContainText("精神疲労 0 → 4");
+  await expect(page.locator('[data-enemy-label="slime"]')).toContainText("6 / 14");
+  await expect(page.locator('[data-enemy-label="slime-2"]')).toContainText("14 / 14");
+});
+
+test("通常campaignの戦闘素材失敗は入力を開始せず理由を示し再読込後に再出発できる", async ({ page }) => {
+  const enter = async () => {
+    await page.getByRole("button", { name: "新規開始", exact: true }).click();
+    await page.getByRole("button", { name: "実行する", exact: true }).click();
+    await page.getByRole("button", { name: "ホームへ", exact: true }).click();
+    await page.getByRole("button", { name: "探索先を選ぶ", exact: true }).click();
+    await page.getByRole("button", { name: "ダンジョン", exact: true }).click();
+    await page.getByRole("button", { name: "出発する", exact: true }).click();
+    await page.getByRole("button", { name: "戦闘、選択可能" }).click();
+  };
+  await page.route("**/*.glb", (route) => route.abort("failed"));
+  await page.goto("/");
+  await enter();
+  await expect(
+    page.getByText("戦闘画面を読み込めませんでした。素材とWebGL対応を確認して、再読み込みしてください。", {
+      exact: true,
+    }),
+  ).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByRole("button", { name: "スキル", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "使用する", exact: true })).toHaveCount(0);
+  await page.unroute("**/*.glb");
+  await collectCoverage(page);
+  await page.reload();
+  await enter();
+  const skills = page.getByRole("button", { name: "スキル", exact: true });
+  await expect(skills).toBeEnabled({ timeout: 60_000 });
+  await skills.click();
+  await page.getByRole("button", { name: "攻撃", exact: true }).click();
+  await page.getByRole("button", { name: "使用する", exact: true }).click();
+  await page.getByRole("button", { name: "演出を省略" }).click();
+  await expect(skills).toBeEnabled();
+  await expect(page.locator("[data-skill-result]")).toContainText("ダメージ");
+  await expect(page.locator("body")).toHaveAttribute("data-mode", "game");
+});
+
+for (const effect of ["攻撃", "回復"] as const) {
+  test(`実素材の${effect}演出を固定段階のVRTで比較する`, async ({ page }) => {
+    await page.setViewportSize({ width: 900, height: 1000 });
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    // Install before Babylon registers its render loop so native and fake rAF never mix.
+    await page.clock.install({ time: new Date("2026-10-03T12:00:00Z") });
+    await page.goto(`/tests/fixtures/battle-sequence.html?real=1${effect === "攻撃" ? "&lethal=1" : ""}`);
+    const skills = page.getByRole("button", { name: "スキル", exact: true });
+    await expect(skills).toBeEnabled({ timeout: 60_000 });
+    await page.clock.pauseAt(new Date("2026-10-03T12:01:00Z"));
+    // CSS uses a native clock: pause authored effects before creation and keep
+    // unrelated HP-width transitions out of these deliberately frozen FX frames.
+    await page.addStyleTag({
+      content: `
+      .battle-sequence * { animation-play-state: paused !important; }
+      .hp-track > span, .enemy-world-track > span { transition: none !important; }
+    `,
+    });
+    await skills.click();
+    await page.getByRole("button", { name: `検証用${effect}`, exact: true }).click();
+    await page.getByRole("button", { name: "使用する", exact: true }).click();
+    const stage = page.locator(".stage");
+    const frames =
+      effect === "攻撃"
+        ? ([
+            [60, "actor"],
+            [240, "impact"],
+            [140, "result"],
+            [460, "defeat"],
+          ] as const)
+        : ([
+            [300, "heal-impact"],
+            [340, "heal-result"],
+          ] as const);
+    for (const [advance, state] of frames) {
+      await page.clock.runFor(advance);
+      // Playwright Clock controls the confirmed-event timeline; Web Animations
+      // has a separate clock. Seek its visible CSS effects to the same authored frame.
+      await stage.evaluate(
+        async (element, elapsed) => {
+          const animations = element.getAnimations({ subtree: true });
+          for (const animation of animations) {
+            animation.pause();
+            animation.currentTime = elapsed;
+          }
+          await Promise.all(animations.map((animation) => animation.ready));
+        },
+        state === "actor"
+          ? 60
+          : state.includes("impact")
+            ? 40
+            : state === "heal-result"
+              ? 380
+              : state === "result"
+                ? 180
+                : 0,
+      );
+      await expect(stage).toHaveScreenshot(`battle-fx-${state}.png`, { animations: "allow", maxDiffPixels: 0 });
+    }
+    await page.getByRole("button", { name: "演出を省略" }).click();
+    if (effect === "攻撃") await expect(page.getByRole("heading", { name: "戦闘に勝利しました" })).toBeVisible();
+    else await expect(skills).toBeEnabled();
+  });
+}
+
+test("reduced-motionでは行動名と着弾形状も移動拡縮せず表示する", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/tests/fixtures/battle-sequence.html");
+  await page.clock.install({ time: new Date("2026-10-03T12:00:00Z") });
+  await page.clock.pauseAt(new Date("2026-10-03T12:00:01Z"));
+  await page.getByRole("button", { name: "スキル", exact: true }).click();
+  await page.getByRole("button", { name: "検証用攻撃", exact: true }).click();
+  await page.getByRole("button", { name: "使用する", exact: true }).click();
+  const actor = page.locator(".sequence-actor");
+  await page.clock.runFor(30);
+  await expect(actor).toBeVisible();
+  const actorFrame = await actor.boundingBox();
+  await page.clock.runFor(60);
+  expect(await actor.boundingBox()).toEqual(actorFrame);
+  await page.clock.runFor(190);
+  const impact = page.locator(".sequence-impact svg");
+  await expect(impact).toBeVisible();
+  const impactFrame = await impact.boundingBox();
+  await page.clock.runFor(40);
+  expect(await impact.boundingBox()).toEqual(impactFrame);
+  await page.getByRole("button", { name: "演出を省略" }).click();
+  await expect(page.locator("[data-count]")).toHaveText("確定 1回");
 });

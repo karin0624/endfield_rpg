@@ -43,6 +43,9 @@ function keys(value: Record<string, unknown>, expected: readonly string[]): bool
 function counter(value: unknown): value is number {
   return typeof value === "number" && Number.isSafeInteger(value) && value >= 0 && value < Number.MAX_SAFE_INTEGER;
 }
+function inventoryAmount(value: unknown): value is number {
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
+}
 function symptomValue(value: unknown, cap: number): value is number {
   return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= cap;
 }
@@ -62,7 +65,7 @@ function parseStatus(value: unknown): CharacterStatus | undefined {
 }
 
 function parseInventory(value: unknown): Inventory | undefined {
-  if (!record(value) || !keys(value, ["items", "balance", "equipment"]) || !counter(value.balance)) return;
+  if (!record(value) || !keys(value, ["items", "balance", "equipment"]) || !inventoryAmount(value.balance)) return;
   const equipment = parseSavedEquipment(value.equipment);
   if (!equipment) return;
   const items = value.items;
@@ -81,7 +84,7 @@ function parseInventory(value: unknown): Inventory | undefined {
       !record(stack) ||
       !keys(stack, ["itemId", "quantity"]) ||
       typeof stack.itemId !== "string" ||
-      !counter(stack.quantity) ||
+      !inventoryAmount(stack.quantity) ||
       stack.quantity < 1 ||
       !itemCatalog.some((item) => item.id === stack.itemId && item.kind === "consumable") ||
       home.some((s) => s.itemId === stack.itemId)

@@ -21,6 +21,7 @@ export function mountAdventureEditor(app: HTMLDivElement, preview: Preview, init
     }
   } catch {
     current = { ...initial };
+    initialMessage = "前回の調整を読み取れなかったため、保存済みの標準を表示しています。";
   }
 
   const panel = document.createElement("aside");
@@ -80,11 +81,12 @@ export function mountAdventureEditor(app: HTMLDivElement, preview: Preview, init
     message.textContent = text;
     message.classList.toggle("error", error);
   }
-  function storeDraft(): void {
+  function storeDraft(): boolean {
     try {
       localStorage.setItem(adventureDraftStorageKey, JSON.stringify(current));
+      return true;
     } catch {
-      setMessage("調整は反映されていますが、このブラウザへの一時保存はできません。");
+      return false;
     }
   }
   syncInputs();
@@ -103,9 +105,13 @@ export function mountAdventureEditor(app: HTMLDivElement, preview: Preview, init
           input.removeAttribute("aria-invalid");
         }
         preview.applySettings(current);
-        storeDraft();
+        const stored = storeDraft();
         save.disabled = false;
-        setMessage("未保存の調整です。このブラウザに一時保存しています。");
+        setMessage(
+          stored
+            ? "未保存の調整です。このブラウザに一時保存しています。"
+            : "調整は反映されていますが、このブラウザへの一時保存はできません。",
+        );
       } catch (error) {
         event.target.setAttribute("aria-invalid", "true");
         save.disabled = true;

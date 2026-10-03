@@ -22,12 +22,17 @@ describe("検証済み地形の裏面カリング境界", () => {
 
   it("範囲外や未検証の構図は、高いカメラでも最適化しない", () => {
     for (const change of [
-      { cameraX: -1.2 },
-      { cameraX: 1 },
-      { cameraY: 5.9 },
-      { cameraY: 7.3 },
+      { cameraX: -1.100001 },
+      { cameraX: 0.900001 },
+      { cameraY: 5.999999 },
+      { cameraY: 7.200001 },
       { cameraY: 20 },
       { cameraZ: 13 },
+      { targetX: 0.001 },
+      { targetZ: -14.999 },
+      { backdropScale: 0.671 },
+      { backdropX: 0.001 },
+      { backdropY: 8.201 },
       { targetY: 3.5 },
       { fovDegrees: 40 },
       { groundScale: 1.1 },

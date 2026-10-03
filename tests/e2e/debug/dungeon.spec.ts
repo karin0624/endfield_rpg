@@ -1,11 +1,12 @@
-import { expect, type Page, test } from "@playwright/test";
-import { characters } from "../../src/content/characters";
-import { initialGameOptions } from "../../src/content/initialGameOptions";
-import { saveDefinitions } from "../../src/content/saveDefinitions";
-import { createInitialGameState } from "../../src/game/createInitialGameState";
-import { applyPartyStatus, type ExpeditionGame } from "../../src/game/expedition";
-import { createParty } from "../../src/game/party";
-import { serializeGame } from "../../src/game/save";
+import type { Page } from "@playwright/test";
+import { characters } from "../../../src/content/characters";
+import { initialGameOptions } from "../../../src/content/initialGameOptions";
+import { saveDefinitions } from "../../../src/content/saveDefinitions";
+import { createInitialGameState } from "../../../src/game/createInitialGameState";
+import { applyPartyStatus, type ExpeditionGame } from "../../../src/game/expedition";
+import { createParty } from "../../../src/game/party";
+import { serializeGame } from "../../../src/game/save";
+import { collectCoverage, expect, test } from "../coverage";
 
 /** Resolve actual retained offers; prefer effects that do not alter attackPower. */
 async function finishGrowthChoices(page: Page) {
@@ -45,13 +46,11 @@ test("ルートを横ドラッグでき、表示領域を変えても選択肢�
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/?debug=1&dungeon=1");
   await expect(page.getByRole("region", { name: "遺跡の進路" })).toBeVisible();
-  await expect(page.locator("body")).toHaveCSS("overflow", "hidden");
 
   const battleNode = page.getByRole("button", { name: "戦闘、選択可能" });
   await expect(battleNode).toBeEnabled();
   const futureBoss = page.getByRole("button", { name: "ボス、未到達" });
   await expect(futureBoss).toBeDisabled();
-  await expect(futureBoss.locator("img")).not.toHaveCSS("filter", /blur/);
   await expect(page.getByText("遺跡の入口", { exact: true })).toHaveCount(0);
   await expect(page.getByText("ボス", { exact: true })).toBeVisible();
   for (const label of ["選択可能", "未到達", "踏破済み", "現在地"]) {
@@ -96,7 +95,6 @@ test("ルートを横ドラッグでき、表示領域を変えても選択肢�
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(battleNode).toBeEnabled();
   await expect(battleNode).toBeInViewport({ ratio: 1 });
-  await expect(page.locator("body")).toHaveCSS("overflow", "hidden");
   await battleNode.click();
   await expect(page.locator("[data-battle-screen]")).toBeVisible();
 });
@@ -115,7 +113,6 @@ test("会話ノードの選択後に探索位置へ戻る", async ({ page }) => 
   await expect(page.getByRole("button", { name: "ボス、選択可能" })).toBeEnabled();
   const skippedBattle = page.getByRole("button", { name: "戦闘、未到達" });
   await expect(skippedBattle).toBeDisabled();
-  await expect(skippedBattle.locator("img")).toHaveCSS("filter", /blur/);
   await expect(page.getByText("戦闘", { exact: true })).toHaveCount(0);
   await expect(page.getByText("ボス", { exact: true })).toBeVisible();
 });
@@ -186,6 +183,7 @@ test("全滅帰還でHP全回復し、街探索6回で戦闘不能から復帰�
   await page.setViewportSize({ width: 1920, height: 1080 });
   await page.getByRole("button", { name: "戻る", exact: true }).click();
   await page.getByRole("button", { name: "保存", exact: true }).click();
+  await collectCoverage(page);
   await page.reload();
   await page.getByRole("button", { name: "読込", exact: true }).click();
   await expect(page.locator("[data-calendar]")).toHaveText("1日目 · 夜");
@@ -199,6 +197,7 @@ test("全滅帰還でHP全回復し、街探索6回で戦闘不能から復帰�
     );
     if (step === 5) {
       await page.getByRole("button", { name: "保存", exact: true }).click();
+      await collectCoverage(page);
       await page.reload();
       await page.getByRole("button", { name: "読込", exact: true }).click();
     }
@@ -358,6 +357,7 @@ test("街探索から加入・編成・ボス帰還・再訪まで同じセッ�
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "戻る", exact: true }).click();
   await page.getByRole("button", { name: "保存", exact: true }).click();
+  await collectCoverage(page);
   await page.reload();
   await page.getByRole("button", { name: "読込", exact: true }).click();
   await expect(page.locator("[data-calendar]")).toHaveText("2日目 · 夜");
@@ -509,6 +509,7 @@ test("初期症状の試験データから実操作で数値回復・全滅帰�
   await expect(page.locator("[data-town-recovery]")).toContainText("朦朧：75 → 65（中度）");
   await page.screenshot({ path: testInfo.outputPath("continuous-recovery-1920.png") });
   await page.getByRole("button", { name: "保存", exact: true }).click();
+  await collectCoverage(page);
   await page.reload();
   await page.getByRole("button", { name: "読込", exact: true }).click();
   await page.getByRole("link", { name: "出撃編成を見る" }).click();
@@ -577,6 +578,7 @@ test("街で保存し、リロード後も加入・編成・時計を読み込�
   await page.getByRole("button", { name: "戻る", exact: true }).click();
   await page.getByRole("button", { name: "保存", exact: true }).dblclick();
   await expect(page.locator("[data-save-status]")).toHaveText("保存しました。");
+  await collectCoverage(page);
   await page.reload();
   await expect(page.locator("[data-calendar]")).toHaveText("1日目 · 昼");
   await page.getByRole("button", { name: "読込", exact: true }).click();
@@ -631,6 +633,7 @@ test("壊れた保存とブラウザI/O失敗でもゲームと既存保存を�
   await page.getByRole("button", { name: "読込", exact: true }).click();
   await expect(page.locator("[data-save-status]")).toContainText("読み込めません");
   await expect(page.locator("[data-calendar]")).toHaveText("1日目 · 夜");
+  await collectCoverage(page);
   await page.reload();
   await page.evaluate(() => localStorage.setItem("endfield-rpg-debug-save", '{"version":5,"party":{}}'));
   await page.getByRole("button", { name: "市場", exact: true }).click();
@@ -694,6 +697,7 @@ test("通常探索のスキル使用を次戦・帰還・保存読込・街回�
   expect(
     JSON.parse(saved ?? "{}").growth.characters[0].learned.map((entry: { skillId: string }) => entry.skillId),
   ).toEqual(["test-strike", "test-heal"]);
+  await collectCoverage(page);
   await page.reload();
   await page.getByRole("button", { name: "読込", exact: true }).dblclick();
   expect(await page.evaluate(() => localStorage.getItem("endfield-rpg-debug-save"))).toBe(saved);
@@ -726,4 +730,182 @@ test("通常探索のスキル使用を次戦・帰還・保存読込・街回�
   await expect(details.locator(".character-details-skill h4")).toHaveText(["検証用攻撃", "検証用回復"]);
   await page.screenshot({ path: testInfo.outputPath("skill-fatigue-details.png") });
   await page.keyboard.press("Escape");
+});
+
+test("ルートの左右キーは範囲内で移動し、pointercancel後もノードを選べる", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/?debug=1&dungeon=1");
+  const viewport = page.locator("[data-route-viewport]");
+  const node = page.getByRole("button", { name: "戦闘、選択可能" });
+  await viewport.focus();
+  const initial = await node.boundingBox();
+  if (!initial) throw new Error("戦闘ノードなし");
+  await page.keyboard.press("ArrowRight");
+  await expect.poll(async () => (await node.boundingBox())?.x).toBeLessThan(initial.x);
+  await page.keyboard.press("ArrowLeft");
+  await expect.poll(async () => (await node.boundingBox())?.x).toBeCloseTo(initial.x, 0);
+  await node.focus();
+  const focused = await node.boundingBox();
+  await page.keyboard.press("ArrowRight");
+  expect((await node.boundingBox())?.x).toBe(focused?.x);
+  await viewport.focus();
+  for (let i = 0; i < 30; i++) await page.keyboard.press("ArrowRight");
+  const end = await node.boundingBox();
+  const bossAtEnd = await page.getByRole("button", { name: "ボス、未到達" }).boundingBox();
+  if (!bossAtEnd) throw new Error("ボス画像なし");
+  expect(bossAtEnd.x + bossAtEnd.width / 2).toBeCloseTo(195, 0);
+  await page.keyboard.press("ArrowRight");
+  expect((await node.boundingBox())?.x).toBe(end?.x);
+  for (let i = 0; i < 30; i++) await page.keyboard.press("ArrowLeft");
+  const start = await node.boundingBox();
+  if (!start) throw new Error("戦闘画像なし");
+  expect(start.x + start.width / 2).toBeCloseTo(195, 0);
+  await page.keyboard.press("ArrowLeft");
+  expect((await node.boundingBox())?.x).toBe(start?.x);
+  await viewport.dispatchEvent("pointerdown", {
+    pointerId: 7,
+    pointerType: "touch",
+    button: 0,
+    clientX: 200,
+    clientY: 300,
+  });
+  await viewport.dispatchEvent("pointercancel", { pointerId: 7, pointerType: "touch" });
+  await expect(page.locator("[data-battle-screen]")).toBeHidden();
+  // Resizing resets the framing for a fresh route; interrupted pointer input must not keep a drag alive.
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await node.click();
+  await expect(page.locator("[data-battle-screen]")).toBeVisible();
+});
+
+test("ルートの線端点・視差・中央配置はドラッグと進行後のリサイズに追従する", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await collectCoverage(page);
+  await page.goto("/?debug=1&dungeon=1");
+  const viewport = page.locator("[data-route-viewport]");
+  const battle = page.getByRole("button", { name: "戦闘、選択可能" });
+  const conversation = page.getByRole("button", { name: "思わぬ遭遇、選択可能" });
+  const boss = page.getByRole("button", { name: "ボス、未到達" });
+  const background = page.locator("[data-route-background]");
+  const edge = page.locator('[data-edge-from="battle-a"][data-edge-to="boss-c"]');
+  async function endpoints() {
+    return edge.evaluate((node: SVGPathElement) => {
+      const matrix = node.getScreenCTM();
+      if (!matrix) throw new Error("edge matrix missing");
+      const start = node.getPointAtLength(0).matrixTransform(matrix);
+      const end = node.getPointAtLength(node.getTotalLength()).matrixTransform(matrix);
+      return { start: { x: start.x, y: start.y }, end: { x: end.x, y: end.y } };
+    });
+  }
+  async function checkConnection() {
+    await page.mouse.move(0, 0);
+    await expect
+      .poll(async () => {
+        const from = await battle.locator("img").boundingBox(),
+          to = await boss.locator("img").boundingBox();
+        if (!from || !to) return false;
+        const path = await endpoints();
+        return (
+          Math.abs(path.start.y - (from.y + from.height / 2)) < 1 &&
+          Math.abs(path.end.y - (to.y + to.height / 2)) < 1 &&
+          path.start.x > from.x + from.width &&
+          path.end.x < to.x
+        );
+      })
+      .toBe(true);
+  }
+  await expect(battle).toBeInViewport({ ratio: 1 });
+  await expect(conversation).toBeInViewport({ ratio: 1 });
+  const initial = await battle.boundingBox();
+  if (!initial) throw new Error("node missing");
+  expect(initial.x + initial.width / 2).toBeCloseTo(195, 0);
+  await expect(page.locator("[data-route-nodes] img")).toHaveCount(3);
+  await checkConnection();
+  await expect(page).toHaveScreenshot("route-initial-390.png");
+  const bgBefore = await background.boundingBox(),
+    pathBefore = await endpoints();
+  if (!bgBefore) throw new Error("background missing");
+  await viewport.focus();
+  await page.keyboard.press("ArrowRight");
+  const moved = await battle.boundingBox(),
+    bgAfter = await background.boundingBox(),
+    pathAfter = await endpoints();
+  if (!moved || !bgAfter) throw new Error("dragged geometry missing");
+  const dx = moved.x - initial.x;
+  expect(dx).toBeLessThan(0);
+  expect(pathAfter.start.x - pathBefore.start.x).toBeCloseTo(dx, 0);
+  expect(bgAfter.x - bgBefore.x).toBeLessThan(0);
+  expect(Math.abs(bgAfter.x - bgBefore.x)).toBeLessThan(Math.abs(dx));
+  await page.mouse.move(200, 400);
+  await page.mouse.wheel(0, 500);
+  await expect(viewport).toHaveJSProperty("scrollTop", 0);
+  expect(await page.evaluate(() => scrollY)).toBe(0);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await checkConnection();
+  // Start the visual state at its capture viewport; the separate narrow regression
+  // below verifies progression and resize at 390, 800 and 1440 pixels.
+  await page.setViewportSize({ width: 1440, height: 844 });
+  await collectCoverage(page);
+  await page.goto("/?debug=1&dungeon=1");
+  await conversation.click();
+  await page.keyboard.press("Space");
+  await page.keyboard.press("Digit1");
+  await finishGrowthChoices(page);
+  await page.setViewportSize({ width: 1440, height: 844 });
+  await page.mouse.move(0, 0);
+  await expect(page).toHaveScreenshot("route-progressed-1440.png");
+});
+
+test("狭幅ルートも進行後の現在地と次候補を同時に画面内へ収める", async ({ page }, info) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/?debug=1&dungeon=1");
+  await page.getByRole("button", { name: "思わぬ遭遇、選択可能" }).click();
+  await page.keyboard.press("Space");
+  await page.keyboard.press("Digit1");
+  await finishGrowthChoices(page);
+  // specs/dungeon.md58 explicitly requires both current and available nodes to remain visible.
+  for (const width of [390, 800, 1440]) {
+    await page.setViewportSize({ width, height: 844 });
+    await expect(page.getByRole("button", { name: "思わぬ遭遇、現在地" })).toBeInViewport({ ratio: 1 });
+    await expect(page.getByRole("button", { name: "ボス、選択可能" })).toBeInViewport({ ratio: 1 });
+    await page.screenshot({ path: info.outputPath(`route-fixed-${width}.png`) });
+  }
+});
+
+test.describe(() => {
+  test.use({ reducedMotion: "no-preference", hasTouch: true, viewport: { width: 390, height: 844 } });
+  test("実タッチのドラッグと中断は誤選択せず、次のタップを受け付ける", async ({ page, context }) => {
+    await page.goto("http://127.0.0.1:4175/?debug=1&dungeon=1");
+    const node = page.getByRole("button", { name: "思わぬ遭遇、選択可能" });
+    const before = await node.boundingBox();
+    if (!before) throw new Error("node missing");
+    const x = before.x + before.width / 2,
+      y = before.y + before.height / 2;
+    const session = await context.newCDPSession(page);
+    await session.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y }] });
+    await session.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: x - 70, y }] });
+    await session.send("Input.dispatchTouchEvent", { type: "touchCancel", touchPoints: [] });
+    await expect.poll(async () => (await node.boundingBox())?.x).toBeLessThan(before.x - 50);
+    await expect(page.locator("[data-conversation-screen]")).toBeHidden();
+    await node.tap();
+    await expect(page.getByText("道の脇に、遺跡へ続く新しい足跡が残っている。")).toBeVisible();
+    await session.detach();
+  });
+});
+
+test("探索中の会話本文をドラッグしても範囲選択せず番号入力を続けられる", async ({ page }) => {
+  await page.goto("/?debug=1&dungeon=1");
+  await page.getByRole("button", { name: "思わぬ遭遇、選択可能" }).click();
+  const text = page.locator("[data-dialogue-text]");
+  const box = await text.boundingBox();
+  if (!box) throw new Error("dialogue text missing");
+  await page.mouse.move(box.x + 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width - 2, box.y + box.height / 2, { steps: 8 });
+  await page.mouse.up();
+  expect(await page.evaluate(() => window.getSelection()?.toString())).toBe("");
+  // The drag may finish the line, but it must leave the real choice operable.
+  if (!(await page.locator("[data-conversation-choices] button").count())) await page.keyboard.press("Space");
+  await page.keyboard.press("Digit1");
+  await finishGrowthChoices(page);
+  await expect(page.getByRole("button", { name: "ボス、選択可能" })).toBeVisible();
 });

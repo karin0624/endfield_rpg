@@ -1,5 +1,5 @@
-import { expect, test } from "@playwright/test";
-import { observeWebGLResources, webGLResources } from "./webglResources";
+import { collectCoverage, expect, test } from "../coverage";
+import { observeWebGLResources, webGLResources } from "../webglResources";
 
 test("同じ環境の次戦は旧表示・演出を引き継がず、資源を増やさず切替と解放を行う", async ({ page }) => {
   const errors: string[] = [];
@@ -167,17 +167,11 @@ for (const [deviceScaleFactor, renderScale] of [
   [1, 1],
   [3, 1.5],
 ]) {
-  test(`端末DPR${deviceScaleFactor}でも描画倍率${renderScale}でリサイズし対象操作を保つ`, async ({ browser }, info) => {
-    const context = await browser.newContext({
-      baseURL: info.project.use.baseURL,
-      viewport: { width: 800, height: 900 },
-      deviceScaleFactor,
-      reducedMotion: "reduce",
-    });
-    const page = await context.newPage();
-    const errors: string[] = [];
-    page.on("pageerror", (error) => errors.push(error.message));
-    try {
+  test.describe(() => {
+    test.use({ viewport: { width: 800, height: 900 }, deviceScaleFactor });
+    test(`端末DPR${deviceScaleFactor}でも描画倍率${renderScale}でリサイズし対象操作を保つ`, async ({ page }) => {
+      const errors: string[] = [];
+      page.on("pageerror", (error) => errors.push(error.message));
       await page.goto("/?debug=1&battle=1");
       const attack = page.getByRole("button", { name: "通常攻撃", exact: true });
       await expect(attack).toBeEnabled({ timeout: 60_000 });
@@ -203,9 +197,7 @@ for (const [deviceScaleFactor, renderScale] of [
       await attack.click();
       await expect(page.locator('[data-enemy-label="slime"]')).toContainText("6 / 14");
       expect(errors).toEqual([]);
-    } finally {
-      await context.close();
-    }
+    });
   });
 }
 
@@ -236,14 +228,26 @@ test("pagehideは履歴キャッシュ退避では操作と資源を維持し実
   expect(errors).toEqual([]);
 });
 
-test("非rootのBASE_URL配下から実素材を取得して戦闘を表示・操作できる", async ({ page }) => {
-  const { createServer } = await import("vite");
+test("非rootのBASE_URLでビルドした配布物から実素材を取得して戦闘を表示・操作できる", async ({ page }) => {
+  const { build, preview } = await import("vite");
+  const { mkdtemp, rm } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const outDir = await mkdtemp(join(tmpdir(), "nonroot-build-"));
+  await build({
+    configFile: false,
+    mode: "debug",
+    base: "/nested/rpg/",
+    build: { outDir, ...(process.env.COVERAGE_BROWSER === "1" ? { sourcemap: "inline", minify: false } : {}) },
+    logLevel: "error",
+  });
   // A real Vite base setting exercises emitted asset URLs; rewriting HTTP requests would hide the bug.
-  const server = await createServer({
+  const server = await preview({
     root: process.cwd(),
     configFile: false,
     base: "/nested/rpg/",
-    server: { host: "127.0.0.1", port: 0 },
+    build: { outDir },
+    preview: { host: "127.0.0.1", port: 0 },
     logLevel: "error",
   });
   const failures: string[] = [];
@@ -257,10 +261,10 @@ test("非rootのBASE_URL配下から実素材を取得して戦闘を表示・�
     if (new URL(request.url()).pathname.includes("/assets/")) assets.push(request.url());
   });
   try {
-    await server.listen();
     const address = server.httpServer?.address();
     if (!address || typeof address === "string") throw new Error("検証用サーバーのポートがありません");
     const origin = `http://127.0.0.1:${address.port}`;
+    await collectCoverage(page);
     await page.goto(`${origin}/nested/rpg/?debug=1&battle=1`);
     const attack = page.getByRole("button", { name: "通常攻撃", exact: true });
     await expect(attack).toBeEnabled({ timeout: 60_000 });
@@ -275,25 +279,23 @@ test("非rootのBASE_URL配下から実素材を取得して戦闘を表示・�
     }
     expect(failures).toEqual([]);
   } finally {
-    await page.goto("about:blank");
-    await server.close();
+    await collectCoverage(page);
+    await page.goto("about:blank").catch(() => {});
+    await new Promise<void>((resolve, reject) =>
+      server.httpServer.close((error) => (error ? reject(error) : resolve())),
+    );
+    await rm(outDir, { recursive: true, force: true });
   }
 });
 
 test("Vite HMRは旧戦闘の資源を解放して次の表示・操作を保つ", async ({ page }) => {
-  const { cp, mkdtemp, mkdir, symlink, appendFile, rm } = await import("node:fs/promises");
+  const { cp, mkdtemp, mkdir, symlink, readFile, writeFile, rm } = await import("node:fs/promises");
   const { tmpdir } = await import("node:os");
   const { join } = await import("node:path");
   const { createServer } = await import("vite");
   const project = process.cwd();
   const root = await mkdtemp(join(tmpdir(), "battle-hmr-"));
-  const server = await createServer({
-    root,
-    cacheDir: join(root, ".vite"),
-    configFile: false,
-    server: { host: "127.0.0.1", port: 0, fs: { allow: [root, project] } },
-    logLevel: "error",
-  });
+  let server: Awaited<ReturnType<typeof createServer>> | undefined;
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   try {
@@ -302,10 +304,19 @@ test("Vite HMRは旧戦闘の資源を解放して次の表示・操作を保つ
     await mkdir(join(root, "public"));
     await symlink(join(project, "public/assets"), join(root, "public/assets"), "dir");
     await symlink(join(project, "node_modules"), join(root, "node_modules"), "dir");
+    // Dependency discovery must see the finished project, rather than reload a page after late file creation.
+    server = await createServer({
+      root,
+      cacheDir: join(root, ".vite"),
+      configFile: false,
+      server: { host: "127.0.0.1", port: 0, fs: { allow: [root, project] } },
+      logLevel: "error",
+    });
     await server.listen();
     const address = server.httpServer?.address();
     if (!address || typeof address === "string") throw new Error("HMRサーバーのポートがありません");
     await observeWebGLResources(page);
+    await collectCoverage(page);
     await page.goto(`http://127.0.0.1:${address.port}/?battle=1`);
     const attack = page.getByRole("button", { name: "通常攻撃", exact: true });
     await expect(attack).toBeEnabled({ timeout: 60_000 });
@@ -313,8 +324,9 @@ test("Vite HMRは旧戦闘の資源を解放して次の表示・操作を保つ
     expect(warm.Buffer).toBeGreaterThan(0);
     expect(warm.Texture).toBeGreaterThan(0);
     expect(warm.Program).toBeGreaterThan(0);
-    // Edit only an isolated copy. No manual invocation of application dispose or HMR callbacks.
-    await appendFile(join(root, "src/web/debugMain.ts"), "\n// HMR lifecycle regression probe\n");
+    // A native write triggers Vite HMR; identical source bytes keep coverage maps comparable.
+    const entry = join(root, "src/web/debugMain.ts");
+    await writeFile(entry, await readFile(entry));
     await expect(page.locator("body")).toHaveAttribute("data-hot-updated", "true", { timeout: 60_000 });
     await expect(attack).toBeEnabled({ timeout: 60_000 });
     await expect.poll(() => webGLResources(page)).toEqual(warm);
@@ -325,8 +337,9 @@ test("Vite HMRは旧戦闘の資源を解放して次の表示・操作を保つ
     await expect.poll(() => webGLResources(page)).toEqual({ Buffer: 0, Texture: 0, Program: 0 });
     expect(errors).toEqual([]);
   } finally {
-    await page.goto("about:blank");
-    await server.close();
+    await collectCoverage(page);
+    await page.goto("about:blank").catch(() => {});
+    await server?.close();
     await rm(root, { recursive: true, force: true });
   }
 });
@@ -346,3 +359,159 @@ test("通常起動のpagehideは履歴退避後の入力を保ち実退出後の
   await expect(page.locator(".campaign-copy")).toHaveText("（仮テキスト）");
   await expect(page.getByRole("button", { name: "探索先を選ぶ", exact: true })).toHaveCount(0);
 });
+
+for (const failure of ["model-404", "model-invalid", "background-404"] as const) {
+  test(`素材失敗 ${failure} は画面に通知し操作を公開せず退出で資源を解放する`, async ({ page }) => {
+    await observeWebGLResources(page);
+    await page.route(
+      failure === "background-404" ? "**/assets/backgrounds/landscape1.png" : "**/assets/ground/ground1.glb",
+      (route) => route.fulfill({ status: failure === "model-invalid" ? 200 : 404, body: "invalid asset" }),
+    );
+    await page.goto("/tests/fixtures/battle-lifecycle.html");
+    await page.locator("#full").click();
+    await expect(page.getByLabel("表示状態")).toContainText("読込失敗", { timeout: 60_000 });
+    await expect(page.getByRole("button", { name: "通常攻撃", exact: true })).toHaveCount(0);
+    await page.locator("#dispose").click();
+    await expect(page.getByLabel("表示状態")).toHaveText("破棄済み");
+    await expect.poll(() => webGLResources(page)).toEqual({ Buffer: 0, Texture: 0, Program: 0 });
+  });
+}
+
+test("素材準備中は操作を公開せず準備完了後に初めて攻撃できる", async ({ page }) => {
+  let release = () => {};
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route("**/assets/ground/ground1.glb", async (route) => {
+    await held;
+    await route.continue();
+  });
+  await page.goto("/tests/fixtures/battle-lifecycle.html");
+  await page.locator("#full").click();
+  await expect(page.getByLabel("表示状態")).toHaveText("読込中");
+  await expect(page.getByRole("button", { name: "通常攻撃", exact: true })).toHaveCount(0);
+  release();
+  await expect(page.getByLabel("表示状態")).toHaveText("4人の表示完了", { timeout: 60_000 });
+  await expect(page.getByRole("button", { name: "通常攻撃", exact: true })).toBeEnabled();
+});
+
+test("通常mainのVite HMRは旧画面の入力を解除して新しい画面だけ操作する", async ({ page }) => {
+  const { cp, mkdtemp, mkdir, symlink, readFile, writeFile, rm } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const { createServer } = await import("vite");
+  const project = process.cwd();
+  const root = await mkdtemp(join(tmpdir(), "battle-hmr-"));
+  let server: Awaited<ReturnType<typeof createServer>> | undefined;
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  try {
+    await cp(join(project, "src"), join(root, "src"), { recursive: true });
+    await writeFile(
+      join(root, "index.html"),
+      `<!doctype html><div id="app"></div><script type="module">
+      import "/src/web/main.ts";
+      import.meta.hot.accept("/src/web/main.ts", () => { document.body.dataset.hotUpdated = "true"; });
+    </script>`,
+    );
+    await mkdir(join(root, "public"));
+    await symlink(join(project, "public/assets"), join(root, "public/assets"), "dir");
+    await symlink(join(project, "node_modules"), join(root, "node_modules"), "dir");
+    // Dependency discovery must see the finished project, rather than reload a page after late file creation.
+    server = await createServer({
+      root,
+      cacheDir: join(root, ".vite"),
+      configFile: false,
+      server: { host: "127.0.0.1", port: 0, fs: { allow: [root, project] } },
+      logLevel: "error",
+    });
+    await server.listen();
+    const address = server.httpServer?.address();
+    if (!address || typeof address === "string") throw new Error("HMRサーバーのポートがありません");
+    await collectCoverage(page);
+    await page.goto(`http://127.0.0.1:${address.port}/`);
+    const start = page.getByRole("button", { name: "新規開始", exact: true });
+    await start.click();
+    await page.getByRole("button", { name: "実行する", exact: true }).click();
+    const oldHome = await page.getByRole("button", { name: "ホームへ", exact: true }).elementHandle();
+    if (!oldHome) throw new Error("Missing previous input");
+    // Exercise native file watching without introducing test-only application source.
+    const entry = join(root, "src/web/main.ts");
+    await writeFile(entry, await readFile(entry));
+    await expect(page.locator("body")).toHaveAttribute("data-hot-updated", "true", { timeout: 60_000 });
+    await expect(start).toBeVisible();
+    await oldHome.evaluate((button: HTMLElement) => button.click());
+    await expect(start).toBeVisible();
+    await expect(page.getByRole("button", { name: "探索先を選ぶ", exact: true })).toHaveCount(0);
+    await start.click();
+    await page.getByRole("button", { name: "実行する", exact: true }).click();
+    await page.getByRole("button", { name: "ホームへ", exact: true }).click();
+    await expect(page.getByRole("button", { name: "探索先を選ぶ", exact: true })).toBeVisible();
+    expect(errors).toEqual([]);
+  } finally {
+    await collectCoverage(page);
+    await page.goto("about:blank").catch(() => {});
+    await server?.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("退出は予約済みの描画フレームを取り消し後続フレームで表示を復活させない", async ({ page }) => {
+  await page.addInitScript(() => {
+    const pending = new Set<number>();
+    const request = window.requestAnimationFrame.bind(window);
+    const cancel = window.cancelAnimationFrame.bind(window);
+    window.requestAnimationFrame = (callback) => {
+      const id = request((time) => {
+        pending.delete(id);
+        callback(time);
+      });
+      pending.add(id);
+      return id;
+    };
+    window.cancelAnimationFrame = (id) => {
+      pending.delete(id);
+      cancel(id);
+    };
+    Object.defineProperty(window, "pendingFrameCount", { get: () => pending.size });
+  });
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.goto("/tests/fixtures/battle-lifecycle.html");
+  await page.locator("#full").click();
+  await expect(page.getByLabel("表示状態")).toHaveText("4人の表示完了", { timeout: 60_000 });
+  const frames = await page.evaluate(() => {
+    const count = () => Reflect.get(window, "pendingFrameCount") as number;
+    const before = count();
+    document.querySelector<HTMLButtonElement>("#dispose")?.click();
+    return { before, after: count() };
+  });
+  expect(frames.before).toBeGreaterThan(0);
+  expect(frames.after).toBe(0);
+  await page.setViewportSize({ width: 700, height: 800 });
+  await expect(page.getByLabel("表示状態")).toHaveText("破棄済み");
+  await expect(page.locator(".enemy-world-label")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "通常攻撃", exact: true })).toHaveCount(0);
+});
+
+for (const view of ["only-ground-scale", "only-formation-x", "only-formation-z", "only-backdrop", "only-camera"]) {
+  test(`独立した構図 ${view} の接地・人物・影・背景を画像比較する`, async ({ page }) => {
+    await page.goto(`/tests/fixtures/battle-lifecycle.html?view=${view}`);
+    await page.locator("#full").click();
+    await expect(page.getByLabel("表示状態")).toHaveText("4人の表示完了", { timeout: 60_000 });
+    await expect(page.locator("canvas")).toHaveScreenshot(`independent-${view}.png`, {
+      threshold: 0,
+      maxDiffPixels: 0,
+      stylePath: "tests/fixtures/ground-culling-screenshot.css",
+    });
+    await page.getByLabel("検証構図").selectOption("default");
+    await page.locator("#apply-view").click();
+    // The lifecycle fixture exposes renderer-only settings; remount its HUD for the new projection.
+    await page.locator("#full").click();
+    await expect(page.getByLabel("表示状態")).toHaveText("4人の表示完了", { timeout: 60_000 });
+    await expect(page.locator("canvas")).toHaveScreenshot("independent-default.png", {
+      threshold: 0,
+      maxDiffPixels: 0,
+      stylePath: "tests/fixtures/ground-culling-screenshot.css",
+    });
+  });
+}

@@ -237,3 +237,12 @@ describe("有限・非負の入力検証", () => {
     expect(() => validateLoadSymptomRules({ ...rules, candidates: ["haze", "haze"] })).toThrow();
   });
 });
+
+it("有限精度で発症確率1になっても判定と候補の2乱数を消費する", () => {
+  expect(additionalSymptomProbability(Number.MAX_VALUE, 100)).toBe(1);
+  expect(applyAdditionalLoadSymptom(healthy, Number.MAX_VALUE, 4, 1, rules)).toEqual({
+    symptoms: { physicalFatigue: 4, haze: 0 },
+    randomState: 1586005467,
+    application: { kind: "physicalFatigue", before: 0, after: 4 },
+  });
+});

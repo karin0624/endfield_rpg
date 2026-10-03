@@ -10,22 +10,24 @@
     "dev": "vite",
     "lint": "biome check .",
     "format": "biome check --write .",
-    "check": "npm run lint && tsc --noEmit && vitest run --reporter=default --reporter=json --outputFile.json=test-results/vitest.json && node scripts/check-test-contracts.mjs vitest test-results/vitest.json",
+    "check": "npm run lint && tsc --noEmit && mkdir -p test-results && vitest list --no-static-parse --json=test-results/vitest-discovery.json && vitest run --coverage --reporter=default --reporter=json --outputFile.json=test-results/vitest.json && node scripts/check-test-execution.mjs vitest test-results/vitest-discovery.json test-results/vitest.json",
     "build": "node scripts/check-assets.mjs && tsc --noEmit && vite build",
     "test:e2e": "sh scripts/run-browser-test.sh e2e",
-    "test:e2e:inside": "npm run build && npm run build:debug && playwright test",
+    "test:e2e:inside": "npm run build && npm run build:debug && PLAYWRIGHT_JSON_OUTPUT_FILE=test-results/playwright-discovery.json playwright test --list --reporter=json && playwright test && node scripts/check-test-execution.mjs playwright test-results/playwright-discovery.json test-results/playwright.json",
     "test:ui": "sh scripts/run-browser-test.sh ui",
     "test:ui:inside": "PLAYWRIGHT_UI=1 playwright test --project ui",
     "test:editor": "sh scripts/run-browser-test.sh editor",
     "test:editor:inside": "PLAYWRIGHT_EDITOR=1 playwright test --project settings",
     "build:debug": "node scripts/check-assets.mjs && tsc --noEmit && vite build --mode debug --outDir dist-debug",
-    "test:contracts": "node scripts/check-test-contracts.mjs catalog",
-    "test:merge-gate": "node scripts/check-test-contracts.mjs merge"
+    "test:coverage": "sh scripts/run-browser-test.sh coverage",
+    "test:coverage:inside": "COVERAGE_BROWSER=1 vite build --outDir dist-coverage && COVERAGE_BROWSER=1 vite build --mode debug --outDir dist-debug-coverage && PLAYWRIGHT_JSON_OUTPUT_FILE=test-results/playwright-coverage-discovery.json playwright test --list --reporter=json && COVERAGE_BROWSER=1 playwright test && node scripts/check-test-execution.mjs playwright test-results/playwright-coverage-discovery.json test-results/playwright-coverage.json"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.14",
     "@playwright/test": "^1.63.0",
     "@types/node": "^24.13.6",
+    "@vitest/coverage-v8": "5.0.1",
+    "monocart-coverage-reports": "2.13.0",
     "typescript": "^7.0.2",
     "vite": "^8.3.0",
     "vitest": "^5.0.1"

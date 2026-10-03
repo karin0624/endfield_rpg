@@ -88,13 +88,15 @@ export function mountCharacterDetailsUi(
         [
           "HP",
           `${formatAmount(member.hp)} / ${formatAmount(maxHp)}`,
-          [
-            base ? `基礎最大HP ${formatAmount(base.maxHp)}` : "",
-            `症状前最大HP ${formatAmount(character.maxHp)}${context?.growth ? "（成長・パッシブ込み）" : ""}`,
-            maxHp !== character.maxHp ? "肉体疲労による低下" : "",
-          ]
-            .filter(Boolean)
-            .join(" · "),
+          maxHp !== character.maxHp
+            ? [
+                base ? `基礎最大HP ${formatAmount(base.maxHp)}` : "",
+                `症状前最大HP ${formatAmount(character.maxHp)}${context?.growth ? "（成長・パッシブ込み）" : ""}`,
+                "肉体疲労による低下",
+              ]
+                .filter(Boolean)
+                .join(" · ")
+            : "",
         ],
         [
           "攻撃力",

@@ -58,3 +58,34 @@ export async function formationScreenshot(page: Page, info: TestInfo, filename: 
     JSON.stringify({ ...readiness, titleFonts: fonts }, null, 2),
   );
 }
+
+/** Font loading is not proof that a painted text node uses the bundled face. */
+export async function expectRenderedFont(
+  page: Page,
+  selector: string,
+  family: "Noto Serif JP" | "Noto Sans JP",
+  weight: number,
+) {
+  await page.evaluate(() => document.fonts.ready);
+  const node = page.locator(selector).first();
+  await expect(node).toBeVisible();
+  const session = await page.context().newCDPSession(page);
+  try {
+    await session.send("DOM.enable");
+    await session.send("CSS.enable");
+    const { root } = await session.send("DOM.getDocument");
+    const { nodeId } = await session.send("DOM.querySelector", { nodeId: root.nodeId, selector });
+    const { fonts } = await session.send("CSS.getPlatformFontsForNode", { nodeId });
+    const used = fonts.filter((font) => font.glyphCount > 0);
+    expect(used.length, `${selector}: painted glyphs`).toBeGreaterThan(0);
+    for (const font of used) {
+      expect(font.isCustomFont, `${selector}: ${font.familyName} must not be an OS fallback`).toBe(true);
+      expect(font.familyName, selector).toMatch(new RegExp(`^${family}`));
+    }
+    // The weight is a documented typography contract, paired with actual face usage above.
+    await expect(node).toHaveCSS("font-weight", String(weight));
+    return used;
+  } finally {
+    await session.detach();
+  }
+}

@@ -367,17 +367,24 @@ describe("ランクを持たない能力値依存効果と個別パッシブ定�
     expect(activeSkillBaseAmount(strike, { attackPower: 8, maxHp: 20 })).toBe(16);
     expect(activeSkillBaseAmount(strike, { attackPower: 12, maxHp: 20 })).toBe(18);
     expect(activeSkillBaseAmount(skillCatalog.skills[1], { attackPower: 8, maxHp: 20 })).toBe(18);
+    expect(
+      activeSkillBaseAmount(
+        { ...strike, effect: { type: "damage", amount: 0.25, scaling: { stat: "attackPower", coefficient: 0.5 } } },
+        { attackPower: 1.25, maxHp: 20 },
+      ),
+    ).toBe(0.875);
     expect(strike.mentalFatigueIncrease).toBe(4);
   });
   it("個別上限と非一律の段階効果を持ち、範囲外ランクを拒否する", () => {
     expect(passiveSkillAmount(skillCatalog.skills[2], 2)).toBe(4);
-    expect(() => passiveSkillAmount(skillCatalog.skills[2], 3)).toThrow("上限外");
+    for (const rank of [0, -1, 1.5, Number.NaN, 3])
+      expect(() => passiveSkillAmount(skillCatalog.skills[2], rank)).toThrow();
     const long = extra[2];
     if (long.type !== "passive") throw new Error("パッシブ定義なし");
     expect(passiveSkillAmount(long, 3)).toBe(9);
   });
   it.each([
-    { skillId: "required", level: 1 },
+    ...[1, 1.5, Number.NaN, Number.MAX_SAFE_INTEGER + 1].map((level) => ({ skillId: "required", level })),
     { skillId: "missing", level: 2 },
     { skillId: "test-strength", level: 2 },
   ])("不正な保証定義を拒否する %j", (unlock) => {
@@ -440,4 +447,35 @@ describe("追加の定義検証", () => {
       ]),
     ).toThrow("初期と保証解禁");
   });
+});
+
+it("通常パッシブのランク2は上位分類の候補へ移らない", () => {
+  const definition = progression(2, 1);
+  const skills: SkillCatalog = {
+    ...catalog,
+    pools: [
+      {
+        id: "test-shared",
+        candidates: { ...catalog.pools[0].candidates, normal: ["test-strike", "test-heal", "long-passive"] },
+      },
+    ],
+  };
+  let state = start(definition, skills);
+  for (const id of ["first", "second"])
+    state = select(reward(state, 10, definition, skills, "player", id), "long-passive", skills);
+  expect(state.characters[0].learned).toContainEqual({
+    skillId: "long-passive",
+    type: "passive",
+    origin: "expedition",
+    acquisition: "choice",
+    rank: 2,
+  });
+  state = reward(state, 10, definition, skills, "player", "advanced");
+  expect(state.choice?.level).toBe(5);
+  expect([...(state.choice?.candidateIds ?? [])].sort()).toEqual([
+    "test-heal-advanced",
+    "test-strength-advanced",
+    "test-strike-advanced",
+  ]);
+  expect(state.characters[0].learned.find(({ skillId }) => skillId === "long-passive")).toMatchObject({ rank: 2 });
 });

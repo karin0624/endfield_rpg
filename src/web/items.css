@@ -50,6 +50,7 @@
 }
 .item-shop-trigger {
   position: absolute;
+  width: calc(100% - 2rem);
   left: 1rem;
   top: 1rem;
   z-index: 5;

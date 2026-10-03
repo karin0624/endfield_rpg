@@ -11,6 +11,7 @@
     import { createInitialGameState } from "/src/game/createInitialGameState.ts";
     import { applyPartyStatus, confirmExpeditionParty, editExpeditionParty } from "/src/game/expedition.ts";
     import { createParty } from "/src/game/party.ts";
+    import { deserializeGame, serializeGame } from "/src/game/save.ts";
     import { mountPartyUi } from "/src/web/partyUi.ts";
     import "/src/web/style.css";
 
@@ -20,6 +21,9 @@
       id: `fixture-${index + 3}`, name: `仲間 ${index + 3}`, maxHp: 200, speed: 100, attackPower: 8,
     }))];
     if (params.has("long")) definitions[definitions.length - 1].name = "長い名前の仲間（折り返しと欠けがないことを確認する表示条件）";
+    if (params.has("large-type")) {
+      definitions[0] = { ...definitions[0], maxHp: Number.MAX_SAFE_INTEGER, name: "長い名前の仲間（精神疲労・戦闘不能・複雑な日本語を確認）" };
+    }
     const stressIndices = params.has("stress") ? [0, 4, 5] : [];
     for (const index of stressIndices) definitions[index].name = `長い名前の仲間${index + 1}（折り返しと欠けがないことを確認する表示条件）`;
     let game = { adventure: createInitialGameState(initialGameOptions), party: createParty(definitions, definitions.map(({ id }) => id)), dungeon: null };
@@ -31,6 +35,15 @@
       game = applyPartyStatus(game, definitions[index].id, { kind: "haze", amount: 75 }, definitions);
     }
     if (stressIndices.length) game = { ...game, party: { ...game.party, members: game.party.members.map((member, index) => stressIndices.includes(index) ? { ...member, mentalFatigue: 50 } : member) } };
+    if (params.has("mental-low")) game = { ...game, party: { ...game.party, members: game.party.members.map((member, index) => index === 0 ? { ...member, mentalFatigue: 12 } : member) } };
+    if (params.has("large-type") || params.has("mental-low")) {
+      const saveDefinitions = { characters: definitions, placeIds: [game.adventure.currentPlaceId] };
+      const saved = serializeGame(game, saveDefinitions);
+      if (!saved.accepted) throw new Error("Invalid initial large-type display fixture");
+      const restored = deserializeGame(saved.data, saveDefinitions);
+      if (!restored.accepted) throw new Error("Large-type fixture cannot be restored");
+      game = restored.state;
+    }
     let edits = 0;
     let departures = 0;
     const capture = () => { document.querySelector("#state").textContent = JSON.stringify(game); document.querySelector("#edits").textContent = String(edits); };

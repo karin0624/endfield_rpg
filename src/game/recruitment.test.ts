@@ -74,7 +74,8 @@ describe("街探索による仲間加入", () => {
     state = accepted(declined);
     expect(state.party.members.map(({ id }) => id)).toEqual(["player"]);
     expect(state.adventure.flags).not.toContain("joined-gilberta");
-    expect(declined).toMatchObject({ completion: { recruitedIds: [] } });
+    expect(declined).toMatchObject({ completion: { recruitedIds: [], calendarHalfDays: 1, recoverySteps: 1 } });
+    expect(state.clock).toMatchObject({ elapsedHalfDays: 1, recoverySteps: 1 });
     expect(invite(state)).toMatchObject({ accepted: true, completion: { recruitedIds: ["gilberta"] } });
   });
   it("重複加入効果はHP・症状・残り回復を初期化せず、再訪も通常の回復1stepだけ", () => {
@@ -152,16 +153,22 @@ describe("街探索による仲間加入", () => {
           onCompleteFlags: ["finished"],
           nodes: {
             line: { type: "line", text: "仮", nextNodeId: "end" },
-            end: { type: "end", recruitments: [{ characterId: "gilberta", when: { all: ["eligible"] } }] },
+            end: {
+              type: "end",
+              recruitments: [{ characterId: "gilberta", setFlags: ["joined-gilberta"] }, { characterId: "unknown" }],
+            },
           },
         },
       ],
     };
     const state = accepted(beginTownExploration(game(), "test", definition));
+    const before = structuredClone(state);
     const result = actInTown(state, state.clock?.pendingAction?.id ?? -1, { type: "advance" }, characters, definition);
+    expect(result.state).toEqual(before);
+    expect(state).toEqual(before);
     expect(result).toMatchObject({
       accepted: false,
-      reason: "recruitment-unavailable",
+      reason: "unknown-character",
       state: {
         adventure: { mode: "conversation", flags: [] },
         clock: { elapsedHalfDays: 0, recoverySteps: 0 },

@@ -1,7 +1,10 @@
 import { readFileSync } from "node:fs";
-import { expect, type Page, test } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import { collectCoverage, expect, test } from "../coverage";
 
 async function show(page: Page, view = "default") {
+  // This helper also navigates between views within one test.
+  await collectCoverage(page);
   await page.goto(`/tests/fixtures/battle-lifecycle.html?view=${view}`);
   await page.locator("#full").click();
   await expect(page.getByLabel("表示状態")).toHaveText("4人の表示完了", { timeout: 60_000 });
@@ -86,4 +89,14 @@ test("素材照合が利用できないブラウザでも元の材質で表示�
   await page.addInitScript(() => Object.defineProperty(window.crypto, "subtle", { value: undefined }));
   await show(page);
   await expectGround(page, "ground-original-pc.png");
+});
+
+test("素材のdigestが失敗した場合も元材質で表示して操作できる", async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(window.crypto.subtle, "digest", { value: () => Promise.reject(new Error("digest denied")) });
+  });
+  await show(page);
+  await expectGround(page, "ground-original-pc.png");
+  await page.locator("#dispose").click();
+  await expect(page.locator(".enemy-world-label")).toHaveCount(0);
 });

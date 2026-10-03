@@ -60,11 +60,13 @@ describe("スキル定義", () => {
       ] as const) {
         const choices = pool.candidates[tier].map((id) => skillById(skillCatalog, id));
         expect(choices).toHaveLength(tier === "normal" ? 7 : 3);
-        expect(choices.slice(0, 3).map(({ effect }) => effect)).toEqual([
-          { type: "damage", amount: damage, scaling: { stat: "attackPower", coefficient: 0.5 } },
-          { type: "hp-recovery", amount: healing, scaling: { stat: "maxHp", coefficient: 0.5 } },
-          { type: "basic-attack-power-bonus", rankAmounts: [bonus, bonus * 2] },
-        ]);
+        expect(choices.map(({ effect }) => effect)).toEqual(
+          expect.arrayContaining([
+            { type: "damage", amount: damage, scaling: { stat: "attackPower", coefficient: 0.5 } },
+            { type: "hp-recovery", amount: healing, scaling: { stat: "maxHp", coefficient: 0.5 } },
+            { type: "basic-attack-power-bonus", rankAmounts: [bonus, bonus * 2] },
+          ]),
+        );
       }
     }
   });

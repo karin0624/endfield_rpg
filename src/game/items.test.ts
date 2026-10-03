@@ -96,11 +96,21 @@ describe("物品の保管・探索・帰還", () => {
     // Round trip of the pure state, not a claim of production save integration.
     const restored = JSON.parse(JSON.stringify(result.state));
     expect(returnItems(restored, permanent.version, 7, outcome, result.randomState, policy).accepted).toBe(false);
-    expect(policy).toHaveBeenCalledTimes(1);
+    expect(policy).toHaveBeenCalledExactlyOnceWith(
+      [
+        { itemId: hp, quantity: 3, origin: "carried" },
+        { itemId: material, quantity: 2, origin: "carried" },
+        { itemId: material, quantity: 2, origin: "acquired" },
+      ],
+      1,
+      outcome,
+    );
   });
   it("重要品は永続集合で重複せず、持込みも消費もできない", () => {
     const important = accepted(acquireImportantItem(home(), "trial-important", catalog));
+    const before = structuredClone(important);
     const again = accepted(acquireImportantItem(important, "trial-important", catalog));
+    expect(again).toEqual(before);
     expect(again.importantIds).toEqual(["trial-important"]);
     expect(
       packItems(again, again.version, 7, "town", [{ itemId: "trial-important", quantity: 1 }], catalog).accepted,
@@ -138,7 +148,7 @@ describe("物品の保管・探索・帰還", () => {
     );
     expect(combined.home).toEqual([{ itemId: material, quantity: 3 }]);
     expect(combined.exploration?.bag).toEqual([{ itemId: hp, quantity: 5, origin: "carried" }]);
-    for (const quantity of [-1, 0, 1.5, Number.NaN])
+    for (const quantity of [-1, 0, 1.5, Number.NaN, Infinity, Number.MAX_SAFE_INTEGER + 1])
       expect(packItems(home(), 0, 7, "town", [{ itemId: hp, quantity }], catalog).accepted).toBe(false);
     expect(packItems(depart(), 1, 8, "town", [], catalog).accepted).toBe(false);
   });
@@ -233,5 +243,238 @@ describe("承認済み保持抽選と購入上限なし", () => {
     expect(result.accepted).toBe(true);
     expect(result.balance).toBe(0);
     expect(bagItemQuantity(result.items, hp)).toBe(13);
+  });
+});
+
+describe("物品APIの境界と原子的更新", () => {
+  it("ホームの初期版と複製を保証し、不正な在庫定義を拒否する", () => {
+    const source = [{ itemId: hp, quantity: 2 }];
+    const state = createItemState(source, catalog);
+    source[0].quantity = 99;
+    expect(state).toEqual({ version: 0, home: [{ itemId: hp, quantity: 2 }], importantIds: [], exploration: null });
+    for (const quantity of [0, -1, 0.5, Number.NaN, Infinity, Number.MAX_SAFE_INTEGER + 1])
+      expect(() => createItemState([{ itemId: hp, quantity }], catalog)).toThrow();
+    for (const itemId of ["unknown", "trial-important"])
+      expect(() => createItemState([{ itemId, quantity: 1 }], catalog)).toThrow();
+    expect(() =>
+      createItemState(
+        [
+          { itemId: hp, quantity: 1 },
+          { itemId: hp, quantity: 2 },
+        ],
+        catalog,
+      ),
+    ).toThrow();
+  });
+  it("異なる報酬は獲得分へ合算し、次の探索では同じ報酬IDを再受領する", () => {
+    const source = depart();
+    const before = structuredClone(source);
+    const first = accepted(receiveItems(source, 1, "one", [{ itemId: hp, quantity: 10000 }], catalog));
+    const second = accepted(receiveItems(first, 2, "two", [{ itemId: hp, quantity: 2 }], catalog));
+    expect(second.version).toBe(3);
+    expect(second.exploration?.bag).toEqual([
+      { itemId: hp, quantity: 3, origin: "carried" },
+      { itemId: material, quantity: 2, origin: "carried" },
+      { itemId: hp, quantity: 10002, origin: "acquired" },
+    ]);
+    const consumed = accepted(consumeBagItem(second, 3, hp, catalog));
+    expect(consumed.version).toBe(4);
+    const back = accepted(returnItems(consumed, 4, 7, "cleared", 123));
+    expect(back.version).toBe(5);
+    expect(back.home).toEqual([
+      { itemId: hp, quantity: 10006 },
+      { itemId: material, quantity: 3 },
+    ]);
+    const next = accepted(packItems(back, 5, 8, "dungeon", [], catalog));
+    expect(next.version).toBe(6);
+    const rewarded = accepted(receiveItems(next, 6, "one", [{ itemId: hp, quantity: 1 }], catalog));
+    expect(rewarded.version).toBe(7);
+    expect(rewarded.exploration).toEqual({
+      id: 8,
+      destination: "dungeon",
+      rewardIds: ["one"],
+      bag: [{ itemId: hp, quantity: 1, origin: "acquired" }],
+    });
+    expect(source).toEqual(before);
+  });
+  it("不正報酬・素材消費・版違い・不足は版と全在庫を更新しない", () => {
+    const start = depart();
+    const before = structuredClone(start);
+    const results = [
+      receiveItems(start, 0, "x", [{ itemId: hp, quantity: 1 }], catalog),
+      receiveItems(
+        start,
+        1,
+        "x",
+        [
+          { itemId: hp, quantity: 1 },
+          { itemId: "unknown", quantity: 1 },
+        ],
+        catalog,
+      ),
+      receiveItems(
+        start,
+        1,
+        "x",
+        [
+          { itemId: hp, quantity: 1 },
+          { itemId: material, quantity: 0 },
+        ],
+        catalog,
+      ),
+      consumeBagItem(start, 1, material, catalog),
+      consumeBagItem(start, 0, hp, catalog),
+      acquireImportantItem(start, hp, catalog),
+      acquireImportantItem(start, "unknown", catalog),
+    ];
+    for (const result of results) {
+      expect(result.accepted).toBe(false);
+      expect(result.state).toEqual(before);
+    }
+    for (const quantity of [0, -1, 0.5, Number.NaN, Infinity, Number.MAX_SAFE_INTEGER + 1]) {
+      expect(
+        receiveItems(
+          start,
+          1,
+          "invalid-quantity",
+          [
+            { itemId: hp, quantity: 1 },
+            { itemId: material, quantity },
+          ],
+          catalog,
+        ),
+      ).toEqual({ accepted: false, state: before, reason: "invalid-item" });
+    }
+    const received = accepted(receiveItems(start, 1, "once", [{ itemId: hp, quantity: 1 }], catalog));
+    const receivedBefore = structuredClone(received);
+    expect(receiveItems(received, 2, "once", [{ itemId: hp, quantity: 1 }], catalog)).toEqual({
+      accepted: false,
+      state: receivedBefore,
+      reason: "duplicate-reward",
+    });
+    expect(start).toEqual(before);
+    const atHome = home();
+    const homeBefore = structuredClone(atHome);
+    expect(receiveItems(atHome, 0, "x", [{ itemId: hp, quantity: 1 }], catalog)).toEqual({
+      accepted: false,
+      reason: "wrong-place",
+      state: homeBefore,
+    });
+    expect(
+      packItems(
+        atHome,
+        0,
+        7,
+        "town",
+        [
+          { itemId: hp, quantity: 3 },
+          { itemId: hp, quantity: 3 },
+        ],
+        catalog,
+      ),
+    ).toEqual({ accepted: false, reason: "insufficient-stock", state: homeBefore });
+    expect(atHome).toEqual(homeBefore);
+    const important = accepted(acquireImportantItem(start, "trial-important", catalog));
+    expect(important.version).toBe(2);
+    expect(accepted(acquireImportantItem(important, "trial-important", catalog))).toEqual(important);
+  });
+  it("保持方針へ公開バッグ・種・帰還理由を渡し、古い版では抽選しない", () => {
+    const state = depart();
+    const snapshot = structuredClone(state);
+    const policy = vi.fn(() => ({ quantities: [0, 2], randomState: 4294967295 }));
+    expect(returnItems(state, 0, 7, "retreat", 23, policy)).toEqual({
+      accepted: false,
+      reason: "stale-input",
+      state: snapshot,
+      randomState: 23,
+    });
+    expect(policy).not.toHaveBeenCalled();
+    const returned = returnItems(state, 1, 7, "retreat", 23, policy);
+    expect(policy).toHaveBeenCalledExactlyOnceWith(
+      [
+        { itemId: hp, quantity: 3, origin: "carried" },
+        { itemId: material, quantity: 2, origin: "carried" },
+      ],
+      23,
+      "retreat",
+    );
+    expect(returned.randomState).toBe(4294967295);
+    expect(returned.state.home).toEqual([
+      { itemId: hp, quantity: 2 },
+      { itemId: material, quantity: 3 },
+    ]);
+    expect(state).toEqual(snapshot);
+    for (const output of [
+      { quantities: [1], randomState: 0 },
+      ...[-1, 0.5, Number.NaN, 4].map((quantity) => ({ quantities: [quantity, 1], randomState: 0 })),
+      ...[-1, 0.5, Number.NaN, 4294967296].map((randomState) => ({ quantities: [1, 1], randomState })),
+    ])
+      expect(() => returnItems(state, 1, 7, "defeat", 23, () => output)).toThrow();
+    expect(state).toEqual(snapshot);
+    for (const probability of [-0.01, 1.01, Number.NaN, Infinity, -Infinity])
+      expect(() => independentItemRetention(probability)).toThrow();
+  });
+  it("購入拒否は残高・版・受領IDを保ち、無料購入と通常報酬IDを区別する", () => {
+    const state = depart("town");
+    const before = structuredClone(state);
+    const base = { expectedVersion: 1, explorationId: 7, transactionId: "same", quantity: 1 };
+    for (const change of [
+      { explorationId: 8 },
+      { expectedVersion: 0 },
+      ...[0, -1, 0.5, Number.NaN, Number.MAX_SAFE_INTEGER].map((quantity) => ({ quantity })),
+    ]) {
+      const result = purchaseItem(state, 30, recoveryItemOffer, { ...base, ...change }, catalog);
+      expect(result).toEqual({ accepted: false, items: before, balance: 30, offer: recoveryItemOffer });
+    }
+    expect(purchaseItem(state, 0, recoveryItemOffer, base, catalog)).toEqual({
+      accepted: false,
+      items: before,
+      balance: 0,
+      offer: recoveryItemOffer,
+    });
+    for (const value of [-1, 0.5, Number.NaN, Infinity, Number.MAX_SAFE_INTEGER + 1]) {
+      expect(() => purchaseItem(state, value, recoveryItemOffer, base, catalog)).toThrow();
+      expect(() => purchaseItem(state, 30, { ...recoveryItemOffer, unitPrice: value }, base, catalog)).toThrow();
+    }
+    const rewarded = accepted(receiveItems(state, 1, "same", [{ itemId: hp, quantity: 1 }], catalog));
+    const freeOffer = { ...recoveryItemOffer, unitPrice: 0 };
+    const bought = purchaseItem(rewarded, 0, freeOffer, { ...base, expectedVersion: 2 }, catalog);
+    expect(bought.accepted).toBe(true);
+    expect(bought.balance).toBe(0);
+    expect(bought.items.version).toBe(3);
+    expect(bought.items.exploration?.rewardIds).toEqual(["same", "purchase:same"]);
+    expect(bought.items.exploration?.bag).toContainEqual({ itemId: hp, quantity: 2, origin: "acquired" });
+    const boughtBefore = structuredClone(bought.items);
+    const retry = purchaseItem(bought.items, 0, freeOffer, { ...base, expectedVersion: 3 }, catalog);
+    expect(retry).toEqual({ accepted: false, items: boughtBefore, balance: 0, offer: freeOffer });
+    expect(state).toEqual(before);
+  });
+});
+
+it("各成功操作は入力の版とストックを保持したまま次の版を1だけ進める", () => {
+  const source = home();
+  const sourceBefore = structuredClone(source);
+  const packed = accepted(packItems(source, 0, 7, "dungeon", [{ itemId: hp, quantity: 1 }], catalog));
+  expect(source).toEqual(sourceBefore);
+  expect(packed.version).toBe(1);
+  const packedBefore = structuredClone(packed);
+  const rewarded = accepted(receiveItems(packed, 1, "reward", [{ itemId: hp, quantity: 2 }], catalog));
+  expect(packed).toEqual(packedBefore);
+  expect(rewarded.version).toBe(2);
+  const rewardedBefore = structuredClone(rewarded);
+  const consumed = accepted(consumeBagItem(rewarded, 2, hp, catalog));
+  expect(rewarded).toEqual(rewardedBefore);
+  expect(consumed.version).toBe(3);
+  const consumedBefore = structuredClone(consumed);
+  const returned = accepted(returnItems(consumed, 3, 7, "cleared", 1));
+  expect(consumed).toEqual(consumedBefore);
+  expect(returned).toEqual({
+    version: 4,
+    home: [
+      { itemId: hp, quantity: 6 },
+      { itemId: material, quantity: 3 },
+    ],
+    importantIds: [],
+    exploration: null,
   });
 });

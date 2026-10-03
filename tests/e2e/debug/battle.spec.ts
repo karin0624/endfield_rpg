@@ -1,4 +1,5 @@
-import { expect, type Page, test } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import { collectCoverage, expect, test } from "../coverage";
 
 async function expectCurrentEnemyOverlays(page: Page, expectedViewport?: { width: number; height: number }) {
   await expect
@@ -148,6 +149,7 @@ test("通常モーションで攻撃・撃破・再戦し、再読込後も敵�
   await expect(slimeB).toHaveAccessibleName(/スライム B、HP 14\/14/);
   await expect(attack).toBeEnabled({ timeout: 60_000 });
   await expectCurrentEnemyOverlays(page);
+  await collectCoverage(page);
   await page.reload();
   await expect(attack).toBeEnabled({ timeout: 60_000 });
   await expectCurrentEnemyOverlays(page);
@@ -176,8 +178,7 @@ test("街の場所から会話を送り、選択後の再訪でも進行を保�
   await expect(page.locator('[data-portrait-id="rossi"] img')).toHaveJSProperty("naturalWidth", 1024);
   await page.keyboard.press("Space");
   await expect(page.getByText("ギルベルタが掲示板の前で会釈した。")).toBeVisible();
-  await expect(page.locator('[data-portrait-id="rossi"]')).toHaveClass(/is-muted/);
-  await expect(page.locator('[data-portrait-id="gilberta"]')).toHaveClass(/is-speaking/);
+  await expect(page.locator("[data-adventure-screen]")).toHaveScreenshot("conversation-gilberta-390.png");
   await expect(page.locator('[data-portrait-id="gilberta"] img')).toHaveJSProperty("naturalWidth", 1024);
 
   await page.locator("[data-conversation-stage]").click();
@@ -187,6 +188,7 @@ test("街の場所から会話を送り、選択後の再訪でも進行を保�
   await page.keyboard.press("Space");
   await expect(questChoice).toBeVisible();
   await expect(page.locator(".dialogue-next")).toBeHidden();
+  await expect(page.locator("[data-adventure-screen]")).toHaveScreenshot("conversation-choice-390.png");
   await questChoice.click();
   await expect(page.getByText("街道の様子を調べる依頼が出ているそうだ。")).toBeVisible();
   await page.keyboard.press("Space");

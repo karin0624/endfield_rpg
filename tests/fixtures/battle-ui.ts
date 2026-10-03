@@ -1,4 +1,4 @@
-import { characters } from "../../src/content/characters";
+import { characters as shippedCharacters } from "../../src/content/characters";
 import { growthRules } from "../../src/content/growthRules";
 import { initialAdventure } from "../../src/content/initialAdventure";
 import { initialBattleCombatants } from "../../src/content/initialBattle";
@@ -19,6 +19,9 @@ import { requiredElement } from "../../src/web/requiredElement";
 import "../../src/web/style.css";
 import { createUiTestRenderer } from "./battle-presentation";
 
+const characters = new URLSearchParams(location.search).has("miss")
+  ? shippedCharacters.map((character) => ({ ...character, hitRate: 0.5 }))
+  : shippedCharacters;
 const app = requiredElement<HTMLDivElement>(document, "#app");
 const settings = parseBattleSettings(savedSettings);
 let dispose: () => void;
@@ -87,6 +90,7 @@ if (new URLSearchParams(location.search).has("demo")) {
       party: { ...game.party, members: game.party.members.map((member) => ({ ...member, mentalFatigue: 100 })) },
     };
   }
+  Object.assign(window, { inspectBattleUiGame: () => JSON.parse(JSON.stringify(game)) });
   game = departOnExpedition(game, characters, initialDungeon, initialAdventure, skillRules).state;
   if (!game.dungeon) throw new Error("探索を開始できませんでした");
   document.body.classList.add("dungeon-mode");

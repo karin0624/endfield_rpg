@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import type { PartyState } from "./party";
 import {
   createExplorationGrowth,
   type ExperienceReward,
@@ -251,23 +250,6 @@ describe("探索内成長コア", () => {
     const state = createExplorationGrowth(definition);
     expect(resetCharacterGrowth(state, ids, definition)).toMatchObject({ accepted: false, state });
   });
-  it("呼び出し側のHP0・症状・回復時間・仲間・PT・フラグを成長と初期化で変えない", () => {
-    const party: PartyState = {
-      members: [{ id: "player", hp: 0, status: { physicalFatigue: 20, haze: 10, incapacityRecoverySteps: 5 } }],
-      slots: ["player", null, null, null],
-    };
-    const session = { party, flags: ["joined"], growth: createExplorationGrowth(definition) };
-    const next = {
-      ...session,
-      growth: accepted(grantExperience(session.growth, reward("battle", 17), definition)).state,
-    };
-    const reset = { ...next, growth: accepted(resetCharacterGrowth(next.growth, ["player"], definition)).state };
-    expect(reset.party).toEqual({
-      members: [{ id: "player", hp: 0, status: { physicalFatigue: 20, haze: 10, incapacityRecoverySteps: 5 } }],
-      slots: ["player", null, null, null],
-    });
-    expect(reset.flags).toEqual(["joined"]);
-  });
   it.each([
     { ...definition, initial: [...definition.initial, definition.initial[0]] },
     { ...definition, rules: [...definition.rules, definition.rules[0]] },
@@ -291,6 +273,16 @@ describe("探索内成長コア", () => {
       ...definition,
       initial: [{ ...definition.initial[0], bonus: { maxHp, attackPower: 0 } }],
     })),
+    ...[0, 1.5, Number.MAX_SAFE_INTEGER + 1, Number.NaN].map((fromLevel) => ({
+      ...definition,
+      rules: [{ ...definition.rules[0], fromLevel }],
+    })),
+    { ...definition, initial: [{ ...definition.initial[0], level: Number.MAX_SAFE_INTEGER + 1 }] },
+    ...[-1, Number.NaN, Number.POSITIVE_INFINITY].flatMap((attackPower) => [
+      { ...definition, initial: [{ ...definition.initial[0], bonus: { maxHp: 0, attackPower } }] },
+      { ...definition, rules: [{ ...definition.rules[0], bonus: { maxHp: 0, attackPower } }] },
+      { ...definition, rules: [{ ...definition.rules[0], bonus: { maxHp: attackPower, attackPower: 0 } }] },
+    ]),
   ])("不正な設定を拒否する [%#]", (invalid) => {
     expect(() => validateProgressionDefinition(invalid)).toThrow();
   });

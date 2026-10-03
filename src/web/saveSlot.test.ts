@@ -45,7 +45,7 @@ it("保存・読込失敗と会話中の拒否は現在状態と既存保存を�
   expect(values.get(GAME_SAVE_KEY)).toBe("broken");
 });
 
-it("通常v4保存とデバッグ保存を分離し、保存失敗を明示する", () => {
+it("通常v5保存とデバッグ保存を分離し、保存失敗を明示する", () => {
   const values = new Map<string, string>();
   const storage = () => ({
     getItem: (key: string) => values.get(key) ?? null,
@@ -67,4 +67,38 @@ it("通常v4保存とデバッグ保存を分離し、保存失敗を明示す�
     }).saved,
   ).toBe(false);
   expect(values.get(GAME_SAVE_KEY)).toBe(normal);
+});
+
+it("有効な旧v4保存の拒否でも元のスロットと現在セッションを保持する", () => {
+  const current = game();
+  const before = structuredClone(current);
+  const bytes = JSON.stringify({
+    version: 4,
+    adventure: { currentPlaceId: "town-square", flags: [] },
+    party: {
+      members: [
+        {
+          id: "player",
+          hp: 20,
+          mentalFatigue: 0,
+          status: { physicalFatigue: 0, haze: 0, incapacityRecoverySteps: null },
+        },
+      ],
+      slots: ["player", null, null, null],
+    },
+    clock: { elapsedHalfDays: 0, recoverySteps: 0, nextActionId: 1 },
+    randomState: 1,
+    lastTownRecoverySignal: null,
+    growth: null,
+  });
+  let stored = bytes;
+  const result = loadSlot(current, saveDefinitions, () => ({
+    getItem: () => stored,
+    setItem: (_key, value) => {
+      stored = value;
+    },
+  }));
+  expect(result.state).toBeUndefined();
+  expect(stored).toBe(bytes);
+  expect(current).toEqual(before);
 });

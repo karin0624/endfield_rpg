@@ -332,7 +332,31 @@ export function mountDungeonUi(
     routeViewport.dataset.routeOffset = String(Math.round(routeOffset));
   }
 
+  function fitRouteWorldForCurrentProgress(): void {
+    // Start from the responsive CSS size so a wider viewport can restore the original spacing.
+    routeWorld.style.width = "";
+    const visible = [
+      dungeonState.currentNodeId,
+      ...getAvailableDungeonNodes(dungeonState, initialDungeon).map((node) => node.id),
+    ]
+      .flatMap((id) => {
+        const button = nodeButtons.get(id);
+        const position = nodePositions[id];
+        return button && position ? [{ button, x: position.x }] : [];
+      })
+      .sort((a, b) => a.x - b.x);
+    const left = visible[0];
+    const right = visible.at(-1);
+    if (!left || !right || left.x === right.x) return;
+    const span = (right.x - left.x) / 100;
+    const cardExtents = (left.button.offsetWidth + right.button.offsetWidth) / 2;
+    // Leave one CSS pixel on either edge for fractional button positions.
+    const fittingWidth = Math.floor((routeViewport.clientWidth - cardExtents - 2) / span);
+    if (fittingWidth > 0 && fittingWidth < routeWorld.clientWidth) routeWorld.style.width = `${fittingWidth}px`;
+  }
+
   function centerRouteForCurrentProgress(): void {
+    fitRouteWorldForCurrentProgress();
     const accessibleIds = [
       dungeonState.currentNodeId,
       ...getAvailableDungeonNodes(dungeonState, initialDungeon).map((node) => node.id),
@@ -344,6 +368,7 @@ export function mountDungeonUi(
     if (centers.length === 0) return;
     const groupCenter = (Math.min(...centers) + Math.max(...centers)) / 2;
     setRouteOffset(routeViewport.clientWidth / 2 - groupCenter);
+    scheduleEdgeRefresh();
   }
 
   function renderRoute(): void {
@@ -816,6 +841,7 @@ export function mountDungeonUi(
   );
 
   const resizeObserver = new ResizeObserver(() => {
+    fitRouteWorldForCurrentProgress();
     if (hasUserPannedRoute) setRouteOffset(routeOffset);
     else centerRouteForCurrentProgress();
     scheduleEdgeRefresh();

@@ -37,7 +37,7 @@ async function serve(kind: "battle" | "adventure") {
   const origin = `http://127.0.0.1:${address.port}`;
   const url = `${origin}/__dev/${kind}-settings`;
   const headers = { origin, "content-type": "application/json" };
-  return { file, original, server, url, headers };
+  return { root, file, original, server, url, headers };
 }
 
 for (const kind of ["battle", "adventure"] as const) {
@@ -65,7 +65,7 @@ for (const kind of ["battle", "adventure"] as const) {
       expect((await fetch(url, { method: "POST", headers, body: exact })).status).toBe(200);
       const saved = await readFile(file, "utf8");
       expect(JSON.parse(saved)).toEqual(JSON.parse(original));
-      const over = compact + " ".repeat(4094 - Buffer.byteLength(compact)) + "あ";
+      const over = `${compact}${" ".repeat(4094 - Buffer.byteLength(compact))}あ`;
       expect((await fetch(url, { method: "POST", headers, body: over })).status).toBe(413);
       expect(await readFile(file, "utf8")).toBe(saved);
       expect((await fetch(url, { method: "POST", headers, body: original })).status).toBe(200);
@@ -93,6 +93,24 @@ for (const kind of ["battle", "adventure"] as const) {
       }
       expect(await completed).toBe(200);
       expect((await fetch(url, { method: "POST", headers, body: original })).status).toBe(200);
+    });
+    it("writes only the fixed settings file even with an extra path field, preserving other settings and assets", async () => {
+      const { root, file, original, url, headers } = await serve(kind);
+      const other = join(root, "src/web", `${kind === "battle" ? "adventure" : "battle"}-settings.json`);
+      const asset = join(root, "public/assets/sentinel.png");
+      await mkdir(join(root, "public/assets"), { recursive: true });
+      await writeFile(asset, "sentinel asset bytes");
+      await writeFile(other, "other settings bytes");
+      const changed = { ...JSON.parse(original), [kind === "battle" ? "cameraY" : "leftX"]: 9 };
+      const response = await fetch(`${url}?path=../../public/assets/sentinel.png`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ ...changed, path: asset }),
+      });
+      expect(response.status).toBe(200);
+      expect(JSON.parse(await readFile(file, "utf8"))).toEqual(changed);
+      expect(await readFile(asset, "utf8")).toBe("sentinel asset bytes");
+      expect(await readFile(other, "utf8")).toBe("other settings bytes");
     });
     it("reports disk failure without replacing the old file and permits retry", async () => {
       const { file, original, url, headers } = await serve(kind);

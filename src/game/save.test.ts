@@ -19,6 +19,7 @@ import {
 import { createGameRandom, nextGameRandom } from "./gameRandom";
 import { createParty } from "./party";
 import { deserializeGame, serializeGame } from "./save";
+import { getCalendar } from "./time";
 
 interface SavePayload {
   adventure: { currentPlaceId: string; flags: string[] };
@@ -249,6 +250,7 @@ describe("保存JSONの公開境界", () => {
     ["PT枠過剰", "party.slots", ["player", null, null, null, null]],
     ["負のHP", "party.members.0.hp", -1],
     ["数値でないHP", "party.members.0.hp", "20"],
+    ["非有限数のJSON表現", "party.members.0.hp", null],
     ["重複フラグ", "adventure.flags", ["seen", "seen"]],
     ["空フラグ", "adventure.flags", [""]],
     ["整数でない生活時計", "clock.elapsedHalfDays", 0.5],
@@ -312,4 +314,49 @@ describe("保存JSONの公開境界", () => {
     expect(loaded.clock).toMatchObject({ elapsedHalfDays: 0, recoverySteps: 0, nextActionId: 1, pendingAction: null });
     expect(loaded.party.members[0].hp).toBe(20);
   });
+});
+
+it("負傷・症状・非ゼロ時計を編成と実保存読込で回復させない", () => {
+  const payload = JSON.parse(
+    encoded(applyPartyStatus(market(initial()), "player", { kind: "haze", amount: 20 }, characters)),
+  );
+  payload.party.members[0].hp = 3.25;
+  payload.party.members[0].mentalFatigue = 4.5;
+  const loaded = deserializeGame(JSON.stringify(payload), definitions);
+  if (!loaded.accepted) throw new Error(loaded.reason);
+  const before = structuredClone(loaded.state);
+  const edited = editExpeditionParty(loaded.state, 0, null);
+  expect(edited.accepted).toBe(true);
+  expect(edited.state).toEqual({ ...before, party: { ...before.party, slots: [null, null, null, null] } });
+  const again = restored(edited.state);
+  expect(again).toEqual(edited.state);
+  if (!again.clock) throw new Error("clock missing");
+  expect(getCalendar(again.clock)).toEqual({ day: 1, period: "night" });
+  expect(again.party.members[0]).toMatchObject({ hp: 3.25, mentalFatigue: 4.5, status: { haze: 20 } });
+  expect(again.clock).toMatchObject({ elapsedHalfDays: 1, recoverySteps: 1, nextActionId: 2 });
+  expect(again.randomState).toBe(1);
+});
+it("スカラーや配列JSONを保存として受理しない", () => {
+  for (const bytes of ["null", "[]", "true", "1", '"save"'])
+    expect(deserializeGame(bytes, definitions)).toEqual({ accepted: false, reason: "invalid-data" });
+});
+it("時計・療養残りの型と安全整数上限、既処理通知の遅れを拒否する", () => {
+  for (const field of ["elapsedHalfDays", "recoverySteps", "nextActionId"]) {
+    for (const value of [-1, 0.5, Number.MAX_SAFE_INTEGER, "1"]) {
+      const payload = JSON.parse(encoded(initial()));
+      payload.clock[field] = value;
+      expect(deserializeGame(JSON.stringify(payload), definitions), `${field}:${value}`).toEqual({
+        accepted: false,
+        reason: "invalid-data",
+      });
+    }
+  }
+  for (const value of [7, 1.5, "1"]) {
+    const payload = JSON.parse(encoded(initial()));
+    payload.party.members[0].status.incapacityRecoverySteps = value;
+    expect(deserializeGame(JSON.stringify(payload), definitions)).toEqual({ accepted: false, reason: "invalid-data" });
+  }
+  const payload = JSON.parse(encoded(market(market(initial()))));
+  payload.lastTownRecoverySignal = 0;
+  expect(deserializeGame(JSON.stringify(payload), definitions)).toEqual({ accepted: false, reason: "invalid-data" });
 });

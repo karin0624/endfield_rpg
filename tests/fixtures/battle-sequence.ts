@@ -61,7 +61,7 @@ const definitions: readonly BattleCombatantDefinition[] = [
     id: "slime",
     team: "enemy",
     speed: query.has("party") || query.has("symptom") || query.has("items") ? 80 : 40,
-    hp: 40,
+    hp: query.has("lethal") ? 12 : 40,
     attackPower: 4,
   },
 ];
@@ -84,6 +84,15 @@ async function enter() {
     ? createBattleScene(canvas, settings, definitions)
     : createUiTestRenderer(canvas, settings).beginBattle(definitions);
   await renderer.ready;
+  if (query.has("no-completion")) {
+    const play = renderer.playCombatantEffect.bind(renderer);
+    renderer.playCombatantEffect = (id, effect, animate) => {
+      // Model a renderer that never invokes animation completion callbacks.
+      // Keep a defeated sprite until its non-animated final state is requested.
+      if (effect !== "defeat" || !animate) play(id, effect, animate);
+      if (effect === "defeat") app.dataset.defeat = animate ? "playing" : "finished";
+    };
+  }
   const stock = [{ itemId: recoveryItemId, quantity: 2 }];
   const packed = packItems(createItemState(stock, itemCatalog), 0, 1, "dungeon", stock, itemCatalog);
   if (!packed.accepted) throw new Error("Fixture item packing failed");
