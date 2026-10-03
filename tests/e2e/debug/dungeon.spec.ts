@@ -777,6 +777,41 @@ test("ルートの左右キーは範囲内で移動し、pointercancel後もノ�
   await expect(page.locator("[data-battle-screen]")).toBeVisible();
 });
 
+test("ルート画像が題名の描画後に届いても初期表示を保つ", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  let release = () => {};
+  const pending = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let heldResponses = 0;
+  await page.route("**/dungeon-nodes/**/*.png", async (route) => {
+    const response = await route.fetch();
+    heldResponses++;
+    await pending;
+    await route.fulfill({ response });
+  });
+  try {
+    await page.goto("/?debug=1&dungeon=1", { waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("button", { name: "戦闘、選択可能" })).toBeEnabled();
+    await expect(page.getByRole("button", { name: "思わぬ遭遇、選択可能" })).toBeEnabled();
+    await expect(page.getByText("戦闘", { exact: true })).toBeVisible();
+    await expect(page.getByText("思わぬ遭遇", { exact: true })).toBeVisible();
+    await expect.poll(() => heldResponses).toBe(3);
+    await page.evaluate(async () => {
+      await document.fonts.ready;
+      // Deliberately allow the labels to paint before delivering the real node PNGs.
+      await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+    });
+  } finally {
+    release();
+  }
+  await page.locator("[data-route-nodes] img").evaluateAll(async (images) => {
+    await Promise.all(images.map((image) => (image as HTMLImageElement).decode()));
+  });
+  await page.mouse.move(0, 0);
+  await expect(page).toHaveScreenshot("route-initial-390.png");
+});
+
 test("ルートの線端点・視差・中央配置はドラッグと進行後のリサイズに追従する", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await collectCoverage(page);

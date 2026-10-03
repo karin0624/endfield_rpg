@@ -406,7 +406,7 @@ export function mountDungeonUi(
       icon.src = assetUrl(`dungeon-nodes/${canSelect ? "focus" : "unfocus"}/${presentation.icon}.png`);
       icon.alt = "";
       icon.draggable = false;
-      icon.decoding = "async";
+      icon.decoding = "sync";
       icon.setAttribute("aria-hidden", "true");
       button.append(icon);
       if (!pastUnselected) {
