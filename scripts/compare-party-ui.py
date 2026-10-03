@@ -73,7 +73,7 @@ for state, file in references.items():
         draw.text((box[0] + 3, box[1] + 3), label, fill="#ffffff", stroke_width=1, stroke_fill="#000000")
     map_image.save(out / "diagnostic-regions.png")
     (out / "results.json").write_text(json.dumps({
-        "status": "UNRESOLVED: not visual acceptance", "resolution": approved.size,
+        "status": "REVIEW_REQUIRED: diagnostic differences, no zero-diff acceptance threshold", "resolution": approved.size,
         "tool": "Pillow " + pillow_version, "threshold": 0, "transforms": [],
         "reference": str(reference.relative_to(repo)), "reference_sha256": hashlib.sha256(reference.read_bytes()).hexdigest(),
         "runtime_sha256": hashlib.sha256(runtime.read_bytes()).hexdigest(),
@@ -81,6 +81,11 @@ for state, file in references.items():
         "allowed_regions": [{"rectangle": [1510,12,1664,44], "reason": "資料注記のみ。runtimeには表示しない。",
                              "approval": "docs/ui-concepts/approved/README.md; Slack 1791028085.252249"}],
         "diagnostics": records,
+        "review_policy": {
+            "reject": "Unexplained or unagreed meaningful changes to composition, information, positions, frames or material.",
+            "permitted_residuals": ["Font raster/typeface differences tracked as shared typography work.", "Minor differences from existing character artwork; approval Slack 1791030923.386299."],
+            "note": "Permitted residuals remain in raw differences and are not masked. Position/size/composition changes still require review."
+        },
         "diagnostic_limit": "Rectangles may include multiple causes. They are not acceptance masks; all pixels remain in full and invariant metrics.",
     }, ensure_ascii=False, indent=2) + "\n")
     print(state, metrics(diff))

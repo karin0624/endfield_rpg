@@ -353,6 +353,7 @@
 .formation-screen .party-candidate-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, 276px);
+  grid-auto-rows: max-content;
   gap: 22px;
   height: 100%;
   max-height: none;
@@ -366,7 +367,7 @@
 .formation-screen .party-candidate-card {
   position: relative;
   width: 276px;
-  min-height: 447px;
+  min-height: 442px;
   height: auto;
   align-self: start;
   isolation: isolate;
@@ -476,7 +477,8 @@
 
 .formation-screen .party-candidate-symptoms {
   display: block;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
   font: 1rem / 1.3 var(--ui-font);
   text-align: center;
 }

@@ -168,7 +168,14 @@ test("全滅帰還でHP全回復し、街探索6回で戦闘不能から復帰�
   await page.screenshot({ path: testInfo.outputPath("defeat-town-1920.png") });
   await page.getByRole("link", { name: "出撃編成を見る" }).click();
   await expect(page.locator(".party-slot-hp").first()).toHaveText("HP 20/20");
-  await expect(page.locator(".party-slot-symptoms").first()).toContainText("戦闘参加不可（あと街探索6回）");
+  await expect(page.locator(".party-slot-symptoms").first()).toContainText("戦闘不能");
+  await page.getByRole("button", { name: "枠 1", exact: true }).click();
+  await page.getByRole("button", { name: "ロッシの詳細", exact: true }).click();
+  const defeatedDetails = page.getByRole("dialog", { name: "ロッシ", exact: true });
+  await expect(defeatedDetails).toContainText("戦闘参加不可（あと街探索6回）");
+  await expect(defeatedDetails).toContainText("戦闘に参加できません");
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("Escape");
   await expect(page.getByRole("button", { name: "出発する" })).toBeDisabled();
   await page.screenshot({ path: testInfo.outputPath("defeat-party-1920.png") });
   await page.setViewportSize({ width: 390, height: 844 });
@@ -528,7 +535,7 @@ test("初期症状の試験データから実操作で数値回復・全滅帰�
   await page.getByRole("link", { name: "出撃編成を見る" }).click();
   await expect(page.locator(".party-slot").first()).toContainText("HP 14/14");
   await expect(page.locator(".party-slot").first()).toContainText("肉体疲労・軽度");
-  await expect(page.locator(".party-slot").first()).toContainText("あと街探索6回");
+  await expect(page.locator(".party-slot-symptoms").first()).toContainText("戦闘不能");
   await page.getByRole("button", { name: "枠 1", exact: true }).click();
   await page.getByRole("button", { name: "ロッシの詳細" }).click();
   await expect(details).toContainText("14 / 14");

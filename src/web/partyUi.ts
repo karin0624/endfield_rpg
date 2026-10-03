@@ -1,4 +1,6 @@
+import { mentalFatigueDefinition } from "../content/mentalFatigueDefinition";
 import type { ExpeditionRejection, ExpeditionResult } from "../game/expedition";
+import { mentalFatigueLabel } from "../game/mentalFatigue";
 import {
   type CharacterDefinition,
   characterById,
@@ -100,8 +102,13 @@ export function mountPartyUi(root: HTMLElement, options: PartyUiOptions, back: (
       name: character.name,
       hp: `HP ${formatAmount(member.hp)}/${formatAmount(maxHp)}`,
       ratio: maxHp > 0 ? Math.min(1, Math.max(0, member.hp / maxHp)) : 0,
-      symptoms: symptomDescriptions(member.status ?? healthyStatus())
-        .map(({ label }) => label)
+      symptoms: [
+        ...symptomDescriptions(member.status ?? healthyStatus()).map(({ label }) => label),
+        (member.mentalFatigue ?? 0) > 0
+          ? `精神疲労・${mentalFatigueLabel(member.mentalFatigue ?? 0, mentalFatigueDefinition)}`
+          : "",
+      ]
+        .filter(Boolean)
         .join("　"),
     };
   }
@@ -114,14 +121,24 @@ export function mountPartyUi(root: HTMLElement, options: PartyUiOptions, back: (
     bar.append(fill);
     return bar;
   }
+  const fullPartyReason = "出撃は4人までです。選択済みの仲間を外すと追加できます。";
   function updateDraft() {
+    const full = draft?.every((id) => id !== null) ?? false;
     for (const card of grid.querySelectorAll<HTMLElement>(".party-candidate-card")) {
       const button = requiredElement<HTMLButtonElement>(card, ".party-candidate");
       const number = (draft?.indexOf(button.value) ?? -1) + 1;
       card.classList.toggle("is-selected", number > 0);
       button.setAttribute("aria-pressed", String(number > 0));
+      const unavailable = full && number === 0;
+      button.setAttribute("aria-disabled", String(unavailable));
+      button.title = unavailable ? fullPartyReason : "";
+      button.setAttribute("aria-description", unavailable ? fullPartyReason : "");
       requiredElement<HTMLElement>(card, ".party-order").textContent = number ? String(number) : "";
-      requiredElement<HTMLElement>(card, ".party-candidate-state").textContent = number ? `隊列 ${number}` : "未選択";
+      requiredElement<HTMLElement>(card, ".party-candidate-state").textContent = number
+        ? `隊列 ${number}`
+        : unavailable
+          ? `未選択。${fullPartyReason}`
+          : "未選択";
     }
   }
   function openSelection(button: HTMLButtonElement) {
@@ -150,6 +167,11 @@ export function mountPartyUi(root: HTMLElement, options: PartyUiOptions, back: (
       requiredElement(card, ".party-candidate-symptoms").textContent = info.symptoms;
       card.classList.toggle("has-symptoms", !!info.symptoms);
       choice.addEventListener("click", () => {
+        if (choice.getAttribute("aria-disabled") === "true") {
+          requiredElement(root, "[data-selection-status]").textContent = fullPartyReason;
+          return;
+        }
+        requiredElement(root, "[data-selection-status]").textContent = "";
         if (draft) {
           draft = togglePartySelection(draft, member.id);
           updateDraft();

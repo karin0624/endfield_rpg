@@ -11,7 +11,10 @@ for (const count of [12, 24]) {
     const grid = page.getByRole("group", { name: "候補一覧" });
     const choices = grid.locator(".party-candidate");
     await expect(choices).toHaveCount(count);
-    await choices.last().click();
+    await expect(choices.last()).toBeDisabled();
+    await expect(choices.last()).toHaveAccessibleDescription(/4人まで/);
+    await choices.last().focus();
+    await page.keyboard.press("Enter");
     await expect(choices.last()).toHaveAttribute("aria-pressed", "false");
     await expect(grid.locator('.party-candidate[aria-pressed="true"]')).toHaveCount(4);
     await expect(choices.first()).toHaveAccessibleDescription(/隊列 1/);
@@ -231,4 +234,44 @@ test("主操作はマウス保持とSpace押下中も暗い文字を保つ", asy
   await expect(primary).toHaveCSS("outline-offset", "4px");
   await formationScreenshot(page, testInfo, "formation-primary-space-focus-1920.png");
   await page.keyboard.up("Space");
+});
+
+test("先頭・中段の長名と3症状が後続カードへ重ならず、精神疲労を詳細でも確認できる", async ({ page }, info) => {
+  for (const width of [1920, 1024, 390]) {
+    await page.setViewportSize({ width, height: 1080 });
+    await page.goto("/tests/fixtures/party-selection.html?count=12&stress=1");
+    await expect(page.locator(".party-slot-symptoms").first()).toContainText("精神疲労・中度");
+    await page.getByRole("button", { name: "枠 1", exact: true }).click();
+    const cards = page.locator(".party-candidate-card");
+    for (const index of [0, 4, 5]) {
+      const card = cards.nth(index);
+      const symptoms = card.locator(".party-candidate-symptoms");
+      await expect(symptoms).toHaveText("肉体疲労・中度　朦朧・重度　精神疲労・中度");
+      expect(await symptoms.evaluate((node) => node.scrollWidth <= node.clientWidth)).toBe(true);
+      await card.getByRole("button", { name: /の詳細$/ }).click();
+      await expect(page.locator(".character-details-stats")).toContainText("50（中度）");
+      await page.keyboard.press("Escape");
+      await symptoms.scrollIntoViewIfNeeded();
+      await expect(symptoms).toBeInViewport();
+      await page.screenshot({ path: info.outputPath(`party-stress-${width}-${index}.png`) });
+    }
+    const collisions = await cards.evaluateAll((nodes) =>
+      nodes.flatMap((card, index) => {
+        const rect = card.getBoundingClientRect();
+        const contentBottom = Math.max(
+          ...[".party-candidate-name", ".party-candidate-hp", ".party-detail", ".party-candidate-symptoms"].map(
+            (selector) => card.querySelector(selector)?.getBoundingClientRect().bottom ?? 0,
+          ),
+        );
+        const next = nodes.slice(index + 1).find((node) => {
+          const box = node.getBoundingClientRect();
+          return Math.abs(box.x - rect.x) < 1 && box.top > rect.top;
+        });
+        return contentBottom > rect.bottom + 1 || (next && rect.bottom > next.getBoundingClientRect().top)
+          ? [index]
+          : [];
+      }),
+    );
+    expect(collisions).toEqual([]);
+  }
 });
