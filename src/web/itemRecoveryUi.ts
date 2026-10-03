@@ -18,12 +18,13 @@ export function mountRecoveryItemUi(
   const events = new AbortController();
   const button = document.createElement("button");
   button.type = "button";
+  button.dataset.singleActivation = "";
   button.className = "command item-trigger";
   const dialog = document.createElement("dialog");
   dialog.className = "item-dialog";
   dialog.setAttribute("aria-label", "HP回復品の使用");
   dialog.innerHTML =
-    '<h2>HP回復品</h2><p>生存中の味方1人のHPを回復します。精神疲労は増えません。</p><label>対象<select data-item-target></select></label><p data-item-preview role="status"></p><div class="item-actions"><button type="button" class="command" data-item-use>使用する</button><button type="button" class="command" data-item-cancel>戻る</button></div>';
+    '<h2>HP回復品</h2><p>生存中の味方1人のHPを回復します。精神疲労は増えません。</p><label>対象<select data-item-target></select></label><p data-item-preview role="status"></p><div class="item-actions"><button type="button" class="command" data-item-use data-single-activation>使用する</button><button type="button" class="command" data-item-cancel data-single-activation>戻る</button></div>';
   const target = dialog.querySelector<HTMLSelectElement>("select") as HTMLSelectElement;
   const preview = dialog.querySelector<HTMLElement>("[data-item-preview]") as HTMLElement;
   const use = dialog.querySelector<HTMLButtonElement>("[data-item-use]") as HTMLButtonElement;

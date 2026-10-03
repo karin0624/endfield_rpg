@@ -867,6 +867,8 @@ export function mountBattleUi(
     skillsButton.focus();
   }
 
+  for (const control of [attackButton, skillsButton, useSkillButton, cancelSkillButton, rematchButton])
+    control.dataset.singleActivation = "";
   skillsButton.addEventListener(
     "click",
     () => {

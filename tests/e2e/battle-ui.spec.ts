@@ -105,6 +105,22 @@ test("スキルの予測・回復対象・取消を各画面サイズで操作�
   await expect(skills).toBeFocused();
 });
 
+test("成長確定のdouble-clickで同じ位置の次の選択権まで消費しない", async ({ page }) => {
+  await page.goto("/tests/fixtures/battle-ui.html?growth=1");
+  await page.getByRole("button", { name: "戦闘、選択可能" }).click();
+  const attack = page.getByRole("button", { name: "通常攻撃" });
+  for (let turn = 0; turn < 4; turn++) await attack.click();
+  await page.getByRole("button", { name: "戦闘を終えてルートへ戻る" }).click();
+  const choice = page.getByRole("region", { name: "レベルアップのスキル選択" });
+  await expect(choice.getByRole("heading")).toHaveText("ロッシ · Lv2 スキル選択");
+  await choice.getByRole("button").first().dblclick();
+  expect(await choice.isVisible()).toBe(true);
+  expect(await choice.getByRole("heading").textContent()).toBe("ロッシ · Lv3 スキル選択");
+  await choice.getByRole("button").first().click();
+  await expect(choice).toBeHidden();
+  await expect(page.getByRole("button", { name: "ボス、選択可能" })).toBeVisible();
+});
+
 test("通常入力の勝利XPから複数3択を完了し次戦へ成長を反映する", async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 600 });
   await page.goto("/tests/fixtures/battle-ui.html?growth=1");
