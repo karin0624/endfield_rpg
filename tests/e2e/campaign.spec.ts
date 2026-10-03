@@ -21,6 +21,24 @@ test("通常版の候補を短間隔で選択・解除しても親画面がク�
   await page.getByRole("button", { name: "出撃編成を見る", exact: true }).click();
   await page.getByRole("button", { name: "枠 1", exact: true }).click();
   const candidate = page.locator(".party-candidate").first();
+  const box = await candidate.boundingBox();
+  if (!box) throw new Error("候補カードが表示されていません");
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  for (const clickCount of [1, 2, 3, 4]) {
+    await page.mouse.down({ clickCount });
+    await page.mouse.up({ clickCount });
+    expect(
+      await candidate.evaluate((button) => ({
+        pressed: button.getAttribute("aria-pressed"),
+        number: button.querySelector(".party-order")?.textContent,
+        selected: button.closest(".party-candidate-card")?.classList.contains("is-selected"),
+      })),
+    ).toEqual(
+      clickCount % 2 === 0
+        ? { pressed: "true", number: "1", selected: true }
+        : { pressed: "false", number: "", selected: false },
+    );
+  }
   for (const delay of [0, 40, 120]) {
     // The second physical click carries detail=2. Both toggles must finish before dblclick returns.
     await candidate.dblclick({ delay });
