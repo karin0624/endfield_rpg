@@ -1,0 +1,10 @@
+.debug-mode-badge {
+  position: fixed;
+  z-index: 100;
+  bottom: 0;
+  right: 0;
+  padding: 0.3rem 0.7rem;
+  background: #232825;
+  color: #ece9df;
+  font-size: 0.875rem;
+}

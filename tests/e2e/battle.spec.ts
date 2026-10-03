@@ -37,7 +37,7 @@ test("配布画面の実描画を基準画像と比較する", async ({ page }) 
   page.on("response", (response) => {
     if (response.status() >= 400) errors.push(`${response.status()} ${response.url()}`);
   });
-  await page.goto("/?battle=1");
+  await page.goto("/?debug=1&battle=1");
   await expect(page.getByRole("button", { name: "通常攻撃" })).toBeEnabled({ timeout: 60_000 });
   await expectCurrentEnemyOverlays(page);
   await expect(page).toHaveScreenshot("battle-desktop.png", { animations: "disabled" });
@@ -75,7 +75,7 @@ test("敵札の文字寸法と画面サイズの変更に追従し、離脱後�
   page.on("console", (message) => {
     if (message.type() === "error") errors.push(message.text());
   });
-  await page.goto("/?dungeon=1");
+  await page.goto("/?debug=1&dungeon=1");
   await page.getByRole("button", { name: "戦闘、選択可能" }).click();
   await expect(page.getByRole("button", { name: "通常攻撃" })).toBeEnabled({ timeout: 60_000 });
   await expectCurrentEnemyOverlays(page);
@@ -121,7 +121,7 @@ test("通常モーションで攻撃・撃破・再戦し、再読込後も敵�
   await page.emulateMedia({ reducedMotion: "no-preference" });
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
-  await page.goto("/?battle=1");
+  await page.goto("/?debug=1&battle=1");
   const attack = page.getByRole("button", { name: "通常攻撃" });
   const slimeA = page.getByRole("button", { name: /スライム A、HP .*攻撃対象に選択/ });
   const slimeB = page.getByRole("button", { name: /スライム B、HP .*攻撃対象に選択/ });
@@ -155,12 +155,12 @@ test("素材の取得に失敗した理由を画面に表示する", async ({ pa
   await page.route("**/assets/characters/rossi/front-left.png", (route) =>
     route.fulfill({ status: 404, body: "missing" }),
   );
-  await page.goto("/?battle=1");
+  await page.goto("/?debug=1&battle=1");
   await expect(page.getByRole("status")).toContainText("戦闘画面を読み込めませんでした", { timeout: 30_000 });
 });
 
 test("街の場所から会話を送り、選択後の再訪でも進行を保つ", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/?debug=1");
   await expect(page.getByRole("heading", { name: "街の広場" })).toBeVisible();
   await expect(page.getByRole("button", { name: "冒険者ギルド" })).toBeVisible();
   await expect(page.locator("body")).not.toContainText(/AUTO|MENU|Space/);
@@ -194,7 +194,7 @@ test("街の場所から会話を送り、選択後の再訪でも進行を保�
 });
 
 test("表示番号の数字キーで会話の選択肢を選べる", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/?debug=1");
   await page.getByRole("button", { name: "冒険者ギルド" }).click();
   await page.keyboard.press("Space");
   await page.keyboard.press("Space");
@@ -205,7 +205,7 @@ test("表示番号の数字キーで会話の選択肢を選べる", async ({ pa
 });
 
 test("街と会話の表示をドラッグしても範囲選択せず、移動とキー操作を続けられる", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/?debug=1");
   const title = page.getByRole("heading", { name: "街の広場" });
   await expect(title).toBeVisible();
   const townPlaces = page.getByRole("navigation", { name: "街の場所" });

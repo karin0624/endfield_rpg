@@ -4,3 +4,5 @@ coverage/
 *:Zone.Identifier
 test-results/
 playwright-report/
+
+dist-debug/
