@@ -62,20 +62,20 @@
   border-color: var(--status-danger);
 }
 .battle-sequence:is([data-phase="actor"], [data-phase="prepare"])[data-motion="true"] .sequence-actor {
-  animation: sequence-name-enter calc(120ms / var(--sequence-speed, 1)) ease-out both;
+  animation: sequence-name-enter calc(120ms / var(--sequence-actor-speed, 1)) ease-out both;
 }
 .battle-sequence:is([data-phase="impact"], [data-phase="result"], [data-phase="settle"])[data-motion="true"]
   .sequence-actor {
-  animation: sequence-name-exit calc(160ms / var(--sequence-speed, 1)) ease-in both;
+  animation: sequence-name-exit calc(160ms / var(--sequence-impact-speed, 1)) ease-in both;
 }
 .battle-sequence:is([data-phase="impact"], [data-phase="result"])[data-motion="true"] .sequence-impact {
-  animation: sequence-strike calc(240ms / var(--sequence-speed, 1)) ease-out both;
+  animation: sequence-strike calc(240ms / var(--sequence-impact-speed, 1)) ease-out both;
 }
 .battle-sequence[data-phase="result"][data-motion="true"] .sequence-number {
-  animation: sequence-result-enter calc(380ms / var(--sequence-speed, 1)) linear both;
+  animation: sequence-result-enter calc(380ms / var(--sequence-result-speed, 1)) linear both;
 }
 .battle-sequence[data-phase="settle"][data-motion="true"] .sequence-number {
-  animation: sequence-result-exit calc(120ms / var(--sequence-speed, 1)) ease-in both;
+  animation: sequence-result-exit calc(120ms / var(--sequence-settle-speed, 1)) ease-in both;
 }
 @keyframes sequence-name-enter {
   from {

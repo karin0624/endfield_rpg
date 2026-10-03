@@ -608,3 +608,34 @@ test("物品は確定回復を表示してから敵行動を再生し、勝敗�
   await expect(page.locator("[data-skill-fatigue]")).toContainText("精神疲労 0");
   await expect(page.locator("[data-count]")).toHaveText("確定 1回");
 });
+
+test("結果の入場と退場の途中で速度を変えても現在の補間と待機は揃う", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.goto("/tests/fixtures/battle-sequence.html");
+  const skills = page.getByRole("button", { name: "スキル", exact: true });
+  await expect(skills).toBeEnabled();
+  await page.clock.install({ time: new Date("2026-10-03T12:00:00Z") });
+  await page.clock.pauseAt(new Date("2026-10-03T12:00:01Z"));
+  const speed = page.getByRole("combobox", { name: "演出速度" });
+  const number = page.locator(".sequence-number");
+  await speed.selectOption("2");
+  await skills.click();
+  await page.getByRole("button", { name: "検証用攻撃", exact: true }).click();
+  await page.getByRole("button", { name: "使用する", exact: true }).click();
+  await page.clock.runFor(200);
+  await expect(number).toHaveCSS("animation-duration", "0.19s");
+  await speed.selectOption("1");
+  await expect(number).toHaveCSS("animation-duration", "0.19s");
+  await expect(skills).toBeDisabled();
+  await page.clock.runFor(160);
+  await expect(number).toHaveCSS("animation-duration", "0.12s");
+  await speed.selectOption("2");
+  await expect(number).toHaveCSS("animation-duration", "0.12s");
+  await page.clock.runFor(100);
+  await expect(number).toBeVisible();
+  await expect(skills).toBeDisabled();
+  await page.clock.runFor(21);
+  await expect(number).toBeHidden();
+  await expect(skills).toBeEnabled();
+  await expect(page.locator("[data-count]")).toHaveText("確定 1回");
+});
