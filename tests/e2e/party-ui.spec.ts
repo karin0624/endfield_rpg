@@ -1,6 +1,40 @@
 import { expect, test } from "@playwright/test";
 import { formationScreenshot, readyFormation } from "./formationEvidence";
 
+test("候補の短間隔4連続クリックと複数カード切替を一回ずつ即時反映する", async ({ page }) => {
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await page.goto("/tests/fixtures/party-selection.html?count=12");
+  await page.getByRole("button", { name: "枠 1", exact: true }).click();
+  const choices = page.locator(".party-candidate");
+  const box = await choices.first().boundingBox();
+  if (!box) throw new Error("候補カードが表示されていません");
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  for (let clickCount = 1; clickCount <= 4; clickCount++) {
+    // Real browser click counts, with no sleep, locator actionability wait, or retry assertion between inputs.
+    await page.mouse.down({ clickCount });
+    await page.mouse.up({ clickCount });
+    expect(await choices.first().getAttribute("aria-pressed")).toBe(String(clickCount % 2 === 0));
+  }
+  for (const [index, selected] of [
+    [0, false],
+    [1, false],
+    [4, true],
+    [0, true],
+    [4, false],
+    [1, true],
+  ] as const) {
+    const target = await choices.nth(index).boundingBox();
+    if (!target) throw new Error("候補カードが表示されていません");
+    await page.mouse.click(target.x + target.width / 2, target.y + target.height / 2);
+    expect(await choices.nth(index).getAttribute("aria-pressed")).toBe(String(selected));
+  }
+  expect(await page.locator("#edits").textContent()).toBe("0");
+  await page.getByRole("button", { name: "確定", exact: true }).dblclick();
+  await expect(page.locator("#edits")).toHaveText("1");
+  await page.getByRole("button", { name: "出発する", exact: true }).dblclick();
+  await expect(page.locator("#departures")).toHaveText("1");
+});
+
 for (const count of [12, 24]) {
   test(`${count}候補を仮編集し、欠番保持・詳細復帰・確定一回・Esc反映を確認する`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width: 1920, height: 1080 });

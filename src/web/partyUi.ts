@@ -67,6 +67,8 @@ export function mountPartyUi(root: HTMLElement, options: PartyUiOptions, back: (
     root.addEventListener(
       type,
       (event) => {
+        // Every candidate click is a reversible toggle, including a native double-click's second click.
+        if (event.target instanceof Element && event.target.closest(".party-candidate")) return;
         if (event.detail <= 1) return;
         event.preventDefault();
         event.stopImmediatePropagation();

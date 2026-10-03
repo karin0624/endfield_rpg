@@ -65,6 +65,8 @@ export function mountCampaign(root: HTMLDivElement): () => void {
   root.addEventListener(
     "click",
     (event) => {
+      // Candidate toggles stay on this screen and must receive every click.
+      if (event.target instanceof Element && event.target.closest(".party-candidate")) return;
       if (event.detail > 1) {
         event.preventDefault();
         event.stopImmediatePropagation();

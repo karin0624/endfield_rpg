@@ -16,6 +16,21 @@ async function save(page: Page, title = false) {
   await page.getByRole("button", { name: "実行する", exact: true }).click();
 }
 
+test("通常版の候補を短間隔で選択・解除しても親画面がクリックを捨てない", async ({ page }) => {
+  await start(page);
+  await page.getByRole("button", { name: "出撃編成を見る", exact: true }).click();
+  await page.getByRole("button", { name: "枠 1", exact: true }).click();
+  const candidate = page.locator(".party-candidate").first();
+  for (const delay of [0, 40, 120]) {
+    // The second physical click carries detail=2. Both toggles must finish before dblclick returns.
+    await candidate.dblclick({ delay });
+    expect(await candidate.getAttribute("aria-pressed")).toBe("true");
+  }
+  await page.getByRole("button", { name: "確定", exact: true }).dblclick();
+  await expect(page.getByRole("heading", { name: "編成", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "枠 1", exact: true })).toContainText("ロッシ");
+});
+
 test("通常版で導入・ホーム・街・編成・戦闘・帰還・保存再開を通す", async ({ page }, info) => {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
