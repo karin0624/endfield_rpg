@@ -74,7 +74,7 @@ VRTはブラウザの各層で用いる視覚assertionであり、操作・論�
 
 ### 既存plateの限定したcontrast保証
 
-`tests/e2e/plateContrast.ts` は実入力で到達したPlayerカードの名前・待機状態・HP表記を対象に、通常と文字200%、無症状と初回症状後で確認する。実DOMの文字全域被覆、単色plate、不透明な文字、祖先・文字経路のopacity/filter/blend/mask/pseudo overlay不在をassertする。plateとbox/text shadowの色範囲をsource-overの十分条件として扱い、画像下地を全sRGB範囲へ広げたWCAG相対輝度の下限を丸めず比較する。色の一致だけの見た目proxyではなく、成立条件と4.5:1の公開基準を確認する限定保証である。
+`tests/e2e/plateContrast.ts` は実入力で到達したPlayerカードの名前・待機状態・HP表記を対象に、通常と文字200%、無症状と初回症状後で確認する。実DOMの可視の単純text-only対象、矩形plateのborderより内側への文字全域被覆、単色plate、不透明な文字、祖先・文字経路のopacity/filter/blend/mask/pseudo overlay不在をassertする。別色の子要素、visibility/content-visibility、途中のoverflowによる切取り、非矩形plate、変形や未対応scroll containerは成功へ読み替えず拒否する。HP数値へ低contrast spanを追加した旧helperは親のfillだけを使い成功したが、限定条件を厳密化した後は拒否する。実ブラウザ回帰で子要素、不可視、height 1pxの中間切取り、角丸plateを渡し、拒否後に元DOMを復元して通常／文字200%の正例を確認する。plateとbox/text shadowの色範囲をsource-overの十分条件として扱い、画像下地を全sRGB範囲へ広げたWCAG相対輝度の下限を丸めず比較する。色の一致だけの見た目proxyではなく、成立条件と4.5:1の公開基準を確認する限定保証である。
 
 このfixtureのplateは初期`#3c463e`、待機後`#232825`、alpha1、影には`#445045`等がある。本文・補助文字の下限は両状態・両文字サイズで**4.584813721131425:1**だった。文字fillをplateと同色へ一時変更した実ブラウザ入力ではassertionが拒否し、復元後に成功する。数式は白黒21:1、白文字／黒plate alpha0.6の既知値5.74183648145415:1、丸めると境界を誤る`#777`と`#767676`の値、foregroundが可能背景範囲内にある負例をVitestで確認する。alpha0.6の例は現CSSの値ではない。
 

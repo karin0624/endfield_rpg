@@ -980,6 +980,35 @@ for (const fontPercent of [100, 200]) {
     await expect(player.locator("summary")).toHaveCount(0);
     const contrastBefore = await assertBattleCardContrast(player);
     if (fontPercent === 100) {
+      const hpValue = player.locator(".hp-line b");
+      const original = await hpValue.textContent();
+      await hpValue.evaluate((value) => {
+        const child = document.createElement("span");
+        child.textContent = value.textContent;
+        child.style.webkitTextFillColor = "#232825";
+        value.replaceChildren(child);
+      });
+      await expect(assertBattleCardContrast(player)).rejects.toThrow(/text-only/);
+      await hpValue.evaluate((value, original) => {
+        value.textContent = original;
+      }, original);
+      for (const [target, style, failure] of [
+        [hpValue, "visibility: hidden", /visible text/],
+        [player.locator(".hp-line"), "height: 1px; overflow: hidden", /clipped/],
+        [player, "border-radius: 999px", /rectangular plate/],
+      ] as const) {
+        const prior = await target.getAttribute("style");
+        try {
+          await target.evaluate((element, style) => element.setAttribute("style", style), style);
+          await expect(assertBattleCardContrast(player)).rejects.toThrow(failure);
+        } finally {
+          await target.evaluate((element, prior) => {
+            if (prior === null) element.removeAttribute("style");
+            else element.setAttribute("style", prior);
+          }, prior);
+        }
+      }
+      await assertBattleCardContrast(player);
       const lowContrast = await page.addStyleTag({
         content: ".ally-card .hp-line b { -webkit-text-fill-color: #232825 !important }",
       });
