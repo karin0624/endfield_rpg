@@ -49,6 +49,7 @@ interface SceneActor {
   effect?: {
     readonly type: "attack" | "hit" | "defeat";
     readonly startedAt: number;
+    readonly durationMs: number;
     readonly onComplete?: () => void;
   };
   screenRect?: ScreenRect;
@@ -73,7 +74,13 @@ export interface BattleScene {
   getCombatantScreenRect(id: string): ScreenRect | undefined;
   getFrontmostEnemyId(candidateIds: readonly string[]): string | undefined;
   refreshCombatantScreenPositions(): void;
-  playCombatantEffect(id: string, type: "attack" | "hit" | "defeat", animate?: boolean, onComplete?: () => void): void;
+  playCombatantEffect(
+    id: string,
+    type: "attack" | "hit" | "defeat",
+    animate?: boolean,
+    onComplete?: () => void,
+    durationMs?: number,
+  ): void;
   resetCombatantPresentation(): void;
   getPlacementWarnings(): string[];
   dispose(): void;
@@ -278,7 +285,6 @@ function createEnvironment(
       const scaleX = canvas.clientWidth / engine.getRenderWidth();
       const scaleY = canvas.clientHeight / engine.getRenderHeight();
       for (const actor of actors) {
-        if (actor.layout.team !== "enemy") continue;
         if (!actor.plane.isEnabled()) {
           actor.screenRect = undefined;
           continue;
@@ -545,7 +551,7 @@ function createEnvironment(
       for (const actor of actors) {
         const effect = actor.effect;
         if (effect === undefined) continue;
-        const progress = Math.min(1, (now - effect.startedAt) / 240);
+        const progress = Math.min(1, (now - effect.startedAt) / effect.durationMs);
         const pulse = Math.sin(Math.PI * progress);
         if (effect.type === "attack") {
           const emphasis = pulse * 0.07;
@@ -620,10 +626,10 @@ function createEnvironment(
         updateActorPositions(true);
         needsRender = true;
       },
-      /** キャッシュした敵の画面範囲。全員分を同じ描画フレームで更新する。 */
+      /** キャッシュした全戦闘者の画面範囲。味方への演出も実投影を使う。 */
       getCombatantScreenRect(id: string): ScreenRect | undefined {
         const actor = findActor(id);
-        if (actor === undefined || actor.layout.team !== "enemy") return undefined;
+        if (actor === undefined) return undefined;
         return actor.screenRect;
       },
       /** カメラの前方へ最も近い敵を、現在の3D配置から選ぶ。 */
@@ -652,7 +658,13 @@ function createEnvironment(
         scene.updateTransformMatrix();
         updateCombatantScreenPositions();
       },
-      playCombatantEffect(id: string, type: "attack" | "hit" | "defeat", animate = true, onComplete?: () => void) {
+      playCombatantEffect(
+        id: string,
+        type: "attack" | "hit" | "defeat",
+        animate = true,
+        onComplete?: () => void,
+        durationMs = 240,
+      ) {
         const actor = findActor(id);
         if (actor === undefined) return;
         if (type === "defeat") {
@@ -675,7 +687,7 @@ function createEnvironment(
           onComplete?.();
           return;
         }
-        actor.effect = { type, startedAt: performance.now(), onComplete };
+        actor.effect = { type, startedAt: performance.now(), onComplete, durationMs };
         needsRender = true;
       },
       resetCombatantPresentation() {

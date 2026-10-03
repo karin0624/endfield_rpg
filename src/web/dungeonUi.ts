@@ -101,6 +101,7 @@ export function mountDungeonUi(
   options: {
     initialState: DungeonState;
     getItems?: () => ItemState | undefined;
+    allowBasicAttack?: boolean;
     getGrowth?: () => ExplorationSkills | undefined;
     chooseGrowth?: (input: {
       explorationId: string;
@@ -623,6 +624,7 @@ export function mountDungeonUi(
         battleStatus.classList.add("sr-only");
         disposeBattleUi = mountBattleUi(battleBoard, currentScene, {
           initialState: activity.state,
+          allowBasicAttack: options.allowBasicAttack,
           skillRules: options.skillRules,
           useSkill: (battleState, actorId, targetId, skillId) => {
             const result = options.dispatch({
