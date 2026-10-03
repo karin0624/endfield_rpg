@@ -118,7 +118,7 @@
   line-height: 1.5;
 }
 .formation-screen.party-editor .party-slot-name {
-  font: 500 1.25rem / 1.4 var(--ui-heading-font);
+  font: 500 var(--ui-emphasis-size) / 1.4 var(--ui-heading-font);
 }
 .formation-screen.party-editor .party-slot-hp {
   font-size: var(--ui-body-size);
@@ -241,7 +241,7 @@
   overflow-y: auto;
 }
 .formation-screen.party-editor .party-pending h3 {
-  font: 500 1.25rem / 1.4 var(--ui-heading-font);
+  font: 500 var(--ui-emphasis-size) / 1.4 var(--ui-heading-font);
   margin: 0;
 }
 .formation-screen.party-editor .party-pending p {
