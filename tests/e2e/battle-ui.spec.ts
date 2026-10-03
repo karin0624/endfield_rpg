@@ -306,6 +306,7 @@ for (const real of [false, true]) {
     await page.getByRole("button", { name: "検証用回復", exact: true }).click();
     await page.getByRole("button", { name: "使用する", exact: true }).click();
     await page.getByRole("button", { name: "戦闘を離れる" }).click();
+    await page.clock.resume();
     await page.getByRole("button", { name: "戦闘を開始" }).click();
     await expect(skills).toBeEnabled({ timeout: 60_000 });
     await page.clock.runFor(3000);

@@ -612,11 +612,12 @@ export function mountBattleUi(
   async function replayEvents(confirmedEvents: readonly BattleEvent[]) {
     const skillEvents = confirmedEvents.filter((event) => event.type === "skill");
     const firstSkill = skillEvents[0];
+    let resultSummary = "";
     if (firstSkill) {
       const name = options.skillRules
         ? skillById(options.skillRules.catalog, firstSkill.skillId).name
         : firstSkill.skillId;
-      skillResult.textContent = `${name}：${skillEvents.map((event) => `${combatantName(event.targetId)} ${event.hitIndex}発目 ${event.hit ? `${formatAmount(event.amount)}${event.effect === "damage" ? "ダメージ" : "回復"}` : "外れ"}`).join(" · ")} · 精神疲労 ${formatAmount(firstSkill.fatigueBefore)} → ${formatAmount(firstSkill.fatigueAfter)}`;
+      resultSummary = `${name}：${skillEvents.map((event) => `${combatantName(event.targetId)} ${event.hitIndex}発目 ${event.hit ? `${formatAmount(event.amount)}${event.effect === "damage" ? "ダメージ" : "回復"}` : "外れ"}`).join(" · ")} · 精神疲労 ${formatAmount(firstSkill.fatigueBefore)} → ${formatAmount(firstSkill.fatigueAfter)}`;
       skillResult.hidden = true;
     }
     let hasReplayedAllyAttack = false;
@@ -655,7 +656,7 @@ export function mountBattleUi(
         });
       } else if (event.type === "symptom") {
         const detail = `${combatantName(event.actorId)}の${symptomNames[event.kind]}：${formatAmount(event.before)} → ${loadSymptomText(event.kind, event.after)}`;
-        skillResult.textContent += ` · ${detail}`;
+        resultSummary += ` · ${detail}`;
         screenReaderStatus.textContent = detail;
       } else if (event.type === "combatant-defeated") {
         displayState = {
@@ -684,6 +685,7 @@ export function mountBattleUi(
     if (disposed) return;
     eventToast.hidden = true;
     displayState = state;
+    skillResult.textContent = resultSummary;
     skillResult.hidden = !firstSkill;
     sequence.setSpeed(Number(speedSelect.value));
     replayingEvents = false;
