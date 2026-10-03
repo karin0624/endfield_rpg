@@ -1,3 +1,10 @@
+import { equipmentCatalog } from "../content/equipmentDefinitions";
+import { itemCatalog, recoveryItemId, recoveryItemOffer } from "../content/itemSettings";
+import { editHomeEquipment } from "../game/equipmentRuntime";
+import { createInventory } from "../game/inventory";
+import { purchaseItem } from "../game/itemPurchase";
+import { bagItemQuantity } from "../game/items";
+import "./items.css";
 import { characters } from "../content/characters";
 import { growthRules } from "../content/growthRules";
 import { initialAdventure } from "../content/initialAdventure";
@@ -30,7 +37,7 @@ import { loadSlot, writeSlot } from "./saveSlot";
 import { calendarLabel, completionFeedback, mentalFatigueText, symptomLabel } from "./sessionFeedback";
 import "./campaign.css";
 
-// IDs and game rules stay shared with v4 saves; only development labels are omitted.
+// Development labels are omitted without changing skill IDs or effects.
 const catalog = {
   ...skillCatalog,
   skills: skillCatalog.skills.map((skill) => ({ ...skill, name: skill.name.replace(/^検証用/, "") })),
@@ -41,11 +48,14 @@ function newGame(): ExpeditionGame {
     adventure: createInitialGameState(initialGameOptions),
     party: createParty(characters, ["player"]),
     dungeon: null,
+    inventory: createInventory(),
   };
 }
 
 export function mountCampaign(root: HTMLDivElement): () => void {
   let game = newGame();
+  let carryQuantity = 0;
+  const itemSelection = () => (carryQuantity > 0 ? [{ itemId: recoveryItemId, quantity: carryQuantity }] : []);
   let completion: GameActionCompletion | undefined;
   let disposeView: (() => void) | undefined;
   let viewEvents = new AbortController();
@@ -127,6 +137,7 @@ export function mountCampaign(root: HTMLDivElement): () => void {
             "新しいプレイを始めます。既存の保存データは、ホームで保存するまで保持されます。",
             () => {
               game = newGame();
+              carryQuantity = 0;
               completion = undefined;
               showIntro();
             },
@@ -138,6 +149,7 @@ export function mountCampaign(root: HTMLDivElement): () => void {
         const result = loadSlot(newGame(), saveDefinitions);
         if (result.state) {
           game = result.state;
+          carryQuantity = 0;
           showHome(result.message);
         } else showTitle(result.message);
       }),
@@ -154,6 +166,9 @@ export function mountCampaign(root: HTMLDivElement): () => void {
   function feedback() {
     return [
       ...completionFeedback(completion, characters),
+      ...(completion?.lostItems?.length
+        ? [`物品ロスト：${completion.lostItems.reduce((n, item) => n + item.quantity, 0)}個`]
+        : []),
       ...(completion?.returnedIds ?? []).flatMap((id) => {
         const member = game.party.members.find((candidate) => candidate.id === id);
         const label = [
@@ -196,9 +211,40 @@ export function mountCampaign(root: HTMLDivElement): () => void {
     }
     report.hidden = report.childElementCount === 0;
     requiredElement<HTMLElement>(root, ".campaign-copy").append(report);
+    const stock = game.inventory?.items.home.find((s) => s.itemId === recoveryItemId)?.quantity ?? 0;
+    carryQuantity = Math.min(carryQuantity, stock);
+    copy(`所持金 ${game.inventory?.balance ?? 0} · ホーム保管 HP回復品 ${stock}個`);
+    const carryLabel = document.createElement("label");
+    carryLabel.textContent = "持込み個数（HP回復品）";
+    const carry = document.createElement("input");
+    carry.type = "number";
+    carry.min = "0";
+    carry.max = String(stock);
+    carry.step = "1";
+    carry.value = String(carryQuantity);
+    carry.className = "item-carry-input";
+    carry.addEventListener(
+      "input",
+      () => {
+        carryQuantity =
+          Number.isSafeInteger(carry.valueAsNumber) && carry.valueAsNumber >= 0 && carry.valueAsNumber <= stock
+            ? carry.valueAsNumber
+            : 0;
+      },
+      { signal: viewEvents.signal },
+    );
+    carryLabel.append(carry);
+    requiredElement<HTMLElement>(root, ".campaign-copy").append(carryLabel);
     nav.append(
-      button("探索先を選ぶ", showDestinations, true),
+      button(
+        "探索先を選ぶ",
+        () => {
+          if (carry.reportValidity()) showDestinations();
+        },
+        true,
+      ),
       button("出撃編成を見る", () => showParty("edit")),
+      button("装備を整える", showEquipment),
     );
     nav.append(
       button("保存", () => save(false)),
@@ -212,6 +258,56 @@ export function mountCampaign(root: HTMLDivElement): () => void {
         ),
       ),
     );
+  }
+  function showEquipment(message = "") {
+    const nav = screen("装備", "equipment", message);
+    const inventory = game.inventory;
+    if (!inventory) return;
+    for (const member of game.party.members) {
+      const name = characterById(characters, member.id).name;
+      const stats =
+        grownCharacters(game, rules).find((c) => c.id === member.id) ?? characterById(characters, member.id);
+      copy(
+        `${name} · HP ${member.hp}/${effectiveMaxHp(stats.maxHp, member.status ?? healthyStatus())} · 攻撃力 ${stats.attackPower}`,
+      );
+      for (const slot of ["weapon", "armor"] as const) {
+        const label = document.createElement("label");
+        label.textContent = `${name}の${slot === "weapon" ? "武器（攻撃力+1）" : "防具（最大HP+4）"}`;
+        const select = document.createElement("select");
+        select.className = "item-equipment-select";
+        const none = document.createElement("option");
+        none.value = "";
+        none.textContent = "装備なし";
+        select.append(none);
+        let number = 0;
+        for (const instance of inventory.equipment.owned) {
+          if (!equipmentCatalog.some((e) => e.id === instance.definitionId && e.slot === slot)) continue;
+          number++;
+          const owner = inventory.equipment.assignments.find(
+            (a) => a.weapon === instance.instanceId || a.armor === instance.instanceId,
+          );
+          const option = document.createElement("option");
+          option.value = instance.instanceId;
+          option.textContent = `${slot === "weapon" ? "武器" : "防具"} ${number}${owner ? ` · ${characterById(characters, owner.characterId).name}` : ""}`;
+          option.disabled = owner !== undefined && owner.characterId !== member.id;
+          select.append(option);
+        }
+        select.value = inventory.equipment.assignments.find((a) => a.characterId === member.id)?.[slot] ?? "";
+        select.addEventListener(
+          "change",
+          () => {
+            const result = editHomeEquipment(game, "home", member.id, slot, select.value || null, characters, rules);
+            game = result.state;
+            showEquipment(result.accepted ? "装備を変更しました。" : "装備を変更できませんでした。");
+          },
+          { signal: viewEvents.signal },
+        );
+        label.append(select);
+        requiredElement<HTMLElement>(root, ".campaign-copy").append(label);
+      }
+    }
+    if (!inventory.equipment.owned.length) copy("所持している装備はありません。");
+    nav.append(button("ホームへ戻る", () => showHome()));
   }
   function showDestinations(message = "") {
     const nav = screen("探索先選択", "destinations", message);
@@ -253,9 +349,10 @@ export function mountCampaign(root: HTMLDivElement): () => void {
           return result;
         },
         depart: () => {
-          const result = departOnExpedition(game, characters, initialDungeon, initialAdventure, rules);
+          const result = departOnExpedition(game, characters, initialDungeon, initialAdventure, rules, itemSelection());
           if (result.accepted) {
             game = result.state;
+            carryQuantity = 0;
             completion = undefined;
             showDungeon();
           }
@@ -287,15 +384,46 @@ export function mountCampaign(root: HTMLDivElement): () => void {
     }
     disposeView = mountAdventureUi(root, undefined, {
       initialState: game.adventure,
+      shop: {
+        balance: () => game.inventory?.balance ?? 0,
+        count: () => (game.inventory ? bagItemQuantity(game.inventory.items, recoveryItemId) : 0),
+        buy: (quantity) => {
+          const inventory = game.inventory;
+          const action = game.clock?.pendingAction;
+          if (
+            !inventory ||
+            action?.kind !== "town-exploration" ||
+            game.adventure.currentPlaceId !== "market" ||
+            game.adventure.mode !== "conversation"
+          )
+            return false;
+          const bought = purchaseItem(
+            inventory.items,
+            inventory.balance,
+            recoveryItemOffer,
+            {
+              quantity,
+              explorationId: action.id,
+              expectedVersion: inventory.items.version,
+              transactionId: String(inventory.items.version),
+            },
+            itemCatalog,
+          );
+          if (!bought.accepted) return false;
+          game = { ...game, inventory: { ...inventory, items: bought.items, balance: bought.balance } };
+          return true;
+        },
+      },
       getCalendarLabel: () => calendarLabel(game.clock),
       getFeedback: feedback,
       onHome: () => showHome(),
       dispatch: (command, actionId) => {
         const result =
           command.type === "select"
-            ? beginTownExploration(game, command.placeId, initialAdventure)
+            ? beginTownExploration(game, command.placeId, initialAdventure, itemSelection())
             : actInTown(game, actionId ?? -1, command, characters, initialAdventure, mentalFatigueDefinition, rules);
         game = result.state;
+        if (result.accepted && command.type === "select") carryQuantity = 0;
         if (result.accepted) completion = result.completion;
         if (hasPendingGrowth(game))
           queueMicrotask(() => {
@@ -320,6 +448,7 @@ export function mountCampaign(root: HTMLDivElement): () => void {
     const actionId = game.clock?.pendingAction?.id;
     disposeView = mountDungeonUi(root, {
       initialState: game.dungeon,
+      getItems: () => game.inventory?.items,
       getGrowth: () => game.growth,
       chooseGrowth: (input) => {
         game = chooseGrowthSkill(game, input, rules).state;

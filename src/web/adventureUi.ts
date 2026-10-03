@@ -12,6 +12,7 @@ import {
 import { createInitialGameState, type GameState } from "../game/createInitialGameState";
 import savedAdventureSettings from "./adventure-settings.json";
 import { type AdventureSettings, applyAdventureSettings, parseAdventureSettings } from "./adventureSettings";
+import { type ItemShopOptions, mountItemShop } from "./itemShopUi";
 import { mountPartyUi, type PartyUiOptions } from "./partyUi";
 import { requiredElement } from "./requiredElement";
 
@@ -82,6 +83,7 @@ export function mountAdventureUi(
     party?: PartyUiOptions;
     onHome?: () => void;
     debug?: boolean;
+    shop?: ItemShopOptions;
   },
 ) {
   root.innerHTML = `
@@ -160,6 +162,7 @@ export function mountAdventureUi(
     },
     { signal: events.signal },
   );
+  const shop = options?.shop ? mountItemShop(conversationView, options.shop) : undefined;
   let disposed = false;
   root.querySelector("[data-home]")?.addEventListener("click", () => options?.onHome?.(), { signal: events.signal });
   if (options?.debug) {
@@ -339,6 +342,7 @@ export function mountAdventureUi(
   }
 
   function render(): void {
+    shop?.render(state.mode === "conversation" && state.currentPlaceId === "market");
     if (disposed) return;
     if (state.mode === "town") {
       screen.dataset.mode = "town";
@@ -393,6 +397,7 @@ export function mountAdventureUi(
     },
     dispose() {
       disposed = true;
+      shop?.dispose();
       events.abort();
       disposeParty?.dispose();
     },

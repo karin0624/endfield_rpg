@@ -1,3 +1,4 @@
+import { itemCatalog, recoveryItemId } from "../../src/content/itemSettings";
 import { mentalFatigueDefinition } from "../../src/content/mentalFatigueDefinition";
 import { skillCatalog } from "../../src/content/skillDefinitions";
 import {
@@ -6,6 +7,8 @@ import {
   createBattleState,
   performBattleSkillAndAdvanceToAllyInput,
 } from "../../src/game/battle";
+import { bagItemQuantity, createItemState, packItems } from "../../src/game/items";
+import { useBattleRecoveryItem } from "../../src/game/itemUse";
 import savedSettings from "../../src/web/battle-settings.json";
 import { createBattleScene } from "../../src/web/battleScene";
 import { parseBattleSettings } from "../../src/web/battleSettings";
@@ -53,7 +56,13 @@ const definitions: readonly BattleCombatantDefinition[] = [
         },
       ]
     : []),
-  { id: "slime", team: "enemy", speed: query.has("party") || query.has("symptom") ? 80 : 40, hp: 40, attackPower: 4 },
+  {
+    id: "slime",
+    team: "enemy",
+    speed: query.has("party") || query.has("symptom") || query.has("items") ? 80 : 40,
+    hp: 40,
+    attackPower: 4,
+  },
 ];
 const app = requiredElement<HTMLElement>(document, "#app");
 app.innerHTML = `<aside class="sequence-fixture-controls"><button type="button" data-exit>戦闘を離れる</button><button type="button" data-reenter>戦闘を開始</button><output data-count>確定 0回</output></aside><main class="battle-screen"><div class="game-board"><section class="stage"><canvas></canvas></section></div></main>`;
@@ -68,7 +77,32 @@ async function enter() {
     ? createBattleScene(canvas, settings, definitions)
     : createUiTestRenderer(canvas, settings).beginBattle(definitions);
   await renderer.ready;
+  const stock = [{ itemId: recoveryItemId, quantity: 2 }];
+  const packed = packItems(createItemState(stock, itemCatalog), 0, 1, "dungeon", stock, itemCatalog);
+  if (!packed.accepted) throw new Error("Fixture item packing failed");
+  let items = packed.state;
   const ui = mountBattleUi(board, renderer, {
+    itemCount: query.has("items") ? () => bagItemQuantity(items, recoveryItemId) : undefined,
+    useItem(state, actorId, targetId) {
+      const used = useBattleRecoveryItem(
+        items,
+        state,
+        {
+          expectedVersion: items.version,
+          explorationId: 1,
+          itemId: recoveryItemId,
+          actorId,
+          targetId,
+          expectedActionTime: state.logicalTime,
+        },
+        itemCatalog,
+      );
+      if (!used.accepted) return { accepted: false, reason: "使用不可" };
+      items = used.items;
+      const result = advanceBattleToNextAllyInput(used.battle);
+      requiredElement<HTMLElement>(app, "[data-count]").textContent = `確定 ${++count}回`;
+      return { accepted: true, state: result.state, events: result.events, itemRecovery: used.event };
+    },
     combatants: definitions,
     initialState: advanceBattleToNextAllyInput(createBattleState(definitions)).state,
     skillRules: rules,

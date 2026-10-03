@@ -1,8 +1,13 @@
+import { equipmentCatalog } from "../content/equipmentDefinitions";
+import { itemCatalog } from "../content/itemSettings";
 import { loadSymptomDefinition } from "../content/loadSymptomDefinition";
 import type { BattleSkillRules } from "./battle";
+import { assignedEquipmentStats } from "./equipment";
+import { parseSavedEquipment } from "./equipmentSave";
 import type { ExpeditionGame } from "./expedition";
 import { growthStats, hasPendingGrowth } from "./growthRuntime";
 import { parseSavedGrowth } from "./growthSave";
+import { createInventory, type Inventory } from "./inventory";
 import type { CharacterDefinition, PartyMember, PartySlots } from "./party";
 import { type CharacterStatus, effectiveMaxHp, healthyStatus } from "./status";
 import { ACTION_HALF_DAYS, createActionClock } from "./time";
@@ -20,6 +25,7 @@ export type SaveReadResult =
 export function canSaveGame(game: ExpeditionGame): boolean {
   return (
     !hasPendingGrowth(game) &&
+    (game.inventory?.items.exploration ?? null) === null &&
     game.adventure.mode === "town" &&
     game.adventure.conversationId === null &&
     game.adventure.conversationPosition === null &&
@@ -55,6 +61,43 @@ function parseStatus(value: unknown): CharacterStatus | undefined {
   return { physicalFatigue, haze, incapacityRecoverySteps };
 }
 
+function parseInventory(value: unknown): Inventory | undefined {
+  if (!record(value) || !keys(value, ["items", "balance", "equipment"]) || !counter(value.balance)) return;
+  const equipment = parseSavedEquipment(value.equipment);
+  if (!equipment) return;
+  const items = value.items;
+  if (
+    !record(items) ||
+    !keys(items, ["version", "home", "importantIds", "exploration"]) ||
+    !counter(items.version) ||
+    items.exploration !== null ||
+    !Array.isArray(items.home) ||
+    !Array.isArray(items.importantIds)
+  )
+    return;
+  const home: { itemId: string; quantity: number }[] = [];
+  for (const stack of items.home) {
+    if (
+      !record(stack) ||
+      !keys(stack, ["itemId", "quantity"]) ||
+      typeof stack.itemId !== "string" ||
+      !counter(stack.quantity) ||
+      stack.quantity < 1 ||
+      !itemCatalog.some((item) => item.id === stack.itemId && item.kind === "consumable") ||
+      home.some((s) => s.itemId === stack.itemId)
+    )
+      return;
+    home.push({ itemId: stack.itemId, quantity: stack.quantity });
+  }
+  // No important items have production definitions yet; unknown saved IDs are not silently adopted.
+  if (items.importantIds.length > 0) return;
+  return {
+    balance: value.balance,
+    equipment,
+    items: { version: items.version, home, importantIds: [], exploration: null },
+  };
+}
+
 /** Reconstruct only persisted logical fields; never execute game actions during restoration. */
 export function deserializeGame(data: string, definitions: SaveDefinitions): SaveReadResult {
   const invalid = { accepted: false, reason: "invalid-data" } as const;
@@ -65,10 +108,23 @@ export function deserializeGame(data: string, definitions: SaveDefinitions): Sav
     return invalid;
   }
   if (!record(value)) return invalid;
-  if (value.version !== 4) return { accepted: false, reason: "unsupported-version" };
-  if (!keys(value, ["version", "adventure", "party", "clock", "randomState", "lastTownRecoverySignal", "growth"]))
+  if (value.version !== 5) return { accepted: false, reason: "unsupported-version" };
+  if (
+    !keys(value, [
+      "version",
+      "adventure",
+      "party",
+      "clock",
+      "randomState",
+      "lastTownRecoverySignal",
+      "growth",
+      "inventory",
+    ])
+  )
     return invalid;
   const { adventure, party, clock, randomState, lastTownRecoverySignal } = value;
+  const inventory = parseInventory(value.inventory);
+  if (!inventory) return invalid;
   if (
     !record(adventure) ||
     !keys(adventure, ["currentPlaceId", "flags"]) ||
@@ -116,7 +172,8 @@ export function deserializeGame(data: string, definitions: SaveDefinitions): Sav
       member.hp < 0 ||
       member.hp >
         effectiveMaxHp(
-          definition.maxHp + (definitions.skills ? growthStats(member.id, growth, definitions.skills).maxHp : 0),
+          assignedEquipmentStats(definition, inventory.equipment, equipmentCatalog).maxHp +
+            (definitions.skills ? growthStats(member.id, growth, definitions.skills).maxHp : 0),
           status,
         )
     )
@@ -124,6 +181,7 @@ export function deserializeGame(data: string, definitions: SaveDefinitions): Sav
     joined.add(member.id);
     members.push({ id: member.id, hp: member.hp, status, mentalFatigue });
   }
+  if (inventory.equipment.assignments.some((a) => !joined.has(a.characterId))) return invalid;
   const occupied = new Set<string>();
   const flags = adventure.flags;
   if (definitions.recruitmentFlags?.some(({ flag, characterId }) => flags.includes(flag) && !joined.has(characterId)))
@@ -163,6 +221,7 @@ export function deserializeGame(data: string, definitions: SaveDefinitions): Sav
       party: { members, slots: [...party.slots] as unknown as PartySlots },
       dungeon: null,
       ...(growth ? { growth } : {}),
+      ...(inventory ? { inventory } : {}),
       clock: {
         elapsedHalfDays: clock.elapsedHalfDays,
         recoverySteps: clock.recoverySteps,
@@ -183,8 +242,10 @@ export function serializeGame(
   | { readonly accepted: false; readonly reason: "not-in-town" | "invalid-data" } {
   if (!canSaveGame(game)) return { accepted: false, reason: "not-in-town" };
   const clock = game.clock ?? createActionClock();
+  const inventory = game.inventory ?? createInventory();
   const data = JSON.stringify({
-    version: 4,
+    version: 5,
+    inventory: { balance: inventory.balance, equipment: inventory.equipment, items: inventory.items },
     growth: game.growth ? { ...game.growth, randomState: game.randomState ?? 1 } : null,
     adventure: { currentPlaceId: game.adventure.currentPlaceId, flags: game.adventure.flags },
     party: {

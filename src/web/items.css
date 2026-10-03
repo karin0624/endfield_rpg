@@ -1,0 +1,71 @@
+.item-dialog {
+  color: var(--text-primary, #e8e8de);
+  background: #1a211d;
+  border: 1px solid #828b78;
+  border-radius: 0.35rem;
+  padding: 1.5rem;
+  width: min(30rem, calc(100vw - 2rem));
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+  box-sizing: border-box;
+  font-size: var(--font-size-body);
+  line-height: 1.6;
+}
+.item-dialog::backdrop {
+  background: #0a100dd4;
+}
+.item-dialog label,
+.item-dialog select,
+.item-dialog input {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+}
+.item-dialog select,
+.item-dialog input,
+.item-carry-input {
+  color: inherit;
+  background: #101713;
+  padding: 0.6rem;
+  border: 1px solid #828b78;
+  font: inherit;
+}
+.item-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+.item-dialog .command {
+  position: static;
+}
+.item-trigger {
+  margin-top: 0.5rem;
+}
+.dungeon-route-screen > .item-trigger {
+  position: absolute;
+  left: 1rem;
+  top: 5rem;
+  z-index: 4;
+}
+.item-shop-trigger {
+  position: absolute;
+  left: 1rem;
+  top: 1rem;
+  z-index: 5;
+}
+.item-carry-input {
+  width: 6rem;
+  margin-left: 0.75rem;
+}
+
+.item-equipment-select {
+  display: block;
+  width: min(100%, 24rem);
+  padding: 0.6rem;
+  margin: 0.5rem 0 1rem;
+  color: inherit;
+  background: #101713;
+  border: 1px solid #828b78;
+  font: inherit;
+}

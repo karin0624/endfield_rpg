@@ -1,5 +1,6 @@
 import { initialAdventure } from "../content/initialAdventure";
 import { initialDungeon } from "../content/initialDungeon";
+import { recoveryItemId } from "../content/itemSettings";
 import type { ConversationPresentation } from "../game/adventure";
 import type { BattleCombatantDefinition, BattleSkillRules, BattleState } from "../game/battle";
 import {
@@ -9,6 +10,7 @@ import {
   getCurrentDungeonConversationScene,
 } from "../game/dungeon";
 import type { DungeonCommand } from "../game/expedition";
+import { bagItemQuantity, type ItemState } from "../game/items";
 import type { ExplorationSkills } from "../game/skillAcquisition";
 import savedAdventureSettings from "./adventure-settings.json";
 import { applyAdventureSettings, parseAdventureSettings } from "./adventureSettings";
@@ -19,6 +21,7 @@ import { parseBattleSettings } from "./battleSettings";
 import { mountBattleUi } from "./battleUi";
 import { mountBranchSkillUi } from "./branchSkillUi";
 import { mountGrowthChoice } from "./growthChoiceUi";
+import { mountRecoveryItemUi } from "./itemRecoveryUi";
 import { requiredElement } from "./requiredElement";
 
 const assetUrl = (path: string) => `${import.meta.env.BASE_URL}assets/${path}`;
@@ -97,6 +100,7 @@ export function mountDungeonUi(
   root: HTMLDivElement,
   options: {
     initialState: DungeonState;
+    getItems?: () => ItemState | undefined;
     allowBasicAttack?: boolean;
     getGrowth?: () => ExplorationSkills | undefined;
     chooseGrowth?: (input: {
@@ -199,6 +203,7 @@ export function mountDungeonUi(
   const conversationSettings = parseAdventureSettings(savedAdventureSettings);
   applyAdventureSettings(conversationScreen, conversationSettings);
   outcomeScreen.style.backgroundImage = `linear-gradient(180deg, #171d19d9, #171d19ee), url("${assetUrl("backgrounds/dungeon-route.png")}")`;
+  let disposeBranchItems: (() => void) | undefined;
   let disposeBranchSkills: (() => void) | undefined;
   let branchResult = "";
   let dungeonState = options.initialState;
@@ -218,6 +223,8 @@ export function mountDungeonUi(
   const nodeButtons = new Map<string, HTMLButtonElement>();
 
   function showView(view: "route" | "conversation" | "battle" | "outcome" | "growth"): void {
+    disposeBranchItems?.();
+    disposeBranchItems = undefined;
     disposeBranchSkills?.();
     disposeBranchSkills = undefined;
     growthScreen.hidden = view !== "growth";
@@ -424,6 +431,44 @@ export function mountDungeonUi(
           routeScreen.querySelector<HTMLButtonElement>(".branch-skill-trigger")?.focus();
         },
       );
+    if (options.getItems)
+      disposeBranchItems = mountRecoveryItemUi(routeScreen, {
+        count: () => {
+          const items = options.getItems?.();
+          return items ? bagItemQuantity(items, recoveryItemId) : 0;
+        },
+        targets: () => dungeonState.party,
+        names: options.displayNames,
+        canUse: () => dungeonState.outcome === "ongoing" && dungeonState.activity === null,
+        use: (targetId) => {
+          const items = options.getItems?.();
+          if (!items) return false;
+          const result = options.dispatch({
+            type: "branch-item",
+            itemId: recoveryItemId,
+            targetId,
+            explorationId: dungeonState.expeditionActionId ?? -1,
+            expectedVersion: items.version,
+            expectedNodeId: dungeonState.currentNodeId,
+          });
+          if (!result.accepted) return false;
+          const event = result.itemRecovery;
+          const target = result.state.party.find((p) => p.id === targetId);
+          branchResult =
+            event && target
+              ? `HP回復品：HPを${event.amount}回復。${options.displayNames[target.id] ?? target.id} HP ${target.hp} · 精神疲労 ${target.mentalFatigue ?? 0}。`
+              : "";
+          applyDungeonResult(result);
+          return true;
+        },
+        afterUse: () => {
+          const next =
+            routeScreen.querySelector<HTMLButtonElement>(".item-trigger:not(:disabled)") ??
+            routeNodes.querySelector<HTMLButtonElement>("button:not(:disabled)") ??
+            routeScreen.querySelector<HTMLButtonElement>("[data-return-town]");
+          next?.focus();
+        },
+      }).dispose;
     let resultLabel = routeScreen.querySelector<HTMLParagraphElement>(".branch-skill-result");
     if (!resultLabel) {
       resultLabel = document.createElement("p");
@@ -580,6 +625,36 @@ export function mountDungeonUi(
         disposeBattleUi = mountBattleUi(battleBoard, currentScene, {
           initialState: activity.state,
           allowBasicAttack: options.allowBasicAttack,
+          itemCount: options.getItems
+            ? () => {
+                const items = options.getItems?.();
+                return items ? bagItemQuantity(items, recoveryItemId) : 0;
+              }
+            : undefined,
+          useItem: options.getItems
+            ? (battleState, actorId, targetId) => {
+                const items = options.getItems?.();
+                if (!items) return { accepted: false, reason: "物品がありません" };
+                const result = options.dispatch({
+                  type: "item",
+                  itemId: recoveryItemId,
+                  actorId,
+                  targetId,
+                  explorationId: state.expeditionActionId ?? -1,
+                  expectedVersion: items.version,
+                  expectedNodeId: state.currentNodeId,
+                  expectedActionTime: battleState.logicalTime,
+                });
+                if (!result.accepted || !result.battleState) return { accepted: false, reason: "使用できません" };
+                dungeonState = result.state;
+                return {
+                  accepted: true,
+                  state: result.battleState,
+                  events: result.events,
+                  itemRecovery: result.itemRecovery,
+                };
+              }
+            : undefined,
           skillRules: options.skillRules,
           useSkill: (battleState, actorId, targetId, skillId) => {
             const result = options.dispatch({
@@ -751,6 +826,7 @@ export function mountDungeonUi(
   if (!renderGrowth()) renderRoute();
   return () => {
     disposeGrowth?.();
+    disposeBranchItems?.();
     disposeBranchSkills?.();
     disposed = true;
     disposeBattle();

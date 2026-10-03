@@ -1,3 +1,4 @@
+import { itemCatalog } from "../content/itemSettings";
 import {
   type AdventureDefinition,
   type AdventureRejectionReason,
@@ -21,7 +22,11 @@ import {
   performDungeonBranchSkill,
   performDungeonSkill,
 } from "./dungeon";
+import { equippedCharacters } from "./equipmentRuntime";
 import { ensureGrowth, grownCharacters, hasPendingGrowth, projectGrowth, rewardGrowth } from "./growthRuntime";
+import { finishInventory, type Inventory } from "./inventory";
+import { type BagStack, type ItemStack, packItems } from "./items";
+import { type DungeonItemInput, performDungeonRecoveryItem } from "./itemUse";
 import type { LoadSymptomKind } from "./loadSymptoms";
 import { type MentalFatigueDefinition, recoverMentalFatigue } from "./mentalFatigue";
 import {
@@ -57,6 +62,7 @@ import {
 
 /** One shared session survives in-app navigation; persistent saves are separate. */
 export interface ExpeditionGame {
+  readonly inventory?: Inventory;
   readonly growth?: ExplorationSkills;
   readonly adventure: GameState;
   readonly party: PartyState;
@@ -65,7 +71,12 @@ export interface ExpeditionGame {
   readonly lastTownRecoverySignal?: number;
   readonly clock?: ActionClock;
 }
-export type ExpeditionRejection = PartyRejection | "not-in-town" | "not-on-route" | "action-in-progress";
+export type ExpeditionRejection =
+  | "invalid-items"
+  | PartyRejection
+  | "not-in-town"
+  | "not-on-route"
+  | "action-in-progress";
 export type ExpeditionResult =
   | { readonly accepted: true; readonly state: ExpeditionGame; readonly completion?: GameActionCompletion }
   | { readonly accepted: false; readonly state: ExpeditionGame; readonly reason: ExpeditionRejection };
@@ -86,6 +97,7 @@ export function departOnExpedition(
   route: DungeonDefinition,
   adventure: AdventureDefinition,
   skills?: BattleSkillRules,
+  itemSelection: readonly ItemStack[] = [],
 ): ExpeditionResult {
   if (hasPendingGrowth(state)) return { accepted: false, state, reason: "action-in-progress" };
   if (state.dungeon !== null || state.adventure.mode !== "town")
@@ -94,16 +106,28 @@ export function departOnExpedition(
   if (clock.pendingAction !== null) return { accepted: false, state, reason: "action-in-progress" };
   const reason = departureRejection(state.party);
   if (reason) return { accepted: false, state, reason };
+  const packed = state.inventory
+    ? packItems(
+        state.inventory.items,
+        state.inventory.items.version,
+        clock.nextActionId,
+        "dungeon",
+        itemSelection,
+        itemCatalog,
+      )
+    : undefined;
+  if (packed && !packed.accepted) return { accepted: false, state, reason: "invalid-items" };
   const ready = skills?.growth ? ensureGrowth(state, skills) : state;
   const dungeon = createDungeonState(
     route,
     adventure,
-    getPartyCombatants(state.party, characters, skills?.catalog),
+    getPartyCombatants(state.party, equippedCharacters(state, characters), skills?.catalog),
     state.adventure.flags,
     state.randomState ?? 1,
   );
   const departed = {
     ...ready,
+    ...(state.inventory && packed?.accepted ? { inventory: { ...state.inventory, items: packed.state } } : {}),
     growth: ready.growth ? { ...ready.growth, explorationId: `expedition:${clock.nextActionId}` } : undefined,
     dungeon: { ...dungeon, expeditionActionId: clock.nextActionId },
     clock: beginTimedAction(clock, "dungeon-expedition"),
@@ -112,6 +136,7 @@ export function departOnExpedition(
 }
 
 export type DungeonCommand =
+  | DungeonItemInput
   | { readonly type: "enter"; readonly nodeId: string }
   | { readonly type: "advance" }
   | { readonly type: "choose"; readonly optionId: string }
@@ -136,7 +161,20 @@ export function actInExpedition(
   if (hasPendingGrowth(state))
     return { state, result: { accepted: false, state: state.dungeon, reason: "pending-growth-choice", events: [] } };
   let result: DungeonActionResult;
+  let inventory = state.inventory;
   switch (command.type) {
+    case "item":
+    case "branch-item": {
+      if (!inventory)
+        return {
+          state,
+          result: { accepted: false, state: state.dungeon, reason: "battle:skill-not-usable", events: [] },
+        };
+      const used = performDungeonRecoveryItem(inventory.items, state.dungeon, command, itemCatalog, route);
+      result = used.result;
+      inventory = { ...inventory, items: used.items };
+      break;
+    }
     case "branch-skill":
       result = skills
         ? performDungeonBranchSkill(state.dungeon, command, route, skills)
@@ -164,6 +202,7 @@ export function actInExpedition(
   const dungeon = result.state;
   let updated: ExpeditionGame = {
     ...state,
+    ...(inventory ? { inventory } : {}),
     dungeon,
     randomState: dungeon.randomState,
     party: {
@@ -242,6 +281,19 @@ export function leaveExpedition(
     if (!reset.accepted) return { accepted: false, state, reason: "not-on-route" };
     resetState = projectGrowth({ ...state, growth: reset.state }, state.growth, skills);
   }
+  const returnedItems = resetState.inventory
+    ? finishInventory(
+        resetState.inventory,
+        resetState.dungeon?.outcome === "cleared"
+          ? "cleared"
+          : resetState.dungeon?.outcome === "failed"
+            ? "defeat"
+            : "retreat",
+        resetState.randomState ?? 1,
+      )
+    : undefined;
+  if (returnedItems)
+    resetState = { ...resetState, inventory: returnedItems.inventory, randomState: returnedItems.randomState };
   const returnedIds = resetState.dungeon?.party.map(({ id }) => id);
   const members = resetState.party.members.map((member) => {
     const participant = resetState.dungeon?.party.find(({ id }) => id === member.id);
@@ -257,6 +309,7 @@ export function leaveExpedition(
         ? undefined
         : {
             ...result.completion,
+            lostItems: returnedItems?.lost,
             recovery: [],
             returnedIds,
             outcome: resetState.dungeon?.outcome,
@@ -286,7 +339,10 @@ export function receiveTownRecoverySignal(
           ...member,
           mentalFatigue: fatigue ? recoverMentalFatigue(member.mentalFatigue ?? 0, fatigue) : member.mentalFatigue,
           status,
-          hp: Math.min(member.hp, effectiveMaxHp(characterById(characters, member.id).maxHp, status)),
+          hp: Math.min(
+            member.hp,
+            effectiveMaxHp(characterById(equippedCharacters(state, characters), member.id).maxHp, status),
+          ),
         };
       }),
     },
@@ -314,7 +370,10 @@ export function applyPartyStatus(
         return {
           ...member,
           status,
-          hp: Math.min(member.hp, effectiveMaxHp(characterById(characters, id).maxHp, status)),
+          hp: Math.min(
+            member.hp,
+            effectiveMaxHp(characterById(equippedCharacters(state, characters), id).maxHp, status),
+          ),
         };
       }),
     },
@@ -330,6 +389,7 @@ export interface CharacterRecoveryChange {
   readonly remainingSteps: { readonly physicalFatigue: number; readonly haze: number; readonly incapacity: number };
 }
 export interface GameActionCompletion extends ActionCompletion {
+  readonly lostItems?: readonly BagStack[];
   readonly returnedIds?: readonly string[];
   readonly outcome?: DungeonState["outcome"];
   readonly recruitedIds?: readonly string[];
@@ -340,7 +400,12 @@ export type TownActionResult =
   | {
       readonly accepted: false;
       readonly state: ExpeditionGame;
-      readonly reason: AdventureRejectionReason | RecruitmentRejection | "action-in-progress" | "action-not-current";
+      readonly reason:
+        | AdventureRejectionReason
+        | RecruitmentRejection
+        | "invalid-items"
+        | "action-in-progress"
+        | "action-not-current";
     };
 
 /** Nonbattle exploration has no party participation requirement. */
@@ -348,16 +413,33 @@ export function beginTownExploration(
   state: ExpeditionGame,
   placeId: string,
   definition: AdventureDefinition,
+  itemSelection: readonly ItemStack[] = [],
 ): TownActionResult {
   if (hasPendingGrowth(state)) return { accepted: false, state, reason: "action-in-progress" };
   if (state.dungeon !== null) return { accepted: false, state, reason: "not-in-town" };
   const clock = state.clock ?? createActionClock();
   if (clock.pendingAction !== null) return { accepted: false, state, reason: "action-in-progress" };
+  const packed = state.inventory
+    ? packItems(
+        state.inventory.items,
+        state.inventory.items.version,
+        clock.nextActionId,
+        "town",
+        itemSelection,
+        itemCatalog,
+      )
+    : undefined;
+  if (packed && !packed.accepted) return { accepted: false, state, reason: "invalid-items" };
   const result = selectTownPlace(state.adventure, placeId, definition);
   if (!result.accepted) return { accepted: false, state, reason: result.reason };
   return {
     accepted: true,
-    state: { ...state, adventure: result.state, clock: beginTimedAction(clock, "town-exploration") },
+    state: {
+      ...state,
+      ...(state.inventory && packed?.accepted ? { inventory: { ...state.inventory, items: packed.state } } : {}),
+      adventure: result.state,
+      clock: beginTimedAction(clock, "town-exploration"),
+    },
   };
 }
 
@@ -374,9 +456,14 @@ export function completeTownExploration(
   if (action.kind !== "town-exploration") return { accepted: false, state, reason: "action-not-current" };
   const result = completeTimedAction(clock, action);
   if (result.completion === undefined) return { accepted: false, state, reason: "action-not-current" };
+  let returnedState = state;
+  if (state.inventory) {
+    const returnedItems = finishInventory(state.inventory, "cleared", state.randomState ?? 1);
+    returnedState = { ...state, inventory: returnedItems.inventory, randomState: returnedItems.randomState };
+  }
   // Recovery notifications have their own watermark, independent of action/calendar IDs.
   const recovered = receiveTownRecoverySignal(
-    { ...state, clock: result.clock },
+    { ...returnedState, clock: result.clock },
     (state.lastTownRecoverySignal ?? -1) + 1,
     characters,
     fatigue,
@@ -441,7 +528,7 @@ export function actInTown(
   const completed = completeTownExploration(
     updated,
     pending,
-    skills?.growth ? grownCharacters(updated, skills) : characters,
+    skills?.growth ? grownCharacters({ ...updated, inventory: undefined }, skills) : characters,
     fatigue,
   );
   if (completed.accepted && skills?.growth) {
