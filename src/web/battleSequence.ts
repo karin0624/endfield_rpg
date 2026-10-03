@@ -1,9 +1,10 @@
 import type { BattleEvent } from "../game/battle";
+import type { ItemRecoveryEvent } from "../game/items";
 import type { BattlePresentation } from "./battlePresentation";
 import { requiredElement } from "./requiredElement";
 import "./battleSequence.css";
 
-type Action = Extract<BattleEvent, { type: "attack" | "miss" | "skill" }>;
+type Action = Extract<BattleEvent, { type: "attack" | "miss" | "skill" }> | ItemRecoveryEvent;
 
 /** Presentation only: callers supply confirmed events, never commands or RNG. */
 export function createBattleSequence(stage: HTMLElement, renderer: BattlePresentation) {
@@ -97,12 +98,12 @@ export function createBattleSequence(stage: HTMLElement, renderer: BattlePresent
     },
     async action(event: Action, label: string, result: string, onImpact: () => void) {
       if (disposed) return;
-      actorId = event.actorId;
+      actorId = event.actorId ?? event.targetId;
       targetId = event.targetId;
       actor.textContent = label;
       number.textContent = result;
       const hit = event.type !== "miss" && (event.type !== "skill" || event.hit);
-      const heal = event.type === "skill" && event.effect === "hp-recovery";
+      const heal = event.type === "item-recovery" || (event.type === "skill" && event.effect === "hp-recovery");
       layer.dataset.kind = !hit ? "miss" : heal ? "heal" : "damage";
       layer.hidden = speed === 0;
       phase("actor");

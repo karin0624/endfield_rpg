@@ -195,3 +195,177 @@ test("明示デバッグ入口と保存を通常版から隔離する", async ({
   await page.getByRole("button", { name: "続きから" }).click();
   await expect(page.getByRole("heading", { name: "ホーム", exact: true })).toBeVisible();
 });
+
+test("物品の買物・持込み・帰還・保存を通常画面で通す", async ({ page }, info) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await start(page);
+  await expect(page.locator(".campaign-copy")).toContainText("所持金 30");
+  await page.getByRole("button", { name: "探索先を選ぶ", exact: true }).click();
+  await page.getByRole("button", { name: "街", exact: true }).click();
+  await page.getByRole("button", { name: "市場", exact: true }).click();
+  await page.getByRole("button", { name: "買物", exact: true }).click();
+  const shop = page.getByRole("dialog", { name: "市場の買物" });
+  await expect(shop).toContainText("所持金 30");
+  await shop.getByLabel("購入個数").fill("4");
+  await expect(shop.getByRole("button", { name: "購入する" })).toBeDisabled();
+  await shop.getByLabel("購入個数").fill("2");
+  await shop.getByRole("button", { name: "購入する" }).dblclick();
+  await expect(shop).toContainText("所持金 10");
+  await expect(shop).toContainText("探索バッグ 2個");
+  for (const width of [320, 390, 1920]) {
+    await page.setViewportSize({ width, height: 1080 });
+    await expect(shop.getByRole("button", { name: "買物を閉じる" })).toBeInViewport();
+    await page.screenshot({ path: info.outputPath(`campaign-items-shop-${width}.png`) });
+  }
+  await page.keyboard.press("Escape");
+  await expect(shop).toBeHidden();
+  await page.locator("[data-dialogue-text]").click();
+  await page.getByRole("button", { name: "ホームへ戻る", exact: true }).click();
+  await expect(page.locator("[data-calendar]")).toHaveText("1日目 · 夜");
+  await expect(page.locator(".campaign-copy")).toContainText("ホーム保管 HP回復品 2個");
+  await page.getByLabel("持込み個数（HP回復品）").fill("1");
+  await page.screenshot({ path: info.outputPath("campaign-items-home.png") });
+  await page.getByRole("button", { name: "探索先を選ぶ", exact: true }).click();
+  await page.getByRole("button", { name: "ダンジョン", exact: true }).click();
+  await page.getByRole("button", { name: "物品（HP回復品 ×1）", exact: true }).click();
+  const item = page.getByRole("dialog", { name: "HP回復品の使用" });
+  await expect(item).toContainText("HPは満タン");
+  await expect(item.getByRole("button", { name: "使用する" })).toBeDisabled();
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "ホームへ帰還", exact: true }).click();
+  // Seed 1 retains the one carried item; stock left at home never participates.
+  await expect(page.locator(".campaign-copy")).toContainText("ホーム保管 HP回復品 2個");
+  await expect(page.locator("[data-calendar]")).toHaveText("2日目 · 昼");
+  await save(page, true);
+  await page.reload();
+  await page.getByRole("button", { name: "続きから", exact: true }).click();
+  await expect(page.locator(".campaign-copy")).toContainText("所持金 10");
+  await expect(page.locator(".campaign-copy")).toContainText("ホーム保管 HP回復品 2個");
+  await cleanNormal(page);
+  expect(errors).toEqual([]);
+});
+
+test("共有装備2組を2人へ割り当て、重複・HP増加回復を防いで保存する", async ({ page }, info) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await start(page);
+  await page.getByRole("button", { name: "探索先を選ぶ", exact: true }).click();
+  await page.getByRole("button", { name: "街", exact: true }).click();
+  await page.getByRole("button", { name: "同行者を探す（仮）", exact: true }).click();
+  await page.keyboard.press("Space");
+  await page.getByRole("button", { name: "仲間に迎える" }).click();
+  await page.getByRole("button", { name: "ホームへ戻る", exact: true }).click();
+  await page.getByRole("button", { name: "装備を整える", exact: true }).click();
+  await page.getByLabel("ロッシの武器").selectOption("weapon-1");
+  await page.getByLabel("ロッシの防具").selectOption("armor-1");
+  await expect(page.locator(".campaign-copy")).toContainText("ロッシ · HP 20/24 · 攻撃力 9");
+  await expect(page.getByLabel("ギルベルタの武器").locator('option[value="weapon-1"]')).toHaveJSProperty(
+    "disabled",
+    true,
+  );
+  await page.getByLabel("ギルベルタの武器").selectOption("weapon-2");
+  await page.getByLabel("ギルベルタの防具").selectOption("armor-2");
+  await expect(page.locator(".campaign-copy")).toContainText("ギルベルタ · HP 18/22 · 攻撃力 7");
+  for (const width of [320, 390, 1920]) {
+    await page.setViewportSize({ width, height: 1080 });
+    await expect(page.getByRole("button", { name: "ホームへ戻る", exact: true })).toBeInViewport();
+    await page.screenshot({ path: info.outputPath(`campaign-items-equipment-${width}.png`) });
+  }
+  await page.getByRole("button", { name: "ホームへ戻る", exact: true }).click();
+  await save(page, true);
+  await page.reload();
+  await page.getByRole("button", { name: "続きから", exact: true }).click();
+  await page.getByRole("button", { name: "装備を整える", exact: true }).click();
+  await expect(page.getByLabel("ロッシの防具")).toHaveValue("armor-1");
+  await expect(page.getByLabel("ギルベルタの武器")).toHaveValue("weapon-2");
+  await page.getByLabel("ロッシの武器").selectOption("");
+  await page.getByLabel("ギルベルタの武器").selectOption("weapon-1");
+  await cleanNormal(page);
+  expect(errors).toEqual([]);
+});
+
+for (const carried of [1, 2]) {
+  test(`分岐で正常回復後に残数${carried - 1}に応じてfocusを戻し再操作できる`, async ({ page }, info) => {
+    const errors: string[] = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    await start(page);
+    await page.getByRole("button", { name: "探索先を選ぶ", exact: true }).click();
+    await page.getByRole("button", { name: "街", exact: true }).click();
+    await page.getByRole("button", { name: "市場", exact: true }).click();
+    await page.getByRole("button", { name: "買物", exact: true }).click();
+    const shop = page.getByRole("dialog", { name: "市場の買物" });
+    await shop.getByLabel("購入個数").fill(String(carried));
+    await shop.getByRole("button", { name: "購入する" }).click();
+    await shop.getByRole("button", { name: "買物を閉じる" }).click();
+    await page.locator("[data-dialogue-text]").click();
+    await page.getByRole("button", { name: "ホームへ戻る", exact: true }).click();
+    await page.getByRole("button", { name: "装備を整える", exact: true }).click();
+    await page.getByLabel("ロッシの防具").selectOption("armor-1");
+    await expect(page.locator(".campaign-copy")).toContainText("HP 20/24");
+    await page.getByRole("button", { name: "ホームへ戻る", exact: true }).click();
+    await page.getByLabel("持込み個数（HP回復品）").fill(String(carried));
+    await page.getByRole("button", { name: "探索先を選ぶ", exact: true }).click();
+    await page.getByRole("button", { name: "ダンジョン", exact: true }).click();
+    await page.getByRole("button", { name: `物品（HP回復品 ×${carried}）`, exact: true }).click();
+    const recovery = page.getByRole("dialog", { name: "HP回復品の使用" });
+    await expect(recovery).toContainText("回復見込み +4 HP");
+    await recovery.getByRole("button", { name: "使用する", exact: true }).click();
+    await expect(recovery).toBeHidden();
+    await expect(page.locator(".branch-skill-result")).toHaveText("HP回復品：HPを4回復。ロッシ HP 24 · 精神疲労 0。");
+    const trigger = page.getByRole("button", { name: `物品（HP回復品 ×${carried - 1}）`, exact: true });
+    await expect(page.locator("[data-calendar]")).toHaveText("1日目 · 夜");
+    await page.screenshot({ path: info.outputPath(`campaign-items-recovered-${carried}.png`) });
+    if (carried === 2) {
+      await expect(trigger).toBeFocused();
+      await page.keyboard.press("Enter");
+      await expect(recovery).toBeVisible();
+      await expect(recovery.getByLabel("対象")).toHaveValue("player");
+      await expect(recovery).toContainText("HP 24/24");
+      await expect(recovery.getByRole("button", { name: "使用する", exact: true })).toBeDisabled();
+      await page.keyboard.press("Escape");
+      await expect(trigger).toBeFocused();
+    } else {
+      await expect(trigger).toBeDisabled();
+      await expect(page.getByRole("button", { name: "戦闘、選択可能", exact: true })).toBeFocused();
+      await page.keyboard.press("Enter");
+      await expect(page.getByRole("button", { name: "スキル", exact: true })).toBeEnabled({ timeout: 60_000 });
+    }
+    await cleanNormal(page);
+    expect(errors).toEqual([]);
+  });
+}
+
+test("通常戦闘で持込み物品を一度だけ使い敵行動の後に入力へ戻る", async ({ page }, info) => {
+  await start(page);
+  await page.getByRole("button", { name: "探索先を選ぶ", exact: true }).click();
+  await page.getByRole("button", { name: "街", exact: true }).click();
+  await page.getByRole("button", { name: "市場", exact: true }).click();
+  await page.getByRole("button", { name: "買物", exact: true }).click();
+  const shop = page.getByRole("dialog", { name: "市場の買物" });
+  await shop.getByLabel("購入個数").fill("1");
+  await shop.getByRole("button", { name: "購入する" }).click();
+  await shop.getByRole("button", { name: "買物を閉じる" }).click();
+  await page.locator("[data-dialogue-text]").click();
+  await page.getByRole("button", { name: "ホームへ戻る", exact: true }).click();
+  await page.getByRole("button", { name: "装備を整える", exact: true }).click();
+  await page.getByLabel("ロッシの防具").selectOption("armor-1");
+  await expect(page.locator(".campaign-copy")).toContainText("HP 20/24");
+  await page.getByRole("button", { name: "ホームへ戻る", exact: true }).click();
+  await page.getByLabel("持込み個数（HP回復品）").fill("1");
+  await page.getByRole("button", { name: "探索先を選ぶ", exact: true }).click();
+  await page.getByRole("button", { name: "ダンジョン", exact: true }).click();
+  await page.getByRole("button", { name: "戦闘、選択可能", exact: true }).click();
+  const item = page.getByRole("button", { name: "物品（HP回復品 ×1）", exact: true });
+  await expect(item).toBeEnabled({ timeout: 60_000 });
+  await item.click();
+  const dialog = page.getByRole("dialog", { name: "HP回復品の使用" });
+  await expect(dialog).toContainText("回復見込み +4 HP");
+  await dialog.getByRole("button", { name: "使用する", exact: true }).click();
+  await expect(page.getByRole("button", { name: "スキル", exact: true })).toBeEnabled({ timeout: 60_000 });
+  await expect(page.locator("[data-skill-result]")).toContainText("HPを4回復 · 精神疲労は変化なし");
+  await expect(page.getByRole("button", { name: "物品（HP回復品 ×0）", exact: true })).toBeDisabled();
+  await expect(page.locator("[data-calendar]")).toHaveText("1日目 · 夜");
+  await page.screenshot({ path: info.outputPath("campaign-items-battle-recovery.png") });
+  await cleanNormal(page);
+});

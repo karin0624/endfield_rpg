@@ -9,11 +9,13 @@ import {
   getBattleUpcomingActions,
   performBasicAttackAndAdvanceToAllyInput,
 } from "../game/battle";
+import type { ItemRecoveryEvent } from "../game/items";
 import { mentalFatigueMultiplier } from "../game/mentalFatigue";
 import { activeSkillBaseAmount, mentalFatigueAffectedQuantity, skillById } from "../game/skills";
 import { canParticipate, effectiveMaxHp } from "../game/status";
 import type { BattlePresentation } from "./battlePresentation";
 import { createBattleSequence } from "./battleSequence";
+import { mountRecoveryItemUi } from "./itemRecoveryUi";
 import { requiredElement } from "./requiredElement";
 import { formatAmount, loadSymptomText, mentalFatigueText, symptomNames } from "./sessionFeedback";
 import { renderSymptomIcons } from "./symptomIcons";
@@ -96,10 +98,17 @@ const presentation: Record<string, { name: string; portrait?: string }> = {
 };
 
 export type BattleUiAttackResult =
-  | { readonly accepted: true; readonly state: BattleState; readonly events: readonly BattleEvent[] }
+  | {
+      readonly accepted: true;
+      readonly state: BattleState;
+      readonly events: readonly BattleEvent[];
+      readonly itemRecovery?: ItemRecoveryEvent;
+    }
   | { readonly accepted: false; readonly reason: string };
 
 export interface BattleUiOptions {
+  readonly itemCount?: () => number;
+  readonly useItem?: (state: BattleState, actorId: string, targetId: string) => BattleUiAttackResult;
   readonly initialState?: BattleState;
   readonly allowBasicAttack?: boolean;
   readonly skillRules?: BattleSkillRules;
@@ -557,6 +566,7 @@ export function mountBattleUi(
     const canAct = currentActorIsAlly() && !replayingEvents;
     attackButton.disabled = !canAct || selectedTargetId === null;
     renderSkills(canAct);
+    itemUi?.render();
     for (const [id, button] of enemyHitAreas) {
       const enemy = getCombatant(id);
       const allEnemies = skillPanelOpen && selectedSkill()?.target === "all-enemies";
@@ -612,7 +622,10 @@ export function mountBattleUi(
     if (eventType !== "attack") eventToast.classList.add("play");
   }
 
-  async function replayEvents(confirmedEvents: readonly BattleEvent[]) {
+  async function replayEvents(events: readonly BattleEvent[], itemRecovery?: ItemRecoveryEvent) {
+    const confirmedEvents: readonly (BattleEvent | ItemRecoveryEvent)[] = itemRecovery
+      ? [itemRecovery, ...events]
+      : events;
     const skillEvents = confirmedEvents.filter((event) => event.type === "skill");
     const firstSkill = skillEvents[0];
     let resultSummary = "";
@@ -654,6 +667,22 @@ export function mountBattleUi(
         await sequence.action(event, label, `${result}${hitLabel}`, () => {
           displayImpact(event);
           message = `${label}：${combatantName(event.targetId)} ${result}${hitLabel}`;
+          screenReaderStatus.textContent = message;
+        });
+      } else if (event.type === "item-recovery") {
+        const label = `${combatantName(event.actorId ?? event.targetId)} · HP回復品`;
+        resultSummary = `HP回復品：${combatantName(event.targetId)}のHPを${formatAmount(event.amount)}回復 · 精神疲労は変化なし`;
+        hasReplayedAllyAttack = true;
+        showEventToast(`${label} → ${combatantName(event.targetId)}`, "recovery");
+        await sequence.action(event, label, `${formatAmount(event.amount)} 回復`, () => {
+          displayState = {
+            ...displayState,
+            combatants: displayState.combatants.map((member) =>
+              member.id === event.targetId ? { ...member, hp: member.hp + event.amount } : member,
+            ),
+          };
+          renderCombatants();
+          message = resultSummary;
           screenReaderStatus.textContent = message;
         });
       } else if (event.type === "symptom") {
@@ -710,7 +739,7 @@ export function mountBattleUi(
     eventToast.hidden = true;
     displayState = state;
     skillResult.textContent = resultSummary;
-    skillResult.hidden = !firstSkill;
+    skillResult.hidden = !firstSkill && !itemRecovery;
     sequence.setSpeed(Number(speedSelect.value));
     replayingEvents = false;
     message =
@@ -919,6 +948,37 @@ export function mountBattleUi(
     { signal: eventSignal },
   );
 
+  const itemUi =
+    options.itemCount && options.useItem
+      ? mountRecoveryItemUi(requiredElement<HTMLElement>(hud, ".commands"), {
+          count: options.itemCount,
+          targets: () => state.combatants,
+          names:
+            options.displayNames ??
+            Object.fromEntries(Object.entries(presentation).map(([id, value]) => [id, value.name])),
+          canUse: () => !replayingEvents && currentActorIsAlly(),
+          use: (targetId) => {
+            if (!state.currentActorId || replayingEvents || !options.useItem) return false;
+            const result = options.useItem(state, state.currentActorId, targetId);
+            if (!result.accepted) return false;
+            replayingEvents = true;
+            state = result.state;
+            skillPanelOpen = false;
+            selectedSkillId = null;
+            skillResult.hidden = true;
+            render();
+            void replayEvents(result.events, result.itemRecovery).then(() => {
+              if (disposed) return;
+              const next =
+                hud.querySelector<HTMLButtonElement>(".item-trigger:not(:disabled)") ??
+                (state.outcome !== "ongoing" ? rematchButton : options.skillRules ? skillsButton : attackButton);
+              next.focus();
+            });
+            return true;
+          },
+        })
+      : undefined;
+
   reducedMotion.addEventListener("change", render, { signal: eventSignal });
   render();
   updateTargetHitAreas();
@@ -937,6 +997,7 @@ export function mountBattleUi(
 
   return () => {
     disposed = true;
+    itemUi?.dispose();
     sequence.dispose();
     if (markerFrame !== undefined) window.cancelAnimationFrame(markerFrame);
     if (overlayFrame !== undefined) window.cancelAnimationFrame(overlayFrame);

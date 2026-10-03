@@ -9,6 +9,7 @@ import { formatAmount, mentalFatigueText } from "./sessionFeedback";
 import { renderSymptomIcons } from "./symptomIcons";
 
 const rejectionText: Record<ExpeditionRejection, string> = {
+  "invalid-items": "持込み個数を確認してください。",
   "invalid-slot": "編成枠を選び直してください。",
   "not-joined": "加入済みの仲間を選んでください。",
   "duplicate-member": "同じ仲間は複数の枠に配置できません。先に元の枠を空けてください。",

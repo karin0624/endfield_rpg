@@ -544,3 +544,35 @@ test("代表シーケンス：通常1倍の操作動画（実素材）", async (
     );
   }
 });
+
+test("物品は確定回復を表示してから敵行動を再生し、勝敗演出や二重消費を起こさない", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.goto("/tests/fixtures/battle-sequence.html?items=1");
+  const item = page.getByRole("button", { name: "物品（HP回復品 ×2）", exact: true });
+  await expect(item).toBeEnabled();
+  await page.clock.install({ time: new Date("2026-10-03T12:00:00Z") });
+  await page.clock.pauseAt(new Date("2026-10-03T12:00:01Z"));
+  await item.click();
+  const dialog = page.getByRole("dialog", { name: "HP回復品の使用" });
+  await expect(dialog).toContainText("回復見込み +8 HP");
+  await dialog.getByRole("button", { name: "使用する", exact: true }).dblclick();
+  await expect(page.locator("[data-count]")).toHaveText("確定 1回");
+  await expect(page.locator(".hp-line")).toHaveText("HP10/ 30");
+  await expect(page.getByRole("button", { name: "物品（HP回復品 ×1）", exact: true })).toBeDisabled();
+  await page.clock.runFor(340);
+  await expect(page.locator(".sequence-number")).toHaveText("8 回復");
+  await expect(page.locator(".battle-sequence")).toHaveAttribute("data-kind", "heal");
+  await expect(page.locator(".hp-line")).toHaveText("HP18/ 30");
+  await expect(page.locator("[data-event-toast]")).not.toHaveAttribute("data-event", "battle-ended");
+  await page.clock.runFor(1300);
+  await expect(page.locator(".hp-line")).toHaveText("HP14/ 30");
+  await page.getByRole("button", { name: "演出を省略" }).click();
+  const remaining = page.getByRole("button", { name: "物品（HP回復品 ×1）", exact: true });
+  await expect(remaining).toBeEnabled();
+  await expect(remaining).toBeFocused();
+  await expect(page.locator("[data-skill-result]")).toContainText("HPを8回復 · 精神疲労は変化なし");
+  await expect(page.getByRole("heading", { name: "戦闘に敗北しました" })).toBeHidden();
+  await page.getByRole("button", { name: "スキル", exact: true }).click();
+  await expect(page.locator("[data-skill-fatigue]")).toContainText("精神疲労 0");
+  await expect(page.locator("[data-count]")).toHaveText("確定 1回");
+});
