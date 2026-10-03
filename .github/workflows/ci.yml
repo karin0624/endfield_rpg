@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, codex/pr92-recovery-20261003]
   pull_request:
 
 permissions:
@@ -56,6 +56,10 @@ jobs:
         if: always()
         with:
           name: campaign-flow-previews
-          path: test-results/campaign-*/campaign-*.png
-          if-no-files-found: ignore
+          path: |
+            test-results/campaign-*/campaign-*.png
+            test-results/party-ui-*/formation-*.png
+            test-results/party-ui-*/party-*.png
+            test-results/**/*-readiness.json
+          if-no-files-found: error
           retention-days: 14

@@ -1,0 +1,81 @@
+{
+  "departure": {
+    "fonts": [
+      {
+        "family": "Endfield UI Serif",
+        "status": "loaded"
+      },
+      {
+        "family": "Endfield UI Sans",
+        "status": "loaded"
+      }
+    ],
+    "images": [
+      {
+        "src": "http://127.0.0.1:4180/assets/characters/rossi/expressions/neutral.png",
+        "width": 1024,
+        "height": 1536
+      }
+    ]
+  },
+  "before": [
+    {
+      "complete": true,
+      "width": 256
+    }
+  ],
+  "selection": {
+    "fonts": [
+      {
+        "family": "Endfield UI Serif",
+        "status": "loaded"
+      },
+      {
+        "family": "Endfield UI Sans",
+        "status": "loaded"
+      }
+    ],
+    "images": [
+      {
+        "src": "http://127.0.0.1:4180/assets/characters/rossi/face.png",
+        "width": 256,
+        "height": 320
+      },
+      {
+        "src": "http://127.0.0.1:4180/assets/characters/rossi/face.png",
+        "width": 256,
+        "height": 320
+      },
+      {
+        "src": "http://127.0.0.1:4180/assets/characters/rossi/expressions/neutral.png",
+        "width": 1024,
+        "height": 1536
+      }
+    ]
+  },
+  "responses": [
+    {
+      "url": "http://127.0.0.1:4180/assets/fonts/noto-sans-jp-400.woff2",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:4180/assets/fonts/noto-serif-jp-500.woff2",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:4180/assets/characters/rossi/face.png",
+      "status": 200
+    }
+  ],
+  "fonts": {
+    "fonts": [
+      {
+        "familyName": "Noto Serif JP Medium",
+        "postScriptName": "NotoSerifJP-Medium",
+        "isCustomFont": true,
+        "glyphCount": 5
+      }
+    ]
+  },
+  "errors": []
+}

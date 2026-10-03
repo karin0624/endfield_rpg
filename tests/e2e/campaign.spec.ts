@@ -1,4 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
+import { formationScreenshot } from "./formationEvidence";
 
 async function start(page: Page) {
   await page.goto("/");
@@ -18,6 +19,12 @@ async function save(page: Page, title = false) {
 test("通常版で導入・ホーム・街・編成・戦闘・帰還・保存再開を通す", async ({ page }, info) => {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
+  page.on("response", (response) => {
+    // Cached assets may be revalidated with 304 after the save/resume navigation.
+    if (response.url().includes("/assets/") && response.status() >= 400) {
+      errors.push(`${response.status()} ${response.url()}`);
+    }
+  });
   await page.setViewportSize({ width: 1920, height: 1080 });
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "ENDFIELD RPG" })).toBeVisible();
@@ -43,12 +50,28 @@ test("通常版で導入・ホーム・街・編成・戦闘・帰還・保存�
   await page.getByRole("button", { name: "ホームへ戻る" }).click();
   await expect(page.locator("[data-calendar]")).toHaveText("1日目 · 夜");
   await page.getByRole("button", { name: "出撃編成を見る" }).click();
+  await expect(page.getByRole("button", { name: "出発する", exact: true })).toBeHidden();
+  await formationScreenshot(page, info, "campaign-formation-home-1920.png");
+  await page.getByRole("button", { name: "枠 1", exact: true }).click();
+  await formationScreenshot(page, info, "campaign-formation-selection-1920.png");
+  await page.keyboard.press("Escape");
   await page.getByRole("button", { name: /ロッシの詳細/ }).click();
+  await formationScreenshot(page, info, "campaign-formation-details-1920.png");
+  await page.keyboard.press("Tab");
+  const detailsInfo = page.getByRole("region", { name: "能力と状態" });
+  await expect(detailsInfo).toBeFocused();
+  await page.keyboard.press("End");
+  await expect.poll(() => detailsInfo.evaluate((region) => region.scrollTop)).toBeGreaterThan(0);
+  await expect(detailsInfo.locator(".character-details-skill").last()).toBeInViewport({ ratio: 1 });
+  await formationScreenshot(page, info, "campaign-formation-details-bottom-1920.png");
   await cleanNormal(page);
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "戻る", exact: true }).click();
   await page.getByRole("button", { name: "探索先を選ぶ", exact: true }).click();
   await page.getByRole("button", { name: "ダンジョン", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "出発準備", exact: true })).toBeVisible();
+  await formationScreenshot(page, info, "campaign-formation-departure-1920.png");
+  await page.getByRole("button", { name: "出発する", exact: true }).click();
   await cleanNormal(page);
   await page.getByRole("button", { name: "思わぬ遭遇、選択可能" }).click();
   await page.locator("[data-conversation-stage]").click();
@@ -228,6 +251,26 @@ test("物品の買物・持込み・帰還・保存を通常画面で通す", as
   await page.screenshot({ path: info.outputPath("campaign-items-home.png") });
   await page.getByRole("button", { name: "探索先を選ぶ", exact: true }).click();
   await page.getByRole("button", { name: "ダンジョン", exact: true }).click();
+  await page.getByRole("button", { name: "枠 1", exact: true }).click();
+  await page.getByRole("button", { name: "詳細", exact: true }).click();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("heading", { name: "仲間を選択", exact: true })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("heading", { name: "出発準備", exact: true })).toBeVisible();
+  await page.keyboard.down("Escape");
+  await page.keyboard.down("Escape");
+  await expect(page.getByRole("heading", { name: "探索先選択", exact: true })).toBeVisible();
+  await page.keyboard.up("Escape");
+  await page.getByRole("button", { name: "ダンジョン", exact: true }).click();
+  await page.getByRole("button", { name: "戻る", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "探索先選択", exact: true })).toBeVisible();
+  await expect(page.locator("[data-calendar]")).toHaveText("1日目 · 夜");
+  await page.getByRole("button", { name: "ホームへ戻る", exact: true }).click();
+  await expect(page.getByLabel("持込み個数（HP回復品）")).toHaveValue("1");
+  await expect(page.locator(".campaign-copy")).toContainText("ホーム保管 HP回復品 2個");
+  await page.getByRole("button", { name: "探索先を選ぶ", exact: true }).click();
+  await page.getByRole("button", { name: "ダンジョン", exact: true }).click();
+  await page.getByRole("button", { name: "出発する", exact: true }).click();
   await page.getByRole("button", { name: "物品（HP回復品 ×1）", exact: true }).click();
   const item = page.getByRole("dialog", { name: "HP回復品の使用" });
   await expect(item).toContainText("HPは満タン");
@@ -307,6 +350,7 @@ for (const carried of [1, 2]) {
     await page.getByLabel("持込み個数（HP回復品）").fill(String(carried));
     await page.getByRole("button", { name: "探索先を選ぶ", exact: true }).click();
     await page.getByRole("button", { name: "ダンジョン", exact: true }).click();
+    await page.getByRole("button", { name: "出発する", exact: true }).click();
     await page.getByRole("button", { name: `物品（HP回復品 ×${carried}）`, exact: true }).click();
     const recovery = page.getByRole("dialog", { name: "HP回復品の使用" });
     await expect(recovery).toContainText("回復見込み +4 HP");
@@ -355,6 +399,7 @@ test("通常戦闘で持込み物品を一度だけ使い敵行動の後に入�
   await page.getByLabel("持込み個数（HP回復品）").fill("1");
   await page.getByRole("button", { name: "探索先を選ぶ", exact: true }).click();
   await page.getByRole("button", { name: "ダンジョン", exact: true }).click();
+  await page.getByRole("button", { name: "出発する", exact: true }).click();
   await page.getByRole("button", { name: "戦闘、選択可能", exact: true }).click();
   const item = page.getByRole("button", { name: "物品（HP回復品 ×1）", exact: true });
   await expect(item).toBeEnabled({ timeout: 60_000 });

@@ -1,0 +1,602 @@
+@import "./ui.css";
+
+/* The same full-screen shell is used by campaign, debug and isolated fixtures. */
+.adventure-screen.party-editing .town-view:has(.formation-screen) {
+  padding: 0;
+  display: block;
+}
+.formation-screen.party-editor {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: var(--ui-section-gap);
+  width: 100%;
+  max-width: none;
+  min-height: 100dvh;
+  height: 100dvh;
+  margin: 0;
+  padding: var(--ui-inset-y) var(--ui-inset-x);
+  border: 0;
+  background: var(--ui-surface);
+}
+.formation-screen.party-editor::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    linear-gradient(90deg, #151b20a6, #151b2033 65%),
+    url("/assets/backgrounds/endfield-departure-industrial-background.webp") center 43% / cover;
+  pointer-events: none;
+}
+.formation-screen.party-editor.is-selecting::before {
+  filter: brightness(0.78);
+}
+.formation-screen.party-editor .party-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.5rem 2rem;
+  margin: 0;
+  align-items: start;
+}
+.formation-screen.party-editor .party-guidance {
+  margin: 0;
+  grid-column: 1;
+}
+.formation-screen.party-editor .party-calendar {
+  margin: 0;
+  padding: 0.5rem 1rem;
+  background: var(--ui-surface);
+  color: var(--ui-muted);
+  font-size: var(--ui-body-size);
+  font-family: var(--ui-font);
+  font-variant-numeric: tabular-nums;
+}
+.formation-screen.party-editor .party-workspace {
+  min-height: 0;
+  height: auto;
+  display: block;
+}
+.formation-screen.party-editor .party-current {
+  min-width: 0;
+
+  height: 100%;
+  min-height: 0;
+}
+.formation-screen.party-editor .party-slots {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 2rem;
+  height: 100%;
+  max-width: 1600px;
+  margin: auto;
+  align-items: end;
+}
+.formation-screen.party-editor .party-slot {
+  display: grid;
+  grid-template-rows: auto auto 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  max-height: 100%;
+  min-height: 0;
+}
+.formation-screen.party-editor .party-slot-choice {
+  width: 100%;
+  border-radius: 0;
+  font: var(--ui-body-size) / 1.5 var(--ui-font);
+
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  border: 1px solid transparent;
+  background: transparent;
+  --ui-control-fill: #252a2c40;
+  --ui-control-edge: #b9c2bc99;
+  color: var(--ui-ink);
+  min-height: 0;
+}
+.formation-screen.party-editor .is-occupied .party-slot-choice {
+  background: transparent;
+  border-color: transparent;
+}
+.formation-screen.party-editor:not(.is-selecting) :where(.is-occupied) .party-slot-choice::before,
+.formation-screen.party-editor:not(.is-selecting) :where(.is-occupied) .party-slot-choice::after {
+  display: none;
+}
+.formation-screen.party-editor:not(.is-selecting) :where(.party-slot:not(.is-occupied)) .party-slot-choice::before {
+  top: min(10dvh, 100px);
+}
+.formation-screen.party-editor:not(.is-selecting) :where(.party-slot:not(.is-occupied)) .party-slot-choice::after {
+  top: calc(min(10dvh, 100px) + 1px);
+}
+.formation-screen.party-editor .party-slot-choice:hover {
+  --ui-control-edge: var(--ui-selection);
+}
+.formation-screen.party-editor .party-slot-portrait {
+  display: grid;
+  place-items: center;
+  height: clamp(180px, 52dvh, 600px);
+  width: 100%;
+  margin: 0;
+  flex-shrink: 1;
+  min-height: 0;
+  font: var(--ui-body-size) / 1.4 var(--ui-font);
+}
+.formation-screen.party-editor :where(.party-slot:not(.is-occupied)) .party-slot-portrait {
+  font-size: 2rem;
+  color: var(--ui-muted);
+}
+.formation-screen.party-editor .party-character-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: bottom;
+}
+.formation-screen.party-editor .party-slot-name,
+.formation-screen.party-editor .party-slot-hp {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  align-self: center;
+  margin: 0;
+  padding: 0.25rem 0.5rem;
+  background: var(--ui-surface);
+  line-height: 1.5;
+}
+.formation-screen.party-editor .party-slot-name {
+  font: 500 var(--ui-name-size) / 1.4 var(--ui-heading-font);
+}
+.formation-screen.party-editor .party-slot-hp {
+  font: var(--ui-body-size) / 1.5 var(--ui-font);
+  font-variant-numeric: tabular-nums;
+  color: var(--ui-hp);
+  min-height: 2rem;
+}
+.formation-screen.party-editor :where(.party-slot:not(.is-occupied)) .party-slot-hp {
+  visibility: hidden;
+}
+.formation-screen.party-editor .party-slot-hp.is-defeated {
+  color: var(--ui-danger);
+}
+.formation-screen.party-editor .party-slot-symptoms {
+  background: var(--ui-surface);
+  width: fit-content;
+  max-width: 100%;
+  justify-self: center;
+}
+.formation-screen.party-editor .party-slot > .party-detail {
+  margin-top: 0.5rem;
+  justify-self: center;
+  grid-row: 3;
+}
+.formation-screen.party-editor .party-footer {
+  margin: 0;
+  display: flex;
+  gap: 1rem;
+}
+.formation-screen.party-editor .party-footer p {
+  background: var(--ui-surface);
+  padding: 0.5rem;
+}
+.formation-screen.party-editor.is-selecting .party-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 3rem;
+}
+.formation-screen.party-editor .party-candidates:not([hidden]) {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+
+  min-height: 0;
+  background: transparent;
+  padding: 0;
+  border: 0;
+}
+.formation-screen.party-editor .party-candidates h3 {
+  display: none;
+}
+.formation-screen.party-editor .party-candidate-grid {
+  display: grid;
+  align-content: start;
+  grid-auto-rows: max-content;
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  scrollbar-gutter: stable;
+
+  grid-template-columns: repeat(auto-fill, minmax(175px, 1fr));
+  gap: 1.5rem;
+  padding: 6px;
+  max-height: none;
+}
+.formation-screen.party-editor .party-candidate {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  border-radius: 0;
+
+  min-width: 0;
+  margin: 0;
+  padding: 1rem;
+  border: 1px solid transparent;
+  color: var(--ui-ink);
+  background: transparent;
+  --ui-control-fill: #252a2ccc;
+  font: var(--ui-body-size) / 1.5 var(--ui-font);
+  overflow-wrap: anywhere;
+}
+.formation-screen.party-editor .party-candidate:hover {
+  --ui-control-fill: var(--ui-hover);
+}
+.formation-screen.party-editor .party-candidate-info {
+  display: grid;
+  gap: 0.375rem;
+  padding: 0.75rem;
+  background: var(--ui-surface);
+}
+.formation-screen.party-editor .party-candidate[aria-pressed="true"],
+.formation-screen.party-editor .party-slot-choice[aria-pressed="true"] {
+  --ui-control-fill: var(--ui-selected-surface);
+  --ui-control-edge: var(--ui-selection);
+  --ui-frame-line: 2px;
+  box-shadow: none;
+}
+.formation-screen.party-editor .party-candidate[aria-pressed="true"] .party-candidate-state::after {
+  content: " · 選択中";
+  color: var(--ui-selection);
+}
+.formation-screen.party-editor .party-candidate-face {
+  display: grid;
+  place-items: center;
+
+  height: 180px;
+  flex-basis: 180px;
+  background: transparent;
+}
+.formation-screen.party-editor .party-candidate-face .party-character-image {
+  object-fit: contain;
+}
+.formation-screen.party-editor .party-candidate-state {
+  min-height: 1.5em;
+
+  color: var(--ui-muted);
+}
+.formation-screen.party-editor.is-selecting .party-current {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 1rem;
+}
+.formation-screen.party-editor.is-selecting .party-slots {
+  width: 100%;
+  max-width: 400px;
+  margin: 0 0 0 auto;
+  gap: 0.75rem;
+  height: auto;
+  align-items: start;
+}
+.formation-screen.party-editor.is-selecting .party-slot {
+  display: block;
+}
+.formation-screen.party-editor.is-selecting .party-slot-choice {
+  height: 88px;
+  justify-content: center;
+}
+.formation-screen.party-editor.is-selecting .party-slot-name {
+  display: none;
+}
+.formation-screen.party-editor.is-selecting .party-slot-portrait {
+  height: 86px;
+}
+.formation-screen.party-editor.is-selecting .party-slot-name {
+  font: var(--ui-body-size) / 1.4 var(--ui-font);
+  padding: 0.25rem;
+}
+.formation-screen.party-editor.is-selecting .party-slot-hp,
+.formation-screen.party-editor.is-selecting .party-slot-symptoms {
+  display: none;
+}
+.formation-screen.party-editor .party-pending:not([hidden]) {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.formation-screen.party-editor .party-preview {
+  min-height: 0;
+  text-align: center;
+}
+.formation-screen.party-editor .party-preview-info {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.25rem 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--ui-surface);
+  border-top: 1px solid var(--ui-metal);
+  max-height: 45dvh;
+  overflow-y: auto;
+}
+.formation-screen.party-editor .party-pending h3 {
+  font: 500 var(--ui-name-size) / 1.4 var(--ui-heading-font);
+  margin: 0;
+  grid-column: 1;
+}
+.formation-screen.party-editor .party-pending p {
+  margin: 0;
+  grid-column: 1;
+}
+.formation-screen.party-editor [data-pending-reason] {
+  color: var(--ui-danger);
+  grid-column: 1 / -1;
+}
+.formation-screen.party-editor [data-pending-symptoms] {
+  grid-column: 1 / -1;
+}
+.formation-screen.party-editor .party-pending-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+
+  margin-top: 0;
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+}
+.character-details.ui-dialog {
+  padding: 2rem;
+  width: calc(100% - 8rem);
+  max-width: 1440px;
+  height: calc(100dvh - 6rem);
+  max-height: none;
+  border: 1px solid var(--ui-metal);
+  background: var(--ui-surface);
+}
+.character-details.ui-dialog[open] {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 2rem;
+}
+.character-details.ui-dialog::backdrop {
+  background: #11191cba;
+  backdrop-filter: blur(6px);
+}
+.ui-dialog .character-details-heading {
+  margin: 0;
+  padding: 0 0 1rem;
+  border-bottom: 1px solid var(--ui-metal);
+  background: none;
+}
+.ui-dialog .character-details-body {
+  min-height: 0;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  gap: 2rem;
+}
+.ui-dialog .character-details-scroll-hint {
+  margin: 0 0 0 auto;
+  color: var(--ui-muted);
+  font: var(--ui-body-size) / 1.6 var(--ui-font);
+}
+.ui-dialog .character-details-portrait {
+  min-height: 0;
+}
+.ui-dialog .character-details-image {
+  width: 100%;
+  height: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+.ui-dialog .character-details-info {
+  min-height: 0;
+  max-height: none;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  padding: 0.5rem 0.5rem 1.5rem;
+}
+.ui-dialog :is(.character-details-info, .character-details-body)::-webkit-scrollbar {
+  width: 12px;
+}
+.ui-dialog :is(.character-details-info, .character-details-body)::-webkit-scrollbar-track {
+  background: var(--ui-pressed);
+}
+.ui-dialog :is(.character-details-info, .character-details-body)::-webkit-scrollbar-thumb {
+  border: 3px solid var(--ui-pressed);
+  background: var(--ui-metal);
+}
+.character-details.ui-dialog .character-details-stats dd {
+  font: var(--ui-emphasis-size) / 1.6 var(--ui-font);
+  font-variant-numeric: tabular-nums;
+}
+.character-details.ui-dialog .character-details-stats p {
+  font: var(--ui-body-size) / 1.6 var(--ui-font);
+  color: var(--ui-muted);
+}
+.ui-dialog .ui-actions {
+  margin: 0;
+}
+@media (max-width: 900px) {
+  .formation-screen.party-editor {
+    height: auto;
+    min-height: 100dvh;
+  }
+  .formation-screen.party-editor .party-heading {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .formation-screen.party-editor .party-calendar {
+    grid-row: 2;
+    justify-self: start;
+  }
+  .formation-screen.party-editor .party-slots {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+  }
+  .formation-screen.party-editor .party-slot-portrait {
+    height: 240px;
+  }
+  .formation-screen.party-editor.is-selecting .party-workspace {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.5rem;
+  }
+  .formation-screen.party-editor.is-selecting .party-current {
+    grid-row: 1;
+  }
+  .formation-screen.party-editor.is-selecting .party-slots {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .formation-screen.party-editor .party-preview {
+    height: 220px;
+  }
+  .formation-screen.party-editor .party-preview-info {
+    max-height: none;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .formation-screen.party-editor .party-pending-actions {
+    grid-column: 1;
+    grid-row: auto;
+  }
+  .formation-screen.party-editor .party-candidate-grid {
+    max-height: 50dvh;
+    min-height: 220px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .formation-screen.party-editor .party-candidate-face {
+    height: 128px;
+    flex-basis: 128px;
+  }
+  .formation-screen.party-editor .party-footer {
+    flex-wrap: wrap;
+  }
+  .formation-screen.party-editor .party-footer p {
+    flex-basis: 100%;
+    order: -1;
+  }
+  .character-details.ui-dialog {
+    width: calc(100% - 2rem);
+    height: calc(100dvh - 2rem);
+    padding: 1rem;
+  }
+  .character-details.ui-dialog[open] {
+    gap: 1rem;
+  }
+  .ui-dialog .character-details-body {
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  .ui-dialog .character-details-portrait {
+    height: 180px;
+    flex-shrink: 0;
+  }
+  .ui-dialog .character-details-info {
+    overflow: visible;
+    flex-shrink: 0;
+  }
+}
+@media (min-width: 901px) and (max-height: 750px) {
+  .formation-screen.party-editor {
+    --ui-inset-y: 1.5rem;
+    --ui-section-gap: 1rem;
+  }
+  .formation-screen.party-editor .party-slot-portrait {
+    height: 30dvh;
+  }
+  .formation-screen.party-editor .party-preview-info {
+    max-height: 34dvh;
+  }
+}
+/* Campaign owns navigation; this screen owns its single heading and viewport. */
+.campaign-screen[data-campaign-screen="party"] {
+  padding: 0;
+}
+.campaign-screen[data-campaign-screen="party"] > .campaign-header {
+  display: none;
+}
+.campaign-screen[data-campaign-screen="party"] > .campaign-content {
+  margin: 0;
+  width: 100%;
+}
+.formation-screen.party-editor [hidden] {
+  display: none;
+}
+.formation-screen.party-editor .party-candidate-grid:not(:has(button:nth-child(3))) {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+@media (min-width: 901px) {
+  .formation-screen.party-editor:not(.is-selecting) .party-slots {
+    grid-template-rows: minmax(0, 1fr) auto 44px;
+    row-gap: 0.5rem;
+  }
+  .formation-screen.party-editor:not(.is-selecting) .party-slot {
+    grid-row: 1 / span 3;
+    grid-template-rows: subgrid;
+    align-self: stretch;
+  }
+  .formation-screen.party-editor:not(.is-selecting) .party-slot-choice {
+    align-self: end;
+  }
+  .formation-screen.party-editor .party-slot > .party-detail {
+    margin-top: 0;
+  }
+  .formation-screen.party-editor .party-candidate-grid:not(:has(button:nth-child(3))) .party-candidate-face {
+    height: min(34dvh, 360px);
+    flex-basis: min(34dvh, 360px);
+  }
+}
+.ui-dialog .character-details-heading {
+  grid-row: 1;
+}
+.ui-dialog .character-details-body {
+  grid-row: 2;
+}
+.ui-dialog .ui-actions {
+  grid-row: 3;
+}
+@media (max-width: 900px) {
+  .formation-screen.party-editor {
+    display: flex;
+    flex-direction: column;
+  }
+  .formation-screen.party-editor .party-current {
+    height: auto;
+  }
+  .formation-screen.party-editor.is-selecting .party-current {
+    grid-template-rows: auto auto;
+  }
+  .formation-screen.party-editor .party-pending:not([hidden]) {
+    grid-template-rows: auto auto;
+  }
+}
+
+@media (min-width: 901px) {
+  .ui-dialog .character-details-body {
+    align-items: stretch;
+    margin-top: 0;
+    overflow: hidden;
+  }
+  .ui-dialog .character-details-portrait {
+    height: 100%;
+  }
+}
+
+@media (min-width: 901px) {
+  .formation-screen.party-editor.is-selecting .party-candidates {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .formation-screen.party-editor.is-selecting .party-current {
+    grid-column: 2;
+    grid-row: 1;
+  }
+}
+
+.formation-screen.party-editor :is(.party-slot-choice, .party-candidate):active {
+  --ui-control-fill: var(--ui-pressed);
+}
+
+.formation-screen.party-editor[hidden] {
+  display: none;
+}

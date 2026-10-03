@@ -243,7 +243,7 @@ export function mountCampaign(root: HTMLDivElement): () => void {
         },
         true,
       ),
-      button("出撃編成を見る", showParty),
+      button("出撃編成を見る", () => showParty("edit")),
       button("装備を整える", showEquipment),
     );
     nav.append(
@@ -314,33 +314,26 @@ export function mountCampaign(root: HTMLDivElement): () => void {
     copy("街探索とダンジョンは、完了時にそれぞれ半日が経過します。");
     nav.append(
       button("街", showTown),
-      button("ダンジョン", () => {
-        const result = departOnExpedition(game, characters, initialDungeon, initialAdventure, rules, itemSelection());
-        if (result.accepted) {
-          game = result.state;
-          carryQuantity = 0;
-          completion = undefined;
-          showDungeon();
-        } else showDestinations("出撃できる仲間をホームで編成してください。戦闘不能は街探索で回復します。");
-      }),
+      button("ダンジョン", () => showParty("departure")),
       button("ホームへ戻る", () => showHome()),
     );
     window.addEventListener(
       "keydown",
       (event) => {
-        if (event.key === "Escape") showHome();
+        if (event.key === "Escape" && !event.repeat && !event.defaultPrevented) showHome();
       },
       { signal: viewEvents.signal },
     );
   }
-  function showParty() {
-    screen("出撃準備", "party");
+  function showParty(context: "edit" | "departure") {
+    screen(context === "departure" ? "出発準備" : "編成", "party");
     const panel = document.createElement("section");
     panel.className = "party-editor";
     requiredElement<HTMLElement>(root, ".campaign-content").replaceChildren(panel);
     disposeView = mountPartyUi(
       panel,
       {
+        context,
         characters: grownCharacters(game, rules),
         getDetailsContext: () => ({
           characters: grownCharacters(game, rules),
@@ -356,16 +349,22 @@ export function mountCampaign(root: HTMLDivElement): () => void {
           return result;
         },
         depart: () => {
-          showDestinations();
-          return { accepted: true, state: game };
+          const result = departOnExpedition(game, characters, initialDungeon, initialAdventure, rules, itemSelection());
+          if (result.accepted) {
+            game = result.state;
+            carryQuantity = 0;
+            completion = undefined;
+            showDungeon();
+          }
+          return result;
         },
       },
       () => {
-        showHome();
+        if (context === "departure") showDestinations();
+        else showHome();
         root.querySelectorAll<HTMLButtonElement>(".campaign-command")[1]?.focus();
       },
     ).dispose;
-    requiredElement<HTMLElement>(panel, "[data-depart]").textContent = "探索先を選ぶ";
     requiredElement<HTMLElement>(panel, "[data-party-back]").focus();
   }
   function showTown() {

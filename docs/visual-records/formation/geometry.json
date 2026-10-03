@@ -1,0 +1,53 @@
+{
+  "viewport": {
+    "width": 1920,
+    "height": 1080
+  },
+  "boxes": {
+    "title": {
+      "x": 64,
+      "y": 48,
+      "width": 1654,
+      "height": 67.1875
+    },
+    "primary": {
+      "x": 1576,
+      "y": 968,
+      "width": 280,
+      "height": 64
+    },
+    "back": {
+      "x": 64,
+      "y": 976,
+      "width": 160,
+      "height": 48
+    }
+  },
+  "pageErrors": [],
+  "controlShapes": [
+    {
+      "text": "戻る",
+      "cut": "1rem",
+      "before": "polygon(16px 0px, calc(100% - 16px) 0px, 100% 16px, 100% calc(100% - 16px), calc(100% - 16px) 100%, 16px 100%, 0px calc(100% - 16px), 0px 16px)",
+      "after": "polygon(16px 0px, calc(100% - 16px) 0px, 100% 16px, 100% calc(100% - 16px), calc(100% - 16px) 100%, 16px 100%, 0px calc(100% - 16px), 0px 16px)"
+    },
+    {
+      "text": "編成する",
+      "cut": "1.5rem",
+      "before": "polygon(24px 0px, calc(100% - 24px) 0px, 100% 24px, 100% calc(100% - 24px), calc(100% - 24px) 100%, 24px 100%, 0px calc(100% - 24px), 0px 24px)",
+      "after": "polygon(24px 0px, calc(100% - 24px) 0px, 100% 24px, 100% calc(100% - 24px), calc(100% - 24px) 100%, 24px 100%, 0px calc(100% - 24px), 0px 24px)"
+    },
+    {
+      "text": "出発する",
+      "cut": "1.5rem",
+      "before": "polygon(24px 0px, calc(100% - 24px) 0px, 100% 24px, 100% calc(100% - 24px), calc(100% - 24px) 100%, 24px 100%, 0px calc(100% - 24px), 0px 24px)",
+      "after": "polygon(24px 0px, calc(100% - 24px) 0px, 100% 24px, 100% calc(100% - 24px), calc(100% - 24px) 100%, 24px 100%, 0px calc(100% - 24px), 0px 24px)"
+    },
+    {
+      "text": "編成へ戻る",
+      "cut": "1rem",
+      "before": "polygon(16px 0px, calc(100% - 16px) 0px, 100% 16px, 100% calc(100% - 16px), calc(100% - 16px) 100%, 16px 100%, 0px calc(100% - 16px), 0px 16px)",
+      "after": "polygon(16px 0px, calc(100% - 16px) 0px, 100% 16px, 100% calc(100% - 16px), calc(100% - 16px) 100%, 16px 100%, 0px calc(100% - 16px), 0px 16px)"
+    }
+  ]
+}

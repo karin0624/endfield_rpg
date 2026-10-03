@@ -1,0 +1,258 @@
+/* Shared screen geometry and controls. Opt in with ui-screen or ui-dialog. */
+@font-face {
+  font-family: "Endfield UI Serif";
+  src: url("/assets/fonts/noto-serif-jp-500.woff2") format("woff2");
+  font-weight: 500;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Endfield UI Sans";
+  src: url("/assets/fonts/noto-sans-jp-400.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+:root {
+  --ui-inset-x: 4rem;
+  --ui-inset-y: 3rem;
+  --ui-section-gap: 2rem;
+  --ui-control-gap: 1rem;
+  --ui-title-size: 3rem;
+  --ui-body-size: 1rem;
+  --ui-action-size: 1.25rem;
+  --ui-caption-size: 0.875rem;
+  --ui-emphasis-size: 1.25rem;
+  --ui-name-size: 1.5rem;
+  --ui-surface: #252a2c;
+  --ui-hover: #373f40;
+  --ui-pressed: #191e20;
+  --ui-ink: #ece9df;
+  --ui-muted: #bec5c0;
+  --ui-metal: #939e9a;
+  --ui-selection: #b7cfb5;
+  --ui-selected-surface: #37483d;
+  --ui-primary: #e5b56d;
+  --ui-primary-hover: #efc58a;
+  --ui-primary-pressed: #c99755;
+  --ui-on-primary: #252a2c;
+  --ui-focus: #ffffff;
+  --ui-hp: #91b9a8;
+  --ui-danger: #ed927f;
+  --ui-font: "Endfield UI Sans", "Noto Sans CJK JP", "Yu Gothic", sans-serif;
+  --ui-heading-font: "Endfield UI Serif", "Noto Serif CJK JP", "Yu Mincho", serif;
+  --ui-cut-size: 0.75rem;
+}
+.ui-screen,
+.ui-dialog {
+  box-sizing: border-box;
+  color: var(--ui-ink);
+  font: var(--ui-body-size) / 1.6 var(--ui-font);
+  overflow-wrap: anywhere;
+}
+.ui-heading {
+  border-bottom: 1px solid var(--ui-metal);
+  padding-bottom: 1rem;
+}
+.ui-screen .ui-title,
+.ui-dialog .ui-title {
+  margin: 0;
+  color: var(--ui-ink);
+  font: 500 var(--ui-title-size) / 1.4 var(--ui-heading-font);
+  letter-spacing: 0.04em;
+}
+.ui-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--ui-control-gap);
+  min-height: 4rem;
+}
+/* Only the decorative layers are clipped; the keyboard focus outline stays outside. */
+:is(.ui-screen, .ui-dialog) :is(.ui-button, .ui-frame) {
+  position: relative;
+  isolation: isolate;
+  --ui-control-fill: var(--ui-surface);
+  --ui-control-edge: var(--ui-metal);
+  --ui-frame-line: 1px;
+  /* Resolve the path here so primary/back overrides use their own cut size. */
+  --ui-cut-path: polygon(
+    var(--ui-cut-size) 0,
+    calc(100% - var(--ui-cut-size)) 0,
+    100% var(--ui-cut-size),
+    100% calc(100% - var(--ui-cut-size)),
+    calc(100% - var(--ui-cut-size)) 100%,
+    var(--ui-cut-size) 100%,
+    0 calc(100% - var(--ui-cut-size)),
+    0 var(--ui-cut-size)
+  );
+  --ui-inner-cut: calc(var(--ui-cut-size) + var(--ui-frame-line) * 0.4142);
+}
+:is(.ui-screen, .ui-dialog) :is(.ui-button, .ui-frame)::before,
+:is(.ui-screen, .ui-dialog) :is(.ui-button, .ui-frame)::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  clip-path: var(--ui-cut-path);
+  background: var(--ui-control-edge);
+  pointer-events: none;
+}
+/* A hollow polygon lets translucent card interiors reveal the actual background. */
+:is(.ui-screen, .ui-dialog) .ui-frame::before {
+  clip-path: polygon(
+    evenodd,
+    var(--ui-cut-size) 0,
+    calc(100% - var(--ui-cut-size)) 0,
+    100% var(--ui-cut-size),
+    100% calc(100% - var(--ui-cut-size)),
+    calc(100% - var(--ui-cut-size)) 100%,
+    var(--ui-cut-size) 100%,
+    0 calc(100% - var(--ui-cut-size)),
+    0 var(--ui-cut-size),
+    var(--ui-cut-size) 0,
+    var(--ui-inner-cut) var(--ui-frame-line),
+    var(--ui-frame-line) var(--ui-inner-cut),
+    var(--ui-frame-line) calc(100% - var(--ui-inner-cut)),
+    var(--ui-inner-cut) calc(100% - var(--ui-frame-line)),
+    calc(100% - var(--ui-inner-cut)) calc(100% - var(--ui-frame-line)),
+    calc(100% - var(--ui-frame-line)) calc(100% - var(--ui-inner-cut)),
+    calc(100% - var(--ui-frame-line)) var(--ui-inner-cut),
+    calc(100% - var(--ui-inner-cut)) var(--ui-frame-line),
+    var(--ui-inner-cut) var(--ui-frame-line)
+  );
+}
+:is(.ui-screen, .ui-dialog) .ui-frame::after {
+  box-shadow: none;
+}
+:is(.ui-screen, .ui-dialog) :is(.ui-button, .ui-frame)::after {
+  inset: var(--ui-frame-line);
+  z-index: -1;
+  background-color: var(--ui-control-fill);
+  background-image: linear-gradient(115deg, #ffffff09, transparent 40%, #0000000a);
+  box-shadow:
+    inset 0 0 0 3px var(--ui-control-fill),
+    inset 0 0 0 4px #939e9a33;
+}
+.ui-screen .ui-button,
+.ui-dialog .ui-button {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  min-width: 6rem;
+  min-height: 2.75rem;
+  margin: 0;
+  padding: 0.5rem 1.5rem;
+  border: 0;
+  border-radius: 0;
+  color: var(--ui-ink);
+  background: transparent;
+  box-shadow: none;
+  font: 500 var(--ui-action-size) / 1.4 var(--ui-heading-font);
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+.ui-screen .ui-back,
+.ui-dialog .ui-back {
+  min-width: 10rem;
+  min-height: 3rem;
+  --ui-cut-size: 1rem;
+  padding-inline: 2.5rem;
+}
+.ui-screen .ui-primary,
+.ui-dialog .ui-primary {
+  min-width: 17.5rem;
+  min-height: 4rem;
+  margin-left: auto;
+  color: var(--ui-on-primary);
+  --ui-control-fill: var(--ui-primary);
+  --ui-control-edge: #f2c889;
+  --ui-cut-size: 1.5rem;
+  padding-inline: 2.5rem;
+}
+:is(.ui-screen, .ui-dialog) .ui-primary::after {
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 18'%3E%3Cpath d='M3 3l6 6-6 6' fill='none' stroke='%23252a2c' stroke-width='1.5'/%3E%3C/svg%3E"),
+    linear-gradient(115deg, #ffffff09, transparent 40%, #0000000a);
+  background-position:
+    right 18px center,
+    center;
+  background-size:
+    12px 18px,
+    100% 100%;
+  background-repeat: no-repeat;
+}
+:is(.ui-screen, .ui-dialog) .ui-back::after {
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 18'%3E%3Cpath d='M9 3L3 9l6 6' fill='none' stroke='%23ece9df' stroke-width='1.5'/%3E%3C/svg%3E"),
+    linear-gradient(115deg, #ffffff09, transparent 40%, #0000000a);
+  background-position:
+    left 18px center,
+    center;
+  background-size:
+    12px 18px,
+    100% 100%;
+  background-repeat: no-repeat;
+}
+.ui-screen .ui-button:hover:not(:disabled),
+.ui-dialog .ui-button:hover:not(:disabled) {
+  --ui-control-fill: var(--ui-hover);
+}
+.ui-screen .ui-button:active:not(:disabled),
+.ui-dialog .ui-button:active:not(:disabled) {
+  --ui-control-fill: var(--ui-pressed);
+}
+.ui-screen .ui-primary:hover:not(:disabled),
+.ui-dialog .ui-primary:hover:not(:disabled) {
+  --ui-control-fill: var(--ui-primary-hover);
+}
+.ui-screen .ui-primary:active:not(:disabled),
+.ui-dialog .ui-primary:active:not(:disabled) {
+  --ui-control-fill: var(--ui-primary-pressed);
+  color: var(--ui-on-primary);
+}
+.ui-screen .ui-button:disabled,
+.ui-dialog .ui-button:disabled {
+  opacity: 1;
+  color: var(--ui-muted);
+  --ui-control-fill: var(--ui-pressed);
+  --ui-control-edge: var(--ui-metal);
+  box-shadow: none;
+  cursor: default;
+}
+:is(.ui-screen, .ui-dialog) .ui-primary:disabled::after {
+  background-image: none;
+}
+.ui-screen .ui-button:focus-visible,
+.ui-dialog .ui-button:focus-visible,
+.ui-screen :is(button, summary):focus-visible,
+.ui-dialog :is(button, [tabindex]):focus-visible {
+  outline: 2px solid var(--ui-focus);
+  outline-offset: 4px;
+}
+.ui-screen [hidden],
+.ui-dialog [hidden] {
+  display: none;
+}
+@media (max-width: 900px) {
+  :root {
+    --ui-title-size: 2rem;
+    --ui-inset-x: 1rem;
+    --ui-inset-y: 1.5rem;
+    --ui-section-gap: 1.5rem;
+  }
+  .ui-actions {
+    flex-wrap: wrap;
+  }
+  .ui-screen .ui-primary,
+  .ui-dialog .ui-primary {
+    min-width: 10rem;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ui-screen *,
+  .ui-dialog * {
+    animation: none;
+    transition: none;
+    scroll-behavior: auto;
+  }
+}
