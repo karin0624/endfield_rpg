@@ -59,11 +59,17 @@ test("通常版で導入・ホーム・街・編成・戦闘・帰還・保存�
     await growth.getByRole("button").first().click();
   }
   await page.getByRole("button", { name: "ボス、選択可能" }).click();
-  await expect(page.getByRole("button", { name: "通常攻撃" })).toBeEnabled({ timeout: 60_000 });
+  const skills = page.getByRole("button", { name: "スキル", exact: true });
+  await expect(skills).toBeEnabled({ timeout: 60_000 });
+  await expect(page.getByRole("button", { name: "通常攻撃", exact: true })).toBeHidden();
   await cleanNormal(page);
   const victory = page.getByRole("heading", { name: "戦闘に勝利しました" });
-  for (let turn = 0; turn < 12 && !(await victory.isVisible()); turn++)
-    await page.getByRole("button", { name: "通常攻撃" }).click();
+  for (let turn = 0; turn < 12 && !(await victory.isVisible()); turn++) {
+    await skills.click();
+    await page.getByRole("button", { name: "攻撃", exact: true }).click();
+    await page.getByRole("button", { name: "使用する", exact: true }).click();
+    await expect(page.locator("[data-battle-ui]")).toHaveAttribute("data-replaying", "false", { timeout: 60_000 });
+  }
   await expect(victory).toBeVisible();
   await page.getByRole("button", { name: "戦闘を終えてルートへ戻る" }).click();
   await page.getByRole("button", { name: "ホームへ帰還", exact: true }).click();

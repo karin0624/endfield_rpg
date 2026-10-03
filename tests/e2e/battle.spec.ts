@@ -102,7 +102,10 @@ test("敵札の文字寸法と画面サイズの変更に追従し、離脱後�
     await expectCurrentEnemyOverlays(page, viewport);
   }
   const attack = page.getByRole("button", { name: "通常攻撃" });
-  for (let turn = 0; turn < 4; turn++) await attack.click();
+  for (let turn = 0; turn < 4; turn++) {
+    await attack.click();
+    await expect(page.locator("[data-battle-ui]")).toHaveAttribute("data-replaying", "false", { timeout: 60_000 });
+  }
   await expect(page.getByRole("heading", { name: "戦闘に勝利しました" })).toBeVisible();
   await page.setViewportSize({ width: 900, height: 900 });
   await page.getByRole("button", { name: "戦闘を終えてルートへ戻る" }).click();
