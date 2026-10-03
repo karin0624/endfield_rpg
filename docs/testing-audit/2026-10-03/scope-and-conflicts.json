@@ -1,0 +1,203 @@
+{
+  "audited_commit": "4866de71c2200781926f2bdb9611410822163ca5",
+  "deferred_or_unimplemented": [
+    {
+      "id": "PROGRESSION-DEF-01",
+      "requirement": "Random dungeon generation/multiple floors/intermediate bosses",
+      "sources": [
+        {
+          "path": "specs/dungeon.md",
+          "lines": "16",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/dungeon.md#L16"
+        }
+      ],
+      "reason": "Explicitly outside implemented single-floor fixed DAG; do not call missing automated coverage."
+    },
+    {
+      "id": "PROGRESSION-DEF-02",
+      "requirement": "Permanent growth/SP/fatigue-recovery skills/new rest-treatment commands/endings",
+      "sources": [
+        {
+          "path": "specs/overview.md",
+          "lines": "82",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/overview.md#L82"
+        }
+      ],
+      "reason": "Explicit exclusions; temporary growth and existing town recovery remain in audit."
+    },
+    {
+      "id": "PROGRESSION-DEF-03",
+      "requirement": "Backlog/read-state/autoplay/voice, real time/offline recovery",
+      "sources": [
+        {
+          "path": "specs/overview.md",
+          "lines": "48",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/overview.md#L48"
+        }
+      ],
+      "reason": "Explicit prototype exclusions; no requirement to add artificial tests."
+    },
+    {
+      "id": "PROGRESSION-DEF-04",
+      "requirement": "Old-save migration/multiple slots/cloud synchronization",
+      "sources": [
+        {
+          "path": "specs/save.md",
+          "lines": "15",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/save.md#L15"
+        }
+      ],
+      "reason": "Explicitly out of scope; refusal and preservation of old save IS implemented contract."
+    },
+    {
+      "id": "UI-DEF-01",
+      "requirement": "全画面共通タイポグラフィの統一",
+      "sources": [
+        {
+          "url": "https://github.com/karin0624/endfield_rpg/issues/99"
+        }
+      ],
+      "reason": "Planned cross-screen design/approval task, current ui-adoption declares many screens unadopted. Existing accessibility/contrast/input contracts remain test obligations."
+    },
+    {
+      "id": "UI-DEF-02",
+      "requirement": "正式な全状態アイコン制作とhover共通詳細",
+      "sources": [
+        {
+          "url": "https://github.com/karin0624/endfield_rpg/issues/98"
+        }
+      ],
+      "reason": "Issue explicitly registration only. Current text/details controls are implemented and audited; future icons not missing implemented-feature tests."
+    },
+    {
+      "id": "UI-DEF-03",
+      "requirement": "新しい戦闘HUD意匠/FX量産/自然なキャラクター動作",
+      "sources": [
+        {
+          "url": "https://github.com/karin0624/endfield_rpg/issues/94"
+        },
+        {
+          "url": "https://github.com/karin0624/endfield_rpg/issues/93"
+        },
+        {
+          "url": "https://github.com/karin0624/endfield_rpg/issues/90"
+        }
+      ],
+      "reason": "New quality work is deferred; current stage-order/input/HP/skip/reduced-motion contracts remain in audit."
+    },
+    {
+      "id": "UI-DEF-04",
+      "requirement": "絵付きhome/街、本番高レベル/多段技catalog、素材獲得コンテンツ量産",
+      "sources": [
+        {
+          "url": "https://github.com/karin0624/endfield_rpg/issues/80"
+        }
+      ],
+      "reason": "Current runtime support is audited even when fixture-only; unprovided content/art is not falsely reported as missing code tests."
+    },
+    {
+      "id": "UI-DEF-05",
+      "requirement": "SP/恒久育成/バックログ/オート/音声/複数セーブ/クラウド/終了日/ending/携行総量",
+      "sources": [
+        {
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/overview.md#L78-L82"
+        },
+        {
+          "url": "https://github.com/karin0624/endfield_rpg/issues/88"
+        }
+      ],
+      "reason": "Explicitly outside prototype or future design."
+    }
+  ],
+  "documentation_conflicts": [
+    {
+      "id": "PROGRESSION-DOC-01",
+      "sources": [
+        {
+          "path": "specs/save.md",
+          "lines": "5",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/save.md#L5"
+        },
+        {
+          "path": "specs/save.md",
+          "lines": "11",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/save.md#L11"
+        }
+      ],
+      "finding": "Same save specification claims v4 maintained/old stable v4 resumes, then states v5 only/no migration. Implementation and ADR0005 use5. Treat old-v4 claim as stale, not a request to add compatibility."
+    },
+    {
+      "id": "PROGRESSION-DOC-02",
+      "sources": [
+        {
+          "path": "src/web/saveSlot.test.ts",
+          "lines": "48",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/web/saveSlot.test.ts#L48"
+        }
+      ],
+      "finding": "Test title still says normal v4 although actual serialization creates5; multidayAcceptance operation log also says v4 round-trip. Rename diagnostics to avoid false evidence."
+    },
+    {
+      "id": "PROGRESSION-DOC-03",
+      "sources": [
+        {
+          "path": "specs/dungeon.md",
+          "lines": "54",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/dungeon.md#L54"
+        }
+      ],
+      "finding": "Dungeon spec retains raw direct demo entry although overview requires explicit debug and normal campaign startup; browser domain audits actual routing. Do not treat debug-only test as production-flow proof."
+    },
+    {
+      "id": "UI-DOC-01",
+      "sources": [
+        {
+          "path": "specs/save.md",
+          "lines": "5-22",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/save.md#L5-L22"
+        }
+      ],
+      "finding": "v4 compatibility claim at5 conflicts with v5-only and rejectv4 at11/22."
+    },
+    {
+      "id": "UI-DOC-02",
+      "sources": [
+        {
+          "path": "README.md",
+          "lines": "1-139",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/README.md#L1-L139"
+        }
+      ],
+      "finding": "README still contains obsolete savev4, equipment/shop out-of-scope, and old candidate explicit edit/cancel vocabulary; use current implementation and dedicated specs, reconcile before normative matrix."
+    },
+    {
+      "id": "UI-DOC-03",
+      "sources": [
+        {
+          "path": "docs/testing.md",
+          "lines": "48",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/docs/testing.md#L48"
+        }
+      ],
+      "finding": "Cancellation wording for party outdated after current specs/party Esc=confirm; tests exercise confirm."
+    },
+    {
+      "id": "UI-DOC-04",
+      "sources": [
+        {
+          "path": "specs/visuals.md",
+          "lines": "9-12",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/visuals.md#L9-L12"
+        }
+      ],
+      "finding": "Opening URLs omit required debug=1, while overview86 and campaign tests require debug isolation."
+    }
+  ],
+  "additional_scope_limits": [
+    "Important-item ownership is stored and tested, but adventure branch conditions currently consume flags, not importantIds. Treat the branch-condition wording as a specification/implementation conflict; do not pretend a missing production story is implemented.",
+    "Production material/important-item acquisition content is deferred. Generic core support remains in scope.",
+    "Mid-expedition save is unsupported. JSON cloning of a bag is not production save/resume coverage.",
+    "Current v5-only save behavior does not authorize adding old-save migration to resolve stale v4 prose.",
+    "Rows across domain files can refer to the same requirement at distinct layers. Do not sum their counts as unique requirements or a coverage percentage."
+  ]
+}

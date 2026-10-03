@@ -1,0 +1,617 @@
+{
+  "audited_commit": "4866de71c2200781926f2bdb9611410822163ca5",
+  "purpose": "Review candidates, not authorization to delete blindly. Preserve each unique behavioral contract before consolidation.",
+  "findings": [
+    {
+      "id": "PROGRESSION-QUAL-01",
+      "domain": "progression",
+      "classification": "tautology / wrong layer",
+      "tests": [
+        {
+          "name": "呼び出し側のHP0・症状・回復時間・仲間・PT・フラグを成長と初期化で変えない",
+          "sources": [
+            {
+              "path": "src/game/progression.test.ts",
+              "lines": "254",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/progression.test.ts#L254"
+            }
+          ],
+          "assertion": "Only session.growth passed to APIs; unrelated session.party/flags copied in test and asserted unchanged"
+        }
+      ],
+      "finding": "Neither party nor flags is passed to grantExperience/resetCharacterGrowth. Their equality is a property of test object spreads, not a production integration guarantee.",
+      "recommended_action": "Delete this case or replace with public rewardGrowth/leaveExpedition fixture carrying injured reserve, statuses, clocks and flags. Existing loadSymptomIntegration and multidayAcceptance preserve real integration coverage."
+    },
+    {
+      "id": "PROGRESSION-QUAL-02",
+      "domain": "progression",
+      "classification": "tautological suffix",
+      "tests": [
+        {
+          "name": "旧形式を非対応とし現在の保存内容を変換しない",
+          "sources": [
+            {
+              "path": "src/game/growthRuntime.test.ts",
+              "lines": "308",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/growthRuntime.test.ts#L308"
+            }
+          ],
+          "assertion": "deserializeGame(original string); then JSON.stringify(payload)===original"
+        }
+      ],
+      "finding": "Payload object is never passed to function. String immutability/object nonmutation cannot establish browser storage preservation. Unsupported-version assertion is valid.",
+      "recommended_action": "Retain unsupported-version result; remove final payload-equality assertion. Add valid old-v4 storage bytes preservation to saveSlot/campaign IO test."
+    },
+    {
+      "id": "PROGRESSION-QUAL-03",
+      "domain": "progression",
+      "classification": "misleading name / partial oracle",
+      "tests": [
+        {
+          "name": "生存出撃メンバーへ同額を渡し控えには渡さない",
+          "sources": [
+            {
+              "path": "src/game/growthRuntime.test.ts",
+              "lines": "321",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/growthRuntime.test.ts#L321"
+            }
+          ],
+          "assertion": "Both available player and gilberta deployed; asserts both Lv3/XP5"
+        }
+      ],
+      "finding": "There is no reserve in this case. Equal deployed XP is tested, reserve exclusion is not.",
+      "recommended_action": "Rename to equal eligible XP or include third injured reserve and explicit unchanged XP. Retain separate multidayAcceptance reserve assertion; avoid adding a full duplicated journey."
+    },
+    {
+      "id": "PROGRESSION-QUAL-04",
+      "domain": "progression",
+      "classification": "weak healthy fixture",
+      "tests": [
+        {
+          "name": "編成・カレンダー参照・保存用stateコピーは回復・時間・乱数を変えない",
+          "sources": [
+            {
+              "path": "src/game/time.test.ts",
+              "lines": "202",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/time.test.ts#L202"
+            }
+          ],
+          "assertion": "Healthy HP200 and no symptoms, zero/default clock, JSON clone"
+        }
+      ],
+      "finding": "Cannot detect an unintended healing call; JSON clone is not save implementation. Correct calendar and RNG checks remain meaningful.",
+      "recommended_action": "Replace fixture with nonzero elapsed/recovery, wounded/symptomatic members and real serialize/deserialize; assert full public state after each relevant operation. Consolidate with existing save tests rather than duplicate happy journeys."
+    },
+    {
+      "id": "PROGRESSION-QUAL-05",
+      "domain": "progression",
+      "classification": "content-copy brittleness",
+      "tests": [
+        {
+          "name": "両キャラが共有する群で各分類の攻撃・回復・パッシブ3択を検証できる",
+          "sources": [
+            {
+              "path": "src/game/skills.test.ts",
+              "lines": "49",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skills.test.ts#L49"
+            }
+          ],
+          "assertion": "Asserts pool length7/3 and first three production effect objects in array order"
+        }
+      ],
+      "finding": "The first-three array-order oracle is incidental for content roles. Pinning current agreed trial values by named skill can be valid, but inspecting definitions alone does not prove their runtime effect. Shared profile and content validation smoke remain useful.",
+      "recommended_action": "Retain agreed profile/default-value invariants by skill ID; remove incidental first-three ordering unless it is a contractual draw order. Reuse existing independent runtime arithmetic fixtures instead of claiming content equality proves effects. Keep actual RNG sequence contracts."
+    },
+    {
+      "id": "PROGRESSION-QUAL-06",
+      "domain": "progression",
+      "classification": "valid independent oracle; retain",
+      "tests": [
+        {
+          "name": "固定seedの候補を保持し、参照・再準備・無効入力で再抽選しない",
+          "sources": [
+            {
+              "path": "src/game/skillAcquisition.test.ts",
+              "lines": "177",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skillAcquisition.test.ts#L177"
+            }
+          ],
+          "assertion": "Hard-coded candidate IDs and RNG2165703038 from independent seed calculation"
+        }
+      ],
+      "finding": "This is a public deterministic acquisition output and persisted random state. It is appropriate domain verification, unlike UI color assertions.",
+      "recommended_action": "Retain. Never replace expected results with nextGameRandom or same production draw code in the test."
+    },
+    {
+      "id": "PROGRESSION-QUAL-07",
+      "domain": "progression",
+      "classification": "overlapping integration, not automatically redundant",
+      "tests": [
+        {
+          "name": "加入・4枠と控え・育成・回復・%s帰還・保存・再出撃",
+          "sources": [
+            {
+              "path": "src/game/multidayAcceptance.test.ts",
+              "lines": "23",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/multidayAcceptance.test.ts#L23"
+            }
+          ],
+          "assertion": "End-to-end synchronous core operations with exact HP/RNG/XP/clock and save result oracles"
+        }
+      ],
+      "finding": "Lifecycle/save/growth unit cases overlap but this catches wiring across domains; debug output on failure is diagnostic only and is not counted as assurance.",
+      "recommended_action": "Keep one representative clear/fail integration journey and focused boundary units. Remove repeated browser full journeys only after a guarantee matrix proves no unique connection assertion is lost."
+    },
+    {
+      "id": "ITEMS-ITEM-Q1",
+      "domain": "items",
+      "classification": "wrong-layer / legacy API",
+      "tests": [
+        {
+          "name": "ホームで両枠へ装備・交換・解除でき、探索中は街でも変更しない",
+          "sources": [
+            {
+              "path": "src/game/equipment.test.ts",
+              "lines": "11-24",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/equipment.test.ts#L11-L24"
+            }
+          ],
+          "assertion": "Legacy changeEquipment: equip weapon+armor yields both IDs; exploration unassign rejected preserving loadout; home weapon removal preserves armor."
+        },
+        {
+          "name": "枠違い・未提供・未知の装備を拒否する",
+          "sources": [
+            {
+              "path": "src/game/equipment.test.ts",
+              "lines": "25-29",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/equipment.test.ts#L25-L29"
+            }
+          ],
+          "assertion": "Legacy changeEquipment rejects wrong slot, unavailable definition, unknown definition."
+        }
+      ],
+      "finding": "changeEquipment uses definition IDs and is not invoked by production runtime; current editHomeEquipment calls distinct assignEquipment physical-instance implementation. Thus legacy validation tests cannot be counted as production ownership/slot validation.",
+      "recommended_action": "Consolidate the public contract matrix at assignEquipment/editHomeEquipment. Remove legacy tests/helper only after deciding that API is obsolete; keep base equipmentStats tests."
+    },
+    {
+      "id": "ITEMS-ITEM-Q2",
+      "domain": "items",
+      "classification": "weak assertion, not redundant",
+      "tests": [
+        {
+          "name": "戦闘使用は敵行動まで進め、名簿とバッグを確定し、前ノード・同じ入力の再送を拒否する",
+          "sources": [
+            {
+              "path": "src/game/inventoryIntegration.test.ts",
+              "lines": "104-143",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/inventoryIntegration.test.ts#L104-L143"
+            }
+          ],
+          "assertion": "Previous node entrance rejected. Valid battle-a item accepted, itemRecovery.type=item-recovery, bag total1, roster mentalFatigue0; replay rejected. Does NOT assert HP, enemy events or RNG."
+        }
+      ],
+      "finding": "Title claims enemy loop and roster commit but assertions never inspect either numeric HP or enemy events. Public-state assertions are appropriate here.",
+      "recommended_action": "Keep this Node integration test and replace type-only/accepted-only reliance with independent expected HP, RNG, actor and ordered public events."
+    },
+    {
+      "id": "ITEMS-ITEM-Q3",
+      "domain": "items",
+      "classification": "incomplete transition oracle",
+      "tests": [
+        {
+          "name": "同じ品物は合計数で扱い、持込みを使い切ってから獲得分を使う",
+          "sources": [
+            {
+              "path": "src/game/items.test.ts",
+              "lines": "171-180",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.test.ts#L171-L180"
+            }
+          ],
+          "assertion": "Total5 initially, after FOUR uses total1 and HP stacks exactly [{quantity:1,origin:acquired}]. No intermediate origin assertion."
+        },
+        {
+          "name": "上限なしで持込みでき、重複行を合算して不足・不正数を拒否する",
+          "sources": [
+            {
+              "path": "src/game/items.test.ts",
+              "lines": "110-129",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.test.ts#L110-L129"
+            }
+          ],
+          "assertion": "Packing 10000 accepted=true; duplicate 3+3 against stock5 accepted=false; -1,0,1.5,NaN rejected; packing during exploration rejected."
+        }
+      ],
+      "finding": "Carry-first order is tested only after four uses; duplicate-row sum is tested only when overstock. Test titles exceed assertions.",
+      "recommended_action": "Add each meaningful intermediate origin state and a valid duplicate-row success. These supplement rather than remove the existing final-state checks."
+    },
+    {
+      "id": "ITEMS-ITEM-Q4",
+      "domain": "items",
+      "classification": "no circular oracle found in item numeric tests",
+      "tests": [
+        {
+          "name": "%sは持込み消耗品・素材と獲得品を同じ注入抽選へ渡す [defeat, retreat]",
+          "sources": [
+            {
+              "path": "src/game/items.test.ts",
+              "lines": "75-100",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.test.ts#L75-L100"
+            }
+          ],
+          "assertion": "Seed1 returns home HP4/material3, loss HP1 carried/material1 carried/material1 acquired, importantIds=[trial-important], RNG3327581586; replay accepted=false and policy called once."
+        },
+        {
+          "name": "疲労100でも8回復し、味方の1行動を消費する。再送で消費・行動・乱数を重ねない",
+          "sources": [
+            {
+              "path": "src/game/itemUse.test.ts",
+              "lines": "51-69",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/itemUse.test.ts#L51-L69"
+            }
+          ],
+          "assertion": "Actor HP5→13, mentalFatigue100, nextActionTime200, healthy status, other ally HP5; next actor target, RNG23; bag2→1; replay rejected, HP13/bag1."
+        },
+        {
+          "name": "既存能力へ注入補正を投影し、固有技/初期技を装備の有無で制限しない",
+          "sources": [
+            {
+              "path": "src/game/equipment.test.ts",
+              "lines": "30-46",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/equipment.test.ts#L30-L46"
+            }
+          ],
+          "assertion": "Projected HP24/attack9/speed100 versus empty HP20/attack8; learnedSkills after equals nonempty before; injected +2 weapon gives attack10."
+        }
+      ],
+      "finding": "HP13, cap10, attack9 and literal seed1 loss/RNG expectations are independent concrete numbers. vi.fn wrapping real retention does not derive expected loss from the same result. Keep those tests.",
+      "recommended_action": "Do not discard public bag arrays, item counts, stat outputs, RNG or learnedSkills invariance as internal implementation snapshots: their semantics are explicitly promised. Assert order only when the contract depends on it."
+    },
+    {
+      "id": "ITEMS-ITEM-Q5",
+      "domain": "items",
+      "classification": "artifact-only evidence excluded",
+      "tests": [
+        {
+          "name": "物品の買物・持込み・帰還・保存を通常画面で通す",
+          "sources": [
+            {
+              "path": "tests/e2e/campaign.spec.ts",
+              "lines": "226-294",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/campaign.spec.ts#L226-L294"
+            }
+          ],
+          "assertion": "Initial money30; qty4 purchase disabled; double-click buy2 gives money10/bag2; return home stock2/calendar night; backing out retains carry1/home2/calendar; full target disabled; retreat stock2/calendar nextday; save+reload money10/stock2; page errors empty. Screenshots not counted."
+        },
+        {
+          "name": "共有装備2組を2人へ割り当て、重複・HP増加回復を防いで保存する",
+          "sources": [
+            {
+              "path": "tests/e2e/campaign.spec.ts",
+              "lines": "296-333",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/campaign.spec.ts#L296-L333"
+            }
+          ],
+          "assertion": "Player w1/a1 displays HP20/24 attack9; gilberta w1 option disabled; w2/a2 displays HP18/22 attack7; save+reload armor1 and weapon2 selected; control stays in viewport at 320/390/1920. Screenshots not counted."
+        },
+        {
+          "name": "分岐で正常回復後に残数${carried - 1}に応じてfocusを戻し再操作できる [残数0, 残数1]",
+          "sources": [
+            {
+              "path": "tests/e2e/campaign.spec.ts",
+              "lines": "335-385",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/campaign.spec.ts#L335-L385"
+            }
+          ],
+          "assertion": "Preview+4; resulting text HP24 mentalFatigue0 and calendar night. Remaining1 restores focus and permits reopen showing HP24/24/use disabled; remaining0 disables item and focuses route battle button."
+        },
+        {
+          "name": "通常戦闘で持込み物品を一度だけ使い敵行動の後に入力へ戻る",
+          "sources": [
+            {
+              "path": "tests/e2e/campaign.spec.ts",
+              "lines": "387-420",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/campaign.spec.ts#L387-L420"
+            }
+          ],
+          "assertion": "Preview+4, after use skill input enabled, result text HP4 recovered/mental fatigue unchanged, item count0 disabled, calendar still night. No asserted post-enemy HP or event damage."
+        }
+      ],
+      "finding": "page.screenshot writes images without toHaveScreenshot/image comparison; cannot assure visual appearance or design approval. Behavioral assertions in the same tests remain valid.",
+      "recommended_action": "Keep representative production purchase/use/save bridge; Separately classify screenshot capture and genuine visual regression checks."
+    },
+    {
+      "id": "ITEMS-ITEM-Q6",
+      "domain": "items",
+      "classification": "duplication/consolidation opportunity",
+      "tests": [
+        {
+          "name": "旧形式・負数・未知物品・装備の重複割当てを保存復元で拒否する",
+          "sources": [
+            {
+              "path": "src/game/inventoryIntegration.test.ts",
+              "lines": "172-222",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/inventoryIntegration.test.ts#L172-L222"
+            }
+          ],
+          "assertion": "Corrupt version4, balance-1, unknown home item quantity1, or w1 assigned to player and gilberta; deserialize accepted=false each."
+        }
+      ],
+      "finding": "Old-version refusal repeated in item, generic save and growth-save suites; all accepted=false variants add little independent coverage. Other item corruptions are unique and should remain.",
+      "recommended_action": "Consolidate v4/unsupported-version at save boundary with stored-byte preservation; use reclaimed cases for quantity/version/ownership/slot/important-ID corruption. No wholesale removal of integration roundtrips."
+    },
+    {
+      "id": "ITEMS-ITEM-Q7",
+      "domain": "items",
+      "classification": "complementary layers, keep",
+      "tests": [
+        {
+          "name": "市場で買物を複数回しても完了まで時間を進めず、持帰り・保存・持込み・途中帰還が一度だけ反映される",
+          "sources": [
+            {
+              "path": "src/game/inventoryIntegration.test.ts",
+              "lines": "62-103",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/inventoryIntegration.test.ts#L62-L103"
+            }
+          ],
+          "assertion": "Each of3 purchases accepted with elapsedHalfDays0 and save rejected. Town completion+save restore halfDays1/balance0/home3; repeat town rejected. Pack2 leaves home1; retreat+restore home3/RNG1586005467/halfDays2; repeat retreat rejected."
+        },
+        {
+          "name": "物品の買物・持込み・帰還・保存を通常画面で通す",
+          "sources": [
+            {
+              "path": "tests/e2e/campaign.spec.ts",
+              "lines": "226-294",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/campaign.spec.ts#L226-L294"
+            }
+          ],
+          "assertion": "Initial money30; qty4 purchase disabled; double-click buy2 gives money10/bag2; return home stock2/calendar night; backing out retains carry1/home2/calendar; full target disabled; retreat stock2/calendar nextday; save+reload money10/stock2; page errors empty. Screenshots not counted."
+        },
+        {
+          "name": "物品は確定回復を表示してから敵行動を再生し、勝敗演出や二重消費を起こさない",
+          "sources": [
+            {
+              "path": "tests/e2e/battle-ui.spec.ts",
+              "lines": "580-612",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/battle-ui.spec.ts#L580-L612"
+            }
+          ],
+          "assertion": "Double-click use gives commit1, UI HP10→18→14, item1 disabled during sequence then enabled/focused after skip, recovery8 text, mentalFatigue0, no defeat, commit count still1. Fixture manually bridges useBattleRecoveryItem→advanceBattleToNextAllyInput."
+        },
+        {
+          "name": "通常戦闘で持込み物品を一度だけ使い敵行動の後に入力へ戻る",
+          "sources": [
+            {
+              "path": "tests/e2e/campaign.spec.ts",
+              "lines": "387-420",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/campaign.spec.ts#L387-L420"
+            }
+          ],
+          "assertion": "Preview+4, after use skill input enabled, result text HP4 recovered/mental fatigue unchanged, item count0 disabled, calendar still night. No asserted post-enemy HP or event damage."
+        }
+      ],
+      "finding": "Node journey, UI animation fixture and normal production E2E exercise distinct seams. The fixture manually composes low-level item healing with enemy loop and does not prove production performDungeonRecoveryItem wiring.",
+      "recommended_action": "Maintain one normal production path and fast Node edge coverage. Do not clone all mechanics into every viewport/browser."
+    },
+    {
+      "id": "UI-METHOD-01",
+      "domain": "ui",
+      "sources": [
+        {
+          "path": "tests/e2e/party-ui.spec.ts",
+          "lines": "207-237",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/party-ui.spec.ts#L207-L237"
+        }
+      ],
+      "finding": "Exact pseudo-element RGB/textcolor/outline literals verify CSS spelling, not composited contrast or visible pressed/focus state.",
+      "recommended_action": "Remove cosmetic value assertions once state-level runtime VRT covers hover/pressed/focus/disabled; retain real mouse/Space operation, semantic focus, and explicit bbox invariant."
+    },
+    {
+      "id": "UI-METHOD-02",
+      "domain": "ui",
+      "sources": [
+        {
+          "path": "tests/e2e/settings.spec.ts",
+          "lines": "195-208",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/settings.spec.ts#L195-L208"
+        }
+      ],
+      "finding": "CSS customproperty 32%/35% merely echoes entered settings; layout may ignore them.",
+      "recommended_action": "Keep field persistence and real preview x movement; replace customprop oracle with known rendered geometry or snapshot before/after standard save."
+    },
+    {
+      "id": "UI-METHOD-03",
+      "domain": "ui",
+      "sources": [
+        {
+          "path": "tests/e2e/party-ui.spec.ts",
+          "lines": "180-204",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/party-ui.spec.ts#L180-L204"
+        }
+      ],
+      "finding": "Screenshot and diff artifact production is not automated appearance pass/fail.",
+      "recommended_action": "Maintain review-approved runtime image baselines per fixed state. Compare in CI with justified rendering tolerance; concept overlay remains design review evidence, never coverage evidence."
+    },
+    {
+      "id": "UI-METHOD-04",
+      "domain": "ui",
+      "sources": [
+        {
+          "path": "tests/e2e/battle-ui.spec.ts",
+          "lines": "108-139",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/battle-ui.spec.ts#L108-L139"
+        }
+      ],
+      "finding": "Scripted focus and scrollIntoView bypass actual keyboard discovery/navigation.",
+      "recommended_action": "Use actual Tab/PageDown/Enter, as acceptance-ui does; retain narrow geometric overflow assertions, avoid duplicating same cosmetic layout assertions at every viewport."
+    },
+    {
+      "id": "UI-METHOD-05",
+      "domain": "ui",
+      "sources": [
+        {
+          "path": "tests/e2e/party-ui.spec.ts",
+          "lines": "110-163",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/party-ui.spec.ts#L110-L163"
+        }
+      ],
+      "finding": "15 PageDown then scrollIntoView can turn failed keyboard scroll into pass.",
+      "recommended_action": "Remove helper from keyboard claim or narrow name to generic reachability; acceptance-ui already supplies stronger keyboard oracle. Deduplicate long-scroll coverage while retain state-refresh/detail data assertions."
+    },
+    {
+      "id": "UI-METHOD-06",
+      "domain": "ui",
+      "sources": [
+        {
+          "path": "tests/e2e/campaign.spec.ts",
+          "lines": "237-242",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/campaign.spec.ts#L237-L242"
+        }
+      ],
+      "finding": "Purchase2 from30 leaves10: second purchase2 is unaffordable. This cannot isolate double-submit guard.",
+      "recommended_action": "A single successful purchase fixture must leave enough funds for duplicate to be valid; assert one balance delta and distinct later intended purchase succeeds."
+    },
+    {
+      "id": "UI-METHOD-07",
+      "domain": "ui",
+      "sources": [
+        {
+          "path": "tests/e2e/campaign.spec.ts",
+          "lines": "329-330",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/campaign.spec.ts#L329-L330"
+        }
+      ],
+      "finding": "Equipment release/reassignment performs actions but never asserts the final result.",
+      "recommended_action": "Assert final public selected value/stats/owner availability, or remove this tail as non-guaranteeing procedural noise."
+    },
+    {
+      "id": "UI-METHOD-08",
+      "domain": "ui",
+      "sources": [
+        {
+          "path": "tests/e2e/battle-ui.spec.ts",
+          "lines": "614-642",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/battle-ui.spec.ts#L614-L642"
+        }
+      ],
+      "finding": "Hardcoded CSS durations can mirror implementation instead of observable speed/phase contract.",
+      "recommended_action": "Retain input-disabled/visible-number timing and exact one commit; test sampled visible interpolation/reduced-motion invariants without declaring literal-duration style equality visual assurance."
+    },
+    {
+      "id": "UI-METHOD-09",
+      "domain": "ui",
+      "sources": [
+        {
+          "path": "tests/e2e/battle.spec.ts",
+          "lines": "174-181",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/battle.spec.ts#L174-L181"
+        }
+      ],
+      "finding": "is-muted/is-speaking class match establishes class assignment only.",
+      "recommended_action": "Keep correct speaker/text/asset binding assertions; state VRT catches brightness and placement. Do not count classnames as rendered quality."
+    },
+    {
+      "id": "UI-METHOD-10",
+      "domain": "ui",
+      "sources": [
+        {
+          "path": "tests/e2e/dungeon.spec.ts",
+          "lines": "44-120",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/dungeon.spec.ts#L44-L120"
+        }
+      ],
+      "finding": "overflow:hidden and filter:blur literals do not prove scrolling or route clarity.",
+      "recommended_action": "Use actual pan/vertical-scroll outcome and route-state VRT; retain enabled/accessible-state and hover edge stability checks."
+    },
+    {
+      "id": "UI-METHOD-11",
+      "domain": "ui",
+      "sources": [
+        {
+          "path": "tests/e2e/formationEvidence.ts",
+          "lines": "5-61",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/formationEvidence.ts#L5-L61"
+        }
+      ],
+      "finding": "Resource-readiness checks and CDP actual-font usage are valid loading contracts, but do not establish appearance.",
+      "recommended_action": "Keep focused readiness checks shared by VRT capture, not repeatedly asserted as a separate completion metric for every screenshot artifact."
+    },
+    {
+      "id": "UI-METHOD-12",
+      "domain": "ui",
+      "sources": [
+        {
+          "path": "tests/e2e/party-ui.spec.ts",
+          "lines": "5-58",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/party-ui.spec.ts#L5-L58"
+        }
+      ],
+      "finding": "12/24 nearly identical functional scripts and all-view-size loops create repeated expensive work without proving normal-campaign behavior.",
+      "recommended_action": "Preserve one strong large-list keyboard/scroll case and boundary-specific layouts; parameterize only genuinely distinct capacity/scroll layouts. Do not remove4-limit or compaction semantics merely because visually similar."
+    },
+    {
+      "id": "UI-METHOD-13",
+      "domain": "ui",
+      "sources": [
+        {
+          "path": "tests/e2e/party-ui.spec.ts",
+          "lines": "8-45",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/party-ui.spec.ts#L8-L45"
+        }
+      ],
+      "finding": "Unchanged #state assertions use a stale snapshot. party-selection.html updates hidden output only initially/on confirm/on snapshot button. The test does not click snapshot during draft or after details.",
+      "recommended_action": "Refresh through the existing test observation control, or expose a read-only current-state observation at assertion time. Assert independent before/after public state, not cached display. Keep the valid order/scroll/focus assertions."
+    },
+    {
+      "id": "BATTLE-Q01",
+      "domain": "battle",
+      "sources": [
+        {
+          "path": "src/game/battle.test.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battle.test.ts"
+        },
+        {
+          "path": "src/game/multiAttack.test.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/multiAttack.test.ts"
+        }
+      ],
+      "finding": "HP、公開イベント、RNG、拒否結果はゲームの公開契約を観測している。",
+      "recommended_action": "維持する。返却objectの確認という形式だけで内部実装依存と分類しない。"
+    },
+    {
+      "id": "BATTLE-Q02",
+      "domain": "battle",
+      "sources": [
+        {
+          "path": "src/game/battle.test.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battle.test.ts"
+        }
+      ],
+      "finding": "拒否後の結果を同時に変更され得る入力objectと比較すると、副作用を検知できない可能性がある。",
+      "recommended_action": "操作前の独立snapshotまたはimmutable入力と照合し、入力破壊時に失敗するようにする。"
+    },
+    {
+      "id": "BATTLE-Q03",
+      "domain": "battle",
+      "sources": [
+        {
+          "path": "src/game/multiAttack.test.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/multiAttack.test.ts"
+        }
+      ],
+      "finding": "同じ全体回復拒否を不正hitCountごとに繰り返すと境界が重複する。",
+      "recommended_action": "回復対象の拒否を一つに分け、hitCountの不正値表は独立に維持する。"
+    },
+    {
+      "id": "BATTLE-Q04",
+      "domain": "battle",
+      "sources": [
+        {
+          "path": "tests/e2e/battle-ui.spec.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/battle-ui.spec.ts"
+        }
+      ],
+      "finding": "演出の動画生成成功とCSS durationの一致だけでは、各段階の表示や補間を保証しない。",
+      "recommended_action": "入力抑止、時間境界の可視状態、一度だけの確定を維持し、必要なmotion観測を補う。録画caseへ全ゲーム境界を複製しない。"
+    }
+  ]
+}

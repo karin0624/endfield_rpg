@@ -1,0 +1,4617 @@
+{
+  "schema_version": 1,
+  "repository": "karin0624/endfield_rpg",
+  "audited_commit": "4866de71c2200781926f2bdb9611410822163ca5",
+  "domain": "progression",
+  "method": "Static requirement-to-implementation-to-assertion inspection.",
+  "test_execution": "not-run",
+  "counterexamples": "Reasoned regression candidates; no mutation execution claimed.",
+  "status_counts": {
+    "assertion-present": 59,
+    "partial": 31,
+    "missing": 12
+  },
+  "contracts": [
+    {
+      "id": "ADV-01",
+      "domain": "adventure",
+      "requirement": "Initial core state: town-square, town mode, null conversation and position, empty flags.",
+      "specification_sources": [
+        {
+          "path": "specs/adventure.md",
+          "lines": "17",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/adventure.md#L17"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/createInitialGameState.ts",
+          "lines": "16",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/createInitialGameState.ts#L16"
+        }
+      ],
+      "tests": [
+        {
+          "name": "街から始まる未進行の状態を作る",
+          "sources": [
+            {
+              "path": "src/game/createInitialGameState.test.ts",
+              "lines": "7",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/createInitialGameState.test.ts#L7"
+            }
+          ],
+          "assertion": "Full equality to town/town-square/null/null/[]"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "ADV-02",
+      "domain": "adventure",
+      "requirement": "Available place lookup returns only eligible places and none during conversation.",
+      "specification_sources": [
+        {
+          "path": "specs/adventure.md",
+          "lines": "23",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/adventure.md#L23"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/adventure.ts",
+          "lines": "297",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/adventure.ts#L297"
+        }
+      ],
+      "tests": [
+        {
+          "name": "場所選択から会話、選択肢、フラグ更新、再訪分岐まで進む",
+          "sources": [
+            {
+              "path": "src/game/adventure.test.ts",
+              "lines": "17",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/adventure.test.ts#L17"
+            }
+          ],
+          "assertion": "Exact initial 4 place IDs/labels"
+        },
+        {
+          "name": "会話中の移動と街に存在しない場所を拒否し、状態を変えない",
+          "sources": [
+            {
+              "path": "src/game/adventure.test.ts",
+              "lines": "139",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/adventure.test.ts#L139"
+            }
+          ],
+          "assertion": "getAvailableTownPlaces(conversation) equals []"
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "No locked/unlocked availableWhen fixture; no missing matching route fixture.",
+      "candidate_regression": "Ignore place.availableWhen and always list every place.",
+      "risk": "medium"
+    },
+    {
+      "id": "ADV-03",
+      "domain": "adventure",
+      "requirement": "Selecting available place chooses first satisfied conditional route; all and none predicates apply.",
+      "specification_sources": [
+        {
+          "path": "specs/adventure.md",
+          "lines": "39",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/adventure.md#L39"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/adventure.ts",
+          "lines": "129",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/adventure.ts#L129"
+        }
+      ],
+      "tests": [
+        {
+          "name": "場所選択から会話、選択肢、フラグ更新、再訪分岐まで進む",
+          "sources": [
+            {
+              "path": "src/game/adventure.test.ts",
+              "lines": "17",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/adventure.test.ts#L17"
+            }
+          ],
+          "assertion": "Guild with both flags yields quest revisit text"
+        },
+        {
+          "name": "依頼の話を選ばずに会話を終えた後は別の再訪会話になる",
+          "sources": [
+            {
+              "path": "src/game/adventure.test.ts",
+              "lines": "112",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/adventure.test.ts#L112"
+            }
+          ],
+          "assertion": "visited-guild only yields alternate revisit text"
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "Specific all-flag routes covered; explicit overlapping eligible condition priority and none denial are not independently asserted.",
+      "candidate_regression": "A last-match conditional selector can choose wrong route when two conditional routes match.",
+      "risk": "medium"
+    },
+    {
+      "id": "ADV-04",
+      "domain": "adventure",
+      "requirement": "Unavailable/unknown place and moving during conversation reject without state changes.",
+      "specification_sources": [
+        {
+          "path": "specs/adventure.md",
+          "lines": "33",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/adventure.md#L33"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/adventure.ts",
+          "lines": "308",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/adventure.ts#L308"
+        }
+      ],
+      "tests": [
+        {
+          "name": "会話中の移動と街に存在しない場所を拒否し、状態を変えない",
+          "sources": [
+            {
+              "path": "src/game/adventure.test.ts",
+              "lines": "139",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/adventure.test.ts#L139"
+            }
+          ],
+          "assertion": "Exact rejected result includes unchanged state for unknown and conversation input"
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "Unknown place and wrong mode covered; existing place locked by availableWhen not tested.",
+      "candidate_regression": "Ignore availability gate for an existing hidden place.",
+      "risk": "medium"
+    },
+    {
+      "id": "ADV-05",
+      "domain": "adventure",
+      "requirement": "Line and choice scene contain authored text and presentation IDs; querying is read-only.",
+      "specification_sources": [
+        {
+          "path": "specs/adventure.md",
+          "lines": "43",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/adventure.md#L43"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/adventure.ts",
+          "lines": "345",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/adventure.ts#L345"
+        }
+      ],
+      "tests": [
+        {
+          "name": "場所選択から会話、選択肢、フラグ更新、再訪分岐まで進む",
+          "sources": [
+            {
+              "path": "src/game/adventure.test.ts",
+              "lines": "17",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/adventure.test.ts#L17"
+            }
+          ],
+          "assertion": "Authored text/portrait/background/speaker/position match; repeated scene equals first and flags stay []"
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "Repeat equality plus flags does not assert whole input state remains unchanged or conversation position unchanged; choice presentation fields lack independent assertion.",
+      "candidate_regression": "Scene query mutates an unrelated state field or choice presentation strips background.",
+      "risk": "low"
+    },
+    {
+      "id": "ADV-06",
+      "domain": "adventure",
+      "requirement": "Line advances and choices set flags; hidden choice is omitted and direct hidden ID is rejected.",
+      "specification_sources": [
+        {
+          "path": "specs/adventure.md",
+          "lines": "33",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/adventure.md#L33"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/adventure.ts",
+          "lines": "405",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/adventure.ts#L405"
+        }
+      ],
+      "tests": [
+        {
+          "name": "場所選択から会話、選択肢、フラグ更新、再訪分岐まで進む",
+          "sources": [
+            {
+              "path": "src/game/adventure.test.ts",
+              "lines": "17",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/adventure.test.ts#L17"
+            }
+          ],
+          "assertion": "Exact two visible options omit ask-secret; direct ask-secret returns choice-unavailable/state; ask-quest adds heard-guild-quest"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "ADV-07",
+      "domain": "adventure",
+      "requirement": "Completion restores town, clears conversation/position, preserves selected place and adds completion flags once.",
+      "specification_sources": [
+        {
+          "path": "specs/adventure.md",
+          "lines": "29",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/adventure.md#L29"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/adventure.ts",
+          "lines": "145",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/adventure.ts#L145"
+        }
+      ],
+      "tests": [
+        {
+          "name": "場所選択から会話、選択肢、フラグ更新、再訪分岐まで進む",
+          "sources": [
+            {
+              "path": "src/game/adventure.test.ts",
+              "lines": "17",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/adventure.test.ts#L17"
+            }
+          ],
+          "assertion": "mode town/currentPlace guild/flags exact, scene null, duplicate advance rejected"
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "No assertion specifically nulls both conversation fields (null scene also follows mode town); duplicate same flag across choice/completion/revisit not tested.",
+      "candidate_regression": "Leave stale conversationId or append duplicate flag when already present.",
+      "risk": "medium"
+    },
+    {
+      "id": "ADV-08",
+      "domain": "adventure",
+      "requirement": "Wrong input kind cannot advance choice or choose on line; rejects with unchanged state.",
+      "specification_sources": [
+        {
+          "path": "specs/adventure.md",
+          "lines": "33",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/adventure.md#L33"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/adventure.ts",
+          "lines": "388",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/adventure.ts#L388"
+        }
+      ],
+      "tests": [
+        {
+          "name": "完了再送・古い完了ID・無効な街操作は時間も回復も増やさない",
+          "sources": [
+            {
+              "path": "src/game/time.test.ts",
+              "lines": "151",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/time.test.ts#L151"
+            }
+          ],
+          "assertion": "Choosing on market line returns not-a-choice"
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "Core advance-on-choice and unchanged-state assertions for both wrong-kind paths absent; web may separately exercise Space.",
+      "candidate_regression": "Remove not-a-line guard; advance on a choice can escape or throw instead of controlled rejection.",
+      "risk": "high"
+    },
+    {
+      "id": "ADV-09",
+      "domain": "adventure",
+      "requirement": "Content validator rejects missing place conversation and choice destination.",
+      "specification_sources": [
+        {
+          "path": "specs/adventure.md",
+          "lines": "37",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/adventure.md#L37"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/adventure.ts",
+          "lines": "188",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/adventure.ts#L188"
+        }
+      ],
+      "tests": [
+        {
+          "name": "会話データの場所参照と選択肢の到達先を検証する",
+          "sources": [
+            {
+              "path": "src/game/adventure.test.ts",
+              "lines": "152",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/adventure.test.ts#L152"
+            }
+          ],
+          "assertion": "missing place conversation and missing option nextNodeId throw named errors"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "ADV-10",
+      "domain": "adventure-definition",
+      "requirement": "Conversation/place/option IDs must be nonempty and unique.",
+      "specification_sources": [
+        {
+          "path": "specs/adventure.md",
+          "lines": "3",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/adventure.md#L3"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/adventure.ts",
+          "lines": "188",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/adventure.ts#L188"
+        }
+      ],
+      "tests": [],
+      "coverage_status": "missing",
+      "audit_classification": "missing",
+      "ci_status": "not-assessed",
+      "gap": "No corresponding malformed-definition assertion in adventure or validateContent suites; successful production validation does not exercise rejection.",
+      "candidate_regression": "Remove duplicate conversation/place/option-ID rejection.",
+      "risk": "medium"
+    },
+    {
+      "id": "ADV-11",
+      "domain": "adventure-definition",
+      "requirement": "Place routes require an unconditional fallback last and nonempty route list.",
+      "specification_sources": [
+        {
+          "path": "specs/adventure.md",
+          "lines": "3",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/adventure.md#L3"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/adventure.ts",
+          "lines": "188",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/adventure.ts#L188"
+        }
+      ],
+      "tests": [],
+      "coverage_status": "missing",
+      "audit_classification": "missing",
+      "ci_status": "not-assessed",
+      "gap": "No corresponding malformed-definition assertion in adventure or validateContent suites; successful production validation does not exercise rejection.",
+      "candidate_regression": "Accept an empty route list or unconditional route before a conditional route.",
+      "risk": "medium"
+    },
+    {
+      "id": "ADV-12",
+      "domain": "adventure-definition",
+      "requirement": "Conversation start must exist and must not be an end; line destinations must exist.",
+      "specification_sources": [
+        {
+          "path": "specs/adventure.md",
+          "lines": "3",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/adventure.md#L3"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/adventure.ts",
+          "lines": "188",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/adventure.ts#L188"
+        }
+      ],
+      "tests": [],
+      "coverage_status": "missing",
+      "audit_classification": "missing",
+      "ci_status": "not-assessed",
+      "gap": "No corresponding malformed-definition assertion in adventure or validateContent suites; successful production validation does not exercise rejection.",
+      "candidate_regression": "Accept missing start node, end start, or line destination missing.",
+      "risk": "medium"
+    },
+    {
+      "id": "ADV-13",
+      "domain": "adventure-definition",
+      "requirement": "Choice nodes require at least one option and one unconditional option.",
+      "specification_sources": [
+        {
+          "path": "specs/adventure.md",
+          "lines": "3",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/adventure.md#L3"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/adventure.ts",
+          "lines": "188",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/adventure.ts#L188"
+        }
+      ],
+      "tests": [],
+      "coverage_status": "missing",
+      "audit_classification": "missing",
+      "ci_status": "not-assessed",
+      "gap": "No corresponding malformed-definition assertion in adventure or validateContent suites; successful production validation does not exercise rejection.",
+      "candidate_regression": "Accept all conditionally hidden choices, leaving a dead-end event.",
+      "risk": "medium"
+    },
+    {
+      "id": "ADV-14",
+      "domain": "adventure-definition",
+      "requirement": "Authored IDs/labels/text/flag strings are nonempty; recruitment effects validate character/flag strings.",
+      "specification_sources": [
+        {
+          "path": "specs/adventure.md",
+          "lines": "3",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/adventure.md#L3"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/adventure.ts",
+          "lines": "188",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/adventure.ts#L188"
+        }
+      ],
+      "tests": [],
+      "coverage_status": "missing",
+      "audit_classification": "missing",
+      "ci_status": "not-assessed",
+      "gap": "No corresponding malformed-definition assertion in adventure or validateContent suites; successful production validation does not exercise rejection.",
+      "candidate_regression": "Accept blank flag or empty line text in authored data.",
+      "risk": "medium"
+    },
+    {
+      "id": "REC-01",
+      "domain": "recruitment",
+      "requirement": "Only conversation-end input recruits known eligible character with initial HP; adds flags and completion result atomically.",
+      "specification_sources": [
+        {
+          "path": "specs/adventure.md",
+          "lines": "74",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/adventure.md#L74"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/expedition.ts",
+          "lines": "504",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/expedition.ts#L504"
+        }
+      ],
+      "tests": [
+        {
+          "name": "初期はロッシ単独。会話終了だけで加入し、初期HPとフラグを持つ控えになる",
+          "sources": [
+            {
+              "path": "src/game/recruitment.test.ts",
+              "lines": "38",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/recruitment.test.ts#L38"
+            }
+          ],
+          "assertion": "No member before end; after end player20/gilberta18, joined flag, recruitedIds and one halfday/step"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "REC-02",
+      "domain": "recruitment",
+      "requirement": "New recruits stay reserve; full four slots remain unchanged when fifth joins.",
+      "specification_sources": [
+        {
+          "path": "specs/adventure.md",
+          "lines": "76",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/adventure.md#L76"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/party.ts",
+          "lines": "138",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/party.ts#L138"
+        }
+      ],
+      "tests": [
+        {
+          "name": "満員4枠を押し出さず、5人目を控えへ追加する",
+          "sources": [
+            {
+              "path": "src/game/recruitment.test.ts",
+              "lines": "122",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/recruitment.test.ts#L122"
+            }
+          ],
+          "assertion": "Slots player/a/b/c unchanged; members adds gilberta"
+        },
+        {
+          "name": "初期はロッシ単独。会話終了だけで加入し、初期HPとフラグを持つ控えになる",
+          "sources": [
+            {
+              "path": "src/game/recruitment.test.ts",
+              "lines": "38",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/recruitment.test.ts#L38"
+            }
+          ],
+          "assertion": "Slots player/null/null/null unchanged"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "REC-03",
+      "domain": "recruitment",
+      "requirement": "Decline adds no character or join flag, allows retry, and still completes one town action.",
+      "specification_sources": [
+        {
+          "path": "specs/adventure.md",
+          "lines": "72",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/adventure.md#L72"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/expedition.ts",
+          "lines": "504",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/expedition.ts#L504"
+        }
+      ],
+      "tests": [
+        {
+          "name": "見送りは加入も加入フラグも残さず、再訪で改めて選べる",
+          "sources": [
+            {
+              "path": "src/game/recruitment.test.ts",
+              "lines": "69",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/recruitment.test.ts#L69"
+            }
+          ],
+          "assertion": "No joined-gilberta and only player; later invite succeeds; completion recruitedIds=[]"
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "Decline test does not assert halfday/recovery count for decline specifically.",
+      "candidate_regression": "Special-case leave to complete without accounting time.",
+      "risk": "medium"
+    },
+    {
+      "id": "REC-04",
+      "domain": "recruitment",
+      "requirement": "Duplicate recruit is no-op and cannot reset HP, symptoms/recovery, slots or add fresh join flags; revisit supplies only ordinary recovery.",
+      "specification_sources": [
+        {
+          "path": "specs/adventure.md",
+          "lines": "76",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/adventure.md#L76"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/party.ts",
+          "lines": "138",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/party.ts#L138"
+        }
+      ],
+      "tests": [
+        {
+          "name": "重複加入効果はHP・症状・残り回復を初期化せず、再訪も通常の回復1stepだけ",
+          "sources": [
+            {
+              "path": "src/game/recruitment.test.ts",
+              "lines": "80",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/recruitment.test.ts#L80"
+            }
+          ],
+          "assertion": "Duplicate keeps HP3/haze20/incapacity6; revisit HP3/haze10/incapacity5"
+        },
+        {
+          "name": "加入済みの無条件no-opから、条件未達の加入フラグを付与しない",
+          "sources": [
+            {
+              "path": "src/game/recruitment.test.ts",
+              "lines": "172",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/recruitment.test.ts#L172"
+            }
+          ],
+          "assertion": "No enrollment-verified; one gilberta; recruitedIds=[]"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "REC-05",
+      "domain": "recruitment",
+      "requirement": "Unknown or ineligible new recruit rejects whole event including conversation flags, party, time.",
+      "specification_sources": [
+        {
+          "path": "specs/adventure.md",
+          "lines": "74",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/adventure.md#L74"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/expedition.ts",
+          "lines": "504",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/expedition.ts#L504"
+        }
+      ],
+      "tests": [
+        {
+          "name": "不明ID・条件未達を拒否し、失敗したイベント完了は時間・フラグ・仲間を変更しない",
+          "sources": [
+            {
+              "path": "src/game/recruitment.test.ts",
+              "lines": "138",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/recruitment.test.ts#L138"
+            }
+          ],
+          "assertion": "Unknown/condition rejects; ineligible end leaves conversation, flags[], time0/step0, player only"
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "Single failing effect only; no earlier successful recruitment followed by failure in same multi-effect end.",
+      "candidate_regression": "Commit first recruit/flag before rejecting second effect.",
+      "risk": "high"
+    },
+    {
+      "id": "REC-06",
+      "domain": "recruitment",
+      "requirement": "Multiple recruitment effects commit one completion and one halfday/recovery step.",
+      "specification_sources": [
+        {
+          "path": "specs/adventure.md",
+          "lines": "78",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/adventure.md#L78"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/expedition.ts",
+          "lines": "504",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/expedition.ts#L504"
+        }
+      ],
+      "tests": [
+        {
+          "name": "複数加入も会話終了の半日を1回だけ計上する",
+          "sources": [
+            {
+              "path": "src/game/recruitment.test.ts",
+              "lines": "204",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/recruitment.test.ts#L204"
+            }
+          ],
+          "assertion": "gilberta/scout recruitedIds, one halfday/step, unchanged slots"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "REC-07",
+      "domain": "recruitment",
+      "requirement": "Recruitment is possible with all current party incapacitated and does not alter deployment.",
+      "specification_sources": [
+        {
+          "path": "specs/adventure.md",
+          "lines": "80",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/adventure.md#L80"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/expedition.ts",
+          "lines": "425",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/expedition.ts#L425"
+        }
+      ],
+      "tests": [
+        {
+          "name": "全員戦闘不能でも非戦闘の加入イベントを終えられる",
+          "sources": [
+            {
+              "path": "src/game/recruitment.test.ts",
+              "lines": "233",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/recruitment.test.ts#L233"
+            }
+          ],
+          "assertion": "Both members joined, old incapacity6→5, new healthy, only player deployed"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "REC-08",
+      "domain": "recruitment",
+      "requirement": "Recruitment completion replay/old action ID is rejected, not counted twice.",
+      "specification_sources": [
+        {
+          "path": "specs/adventure.md",
+          "lines": "78",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/adventure.md#L78"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/expedition.ts",
+          "lines": "504",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/expedition.ts#L504"
+        }
+      ],
+      "tests": [
+        {
+          "name": "初期はロッシ単独。会話終了だけで加入し、初期HPとフラグを持つ控えになる",
+          "sources": [
+            {
+              "path": "src/game/recruitment.test.ts",
+              "lines": "38",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/recruitment.test.ts#L38"
+            }
+          ],
+          "assertion": "Second end action action-not-current; elapsed/recovery=1"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "PTY-01",
+      "domain": "party",
+      "requirement": "Initial roster is only Rossi(player) with four slots player/null/null/null; solo departure works.",
+      "specification_sources": [
+        {
+          "path": "specs/party.md",
+          "lines": "5",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/party.md#L5"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/party.ts",
+          "lines": "38",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/party.ts#L38"
+        }
+      ],
+      "tests": [
+        {
+          "name": "ロッシだけの新規ゲームから3枠空けて出撃する",
+          "sources": [
+            {
+              "path": "src/game/expedition.test.ts",
+              "lines": "100",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/expedition.test.ts#L100"
+            }
+          ],
+          "assertion": "Exact roster player20 and slots; actual battle party player20/input actor player"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "PTY-02",
+      "domain": "party",
+      "requirement": "1–4 deployed, 5+ roster preserves reserve and slot order through expedition/return.",
+      "specification_sources": [
+        {
+          "path": "specs/party.md",
+          "lines": "5",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/party.md#L5"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/party.ts",
+          "lines": "101",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/party.ts#L101"
+        }
+      ],
+      "tests": [
+        {
+          "name": "%i人を出撃させ、5人目までの控えを保持する",
+          "sources": [
+            {
+              "path": "src/game/expedition.test.ts",
+              "lines": "109",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/expedition.test.ts#L109"
+            }
+          ],
+          "assertion": "For1–4 dungeon IDs in slot order; roster5/reserveHP16; cleared-return slots same"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "PTY-03",
+      "domain": "party",
+      "requirement": "Complete selection commits once, compacts gaps in selected order, leaves members and input unchanged.",
+      "specification_sources": [
+        {
+          "path": "specs/party.md",
+          "lines": "13",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/party.md#L13"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/party.ts",
+          "lines": "86",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/party.ts#L86"
+        }
+      ],
+      "tests": [
+        {
+          "name": "編成全体を一度に確定し、欠番だけ詰めて仲間状態を保持する",
+          "sources": [
+            {
+              "path": "src/game/expedition.test.ts",
+              "lines": "50",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/expedition.test.ts#L50"
+            }
+          ],
+          "assertion": "Swapped order preserved; null/gilberta/null/reserve→gilberta/reserve/null/null; full state except slots unchanged; draft unchanged"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "PTY-04",
+      "domain": "party",
+      "requirement": "Unknown/unjoined/duplicate IDs and invalid slot/full draft size rejected atomically; empty selection permitted.",
+      "specification_sources": [
+        {
+          "path": "specs/party.md",
+          "lines": "13",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/party.md#L13"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/party.ts",
+          "lines": "86",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/party.ts#L86"
+        }
+      ],
+      "tests": [
+        {
+          "name": "全体確定の不正入力では元編成を一部も変更しない",
+          "sources": [
+            {
+              "path": "src/game/expedition.test.ts",
+              "lines": "62",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/expedition.test.ts#L62"
+            }
+          ],
+          "assertion": "Exact rejected result and state snapshot for missing/reserve/duplicate/5 slots"
+        },
+        {
+          "name": "未加入・未知ID・重複・不正枠を拒否し、空編成では出撃しない",
+          "sources": [
+            {
+              "path": "src/game/expedition.test.ts",
+              "lines": "130",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/expedition.test.ts#L130"
+            }
+          ],
+          "assertion": "Invalid slots -1,4,.5,NaN and IDs reject; removal leaves roster"
+        },
+        {
+          "name": "%i人の全体確定を許可し、空編成の拒否は出発時に行う",
+          "sources": [
+            {
+              "path": "src/game/expedition.test.ts",
+              "lines": "76",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/expedition.test.ts#L76"
+            }
+          ],
+          "assertion": "0–4 confirmation accepted; only0 departure rejects"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "PTY-05",
+      "domain": "party",
+      "requirement": "Conversation/exploration and required-growth locks reject formation edit/confirmation and repeat departure.",
+      "specification_sources": [
+        {
+          "path": "specs/party.md",
+          "lines": "17",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/party.md#L17"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/expedition.ts",
+          "lines": "97",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/expedition.ts#L97"
+        }
+      ],
+      "tests": [
+        {
+          "name": "会話・探索中の全体確定を拒否し、元の状態を保持する",
+          "sources": [
+            {
+              "path": "src/game/expedition.test.ts",
+              "lines": "88",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/expedition.test.ts#L88"
+            }
+          ],
+          "assertion": "Confirmation exact unchanged rejected states for both"
+        },
+        {
+          "name": "会話中・探索中は編成と再出撃を拒否する",
+          "sources": [
+            {
+              "path": "src/game/expedition.test.ts",
+              "lines": "145",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/expedition.test.ts#L145"
+            }
+          ],
+          "assertion": "Edit/depart accepted=false/not-in-town"
+        },
+        {
+          "name": "街XPを保存・持込み、勝利の各レベルを選び次戦へ反映し、最終ボスXP0から初期化する",
+          "sources": [
+            {
+              "path": "src/game/growthRuntime.test.ts",
+              "lines": "105",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/growthRuntime.test.ts#L105"
+            }
+          ],
+          "assertion": "Edit rejected while pending growth"
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "confirmExpeditionParty and departOnExpedition pending-growth rejection not directly tested.",
+      "candidate_regression": "Remove hasPendingGrowth guard only from new full-confirmation API.",
+      "risk": "high"
+    },
+    {
+      "id": "PTY-06",
+      "domain": "party",
+      "requirement": "Empty or no living/participating selected character blocks departure; replacing slot does not heal/revive.",
+      "specification_sources": [
+        {
+          "path": "specs/party.md",
+          "lines": "17",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/party.md#L17"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/party.ts",
+          "lines": "128",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/party.ts#L128"
+        }
+      ],
+      "tests": [
+        {
+          "name": "未加入・未知ID・重複・不正枠を拒否し、空編成では出撃しない",
+          "sources": [
+            {
+              "path": "src/game/expedition.test.ts",
+              "lines": "130",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/expedition.test.ts#L130"
+            }
+          ],
+          "assertion": "Empty-party rejection"
+        },
+        {
+          "name": "全滅後はHP全回復しても戦闘不能が残り、再出撃を拒否する",
+          "sources": [
+            {
+              "path": "src/game/expedition.test.ts",
+              "lines": "229",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/expedition.test.ts#L229"
+            }
+          ],
+          "assertion": "Slot remove/readd still incapacity6 and no-living-member; only sixth town action allows"
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "Pure HP0 with incapacity already cleared in selected party not explicitly asserted here; status tests cover battle participation, not this departure guard.",
+      "candidate_regression": "Allow HP0 after status recovery when no incapacity remains.",
+      "risk": "high"
+    },
+    {
+      "id": "PTY-07",
+      "domain": "party",
+      "requirement": "Combat participant updates HP/status/fatigue back to roster while preserving reserves.",
+      "specification_sources": [
+        {
+          "path": "specs/party.md",
+          "lines": "29",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/party.md#L29"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/expedition.ts",
+          "lines": "224",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/expedition.ts#L224"
+        }
+      ],
+      "tests": [
+        {
+          "name": "探索内の傷を帰還で回復し、編成と次の探索でも維持する",
+          "sources": [
+            {
+              "path": "src/game/expedition.test.ts",
+              "lines": "158",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/expedition.test.ts#L158"
+            }
+          ],
+          "assertion": "Roster player13 then5 while reserve gilberta18; next expedition IDs/HP preserved"
+        },
+        {
+          "name": "次戦・帰還へ19を持ち越し、読込でも回復せず街探索一回で9へ回復する",
+          "sources": [
+            {
+              "path": "src/game/skillLoop.test.ts",
+              "lines": "62",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skillLoop.test.ts#L62"
+            }
+          ],
+          "assertion": "Fatigue4→7→11→19 through battles/return/save"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "PTY-08",
+      "domain": "party",
+      "requirement": "Character definition validation rejects empty/duplicate IDs, invalid maxHP/speed/attack/hitRate and unknown joined IDs.",
+      "specification_sources": [
+        {
+          "path": "specs/party.md",
+          "lines": "3",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/party.md#L3"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/party.ts",
+          "lines": "38",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/party.ts#L38"
+        }
+      ],
+      "tests": [],
+      "coverage_status": "missing",
+      "audit_classification": "missing",
+      "ci_status": "not-assessed",
+      "gap": "No createParty malformed-definition matrix; successful content validation and battle validator cases do not test this API.",
+      "candidate_regression": "Accept duplicate joined IDs or speed0 in a character definition.",
+      "risk": "medium"
+    },
+    {
+      "id": "DUN-01",
+      "domain": "dungeon",
+      "requirement": "A new dungeon is at entry, already resolved, no active activity, ongoing, with supplied party/flags.",
+      "specification_sources": [
+        {
+          "path": "specs/dungeon.md",
+          "lines": "37",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/dungeon.md#L37"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/dungeon.ts",
+          "lines": "263",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/dungeon.ts#L263"
+        }
+      ],
+      "tests": [
+        {
+          "name": "入口の2分岐を別々に通り、共通のボスを倒すとクリアする",
+          "sources": [
+            {
+              "path": "src/game/dungeon.test.ts",
+              "lines": "62",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/dungeon.test.ts#L62"
+            }
+          ],
+          "assertion": "Initial available nodes exact battle-a/conversation-b"
+        },
+        {
+          "name": "街と探索の会話フラグを出撃・退出を通して保持する",
+          "sources": [
+            {
+              "path": "src/game/expedition.test.ts",
+              "lines": "188",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/expedition.test.ts#L188"
+            }
+          ],
+          "assertion": "Entry flags visited-guild retained"
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "Core initial full state and independent copy of party/flags not asserted (initial choices indirectly require most fields).",
+      "candidate_regression": "Store caller party array by reference or lose duplicate flag deduplication.",
+      "risk": "low"
+    },
+    {
+      "id": "DUN-02",
+      "domain": "dungeon",
+      "requirement": "Only unresolved directly connected nodes selectable; blocked in active activity and after end.",
+      "specification_sources": [
+        {
+          "path": "specs/dungeon.md",
+          "lines": "38",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/dungeon.md#L38"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/dungeon.ts",
+          "lines": "290",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/dungeon.ts#L290"
+        }
+      ],
+      "tests": [
+        {
+          "name": "入口の2分岐を別々に通り、共通のボスを倒すとクリアする",
+          "sources": [
+            {
+              "path": "src/game/dungeon.test.ts",
+              "lines": "62",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/dungeon.test.ts#L62"
+            }
+          ],
+          "assertion": "Boss unavailable initially, node-in-progress during battle, node-already-resolved after battle, next boss only"
+        },
+        {
+          "name": "losing a battle fails the dungeon and removes all onward choices",
+          "sources": [
+            {
+              "path": "src/game/dungeon.test.ts",
+              "lines": "251",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/dungeon.test.ts#L251"
+            }
+          ],
+          "assertion": "Available [] and dungeon-ended after defeat"
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "Rejections for active and resolved node check reason only, not full input state immutability; cleared-end next move not directly tested.",
+      "candidate_regression": "Clear branch accepts a further move; rejected active node input mutates flags.",
+      "risk": "medium"
+    },
+    {
+      "id": "DUN-03",
+      "domain": "dungeon",
+      "requirement": "Battle and conversation branches converge at same boss, complete current node once, boss victory clears.",
+      "specification_sources": [
+        {
+          "path": "specs/dungeon.md",
+          "lines": "18",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/dungeon.md#L18"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/dungeon.ts",
+          "lines": "317",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/dungeon.ts#L317"
+        }
+      ],
+      "tests": [
+        {
+          "name": "入口の2分岐を別々に通り、共通のボスを倒すとクリアする",
+          "sources": [
+            {
+              "path": "src/game/dungeon.test.ts",
+              "lines": "62",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/dungeon.test.ts#L62"
+            }
+          ],
+          "assertion": "Both routes→boss-c/cleared; ordinary node stays current/resolved and clears active"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "DUN-04",
+      "domain": "dungeon",
+      "requirement": "Next battle preserves party HP/incapacity/status/fatigue/skills, resets enemies and timeline.",
+      "specification_sources": [
+        {
+          "path": "specs/dungeon.md",
+          "lines": "46",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/dungeon.md#L46"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/dungeon.ts",
+          "lines": "337",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/dungeon.ts#L337"
+        }
+      ],
+      "tests": [
+        {
+          "name": "keeps ally HP between battles while resetting enemy HP and the battle clock",
+          "sources": [
+            {
+              "path": "src/game/dungeon.test.ts",
+              "lines": "133",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/dungeon.test.ts#L133"
+            }
+          ],
+          "assertion": "PlayerHP7 preserved; bossHP8 and logicalTime100 vs previous200"
+        },
+        {
+          "name": "keeps a defeated ally incapacitated when another ally survives into the next battle",
+          "sources": [
+            {
+              "path": "src/game/dungeon.test.ts",
+              "lines": "186",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/dungeon.test.ts#L186"
+            }
+          ],
+          "assertion": "PlayerHP0/dead persists; gilberta next input"
+        },
+        {
+          "name": "戦闘・会話・退出は回復せず、次戦も状態と乱数を引き継ぐ",
+          "sources": [
+            {
+              "path": "src/game/status.test.ts",
+              "lines": "102",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/status.test.ts#L102"
+            }
+          ],
+          "assertion": "Next battle symptoms/clock/RNG retained"
+        },
+        {
+          "name": "街XPを保存・持込み、勝利の各レベルを選び次戦へ反映し、最終ボスXP0から初期化する",
+          "sources": [
+            {
+              "path": "src/game/growthRuntime.test.ts",
+              "lines": "105",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/growthRuntime.test.ts#L105"
+            }
+          ],
+          "assertion": "Next battle projected attack and maxHP36"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "DUN-05",
+      "domain": "dungeon",
+      "requirement": "All allies down ends as failed; no onward moves; normal campaign failure immediately returns with no XP.",
+      "specification_sources": [
+        {
+          "path": "specs/dungeon.md",
+          "lines": "46",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/dungeon.md#L46"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/expedition.ts",
+          "lines": "264",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/expedition.ts#L264"
+        }
+      ],
+      "tests": [
+        {
+          "name": "losing a battle fails the dungeon and removes all onward choices",
+          "sources": [
+            {
+              "path": "src/game/dungeon.test.ts",
+              "lines": "251",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/dungeon.test.ts#L251"
+            }
+          ],
+          "assertion": "failed/no activity/choices[]/dungeon-ended"
+        },
+        {
+          "name": "敗北は直ちに帰還しHPを回復しても戦闘不能・疲労を残す",
+          "sources": [
+            {
+              "path": "src/game/growthRuntime.test.ts",
+              "lines": "179",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/growthRuntime.test.ts#L179"
+            }
+          ],
+          "assertion": "Dungeon null; growth1/XP0; HP6 with physical200/incapacity6; elapsed1/recovery0"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "DUN-06",
+      "domain": "dungeon",
+      "requirement": "Conversation completes into same dungeon node with flags, never exposes town as dungeon activity.",
+      "specification_sources": [
+        {
+          "path": "specs/dungeon.md",
+          "lines": "3",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/dungeon.md#L3"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/dungeon.ts",
+          "lines": "449",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/dungeon.ts#L449"
+        }
+      ],
+      "tests": [
+        {
+          "name": "returns to the same route node after a conversation instead of exposing a town state",
+          "sources": [
+            {
+              "path": "src/game/dungeon.test.ts",
+              "lines": "306",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/dungeon.test.ts#L306"
+            }
+          ],
+          "assertion": "conversation-b current; activity null; ongoing; boss selectable"
+        },
+        {
+          "name": "入口の2分岐を別々に通り、共通のボスを倒すとクリアする",
+          "sources": [
+            {
+              "path": "src/game/dungeon.test.ts",
+              "lines": "62",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/dungeon.test.ts#L62"
+            }
+          ],
+          "assertion": "Flags marked-ruins-route/scouted-ruins and conversation resolved"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "DUN-07",
+      "domain": "dungeon",
+      "requirement": "Cannot exit during battle/conversation; route/result exit preserves party/flags.",
+      "specification_sources": [
+        {
+          "path": "specs/party.md",
+          "lines": "31",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/party.md#L31"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/expedition.ts",
+          "lines": "273",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/expedition.ts#L273"
+        }
+      ],
+      "tests": [
+        {
+          "name": "探索内の傷を帰還で回復し、編成と次の探索でも維持する",
+          "sources": [
+            {
+              "path": "src/game/expedition.test.ts",
+              "lines": "158",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/expedition.test.ts#L158"
+            }
+          ],
+          "assertion": "Battle exit not-on-route then route return"
+        },
+        {
+          "name": "街と探索の会話フラグを出撃・退出を通して保持する",
+          "sources": [
+            {
+              "path": "src/game/expedition.test.ts",
+              "lines": "188",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/expedition.test.ts#L188"
+            }
+          ],
+          "assertion": "Final flags exact union"
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "Conversation-time exit rejection not independently asserted (same guard but distinct user path).",
+      "candidate_regression": "Refactor guard to block battle only.",
+      "risk": "medium"
+    },
+    {
+      "id": "DUN-08",
+      "domain": "dungeon-definition",
+      "requirement": "Graph references must exist.",
+      "specification_sources": [
+        {
+          "path": "specs/dungeon.md",
+          "lines": "16",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/dungeon.md#L16"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/dungeon.ts",
+          "lines": "170",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/dungeon.ts#L170"
+        }
+      ],
+      "tests": [
+        {
+          "name": "rejects graph references that do not point to a route node",
+          "sources": [
+            {
+              "path": "src/game/dungeon.test.ts",
+              "lines": "294",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/dungeon.test.ts#L294"
+            }
+          ],
+          "assertion": "Missing nextNodeId throws named error"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "DUN-09",
+      "domain": "dungeon-definition",
+      "requirement": "Graph is acyclic and every node reachable from entry.",
+      "specification_sources": [
+        {
+          "path": "specs/dungeon.md",
+          "lines": "16",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/dungeon.md#L16"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/dungeon.ts",
+          "lines": "170",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/dungeon.ts#L170"
+        }
+      ],
+      "tests": [],
+      "coverage_status": "missing",
+      "audit_classification": "missing",
+      "ci_status": "not-assessed",
+      "gap": "No negative fixture for this contract in dungeon.test.ts or validateContent.test.ts; production happy-path not an assertion of rejection.",
+      "candidate_regression": "Remove DFS cycle/reachability check; add off-route unreachable node or two-node cycle.",
+      "risk": "high"
+    },
+    {
+      "id": "DUN-10",
+      "domain": "dungeon-definition",
+      "requirement": "Exactly one start entry; no incoming edge to entry; nonempty route.",
+      "specification_sources": [
+        {
+          "path": "specs/dungeon.md",
+          "lines": "16",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/dungeon.md#L16"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/dungeon.ts",
+          "lines": "170",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/dungeon.ts#L170"
+        }
+      ],
+      "tests": [],
+      "coverage_status": "missing",
+      "audit_classification": "missing",
+      "ci_status": "not-assessed",
+      "gap": "No negative fixture for this contract in dungeon.test.ts or validateContent.test.ts; production happy-path not an assertion of rejection.",
+      "candidate_regression": "Accept second start or back-edge to entry.",
+      "risk": "medium"
+    },
+    {
+      "id": "DUN-11",
+      "domain": "dungeon-definition",
+      "requirement": "Exactly one terminal boss; boss no outgoing and nonterminal nodes at least one outgoing.",
+      "specification_sources": [
+        {
+          "path": "specs/dungeon.md",
+          "lines": "16",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/dungeon.md#L16"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/dungeon.ts",
+          "lines": "170",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/dungeon.ts#L170"
+        }
+      ],
+      "tests": [],
+      "coverage_status": "missing",
+      "audit_classification": "missing",
+      "ci_status": "not-assessed",
+      "gap": "No negative fixture for this contract in dungeon.test.ts or validateContent.test.ts; production happy-path not an assertion of rejection.",
+      "candidate_regression": "Accept two bosses, boss with successor, or dead-end conversation.",
+      "risk": "medium"
+    },
+    {
+      "id": "DUN-12",
+      "domain": "dungeon-definition",
+      "requirement": "Node/edge IDs unique; node IDs/labels and dungeon ID nonempty; no self-edge.",
+      "specification_sources": [
+        {
+          "path": "specs/dungeon.md",
+          "lines": "16",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/dungeon.md#L16"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/dungeon.ts",
+          "lines": "170",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/dungeon.ts#L170"
+        }
+      ],
+      "tests": [],
+      "coverage_status": "missing",
+      "audit_classification": "missing",
+      "ci_status": "not-assessed",
+      "gap": "No negative fixture for this contract in dungeon.test.ts or validateContent.test.ts; production happy-path not an assertion of rejection.",
+      "candidate_regression": "Accept duplicate connection leading to duplicate choice or node collision.",
+      "risk": "medium"
+    },
+    {
+      "id": "DUN-13",
+      "domain": "dungeon-definition",
+      "requirement": "Conversation reference exists; battle nodes contain nonempty enemies only; party contains allies only.",
+      "specification_sources": [
+        {
+          "path": "specs/dungeon.md",
+          "lines": "16",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/dungeon.md#L16"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/dungeon.ts",
+          "lines": "170",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/dungeon.ts#L170"
+        }
+      ],
+      "tests": [],
+      "coverage_status": "missing",
+      "audit_classification": "missing",
+      "ci_status": "not-assessed",
+      "gap": "No negative fixture for this contract in dungeon.test.ts or validateContent.test.ts; production happy-path not an assertion of rejection.",
+      "candidate_regression": "Accept missing conversationId or empty battle enemies before runtime.",
+      "risk": "medium"
+    },
+    {
+      "id": "DUN-14",
+      "domain": "dungeon-definition",
+      "requirement": "Combatant IDs across roster and enemies cannot collide.",
+      "specification_sources": [
+        {
+          "path": "specs/dungeon.md",
+          "lines": "16",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/dungeon.md#L16"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/dungeon.ts",
+          "lines": "255",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/dungeon.ts#L255"
+        }
+      ],
+      "tests": [
+        {
+          "name": "控え候補のキャラIDと敵IDの衝突も既存の戦闘検証で拒否する",
+          "sources": [
+            {
+              "path": "src/content/validateContent.test.ts",
+              "lines": "266",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/content/validateContent.test.ts#L266"
+            }
+          ],
+          "assertion": "Enemy changed to gilberta colliding with reserve causes throw 重複"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "TIM-01",
+      "domain": "time",
+      "requirement": "0/1/2 halfdays render day1/day, day1/night, day2/day; town complete adds one halfday/one recovery.",
+      "specification_sources": [
+        {
+          "path": "specs/time.md",
+          "lines": "3",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/time.md#L3"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/time.ts",
+          "lines": "17",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/time.ts#L17"
+        }
+      ],
+      "tests": [
+        {
+          "name": "街探索2回で1日、昼→夜→翌日昼。開始・各会話入力では計上しない",
+          "sources": [
+            {
+              "path": "src/game/time.test.ts",
+              "lines": "60",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/time.test.ts#L60"
+            }
+          ],
+          "assertion": "Exact calendar transitions and elapsed/recovery2"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "TIM-02",
+      "domain": "time",
+      "requirement": "Starting/action intermediate input never advances time; only completion does.",
+      "specification_sources": [
+        {
+          "path": "specs/time.md",
+          "lines": "16",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/time.md#L16"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/time.ts",
+          "lines": "20",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/time.ts#L20"
+        }
+      ],
+      "tests": [
+        {
+          "name": "街探索2回で1日、昼→夜→翌日昼。開始・各会話入力では計上しない",
+          "sources": [
+            {
+              "path": "src/game/time.test.ts",
+              "lines": "60",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/time.test.ts#L60"
+            }
+          ],
+          "assertion": "Guild start and two lines elapsed/recovery0"
+        },
+        {
+          "name": "探索内の会話・戦闘・ノードは進めず、帰還だけ1回計上する",
+          "sources": [
+            {
+              "path": "src/game/time.test.ts",
+              "lines": "172",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/time.test.ts#L172"
+            }
+          ],
+          "assertion": "Every node/conversation/battle command elapsed/recovery0"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "TIM-03",
+      "domain": "time",
+      "requirement": "Pending action blocks another; increasing ID+kind completion token counts once, wrong/old IDs and replay rejected.",
+      "specification_sources": [
+        {
+          "path": "specs/time.md",
+          "lines": "14",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/time.md#L14"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/time.ts",
+          "lines": "28",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/time.ts#L28"
+        }
+      ],
+      "tests": [
+        {
+          "name": "時計の完了tokenは種類とIDを検査し、再送で二重計上しない",
+          "sources": [
+            {
+              "path": "src/game/time.test.ts",
+              "lines": "223",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/time.test.ts#L223"
+            }
+          ],
+          "assertion": "Wrong-kind no completion; valid +1/recovery0; replay no completion"
+        },
+        {
+          "name": "完了再送・古い完了ID・無効な街操作は時間も回復も増やさない",
+          "sources": [
+            {
+              "path": "src/game/time.test.ts",
+              "lines": "151",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/time.test.ts#L151"
+            }
+          ],
+          "assertion": "Second start action-in-progress; old action rejected; no premature completion"
+        },
+        {
+          "name": "探索内の会話・戦闘・ノードは進めず、帰還だけ1回計上する",
+          "sources": [
+            {
+              "path": "src/game/time.test.ts",
+              "lines": "172",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/time.test.ts#L172"
+            }
+          ],
+          "assertion": "Old exit ID cannot finish new expedition"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "TIM-04",
+      "domain": "time",
+      "requirement": "Dungeon full run or retreat charges one halfday on exit and no recovery to deployed or reserve.",
+      "specification_sources": [
+        {
+          "path": "specs/time.md",
+          "lines": "8",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/time.md#L8"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/expedition.ts",
+          "lines": "273",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/expedition.ts#L273"
+        }
+      ],
+      "tests": [
+        {
+          "name": "症状値20→街→探索→街は10→10→0。生活1.5日、回復2step",
+          "sources": [
+            {
+              "path": "src/game/time.test.ts",
+              "lines": "76",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/time.test.ts#L76"
+            }
+          ],
+          "assertion": "Both deployed physical and reserve haze20→10→10→0, elapsed3/recovery2/RNG123"
+        },
+        {
+          "name": "単独で会話分岐からボスを倒し、帰還でHP全回復と半日を一度だけ計上する",
+          "sources": [
+            {
+              "path": "src/game/expedition.test.ts",
+              "lines": "214",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/expedition.test.ts#L214"
+            }
+          ],
+          "assertion": "Cleared return elapsed1/recovery0; retry rejected"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "TIM-05",
+      "domain": "time",
+      "requirement": "Town recovery signal uses independent monotonically increasing watermark; stale/duplicate signals no recovery.",
+      "specification_sources": [
+        {
+          "path": "specs/time.md",
+          "lines": "24",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/time.md#L24"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/expedition.ts",
+          "lines": "334",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/expedition.ts#L334"
+        }
+      ],
+      "tests": [
+        {
+          "name": "既存の回復signalが先行していても、最初の街完了を抑止しない",
+          "sources": [
+            {
+              "path": "src/game/time.test.ts",
+              "lines": "212",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/time.test.ts#L212"
+            }
+          ],
+          "assertion": "Watermark10 then town produces11, haze20→10"
+        },
+        {
+          "name": "乱数と回復通知の重複抑止を復元する",
+          "sources": [
+            {
+              "path": "src/game/save.test.ts",
+              "lines": "150",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/save.test.ts#L150"
+            }
+          ],
+          "assertion": "Saved watermark100 blocks100 and permits101"
+        },
+        {
+          "name": "控えも回復し、探索中の通知は帰還後の再配送でも無料回復しない",
+          "sources": [
+            {
+              "path": "src/game/skillLoop.test.ts",
+              "lines": "130",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skillLoop.test.ts#L130"
+            }
+          ],
+          "assertion": "Dungeon delivery and later replay do not change fatigue25.5"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "TIM-06",
+      "domain": "time",
+      "requirement": "Town recovery works while all incapacitated; sixth town completion clears incapacity, no HP healing from clock.",
+      "specification_sources": [
+        {
+          "path": "specs/time.md",
+          "lines": "34",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/time.md#L34"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/expedition.ts",
+          "lines": "460",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/expedition.ts#L460"
+        }
+      ],
+      "tests": [
+        {
+          "name": "全員戦闘不能でも非戦闘の街探索を6回完了し、HP正なら再出撃できる",
+          "sources": [
+            {
+              "path": "src/game/time.test.ts",
+              "lines": "133",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/time.test.ts#L133"
+            }
+          ],
+          "assertion": "Incapacity steps6→null through town actions; elapsed/recovery6; HP200 same"
+        },
+        {
+          "name": "症状値30から街探索後の20とHPを復元し、次の街探索で10へ回復する",
+          "sources": [
+            {
+              "path": "src/game/save.test.ts",
+              "lines": "99",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/save.test.ts#L99"
+            }
+          ],
+          "assertion": "Recovery lowers physical30→20→10 while HP15 unchanged"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "TIM-07",
+      "domain": "time",
+      "requirement": "Screen navigation/formation/status lookups/save/restore do not generate time or healing.",
+      "specification_sources": [
+        {
+          "path": "specs/time.md",
+          "lines": "10",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/time.md#L10"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/time.ts",
+          "lines": "17",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/time.ts#L17"
+        }
+      ],
+      "tests": [
+        {
+          "name": "移動は時間を消費せず、取消・新規開始は既存保存を消さない",
+          "sources": [
+            {
+              "path": "tests/e2e/campaign.spec.ts",
+              "lines": "124",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/campaign.spec.ts#L124"
+            }
+          ],
+          "assertion": "Home/destination Escape at 5 widths remains day1昼; only market completion night"
+        },
+        {
+          "name": "編成・カレンダー参照・保存用stateコピーは回復・時間・乱数を変えない",
+          "sources": [
+            {
+              "path": "src/game/time.test.ts",
+              "lines": "202",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/time.test.ts#L202"
+            }
+          ],
+          "assertion": "Initial calendar and HP200/RNG123 after formation+JSON copy"
+        },
+        {
+          "name": "HP満タンの戦闘不能6回と1回を区別し、読み込みで回復させない",
+          "sources": [
+            {
+              "path": "src/game/save.test.ts",
+              "lines": "111",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/save.test.ts#L111"
+            }
+          ],
+          "assertion": "Load preserves recovery6 and1; next town clears1"
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "time.test fixture is healthy, zero elapsed, no symptoms; cannot detect unintended healing on formation. Browser elapsed observable only, not full clock/recovery on every screen path.",
+      "candidate_regression": "Formation edit erroneously recovers a symptom, invisible in healthy zero-time fixture.",
+      "risk": "medium"
+    },
+    {
+      "id": "PRO-01",
+      "domain": "progression",
+      "requirement": "Explicit per-character initial level/XP/bonuses; no implicit product defaults or initial choice rights.",
+      "specification_sources": [
+        {
+          "path": "specs/progression.md",
+          "lines": "9",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/progression.md#L9"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/progression.ts",
+          "lines": "94",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/progression.ts#L94"
+        }
+      ],
+      "tests": [
+        {
+          "name": "明示された初期レベル・余剰経験値・補正から作り、初期到達への選択権利は作らない",
+          "sources": [
+            {
+              "path": "src/game/progression.test.ts",
+              "lines": "34",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/progression.test.ts#L34"
+            }
+          ],
+          "assertion": "Exact two initial character records Lv4/XP8/bonuses and Lv9/XP0, no pending, rewards[]"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "PRO-02",
+      "domain": "progression",
+      "requirement": "XP consumes threshold, retains surplus, emits each crossed level and maxHP/attack increments.",
+      "specification_sources": [
+        {
+          "path": "specs/progression.md",
+          "lines": "15",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/progression.md#L15"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/progression.ts",
+          "lines": "109",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/progression.ts#L109"
+        }
+      ],
+      "tests": [
+        {
+          "name": "閾値直前・一致・超過: $xp",
+          "sources": [
+            {
+              "path": "src/game/progression.test.ts",
+              "lines": "59",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/progression.test.ts#L59"
+            }
+          ],
+          "assertion": "XP9/10/11 table checks level/surplus/bonus/pending"
+        },
+        {
+          "name": "Lv4→6とLv9→11で全到達レベルを各1回残し、余剰もキャラ別に保持する",
+          "sources": [
+            {
+              "path": "src/game/progression.test.ts",
+              "lines": "74",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/progression.test.ts#L74"
+            }
+          ],
+          "assertion": "Exact Lv6/Lv11 XP5 each, reached [5,6]/[10,11] and bonuses"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "PRO-03",
+      "domain": "progression",
+      "requirement": "Reward once per ID; no source inference; untouched characters retain growth; no mutation of original state.",
+      "specification_sources": [
+        {
+          "path": "specs/progression.md",
+          "lines": "16",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/progression.md#L16"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/progression.ts",
+          "lines": "109",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/progression.ts#L109"
+        }
+      ],
+      "tests": [
+        {
+          "name": "報酬再送ではXP・権利を増やさず、元状態も変更しない",
+          "sources": [
+            {
+              "path": "src/game/progression.test.ts",
+              "lines": "123",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/progression.test.ts#L123"
+            }
+          ],
+          "assertion": "Duplicate returns exact previous state/reward-already-applied; original stays Lv4/XP8"
+        },
+        {
+          "name": "報酬源を決めず次の報酬へ引継ぎ、対象外キャラの成長を維持する",
+          "sources": [
+            {
+              "path": "src/game/progression.test.ts",
+              "lines": "111",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/progression.test.ts#L111"
+            }
+          ],
+          "assertion": "battle+event rewards lead Lv6/XP0; nonrecipient stays Lv9/XP0"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "PRO-04",
+      "domain": "progression",
+      "requirement": "Empty and zero allocation valid and records ID without creating growth/rights.",
+      "specification_sources": [
+        {
+          "path": "specs/progression.md",
+          "lines": "13",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/progression.md#L13"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/progression.ts",
+          "lines": "109",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/progression.ts#L109"
+        }
+      ],
+      "tests": [
+        {
+          "name": "経験値なしと0配分を許容し、選択権利や成長を作らない",
+          "sources": [
+            {
+              "path": "src/game/progression.test.ts",
+              "lines": "160",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/progression.test.ts#L160"
+            }
+          ],
+          "assertion": "characters same, levelsReached[], rewardIDs no-xp/zero"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "PRO-05",
+      "domain": "progression",
+      "requirement": "Unknown/duplicate recipient, bad ID, negative/fractional/nonfinite/unsafe XP atomically rejects all allocations and does not consume ID.",
+      "specification_sources": [
+        {
+          "path": "specs/progression.md",
+          "lines": "17",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/progression.md#L17"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/progression.ts",
+          "lines": "109",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/progression.ts#L109"
+        }
+      ],
+      "tests": [
+        {
+          "name": "無効報酬は全体を拒否し、IDも消費しない: $reason",
+          "sources": [
+            {
+              "path": "src/game/progression.test.ts",
+              "lines": "146",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/progression.test.ts#L146"
+            }
+          ],
+          "assertion": "Each invalid result exact state/reason; retry same bad ID succeeds into Lv5/XP0"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "PRO-06",
+      "domain": "progression",
+      "requirement": "Missing later threshold rejects whole reward without XP loss; exact final level with zero surplus can be accepted.",
+      "specification_sources": [
+        {
+          "path": "specs/progression.md",
+          "lines": "18",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/progression.md#L18"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/progression.ts",
+          "lines": "109",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/progression.ts#L109"
+        }
+      ],
+      "tests": [
+        {
+          "name": "不足ルールはXPを捨てず全体を拒否し、最終到達の余剰0は扱える",
+          "sources": [
+            {
+              "path": "src/game/progression.test.ts",
+              "lines": "168",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/progression.test.ts#L168"
+            }
+          ],
+          "assertion": "Exact XP2→Lv5/XP0; XP3→missing-level-rule unchanged"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "PRO-07",
+      "domain": "progression",
+      "requirement": "XP or bonus numeric overflow rejects unchanged state and leaves reward ID usable.",
+      "specification_sources": [
+        {
+          "path": "specs/progression.md",
+          "lines": "17",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/progression.md#L17"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/progression.ts",
+          "lines": "109",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/progression.ts#L109"
+        }
+      ],
+      "tests": [
+        {
+          "name": "数値オーバーフローはIDを消費せず拒否する",
+          "sources": [
+            {
+              "path": "src/game/progression.test.ts",
+              "lines": "182",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/progression.test.ts#L182"
+            }
+          ],
+          "assertion": "MAX_SAFE XP addition and 1e308+1e308 bonus reject numeric-overflow exact state"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "PRO-08",
+      "domain": "progression",
+      "requirement": "Reset only requested characters to configured initial, clear rights, preserve others and applied reward IDs.",
+      "specification_sources": [
+        {
+          "path": "specs/progression.md",
+          "lines": "25",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/progression.md#L25"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/progression.ts",
+          "lines": "162",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/progression.ts#L162"
+        }
+      ],
+      "tests": [
+        {
+          "name": "成長だけを明示的に初期化し、余剰・補正・権利を戻し、報酬再送を防ぐ",
+          "sources": [
+            {
+              "path": "src/game/progression.test.ts",
+              "lines": "216",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/progression.test.ts#L216"
+            }
+          ],
+          "assertion": "Player resets Lv4/XP8/bonuses; gilberta Lv11/XP5 pending10,11; duplicate reward rejected"
+        },
+        {
+          "name": "未知・重複初期化対象を拒否する: %j",
+          "sources": [
+            {
+              "path": "src/game/progression.test.ts",
+              "lines": "250",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/progression.test.ts#L250"
+            }
+          ],
+          "assertion": "Missing and duplicate reset targets rejected unchanged"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "PRO-09",
+      "domain": "progression-definition",
+      "requirement": "Definition rejects duplicate/blank character IDs, duplicate levels, invalid initial level/XP/required XP and negative/nonfinite bonuses.",
+      "specification_sources": [
+        {
+          "path": "specs/progression.md",
+          "lines": "9",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/progression.md#L9"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/progression.ts",
+          "lines": "65",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/progression.ts#L65"
+        }
+      ],
+      "tests": [
+        {
+          "name": "不正な設定を拒否する",
+          "sources": [
+            {
+              "path": "src/game/progression.test.ts",
+              "lines": "294",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/progression.test.ts#L294"
+            }
+          ],
+          "assertion": "Table tests duplicate initial/rules, blank IDs, bad initial levels/XP/requiredXP and maxHP bonuses"
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "AttackPower bonus invalid independent branch, rule.fromLevel invalid, unsafe initial level, rule bonus nonfinite lack explicit fixtures.",
+      "candidate_regression": "Validate maxHp bonus only and accidentally permit negative attackPower bonus or fractional fromLevel.",
+      "risk": "medium"
+    },
+    {
+      "id": "PRO-10",
+      "domain": "growth-runtime",
+      "requirement": "First town completion awards eligible joined roster XP5 once per temporary session; later revisit/recruit does not redistribute.",
+      "specification_sources": [
+        {
+          "path": "specs/progression.md",
+          "lines": "33",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/progression.md#L33"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/expedition.ts",
+          "lines": "549",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/expedition.ts#L549"
+        }
+      ],
+      "tests": [
+        {
+          "name": "街XPを保存・持込み、勝利の各レベルを選び次戦へ反映し、最終ボスXP0から初期化する",
+          "sources": [
+            {
+              "path": "src/game/growthRuntime.test.ts",
+              "lines": "105",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/growthRuntime.test.ts#L105"
+            }
+          ],
+          "assertion": "Town XP5 saved, second town XP remains5"
+        },
+        {
+          "name": "加入・4枠と控え・育成・回復・%s帰還・保存・再出撃",
+          "sources": [
+            {
+              "path": "src/game/multidayAcceptance.test.ts",
+              "lines": "23",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/multidayAcceptance.test.ts#L23"
+            }
+          ],
+          "assertion": "All5 eligible recruits get first town level; repeated recruitment XP stays0"
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "Later NEW recruit after first town reward and ineligible roster at first reward not directly asserted with production XP5.",
+      "candidate_regression": "On new recruit revisit, award first-town XP to only newly joined character.",
+      "risk": "medium"
+    },
+    {
+      "id": "PRO-11",
+      "domain": "growth-runtime",
+      "requirement": "Ordinary victory gives eligible deployed equal XP25, event XP15, final boss XP0; no reserve reward.",
+      "specification_sources": [
+        {
+          "path": "specs/progression.md",
+          "lines": "33",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/progression.md#L33"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/expedition.ts",
+          "lines": "247",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/expedition.ts#L247"
+        }
+      ],
+      "tests": [
+        {
+          "name": "街XPを保存・持込み、勝利の各レベルを選び次戦へ反映し、最終ボスXP0から初期化する",
+          "sources": [
+            {
+              "path": "src/game/growthRuntime.test.ts",
+              "lines": "105",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/growthRuntime.test.ts#L105"
+            }
+          ],
+          "assertion": "Town5+battle25→Lv4/XP0/+12HP/+3attack; bossXP unchanged/no choice"
+        },
+        {
+          "name": "HP0／参加不能は成長投影で復活せず、勝利XPは生存出撃者に同額",
+          "sources": [
+            {
+              "path": "src/game/growthRuntime.test.ts",
+              "lines": "199",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/growthRuntime.test.ts#L199"
+            }
+          ],
+          "assertion": "Eligible gets Lv3/XP5 while incapacity teammate Lv1/XP0"
+        },
+        {
+          "name": "加入・4枠と控え・育成・回復・%s帰還・保存・再出撃",
+          "sources": [
+            {
+              "path": "src/game/multidayAcceptance.test.ts",
+              "lines": "23",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/multidayAcceptance.test.ts#L23"
+            }
+          ],
+          "assertion": "4 deployed Lv4/XP5 while reserve Lv2/XP0; bossXP[5,5,5,5,0]"
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "Production event XP15 is exercised in routes but no exact production conversation-only growth delta oracle located.",
+      "candidate_regression": "Change eventExperience15 to16 while UI just resolves all choices.",
+      "risk": "medium"
+    },
+    {
+      "id": "PRO-12",
+      "domain": "growth-runtime",
+      "requirement": "Pending choice locks battle/movement/conversation/town/formation/departure/return/save; candidate remains stable.",
+      "specification_sources": [
+        {
+          "path": "specs/progression.md",
+          "lines": "35",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/progression.md#L35"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/growthRuntime.ts",
+          "lines": "17",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/growthRuntime.ts#L17"
+        }
+      ],
+      "tests": [
+        {
+          "name": "街XPを保存・持込み、勝利の各レベルを選び次戦へ反映し、最終ボスXP0から初期化する",
+          "sources": [
+            {
+              "path": "src/game/growthRuntime.test.ts",
+              "lines": "105",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/growthRuntime.test.ts#L105"
+            }
+          ],
+          "assertion": "enter/return/edit/town/save reject, repeated prepare equals held growth"
+        },
+        {
+          "name": "分岐回復は必須選択を省略せず、時計・成長・控えを保持して古い操作を拒否する",
+          "sources": [
+            {
+              "path": "src/game/growthRuntime.test.ts",
+              "lines": "401",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/growthRuntime.test.ts#L401"
+            }
+          ],
+          "assertion": "Branch skill refuses pending choice unchanged"
+        },
+        {
+          "name": "加入・4枠と控え・育成・回復・%s帰還・保存・再出撃",
+          "sources": [
+            {
+              "path": "src/game/multidayAcceptance.test.ts",
+              "lines": "23",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/multidayAcceptance.test.ts#L23"
+            }
+          ],
+          "assertion": "Pending enter/branch actions unchanged"
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "No independent matrix for attack, conversation input, full confirm, departure, item use while pending; same dispatch guard covers some, distinct public APIs remain untested.",
+      "candidate_regression": "Remove pending guard from confirmExpeditionParty or departOnExpedition only.",
+      "risk": "high"
+    },
+    {
+      "id": "PRO-13",
+      "domain": "growth-runtime",
+      "requirement": "Projection adds effective maxHP delta to current living HP, clamps decreases, does not full-heal or resurrect; preserves symptoms/fatigue.",
+      "specification_sources": [
+        {
+          "path": "specs/progression.md",
+          "lines": "21",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/progression.md#L21"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/growthRuntime.ts",
+          "lines": "59",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/growthRuntime.ts#L59"
+        }
+      ],
+      "tests": [
+        {
+          "name": "体力の習得とランク増加だけ現在HPへ加え、症状・疲労を維持する",
+          "sources": [
+            {
+              "path": "src/game/growthRuntime.test.ts",
+              "lines": "344",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/growthRuntime.test.ts#L344"
+            }
+          ],
+          "assertion": "Injured HP26→30→33 after growth/passives; next maxHP35, status haze10"
+        },
+        {
+          "name": "戦闘でHP0になったキャラを成長投影で復活させない",
+          "sources": [
+            {
+              "path": "src/game/growthRuntime.test.ts",
+              "lines": "373",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/growthRuntime.test.ts#L373"
+            }
+          ],
+          "assertion": "Explicit growth reward leaves HP0/incapacity6"
+        },
+        {
+          "name": "症状補正後の成長増分だけHPへ加え、回復通知はHPを増やさず時計も進めない",
+          "sources": [
+            {
+              "path": "src/game/loadSymptomIntegration.test.ts",
+              "lines": "115",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/loadSymptomIntegration.test.ts#L115"
+            }
+          ],
+          "assertion": "Under physical100 maxHP base20→24 yields currentHP8→10, not12; fatigue40/status retained"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "PRO-14",
+      "domain": "growth-runtime",
+      "requirement": "Return resets temporary growth/learned/ranks/rights for ENTIRE roster before deployed heal; reserve clamps but gains no extra heal.",
+      "specification_sources": [
+        {
+          "path": "specs/progression.md",
+          "lines": "37",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/progression.md#L37"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/expedition.ts",
+          "lines": "288",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/expedition.ts#L288"
+        }
+      ],
+      "tests": [
+        {
+          "name": "余剰XP・報酬再送・HP差分を保持し、控えの育成も帰還で消す",
+          "sources": [
+            {
+              "path": "src/game/growthRuntime.test.ts",
+              "lines": "161",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/growthRuntime.test.ts#L161"
+            }
+          ],
+          "assertion": "Reserve gilberta Lv3/XP5→Lv1/XP0, HP18/haze10"
+        },
+        {
+          "name": "加入・4枠と控え・育成・回復・%s帰還・保存・再出撃",
+          "sources": [
+            {
+              "path": "src/game/multidayAcceptance.test.ts",
+              "lines": "23",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/multidayAcceptance.test.ts#L23"
+            }
+          ],
+          "assertion": "All5 initial growth and initial skills; deployed HP133/status/fatigue100, reserveHP200; same PT/flags/RNG"
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "Reserve tests start with HP above/baseline cap and clamp; wounded reserve below base cap is not explicitly checked against accidental healing after growth reset.",
+      "candidate_regression": "Return fully heals wounded reserve as well as deployed; current reserve examples may still pass.",
+      "risk": "medium"
+    },
+    {
+      "id": "PRO-15",
+      "domain": "growth-runtime",
+      "requirement": "Departure/new temporary session ID and return closure invalidate prior selection after save/redeployment without RNG reset.",
+      "specification_sources": [
+        {
+          "path": "specs/progression.md",
+          "lines": "35",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/progression.md#L35"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/growthRuntime.ts",
+          "lines": "21",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/growthRuntime.ts#L21"
+        }
+      ],
+      "tests": [
+        {
+          "name": "街XPを保存・持込み、勝利の各レベルを選び次戦へ反映し、最終ボスXP0から初期化する",
+          "sources": [
+            {
+              "path": "src/game/growthRuntime.test.ts",
+              "lines": "105",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/growthRuntime.test.ts#L105"
+            }
+          ],
+          "assertion": "Old choice rejected after selection, return roundtrip and new departure; next initial stats"
+        },
+        {
+          "name": "加入・4枠と控え・育成・回復・%s帰還・保存・再出撃",
+          "sources": [
+            {
+              "path": "src/game/multidayAcceptance.test.ts",
+              "lines": "23",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/multidayAcceptance.test.ts#L23"
+            }
+          ],
+          "assertion": "Old town and battle choices rejected after return/save/depart; independent RNG exact3239474069"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "SKL-01",
+      "domain": "skill-definition",
+      "requirement": "Level >=2 safe integer maps multiple10 ultimate before multiple5 advanced else normal.",
+      "specification_sources": [
+        {
+          "path": "specs/skills.md",
+          "lines": "29",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/skills.md#L29"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/skills.ts",
+          "lines": "98",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skills.ts#L98"
+        }
+      ],
+      "tests": [
+        {
+          "name": "到達Lv%sは%s候補になる",
+          "sources": [
+            {
+              "path": "src/game/skills.test.ts",
+              "lines": "40",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skills.test.ts#L40"
+            }
+          ],
+          "assertion": "2/4/6 normal;5/15/25 advanced;10/20/30 ultimate"
+        },
+        {
+          "name": "不正な到達レベル%sを拒否する",
+          "sources": [
+            {
+              "path": "src/game/skills.test.ts",
+              "lines": "44",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skills.test.ts#L44"
+            }
+          ],
+          "assertion": "0,1,-5,2.5,NaN,Infinity,unsafe throw"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "SKL-02",
+      "domain": "skill-definition",
+      "requirement": "Unique candidate pools have >=3 per tier, correct tier references; known character/pool/initial IDs.",
+      "specification_sources": [
+        {
+          "path": "specs/skills.md",
+          "lines": "37",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/skills.md#L37"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/skills.ts",
+          "lines": "129",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skills.ts#L129"
+        }
+      ],
+      "tests": [
+        {
+          "name": "候補IDの参照切れ・重複・分類違い・不足・空IDを拒否する: %j",
+          "sources": [
+            {
+              "path": "src/game/skills.test.ts",
+              "lines": "194",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skills.test.ts#L194"
+            }
+          ],
+          "assertion": "Unknown/duplicate/wrong-tier/<3/blank candidate throw"
+        },
+        {
+          "name": "キャラ・候補群・初期スキル参照と初期スキル重複を拒否する: %j",
+          "sources": [
+            {
+              "path": "src/game/skills.test.ts",
+              "lines": "210",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skills.test.ts#L210"
+            }
+          ],
+          "assertion": "Missing character/pool/initial ID and duplicate initial reject"
+        },
+        {
+          "name": "スキル・群・キャラ対応の重複を拒否する",
+          "sources": [
+            {
+              "path": "src/game/skills.test.ts",
+              "lines": "185",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skills.test.ts#L185"
+            }
+          ],
+          "assertion": "Duplicate each group rejected"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "SKL-03",
+      "domain": "skill-definition",
+      "requirement": "InitialSkillIds null remains undecided and start rejects; [] explicitly valid; initial passive rank1, initial active rankless.",
+      "specification_sources": [
+        {
+          "path": "specs/skills.md",
+          "lines": "41",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/skills.md#L41"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/skillAcquisition.ts",
+          "lines": "71",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skillAcquisition.ts#L71"
+        }
+      ],
+      "tests": [
+        {
+          "name": "未決定の初期定義を空習得へ変換せず、解禁漏れになる初期レベルを拒否する",
+          "sources": [
+            {
+              "path": "src/game/skillAcquisition.test.ts",
+              "lines": "317",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skillAcquisition.test.ts#L317"
+            }
+          ],
+          "assertion": "null start throws 初期スキル定義が未接続"
+        },
+        {
+          "name": "空の初期習得は解決済みとして扱う",
+          "sources": [
+            {
+              "path": "src/content/validateContent.test.ts",
+              "lines": "281",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/content/validateContent.test.ts#L281"
+            }
+          ],
+          "assertion": "validateContent with [] returns normally"
+        },
+        {
+          "name": "抽選アクティブも初期化で消え、初期アクティブはランクなしで戻る",
+          "sources": [
+            {
+              "path": "src/game/skillAcquisition.test.ts",
+              "lines": "333",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skillAcquisition.test.ts#L333"
+            }
+          ],
+          "assertion": "Initial active object no rank, initial passive rank1 after reset"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "SKL-04",
+      "domain": "skill-definition",
+      "requirement": "Guarantees are character-specific active skills at valid later levels; duplicates/unknown/passive guarantees reject.",
+      "specification_sources": [
+        {
+          "path": "specs/skills.md",
+          "lines": "41",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/skills.md#L41"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/skills.ts",
+          "lines": "129",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skills.ts#L129"
+        }
+      ],
+      "tests": [
+        {
+          "name": "不正な保証定義を拒否する %j",
+          "sources": [
+            {
+              "path": "src/game/skillAcquisition.test.ts",
+              "lines": "383",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skillAcquisition.test.ts#L383"
+            }
+          ],
+          "assertion": "Level1/missing skill/passive guarantee throws"
+        },
+        {
+          "name": "空のパッシブ上限と保証解禁の重複を拒否する",
+          "sources": [
+            {
+              "path": "src/game/skillAcquisition.test.ts",
+              "lines": "408",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skillAcquisition.test.ts#L408"
+            }
+          ],
+          "assertion": "Same guaranteed skill levels5 and6 rejects"
+        },
+        {
+          "name": "未決定の初期定義を空習得へ変換せず、解禁漏れになる初期レベルを拒否する",
+          "sources": [
+            {
+              "path": "src/game/skillAcquisition.test.ts",
+              "lines": "317",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skillAcquisition.test.ts#L317"
+            }
+          ],
+          "assertion": "Initial level at guarantee threshold rejects"
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "Fractional/NaN/unsafe guarantee levels not explicit in matrix.",
+      "candidate_regression": "Accept fractional guarantee level2.5, never unlock at integer level.",
+      "risk": "medium"
+    },
+    {
+      "id": "SKL-05",
+      "domain": "skill-definition",
+      "requirement": "Closed active/passive effect schema rejects bad type/tier/scenes/targets/nonfinite amounts/fatigue/coefficients; supports fractional values.",
+      "specification_sources": [
+        {
+          "path": "specs/skills.md",
+          "lines": "72",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/skills.md#L72"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/skills.ts",
+          "lines": "129",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skills.ts#L129"
+        }
+      ],
+      "tests": [
+        {
+          "name": "不正な分類・場面・対象・パッシブ操作を拒否する: %j",
+          "sources": [
+            {
+              "path": "src/game/skills.test.ts",
+              "lines": "166",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skills.test.ts#L166"
+            }
+          ],
+          "assertion": "Table corrupts empty labels/tier/scenes/target/effect/passive-only fields"
+        },
+        {
+          "name": "非有限・負の数値%sを拒否する",
+          "sources": [
+            {
+              "path": "src/game/skills.test.ts",
+              "lines": "121",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skills.test.ts#L121"
+            }
+          ],
+          "assertion": "Amounts/fatigue/passive negative and NaN infinities throw"
+        },
+        {
+          "name": "整数以外の効果量・疲労増加や増加量0も定義できる",
+          "sources": [
+            {
+              "path": "src/game/skills.test.ts",
+              "lines": "79",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skills.test.ts#L79"
+            }
+          ],
+          "assertion": "Fractional effect12.5 and fatigue0/.25 accepted"
+        },
+        {
+          "name": "不正な能力値係数%sを拒否する",
+          "sources": [
+            {
+              "path": "src/game/skillAcquisition.test.ts",
+              "lines": "393",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skillAcquisition.test.ts#L393"
+            }
+          ],
+          "assertion": "0/-1/NaN/Infinity coefficient reject"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "SKL-06",
+      "domain": "skill-definition",
+      "requirement": "Passive rankAmounts are total per-rank effect with individual cap; active scales amount+stat*coefficient without rounding.",
+      "specification_sources": [
+        {
+          "path": "specs/skills.md",
+          "lines": "64",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/skills.md#L64"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/skills.ts",
+          "lines": "91",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skills.ts#L91"
+        }
+      ],
+      "tests": [
+        {
+          "name": "参照能力値で基礎効果だけが伸び、疲労増加量を変えない",
+          "sources": [
+            {
+              "path": "src/game/skillAcquisition.test.ts",
+              "lines": "365",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skillAcquisition.test.ts#L365"
+            }
+          ],
+          "assertion": "Attack8→base16,12→18; heal max20→18; fatigue fixed4"
+        },
+        {
+          "name": "個別上限と非一律の段階効果を持ち、範囲外ランクを拒否する",
+          "sources": [
+            {
+              "path": "src/game/skillAcquisition.test.ts",
+              "lines": "372",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skillAcquisition.test.ts#L372"
+            }
+          ],
+          "assertion": "Rank2→4, rank3 out-of-cap; independent non-linear rank3→9"
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "Out-of-range low/zero/fractional ranks and active decimal no-rounding specifically not asserted here (battle decimal tests exist).",
+      "candidate_regression": "passiveSkillAmount accepts rank0 or fractional indexing.",
+      "risk": "low"
+    },
+    {
+      "id": "SKL-07",
+      "domain": "skill-acquisition",
+      "requirement": "Pending rights owned by growth characters; process progression-character order then ascending reached level, not reward allocation order.",
+      "specification_sources": [
+        {
+          "path": "specs/skills.md",
+          "lines": "47",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/skills.md#L47"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/skillAcquisition.ts",
+          "lines": "71",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skillAcquisition.ts#L71"
+        }
+      ],
+      "tests": [
+        {
+          "name": "複数キャラのLv4→6とLv9→11を各到達レベルで順に解決し、権利を消費する",
+          "sources": [
+            {
+              "path": "src/game/skillAcquisition.test.ts",
+              "lines": "102",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skillAcquisition.test.ts#L102"
+            }
+          ],
+          "assertion": "Allocation gilberta then player still player5/player6/gilberta10/gilberta11; final rights[]/2 choices each"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "SKL-08",
+      "domain": "skill-acquisition",
+      "requirement": "Grant guarantees before draws including skipped levels; guarantees excluded before unlock and do not consume same-level choice.",
+      "specification_sources": [
+        {
+          "path": "specs/skills.md",
+          "lines": "51",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/skills.md#L51"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/skillAcquisition.ts",
+          "lines": "71",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skillAcquisition.ts#L71"
+        }
+      ],
+      "tests": [
+        {
+          "name": "途中レベルの保証を抽選前に付与し、保証前も抽選に混ぜず選択権利は残す",
+          "sources": [
+            {
+              "path": "src/game/skillAcquisition.test.ts",
+              "lines": "149",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skillAcquisition.test.ts#L149"
+            }
+          ],
+          "assertion": "required excluded atLv2, crossing to6 grants exactly once and keeps pending3–6"
+        },
+        {
+          "name": "同レベル保証でも新規アクティブ／パッシブの3択を消さない",
+          "sources": [
+            {
+              "path": "src/game/skillAcquisition.test.ts",
+              "lines": "162",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skillAcquisition.test.ts#L162"
+            }
+          ],
+          "assertion": "Lv2 offered3 excludes required while learned includes required"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "SKL-09",
+      "domain": "skill-acquisition",
+      "requirement": "Choice draw gives unique3 using game RNG, stores choice+next RNG; reprepare or invalid input never rerolls.",
+      "specification_sources": [
+        {
+          "path": "specs/skills.md",
+          "lines": "54",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/skills.md#L54"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/skillAcquisition.ts",
+          "lines": "71",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skillAcquisition.ts#L71"
+        }
+      ],
+      "tests": [
+        {
+          "name": "固定seedの候補を保持し、参照・再準備・無効入力で再抽選しない",
+          "sources": [
+            {
+              "path": "src/game/skillAcquisition.test.ts",
+              "lines": "177",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skillAcquisition.test.ts#L177"
+            }
+          ],
+          "assertion": "Independent seed1 oracle [test-heal,test-strength,extra], RNG2165703038; prepare equals state; old-run/wrong char/level/noncandidate unchanged"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "SKL-10",
+      "domain": "skill-acquisition",
+      "requirement": "New active acquired once/rankless and then excluded; passive learned/upgraded to per-skill cap, remains original tier.",
+      "specification_sources": [
+        {
+          "path": "specs/skills.md",
+          "lines": "53",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/skills.md#L53"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/skillAcquisition.ts",
+          "lines": "71",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skillAcquisition.ts#L71"
+        }
+      ],
+      "tests": [
+        {
+          "name": "新規アクティブはランクなしで1回だけ取得でき、次の候補と二重入力から除外する",
+          "sources": [
+            {
+              "path": "src/game/skillAcquisition.test.ts",
+              "lines": "202",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skillAcquisition.test.ts#L202"
+            }
+          ],
+          "assertion": "Exact rankless choice active; replay rejected; next draw excludes learned"
+        },
+        {
+          "name": "初期パッシブを強化し、個別上限の到達後は候補から除外する",
+          "sources": [
+            {
+              "path": "src/game/skillAcquisition.test.ts",
+              "lines": "218",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skillAcquisition.test.ts#L218"
+            }
+          ],
+          "assertion": "Initial passive rank2 retains initial origin/acquisition then excluded"
+        },
+        {
+          "name": "ランク3のパッシブを新規習得から各段階強化まで扱う",
+          "sources": [
+            {
+              "path": "src/game/skillAcquisition.test.ts",
+              "lines": "230",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skillAcquisition.test.ts#L230"
+            }
+          ],
+          "assertion": "Ranks1/2/3 independent effects1/4/9"
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "No cross-tier fixture proving an upgraded normal passive cannot enter advanced pool; validator and level tests provide indirect protection.",
+      "candidate_regression": "Reclassify upgraded passive by rank in candidate generation.",
+      "risk": "low"
+    },
+    {
+      "id": "SKL-11",
+      "domain": "skill-acquisition",
+      "requirement": "Fewer than3 eligible choices freezes with insufficient-candidates/empty offer, preserving rights/RNG and no auto skip/compensation.",
+      "specification_sources": [
+        {
+          "path": "specs/skills.md",
+          "lines": "55",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/skills.md#L55"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/skillAcquisition.ts",
+          "lines": "71",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skillAcquisition.ts#L71"
+        }
+      ],
+      "tests": [
+        {
+          "name": "有効候補%s件は権利とRNGを保持した不足になり、スキップしない",
+          "sources": [
+            {
+              "path": "src/game/skillAcquisition.test.ts",
+              "lines": "257",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skillAcquisition.test.ts#L257"
+            }
+          ],
+          "assertion": "0/1/2 eligible: exact empty insufficient offer, RNG1,pending[2], invalid choice unchanged"
+        },
+        {
+          "name": "$milestoneのraw候補が7件でも有効候補2件なら、途中と次レベルの権利・乱数を保持する",
+          "sources": [
+            {
+              "path": "src/game/skillAcquisitionBoundaries.test.ts",
+              "lines": "157",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skillAcquisitionBoundaries.test.ts#L157"
+            }
+          ],
+          "assertion": "Lv15/20 tier exhaustion keeps two pending levels and RNG1"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "SKL-12",
+      "domain": "skill-acquisition",
+      "requirement": "Pending rights reject next reward; malformed reward does not grant guarantees or draw; IDs prevent replay.",
+      "specification_sources": [
+        {
+          "path": "specs/skills.md",
+          "lines": "47",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/skills.md#L47"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/skillAcquisition.ts",
+          "lines": "71",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skillAcquisition.ts#L71"
+        }
+      ],
+      "tests": [
+        {
+          "name": "固定seedの候補を保持し、参照・再準備・無効入力で再抽選しない",
+          "sources": [
+            {
+              "path": "src/game/skillAcquisition.test.ts",
+              "lines": "177",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skillAcquisition.test.ts#L177"
+            }
+          ],
+          "assertion": "New reward rejected pending-choice exact state"
+        },
+        {
+          "name": "不正報酬は保証や候補生成も行わない",
+          "sources": [
+            {
+              "path": "src/game/skillAcquisition.test.ts",
+              "lines": "350",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skillAcquisition.test.ts#L350"
+            }
+          ],
+          "assertion": "Unknown recipient rejection exact state"
+        },
+        {
+          "name": "複数キャラのLv4→6とLv9→11を各到達レベルで順に解決し、権利を消費する",
+          "sources": [
+            {
+              "path": "src/game/skillAcquisition.test.ts",
+              "lines": "102",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skillAcquisition.test.ts#L102"
+            }
+          ],
+          "assertion": "Repeated reward after choices rejected reward-already-applied"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "SKL-13",
+      "domain": "skill-acquisition",
+      "requirement": "Choice token must match exploration+character+level+offered skill; exactly one right consumed; old/resolved token rejected.",
+      "specification_sources": [
+        {
+          "path": "specs/skills.md",
+          "lines": "56",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/skills.md#L56"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/skillAcquisition.ts",
+          "lines": "71",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skillAcquisition.ts#L71"
+        }
+      ],
+      "tests": [
+        {
+          "name": "固定seedの候補を保持し、参照・再準備・無効入力で再抽選しない",
+          "sources": [
+            {
+              "path": "src/game/skillAcquisition.test.ts",
+              "lines": "177",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skillAcquisition.test.ts#L177"
+            }
+          ],
+          "assertion": "Four invalid token variations return same state"
+        },
+        {
+          "name": "$initialLevel→$finalLevelで途中の$tierと通常の権利を順に解決し、再入力でも再抽選・重複取得しない",
+          "sources": [
+            {
+              "path": "src/game/skillAcquisitionBoundaries.test.ts",
+              "lines": "86",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skillAcquisitionBoundaries.test.ts#L86"
+            }
+          ],
+          "assertion": "Explicit high-tier then normal rights, exact candidate/RNG oracles, stale previous choice rejected"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "SKL-14",
+      "domain": "skill-acquisition",
+      "requirement": "Reset all acquisition state to initial including initial passive rank1, remove guarantee/choice skills/rights; close session, preserve RNG/reward receipt.",
+      "specification_sources": [
+        {
+          "path": "specs/skills.md",
+          "lines": "58",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/skills.md#L58"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/skillAcquisition.ts",
+          "lines": "236",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skillAcquisition.ts#L236"
+        }
+      ],
+      "tests": [
+        {
+          "name": "初期化で保証・抽選・強化・権利を除き、初期能力と初期パッシブに戻す",
+          "sources": [
+            {
+              "path": "src/game/skillAcquisition.test.ts",
+              "lines": "290",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skillAcquisition.test.ts#L290"
+            }
+          ],
+          "assertion": "Exact initial passive rank1/growth1/XP0/bonus0/pending[]; choice null; RNG same; rewardIDs retained; closed token rejected"
+        },
+        {
+          "name": "抽選アクティブも初期化で消え、初期アクティブはランクなしで戻る",
+          "sources": [
+            {
+              "path": "src/game/skillAcquisition.test.ts",
+              "lines": "333",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skillAcquisition.test.ts#L333"
+            }
+          ],
+          "assertion": "Choice heal disappears, initial strike+passive rank1 remain"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "SKL-15",
+      "domain": "skill-acquisition",
+      "requirement": "Production finite pool supports all reachable three-choice paths through maximum Lv4 without exhaustion.",
+      "specification_sources": [
+        {
+          "path": "specs/skills.md",
+          "lines": "55",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/skills.md#L55"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/content/skillDefinitions.ts",
+          "lines": "5",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/content/skillDefinitions.ts#L5"
+        }
+      ],
+      "tests": [
+        {
+          "name": "試用の全候補採用経路で最大3権利を常に3択で完了できる",
+          "sources": [
+            {
+              "path": "src/game/growthRuntime.test.ts",
+              "lines": "213",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/growthRuntime.test.ts#L213"
+            }
+          ],
+          "assertion": "Seeds0–1023 recursively explores offered branches, every node unique3/offered; union97 legal choice sequences"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "Finite-path assertions are appropriate domain assurance; do not describe this as a proof over every uint32 seed or add arbitrary millions of redundant seed samples.",
+      "risk": "low"
+    },
+    {
+      "id": "SKL-16",
+      "domain": "skill-acquisition",
+      "requirement": "Full skill catalog may contain characters outside progression subset without allocating them rights/state.",
+      "specification_sources": [
+        {
+          "path": "specs/skills.md",
+          "lines": "45",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/skills.md#L45"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/skillAcquisition.ts",
+          "lines": "71",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skillAcquisition.ts#L71"
+        }
+      ],
+      "tests": [
+        {
+          "name": "成長対象の部分集合へ全キャラのカタログを再利用できる",
+          "sources": [
+            {
+              "path": "src/game/skillAcquisition.test.ts",
+              "lines": "326",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skillAcquisition.test.ts#L326"
+            }
+          ],
+          "assertion": "State characters only player, offered playerLv2 despite full catalog"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "SAV-01",
+      "domain": "save",
+      "requirement": "Only stable home logical state saveable: no dungeon/conversation/pending action/growth choice/exploration bag.",
+      "specification_sources": [
+        {
+          "path": "specs/save.md",
+          "lines": "3",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/save.md#L3"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/save.ts",
+          "lines": "25",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/save.ts#L25"
+        }
+      ],
+      "tests": [
+        {
+          "name": "会話、必須選択、探索途中を保存しない",
+          "sources": [
+            {
+              "path": "src/game/save.test.ts",
+              "lines": "159",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/save.test.ts#L159"
+            }
+          ],
+          "assertion": "Line, ADV choice, departed state all not-in-town"
+        },
+        {
+          "name": "街XPを保存・持込み、勝利の各レベルを選び次戦へ反映し、最終ボスXP0から初期化する",
+          "sources": [
+            {
+              "path": "src/game/growthRuntime.test.ts",
+              "lines": "105",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/growthRuntime.test.ts#L105"
+            }
+          ],
+          "assertion": "Pending actual growth serialize rejected"
+        },
+        {
+          "name": "市場で買物を複数回しても完了まで時間を進めず、持帰り・保存・持込み・途中帰還が一度だけ反映される",
+          "sources": [
+            {
+              "path": "src/game/inventoryIntegration.test.ts",
+              "lines": "62",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/inventoryIntegration.test.ts#L62"
+            }
+          ],
+          "assertion": "Market open save rejected; completed home saves"
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "No malformed external save payload with nonnull exploration bag tested; ordinary save rejection fixtures also have another blocking field. Do not manufacture unreachable live-state-only tests.",
+      "candidate_regression": "Accept external save JSON containing a bag despite stable-home-only save contract.",
+      "risk": "medium"
+    },
+    {
+      "id": "SAV-02",
+      "domain": "save",
+      "requirement": "Current format5 only; old4 and all unsupported versions reject without migration/deletion.",
+      "specification_sources": [
+        {
+          "path": "specs/save.md",
+          "lines": "11",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/save.md#L11"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/save.ts",
+          "lines": "102",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/save.ts#L102"
+        }
+      ],
+      "tests": [
+        {
+          "name": "旧形式・負数・未知物品・装備の重複割当てを保存復元で拒否する",
+          "sources": [
+            {
+              "path": "src/game/inventoryIntegration.test.ts",
+              "lines": "170",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/inventoryIntegration.test.ts#L170"
+            }
+          ],
+          "assertion": "version4 yields unsupported-version"
+        },
+        {
+          "name": "加入・4枠と控え・育成・回復・%s帰還・保存・再出撃",
+          "sources": [
+            {
+              "path": "src/game/multidayAcceptance.test.ts",
+              "lines": "23",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/multidayAcceptance.test.ts#L23"
+            }
+          ],
+          "assertion": "JSON.version exactly5"
+        },
+        {
+          "name": "保存失敗ではホームに留まり、破損・旧版・保存なしではタイトルを保持する",
+          "sources": [
+            {
+              "path": "tests/e2e/campaign.spec.ts",
+              "lines": "157",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/campaign.spec.ts#L157"
+            }
+          ],
+          "assertion": "version1 slot returns unsupported message and exact localStorage string unchanged"
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "v4 core refusal covered; storage retention tested on v1 rather than specifically valid old4. Spec early paragraph still claims v4 supported.",
+      "candidate_regression": "A UI special case deletes only version4 would not be caught by existing storage-v1 case.",
+      "risk": "high"
+    },
+    {
+      "id": "SAV-03",
+      "domain": "save",
+      "requirement": "Restore roster/reserve/four slots/current place/flags/HP/symptoms/fatigue/clock/RNG/watermark/growth precisely; derive calendar/stats, no healing/recruitment/random reset.",
+      "specification_sources": [
+        {
+          "path": "specs/save.md",
+          "lines": "7",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/save.md#L7"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/save.ts",
+          "lines": "102",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/save.ts#L102"
+        }
+      ],
+      "tests": [
+        {
+          "name": "加入フラグ、控え、空き枠、現在地を保持し、同じ相手を再加入させない",
+          "sources": [
+            {
+              "path": "src/game/save.test.ts",
+              "lines": "121",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/save.test.ts#L121"
+            }
+          ],
+          "assertion": "guild companion flags/location+roster+slots retained, revisit roster2, empty slots saved"
+        },
+        {
+          "name": "症状値30から街探索後の20とHPを復元し、次の街探索で10へ回復する",
+          "sources": [
+            {
+              "path": "src/game/save.test.ts",
+              "lines": "99",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/save.test.ts#L99"
+            }
+          ],
+          "assertion": "Load HP15/physical20/time1; next actual action physical10/time2"
+        },
+        {
+          "name": "現行版は端数症状と乱数を保持し、旧版・不正な数値を変換しない",
+          "sources": [
+            {
+              "path": "src/game/loadSymptomIntegration.test.ts",
+              "lines": "154",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/loadSymptomIntegration.test.ts#L154"
+            }
+          ],
+          "assertion": "Exact fractional party members and RNG1586005467"
+        },
+        {
+          "name": "加入・4枠と控え・育成・回復・%s帰還・保存・再出撃",
+          "sources": [
+            {
+              "path": "src/game/multidayAcceptance.test.ts",
+              "lines": "23",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/multidayAcceptance.test.ts#L23"
+            }
+          ],
+          "assertion": "Twice roundtrip matches full logical state; exact independent outcomes next operation"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "SAV-04",
+      "domain": "save",
+      "requirement": "Incapacity6 versus1 preserved even HP full; load never counts recovery; one real town after1 clears.",
+      "specification_sources": [
+        {
+          "path": "specs/save.md",
+          "lines": "9",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/save.md#L9"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/save.ts",
+          "lines": "102",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/save.ts#L102"
+        }
+      ],
+      "tests": [
+        {
+          "name": "HP満タンの戦闘不能6回と1回を区別し、読み込みで回復させない",
+          "sources": [
+            {
+              "path": "src/game/save.test.ts",
+              "lines": "111",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/save.test.ts#L111"
+            }
+          ],
+          "assertion": "HP20 with6 and1 saved separately; departure blocked; market clears1"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "SAV-05",
+      "domain": "save",
+      "requirement": "Validate known place/character, unique joined roster, 4 slots, no duplicate/unjoined slot, finite nonnegative HP within derived max.",
+      "specification_sources": [
+        {
+          "path": "specs/save.md",
+          "lines": "11",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/save.md#L11"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/save.ts",
+          "lines": "102",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/save.ts#L102"
+        }
+      ],
+      "tests": [
+        {
+          "name": "不正な外部データを拒否する %#",
+          "sources": [
+            {
+              "path": "src/game/save.test.ts",
+              "lines": "206",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/save.test.ts#L206"
+            }
+          ],
+          "assertion": "Unknown place/member, duplicate slot, unjoined slot, HP21>20 reject"
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "Duplicate member IDs, wrong slot count, negative/nonfinite/string HP, valid fractionalHP independently untested; current test covers only upper bound HP.",
+      "candidate_regression": "Allow duplicate party.members entries or negative HP in a saved file.",
+      "risk": "high"
+    },
+    {
+      "id": "SAV-06",
+      "domain": "save",
+      "requirement": "Validate symptoms finite nonnegative within caps, incapacity null or1..6 integer; fatigue nonnegative finite decimal preserved.",
+      "specification_sources": [
+        {
+          "path": "specs/save.md",
+          "lines": "11",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/save.md#L11"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/save.ts",
+          "lines": "102",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/save.ts#L102"
+        }
+      ],
+      "tests": [
+        {
+          "name": "現行版は端数症状と乱数を保持し、旧版・不正な数値を変換しない",
+          "sources": [
+            {
+              "path": "src/game/loadSymptomIntegration.test.ts",
+              "lines": "154",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/loadSymptomIntegration.test.ts#L154"
+            }
+          ],
+          "assertion": "For both symptoms -1/200.01/null/string reject; fractional80.125/199.875 retained"
+        },
+        {
+          "name": "不正な外部データを拒否する %#",
+          "sources": [
+            {
+              "path": "src/game/save.test.ts",
+              "lines": "206",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/save.test.ts#L206"
+            }
+          ],
+          "assertion": "haze201 and incapacity0 reject"
+        },
+        {
+          "name": "旧版を移行せず拒否し、現行版の端数疲労を精度保持する",
+          "sources": [
+            {
+              "path": "src/game/skillLoop.test.ts",
+              "lines": "148",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skillLoop.test.ts#L148"
+            }
+          ],
+          "assertion": "Fatigue24.1234567890123 exact roundtrip; malformed fatigue reject"
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "incapacity>6 and fractional/string counters no direct malformed fixture.",
+      "candidate_regression": "Permit incapacity7 or1.5 on load.",
+      "risk": "medium"
+    },
+    {
+      "id": "SAV-07",
+      "domain": "save",
+      "requirement": "Clock counts safe integer and coherent with nextActionId; recovery count <= completed actions; watermark not missing/behind yet may exceed action count.",
+      "specification_sources": [
+        {
+          "path": "specs/save.md",
+          "lines": "11",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/save.md#L11"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/save.ts",
+          "lines": "102",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/save.ts#L102"
+        }
+      ],
+      "tests": [
+        {
+          "name": "不正な外部データを拒否する %#",
+          "sources": [
+            {
+              "path": "src/game/save.test.ts",
+              "lines": "206",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/save.test.ts#L206"
+            }
+          ],
+          "assertion": "Elapsed1 with nextID1, recovery1 with no completion, watermark.5 reject"
+        },
+        {
+          "name": "加入済みと未加入の矛盾、回復の重複抑止値の欠落を拒否する",
+          "sources": [
+            {
+              "path": "src/game/save.test.ts",
+              "lines": "211",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/save.test.ts#L211"
+            }
+          ],
+          "assertion": "recovery>0 with watermark null rejected"
+        },
+        {
+          "name": "乱数と回復通知の重複抑止を復元する",
+          "sources": [
+            {
+              "path": "src/game/save.test.ts",
+              "lines": "150",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/save.test.ts#L150"
+            }
+          ],
+          "assertion": "Watermark100 valid despite lower recovery count and replay still suppressed"
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "Negative/fractional/unsafe nextID/elapsed/recovery counters and non-null but behind watermark need independent cases.",
+      "candidate_regression": "Permit lastTownRecoverySignal0 with recoverySteps3; duplicate recovery possible.",
+      "risk": "high"
+    },
+    {
+      "id": "SAV-08",
+      "domain": "save",
+      "requirement": "Game RNG restored as uint32 including0; rejects negative/fractional/>0xffffffff and subsequent draw deterministic.",
+      "specification_sources": [
+        {
+          "path": "specs/save.md",
+          "lines": "11",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/save.md#L11"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/save.ts",
+          "lines": "102",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/save.ts#L102"
+        }
+      ],
+      "tests": [
+        {
+          "name": "乱数と回復通知の重複抑止を復元する",
+          "sources": [
+            {
+              "path": "src/game/save.test.ts",
+              "lines": "150",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/save.test.ts#L150"
+            }
+          ],
+          "assertion": "Seed0 load next draw state1013904223/value exact"
+        },
+        {
+          "name": "不正な乱数・余剰・補正・習得ランク・残存権利を例外なく拒否する",
+          "sources": [
+            {
+              "path": "src/game/growthRuntime.test.ts",
+              "lines": "268",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/growthRuntime.test.ts#L268"
+            }
+          ],
+          "assertion": "-1,.5,0x100000000 reject"
+        },
+        {
+          "name": "現行保存を繰返し読んでもseed%sの命中と安定候補を再現する",
+          "sources": [
+            {
+              "path": "src/game/multidayAcceptance.test.ts",
+              "lines": "299",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/multidayAcceptance.test.ts#L299"
+            }
+          ],
+          "assertion": "Seeds3 and1500 restored twice produce fixed hit/defeat, offers,RNG,HP outcomes"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "SAV-09",
+      "domain": "save",
+      "requirement": "Join flags cannot claim unjoined character; no duplicate flags or blank IDs in save.",
+      "specification_sources": [
+        {
+          "path": "specs/save.md",
+          "lines": "11",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/save.md#L11"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/save.ts",
+          "lines": "102",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/save.ts#L102"
+        }
+      ],
+      "tests": [
+        {
+          "name": "加入済みと未加入の矛盾、回復の重複抑止値の欠落を拒否する",
+          "sources": [
+            {
+              "path": "src/game/save.test.ts",
+              "lines": "211",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/save.test.ts#L211"
+            }
+          ],
+          "assertion": "joined-gilberta without roster member rejected"
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "Duplicate/empty flag list validation has no corrupt-save assertion.",
+      "candidate_regression": "Permit duplicate/empty event flags on load.",
+      "risk": "medium"
+    },
+    {
+      "id": "SAV-10",
+      "domain": "save-growth",
+      "requirement": "Preserve temporary street growth XP/IDs/closed state/origin/acquisition/ranks/receipts; closed return remains initial; next session new ID.",
+      "specification_sources": [
+        {
+          "path": "specs/save.md",
+          "lines": "11",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/save.md#L11"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/growthSave.ts",
+          "lines": "14",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/growthSave.ts#L14"
+        }
+      ],
+      "tests": [
+        {
+          "name": "街XPを保存・持込み、勝利の各レベルを選び次戦へ反映し、最終ボスXP0から初期化する",
+          "sources": [
+            {
+              "path": "src/game/growthRuntime.test.ts",
+              "lines": "105",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/growthRuntime.test.ts#L105"
+            }
+          ],
+          "assertion": "TownXP5 survives roundtrip/depart and return resets then stale selection rejected"
+        },
+        {
+          "name": "余剰XP・報酬再送・HP差分を保持し、控えの育成も帰還で消す",
+          "sources": [
+            {
+              "path": "src/game/growthRuntime.test.ts",
+              "lines": "161",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/growthRuntime.test.ts#L161"
+            }
+          ],
+          "assertion": "Reserve XP25 progression survives roundtrip"
+        },
+        {
+          "name": "加入・4枠と控え・育成・回復・%s帰還・保存・再出撃",
+          "sources": [
+            {
+              "path": "src/game/multidayAcceptance.test.ts",
+              "lines": "23",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/multidayAcceptance.test.ts#L23"
+            }
+          ],
+          "assertion": "Growth fields equal across repeated roundtrip; next gameplay exact"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "SAV-11",
+      "domain": "save-growth",
+      "requirement": "Reject forged level/XP/bonuses or pending choices; no active rank; closed growth initial only.",
+      "specification_sources": [
+        {
+          "path": "specs/save.md",
+          "lines": "11",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/save.md#L11"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/growthSave.ts",
+          "lines": "14",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/growthSave.ts#L14"
+        }
+      ],
+      "tests": [
+        {
+          "name": "不正な乱数・余剰・補正・習得ランク・残存権利を例外なく拒否する",
+          "sources": [
+            {
+              "path": "src/game/growthRuntime.test.ts",
+              "lines": "268",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/growthRuntime.test.ts#L268"
+            }
+          ],
+          "assertion": "XP>=threshold, bonusmaxHP4 atLv1, active rank2, pending[2], closed withXP5 reject"
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "Forged level, attack bonus, mismatched growth RNG, choice object, explorationID and duplicate reward IDs untested.",
+      "candidate_regression": "Allow wrong attack bonus or mismatched saved growth RNG independently.",
+      "risk": "high"
+    },
+    {
+      "id": "SAV-12",
+      "domain": "save-growth",
+      "requirement": "Saved initial/guaranteed skills must exist with correct origin/acquisition; guarantees only at reached level; choices consume exact per-tier rights and passive cap.",
+      "specification_sources": [
+        {
+          "path": "specs/save.md",
+          "lines": "11",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/save.md#L11"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/growthSave.ts",
+          "lines": "73",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/growthSave.ts#L73"
+        }
+      ],
+      "tests": [],
+      "coverage_status": "missing",
+      "audit_classification": "missing",
+      "ci_status": "not-assessed",
+      "gap": "No corrupt-save cases removing initial/guaranteed skills, forging choice origin, adding future guarantee, overcap passive or consuming wrong tier. Happy-path roundtrips not a validation oracle.",
+      "candidate_regression": "Drop counts check or guarantee-presence check and accept forged extra learned skill.",
+      "risk": "high"
+    },
+    {
+      "id": "SAV-13",
+      "domain": "save",
+      "requirement": "Broken JSON/unknown version reject; parser rejects wrong object shape/missing/extra fields.",
+      "specification_sources": [
+        {
+          "path": "specs/save.md",
+          "lines": "11",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/save.md#L11"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/save.ts",
+          "lines": "102",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/save.ts#L102"
+        }
+      ],
+      "tests": [
+        {
+          "name": "壊れたJSONと未対応形式を拒否する",
+          "sources": [
+            {
+              "path": "src/game/save.test.ts",
+              "lines": "219",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/save.test.ts#L219"
+            }
+          ],
+          "assertion": "{ invalid-data and version999 unsupported-version"
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "Syntactically valid scalar/array/null JSON, missing and extra fields have no dedicated matrix.",
+      "candidate_regression": "Accept schema with hidden derived ability fields or missing required status.",
+      "risk": "medium"
+    },
+    {
+      "id": "SAV-14",
+      "domain": "save-io",
+      "requirement": "Storage unavailable/get/set failures preserve current session+existing slot; normal/debug keys separate.",
+      "specification_sources": [
+        {
+          "path": "specs/save.md",
+          "lines": "13",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/save.md#L13"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/web/saveSlot.ts",
+          "lines": "9",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/web/saveSlot.ts#L9"
+        }
+      ],
+      "tests": [
+        {
+          "name": "保存・読込失敗と会話中の拒否は現在状態と既存保存を保持する",
+          "sources": [
+            {
+              "path": "src/web/saveSlot.test.ts",
+              "lines": "18",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/web/saveSlot.test.ts#L18"
+            }
+          ],
+          "assertion": "Throwing access/get/set returns failure, original value/editor draft retained, bad bytes unchanged"
+        },
+        {
+          "name": "通常v4保存とデバッグ保存を分離し、保存失敗を明示する",
+          "sources": [
+            {
+              "path": "src/web/saveSlot.test.ts",
+              "lines": "48",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/web/saveSlot.test.ts#L48"
+            }
+          ],
+          "assertion": "Normal bytes unchanged by debug save; debug missing does not read normal; write failure=false"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "SAV-15",
+      "domain": "save-campaign",
+      "requirement": "Explicit confirmed home save/return-to-title succeeds only after saved; cancellation/new start/introduction abort/reload never erase existing save.",
+      "specification_sources": [
+        {
+          "path": "specs/save.md",
+          "lines": "3",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/save.md#L3"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/web/saveSlot.ts",
+          "lines": "9",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/web/saveSlot.ts#L9"
+        }
+      ],
+      "tests": [
+        {
+          "name": "移動は時間を消費せず、取消・新規開始は既存保存を消さない",
+          "sources": [
+            {
+              "path": "tests/e2e/campaign.spec.ts",
+              "lines": "124",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/campaign.spec.ts#L124"
+            }
+          ],
+          "assertion": "Cancel title request stays home/night; new-start confirm and intro abort preserve exact prior slot; continue restores prior day"
+        },
+        {
+          "name": "保存失敗ではホームに留まり、破損・旧版・保存なしではタイトルを保持する",
+          "sources": [
+            {
+              "path": "tests/e2e/campaign.spec.ts",
+              "lines": "157",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/campaign.spec.ts#L157"
+            }
+          ],
+          "assertion": "Throw setItem then save-and-title stays home/error, old bytes kept"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "CNT-01",
+      "domain": "content",
+      "requirement": "Production content cross-validation runs all authored definitions and required references.",
+      "specification_sources": [
+        {
+          "path": "docs/testing.md",
+          "lines": "13",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/docs/testing.md#L13"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/content/validateContent.ts",
+          "lines": "43",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/content/validateContent.ts#L43"
+        }
+      ],
+      "tests": [
+        {
+          "name": "本番の全定義を npm run check で検証する",
+          "sources": [
+            {
+              "path": "src/content/validateContent.test.ts",
+              "lines": "95",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/content/validateContent.test.ts#L95"
+            }
+          ],
+          "assertion": "validateContent(contentDefinitions) not.toThrow"
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "Useful current-content smoke only; it is not coverage of negative validator branches (listed separately).",
+      "candidate_regression": "A validator becomes permissive; valid production definitions still pass.",
+      "risk": "medium"
+    },
+    {
+      "id": "CNT-02",
+      "domain": "content",
+      "requirement": "Adding character/event/skill must connect initial growth/profile/save catalog/save places/recruitment flags; independent equivalent save definitions allowed.",
+      "specification_sources": [
+        {
+          "path": "docs/testing.md",
+          "lines": "50",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/docs/testing.md#L50"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/content/validateContent.ts",
+          "lines": "43",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/content/validateContent.ts#L43"
+        }
+      ],
+      "tests": [
+        {
+          "name": "仲間・加入イベント・既存効果を追加し、加入後の成長状態を現行形式で保存往復できる",
+          "sources": [
+            {
+              "path": "src/content/validateContent.test.ts",
+              "lines": "98",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/content/validateContent.test.ts#L98"
+            }
+          ],
+          "assertion": "New character/event public recruit→save→restore exact roster/join flag/new-strike initial"
+        },
+        {
+          "name": "同じ内容の独立した保存定義も受理して往復できる",
+          "sources": [
+            {
+              "path": "src/content/validateContent.test.ts",
+              "lines": "129",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/content/validateContent.test.ts#L129"
+            }
+          ],
+          "assertion": "structuredClone save accepted and restored new companion"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "CNT-03",
+      "domain": "content",
+      "requirement": "Content cross-reference errors identify missing initial place/growth/profile/save place/event relation and stale save catalog/growth.",
+      "specification_sources": [
+        {
+          "path": "docs/testing.md",
+          "lines": "58",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/docs/testing.md#L58"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/content/validateContent.ts",
+          "lines": "43",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/content/validateContent.ts#L43"
+        }
+      ],
+      "tests": [
+        {
+          "name": "%sを具体的に報告する",
+          "sources": [
+            {
+              "path": "src/content/validateContent.test.ts",
+              "lines": "245",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/content/validateContent.test.ts#L245"
+            }
+          ],
+          "assertion": "Named matrix for missing start/growth/profile/save-flag/place and invalid refs"
+        },
+        {
+          "name": "保存側の旧%s参照を拒否し、保存失敗も再現する",
+          "sources": [
+            {
+              "path": "src/content/validateContent.test.ts",
+              "lines": "113",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/content/validateContent.test.ts#L113"
+            }
+          ],
+          "assertion": "Stale catalog/growth rejected; actual serialize failure reproduced"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "CNT-04",
+      "domain": "content",
+      "requirement": "Shared join flag must represent characters recruited together, not independent events; unknown recruitment ID identifies event/node.",
+      "specification_sources": [
+        {
+          "path": "specs/adventure.md",
+          "lines": "74",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/adventure.md#L74"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/content/validateContent.ts",
+          "lines": "43",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/content/validateContent.ts#L43"
+        }
+      ],
+      "tests": [
+        {
+          "name": "同じ加入フラグを独立したキャラに割り当てると保存できない",
+          "sources": [
+            {
+              "path": "src/content/validateContent.test.ts",
+              "lines": "108",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/content/validateContent.test.ts#L108"
+            }
+          ],
+          "assertion": "Conflicting flag rejects validation and serialize"
+        },
+        {
+          "name": "同じ終了ノードで全員加入する共通フラグは保存往復できる",
+          "sources": [
+            {
+              "path": "src/content/validateContent.test.ts",
+              "lines": "135",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/content/validateContent.test.ts#L135"
+            }
+          ],
+          "assertion": "Both recruits restored and joined-together retained"
+        },
+        {
+          "name": "加入キャラの参照切れは会話とノードを示す",
+          "sources": [
+            {
+              "path": "src/content/validateContent.test.ts",
+              "lines": "248",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/content/validateContent.test.ts#L248"
+            }
+          ],
+          "assertion": "Error contains broken-event/join/missing"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "CNT-05",
+      "domain": "content",
+      "requirement": "Configured town/battle/event rewards are safe nonnegative integers, zero allowed.",
+      "specification_sources": [
+        {
+          "path": "specs/progression.md",
+          "lines": "9",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/progression.md#L9"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/content/validateContent.ts",
+          "lines": "43",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/content/validateContent.ts#L43"
+        }
+      ],
+      "tests": [
+        {
+          "name": "%sは安全な非負整数",
+          "sources": [
+            {
+              "path": "src/content/validateContent.test.ts",
+              "lines": "287",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/content/validateContent.test.ts#L287"
+            }
+          ],
+          "assertion": "All3 values tested -1,.5,NaN,Infinity,unsafe reject,0 accepts"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    }
+  ]
+}

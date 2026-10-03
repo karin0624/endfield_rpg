@@ -1,0 +1,1071 @@
+{
+  "schema_version": 1,
+  "repository": "karin0624/endfield_rpg",
+  "audited_commit": "4866de71c2200781926f2bdb9611410822163ca5",
+  "domain": "workflow-rendering-tooling",
+  "method": "Static requirement-to-implementation-to-assertion inspection.",
+  "test_execution": "not-run",
+  "counterexamples": "Reasoned regression candidates; no mutation execution claimed.",
+  "status_counts": {
+    "assertion-present": 8,
+    "partial": 10,
+    "missing": 4,
+    "missing-negative-boundary": 1,
+    "missing-gate": 2,
+    "not-enforced": 1,
+    "manual-only": 1,
+    "partially-unverified": 1,
+    "spec-conflict": 1,
+    "procedural-only": 1
+  },
+  "contracts": [
+    {
+      "id": "WF-R01",
+      "domain": "renderer",
+      "requirement": "既定戦闘の実素材・16:9構図をPC/mobileで保持",
+      "specification_sources": [
+        {
+          "description": "specs/visuals.md:16,73–79",
+          "resolved_sources": [
+            {
+              "path": "specs/visuals.md",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/visuals.md"
+            }
+          ]
+        }
+      ],
+      "test_sources": [
+        {
+          "description": "tests/e2e/battle.spec.ts:30–48",
+          "resolved_sources": [
+            {
+              "path": "tests/e2e/battle.spec.ts",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/battle.spec.ts"
+            }
+          ]
+        }
+      ],
+      "observed_assertions_or_evidence": "toHaveScreenshot desktop/mobile + HTTP/page/console errors=[]",
+      "coverage_status": "assertion-present",
+      "audit_classification": "mapped",
+      "layer": "Playwright real renderer VRT / debug build",
+      "ci_status": "see-evidence",
+      "gap_or_proposed_change": "初期2画面のみで、全戦闘状態の見た目を保証しない"
+    },
+    {
+      "id": "WF-R02",
+      "domain": "renderer",
+      "requirement": "素材準備後に表示し、読込失敗を画面に通知",
+      "specification_sources": [
+        {
+          "description": "specs/visuals.md:85–86; src/web/battleScene.ts:170–188,206–227",
+          "resolved_sources": [
+            {
+              "path": "specs/visuals.md",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/visuals.md"
+            },
+            {
+              "path": "src/web/battleScene.ts",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/web/battleScene.ts"
+            }
+          ]
+        }
+      ],
+      "test_sources": [
+        {
+          "description": "tests/e2e/battle.spec.ts:157–162",
+          "resolved_sources": [
+            {
+              "path": "tests/e2e/battle.spec.ts",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/battle.spec.ts"
+            }
+          ]
+        }
+      ],
+      "observed_assertions_or_evidence": "portrait404→statusエラー",
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "layer": "Playwright real renderer",
+      "ci_status": "see-evidence",
+      "gap_or_proposed_change": "portrait404のみ。GLB取得/不正GLB・背景失敗でのエラーと解放、準備中の操作拒否を追加"
+    },
+    {
+      "id": "WF-R03",
+      "domain": "renderer",
+      "requirement": "同環境次戦は再取得せず、人数切替で資源増加なし、退出で資源解放",
+      "specification_sources": [
+        {
+          "description": "specs/visuals.md:87–89; docs/testing.md:19–23",
+          "resolved_sources": [
+            {
+              "path": "docs/testing.md",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/docs/testing.md"
+            },
+            {
+              "path": "specs/visuals.md",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/visuals.md"
+            }
+          ]
+        }
+      ],
+      "test_sources": [
+        {
+          "description": "tests/e2e/renderer.spec.ts:4–56",
+          "resolved_sources": [
+            {
+              "path": "tests/e2e/renderer.spec.ts",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/renderer.spec.ts"
+            }
+          ]
+        }
+      ],
+      "observed_assertions_or_evidence": "groundRequests=1; Buffer/Texture/Program warm一致・破棄後0; 敵札/操作消失",
+      "coverage_status": "assertion-present",
+      "audit_classification": "mapped-not-CI",
+      "layer": "Playwright real renderer integration",
+      "ci_status": "excluded-at-least-in-part",
+      "gap_or_proposed_change": "既存の有用な外部resource契約。通常CIへ含める"
+    },
+    {
+      "id": "WF-R04",
+      "domain": "renderer",
+      "requirement": "旧battle handle/演出が新battleへ作用しない、二重dispose安全",
+      "specification_sources": [
+        {
+          "description": "specs/visuals.md:88; src/web/battleScene.ts:261–263,712–727",
+          "resolved_sources": [
+            {
+              "path": "specs/visuals.md",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/visuals.md"
+            },
+            {
+              "path": "src/web/battleScene.ts",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/web/battleScene.ts"
+            }
+          ]
+        }
+      ],
+      "test_sources": [
+        {
+          "description": "tests/e2e/renderer.spec.ts:19–32; tests/fixtures/battle-lifecycle.html:98–108,114–129",
+          "resolved_sources": [
+            {
+              "path": "tests/e2e/renderer.spec.ts",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/renderer.spec.ts"
+            },
+            {
+              "path": "tests/fixtures/battle-lifecycle.html",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/fixtures/battle-lifecycle.html"
+            }
+          ]
+        }
+      ],
+      "observed_assertions_or_evidence": "旧操作で現表示rect不変・旧callback0; 新操作でrect変化",
+      "coverage_status": "assertion-present",
+      "audit_classification": "mapped-not-CI",
+      "layer": "Playwright real renderer integration",
+      "ci_status": "excluded-at-least-in-part",
+      "gap_or_proposed_change": "意味ある検証として維持。sprite残留等の見た目全体は画像比較がないので別契約に分ける"
+    },
+    {
+      "id": "WF-R05",
+      "domain": "renderer",
+      "requirement": "旧portrait準備待ちを中断して必要な次battleだけを準備・退出",
+      "specification_sources": [
+        {
+          "description": "specs/visuals.md:88; src/web/battleScene.ts:453–465",
+          "resolved_sources": [
+            {
+              "path": "specs/visuals.md",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/visuals.md"
+            },
+            {
+              "path": "src/web/battleScene.ts",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/web/battleScene.ts"
+            }
+          ]
+        }
+      ],
+      "test_sources": [
+        {
+          "description": "tests/e2e/renderer.spec.ts:59–98",
+          "resolved_sources": [
+            {
+              "path": "tests/e2e/renderer.spec.ts",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/renderer.spec.ts"
+            }
+          ]
+        }
+      ],
+      "observed_assertions_or_evidence": "旧portrait保留中次battle完了; 退出後資源0; pageerrorなし",
+      "coverage_status": "assertion-present",
+      "audit_classification": "mapped-not-CI",
+      "layer": "Playwright real renderer integration",
+      "ci_status": "excluded-at-least-in-part",
+      "gap_or_proposed_change": "CI実行対象化"
+    },
+    {
+      "id": "WF-R06",
+      "domain": "renderer",
+      "requirement": "旧環境GLB/背景が遅着しても新環境・資源を汚染しない",
+      "specification_sources": [
+        {
+          "description": "specs/visuals.md:87–89; src/web/battleScene.ts:206–258",
+          "resolved_sources": [
+            {
+              "path": "specs/visuals.md",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/visuals.md"
+            },
+            {
+              "path": "src/web/battleScene.ts",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/web/battleScene.ts"
+            }
+          ]
+        }
+      ],
+      "test_sources": [
+        {
+          "description": "tests/e2e/renderer.spec.ts:101–163",
+          "resolved_sources": [
+            {
+              "path": "tests/e2e/renderer.spec.ts",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/renderer.spec.ts"
+            }
+          ]
+        }
+      ],
+      "observed_assertions_or_evidence": "現環境完了回数1・資源warm不変; late背景完了観測; 退出資源0",
+      "coverage_status": "assertion-present",
+      "audit_classification": "mapped-not-CI",
+      "layer": "Playwright real renderer integration",
+      "ci_status": "excluded-at-least-in-part",
+      "gap_or_proposed_change": "CI実行対象化。計測helperは所有資源を観測するため維持"
+    },
+    {
+      "id": "WF-R07",
+      "domain": "renderer",
+      "requirement": "pagehide/HMRで解放、persisted=trueでは保持",
+      "specification_sources": [
+        {
+          "description": "specs/visuals.md:90; src/web/main.ts:24–27; src/web/debugMain.ts:55–73",
+          "resolved_sources": [
+            {
+              "path": "specs/visuals.md",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/visuals.md"
+            },
+            {
+              "path": "src/web/debugMain.ts",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/web/debugMain.ts"
+            },
+            {
+              "path": "src/web/main.ts",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/web/main.ts"
+            }
+          ]
+        }
+      ],
+      "test_sources": [
+        {
+          "description": "なし",
+          "resolved_sources": []
+        }
+      ],
+      "observed_assertions_or_evidence": "該当pagehide/persisted/HMRのassertion検索一致なし",
+      "coverage_status": "missing",
+      "audit_classification": "missing",
+      "layer": "Playwright entry/lifecycle integration",
+      "ci_status": "see-evidence",
+      "gap_or_proposed_change": "現entryでpersisted両値→再操作可否/解放・旧callback無効を観測。fixture disposeのみでentry配線を代用しない"
+    },
+    {
+      "id": "WF-R08",
+      "domain": "renderer",
+      "requirement": "静止描画を避ける、文字寸法更新で地形を描き直さず配置更新",
+      "specification_sources": [
+        {
+          "description": "specs/visuals.md:91; docs/testing.md:46",
+          "resolved_sources": [
+            {
+              "path": "docs/testing.md",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/docs/testing.md"
+            },
+            {
+              "path": "specs/visuals.md",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/visuals.md"
+            }
+          ]
+        }
+      ],
+      "test_sources": [
+        {
+          "description": "tests/e2e/battle.spec.ts:51–103; renderer.spec.ts:31–50",
+          "resolved_sources": [
+            {
+              "path": "tests/e2e/battle.spec.ts",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/battle.spec.ts"
+            },
+            {
+              "path": "tests/e2e/renderer.spec.ts",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/renderer.spec.ts"
+            }
+          ]
+        }
+      ],
+      "observed_assertions_or_evidence": "実WebGL draw数不変 + 実札位置/マーカー整合; model1request",
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "layer": "Playwright real renderer integration",
+      "ci_status": "see-evidence",
+      "gap_or_proposed_change": "文字リサイズ・設定変更の一部は有効。長い静止/複数設定/離脱時callbackについて必要境界を列挙し、一般契約とサンプル保証を分ける"
+    },
+    {
+      "id": "WF-R09",
+      "domain": "renderer",
+      "requirement": "pixel ratioを最大1.5へ制限",
+      "specification_sources": [
+        {
+          "description": "specs/visuals.md:91; src/web/battleScene.ts:104",
+          "resolved_sources": [
+            {
+              "path": "specs/visuals.md",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/visuals.md"
+            },
+            {
+              "path": "src/web/battleScene.ts",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/web/battleScene.ts"
+            }
+          ]
+        }
+      ],
+      "test_sources": [
+        {
+          "description": "なし; playwright.config.ts:18はDPR1固定",
+          "resolved_sources": [
+            {
+              "path": "playwright.config.ts",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/playwright.config.ts"
+            }
+          ]
+        }
+      ],
+      "observed_assertions_or_evidence": "DPR>1.5でのcanvasバッファ寸法assertionなし",
+      "coverage_status": "missing",
+      "audit_classification": "missing",
+      "layer": "Playwright renderer integration",
+      "ci_status": "see-evidence",
+      "gap_or_proposed_change": "DPR1と2等でcanvas実バッファ/表示寸法を観測。Engine内部値への依存は不要"
+    },
+    {
+      "id": "WF-R10",
+      "domain": "renderer/build",
+      "requirement": "BASE_URL配下の同梱素材を使い外部素材サイトへ行かない",
+      "specification_sources": [
+        {
+          "description": "specs/visuals.md:85; src/web/battleScene.ts:26",
+          "resolved_sources": [
+            {
+              "path": "specs/visuals.md",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/visuals.md"
+            },
+            {
+              "path": "src/web/battleScene.ts",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/web/battleScene.ts"
+            }
+          ]
+        }
+      ],
+      "test_sources": [
+        {
+          "description": "既存全project baseURLはroot配信",
+          "resolved_sources": []
+        }
+      ],
+      "observed_assertions_or_evidence": "subpathビルド/配信assertionなし",
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "layer": "built smoke",
+      "ci_status": "see-evidence",
+      "gap_or_proposed_change": "/rpg/等の1非root配布smokeでassets成功と外部requestなしを確認"
+    },
+    {
+      "id": "WF-R11",
+      "domain": "renderer",
+      "requirement": "ground倍率変更時接地・隊列XZ更新、立絵/影固定、遠景・camera独立",
+      "specification_sources": [
+        {
+          "description": "specs/visuals.md:75–79; settings.spec.ts:75–86",
+          "resolved_sources": [
+            {
+              "path": "specs/visuals.md",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/visuals.md"
+            },
+            {
+              "path": "tests/e2e/settings.spec.ts",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/settings.spec.ts"
+            }
+          ]
+        }
+      ],
+      "test_sources": [
+        {
+          "description": "tests/e2e/settings.spec.ts:75–86",
+          "resolved_sources": [
+            {
+              "path": "tests/e2e/settings.spec.ts",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/settings.spec.ts"
+            }
+          ]
+        }
+      ],
+      "observed_assertions_or_evidence": "複数設定を一括変更したVRT、1対1VRT",
+      "coverage_status": "partial",
+      "audit_classification": "partial-not-CI",
+      "layer": "Playwright renderer VRT",
+      "ci_status": "excluded-at-least-in-part",
+      "gap_or_proposed_change": "一括変更VRTだけでは各独立性を切り分けない。必要な少数の独立設定境界と基準状態を追加"
+    },
+    {
+      "id": "WF-C01",
+      "domain": "culling",
+      "requirement": "既知hash・指定環境・camera範囲と固定各項目でのみculling",
+      "specification_sources": [
+        {
+          "description": "specs/visuals.md:81; src/web/groundCulling.ts:5–44",
+          "resolved_sources": [
+            {
+              "path": "specs/visuals.md",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/visuals.md"
+            },
+            {
+              "path": "src/web/groundCulling.ts",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/web/groundCulling.ts"
+            }
+          ]
+        }
+      ],
+      "test_sources": [
+        {
+          "description": "src/web/groundCulling.test.ts:10–46",
+          "resolved_sources": [
+            {
+              "path": "src/web/groundCulling.test.ts",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/web/groundCulling.test.ts"
+            }
+          ]
+        }
+      ],
+      "observed_assertions_or_evidence": "既定/四隅true、範囲外・一部fixed変更・未知hash/env false",
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "layer": "Vitest unit",
+      "ci_status": "see-evidence",
+      "gap_or_proposed_change": "固定条件はcameraZ/targetY/fov/groundScale/backdropZだけnegativeあり。targetX,targetZ,backdropScale,X,Y等を含む契約条件を漏れなく独立caseにする"
+    },
+    {
+      "id": "WF-C02",
+      "domain": "culling",
+      "requirement": "既知PC/mobile/四隅で表示維持、内部/未検証構図は元材質へ戻す",
+      "specification_sources": [
+        {
+          "description": "specs/visuals.md:81",
+          "resolved_sources": [
+            {
+              "path": "specs/visuals.md",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/visuals.md"
+            }
+          ]
+        }
+      ],
+      "test_sources": [
+        {
+          "description": "tests/e2e/ground-culling.spec.ts:18–55",
+          "resolved_sources": [
+            {
+              "path": "tests/e2e/ground-culling.spec.ts",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/ground-culling.spec.ts"
+            }
+          ]
+        }
+      ],
+      "observed_assertions_or_evidence": "toHaveScreenshot threshold0/maxDiffPixels0; apply/preview往復",
+      "coverage_status": "assertion-present",
+      "audit_classification": "mapped-not-CI",
+      "layer": "Playwright real renderer VRT",
+      "ci_status": "excluded-at-least-in-part",
+      "gap_or_proposed_change": "通常CIへ。fixture control非表示CSSはgame pixel maskではない"
+    },
+    {
+      "id": "WF-C03",
+      "domain": "culling",
+      "requirement": "同path別bytes・照合不能では元材質、GLB二重取得なし",
+      "specification_sources": [
+        {
+          "description": "specs/visuals.md:81",
+          "resolved_sources": [
+            {
+              "path": "specs/visuals.md",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/visuals.md"
+            }
+          ]
+        }
+      ],
+      "test_sources": [
+        {
+          "description": "tests/e2e/ground-culling.spec.ts:74–88",
+          "resolved_sources": [
+            {
+              "path": "tests/e2e/ground-culling.spec.ts",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/ground-culling.spec.ts"
+            }
+          ]
+        }
+      ],
+      "observed_assertions_or_evidence": "不活性GLBmetadata変更→original画像一致・requests1; subtle無し→original画像",
+      "coverage_status": "assertion-present",
+      "audit_classification": "mapped-not-CI",
+      "layer": "Playwright real renderer VRT",
+      "ci_status": "excluded-at-least-in-part",
+      "gap_or_proposed_change": "全くテストがない扱いは誤り。crypto.digest reject経路は直接未検証だが同fallback契約の追加境界として扱える"
+    },
+    {
+      "id": "WF-A01",
+      "domain": "settings-parser",
+      "requirement": "battle設定の型/version/有限値/各範囲/カメラ距離0.5/非重複隊列/旧v1移行",
+      "specification_sources": [
+        {
+          "description": "specs/visuals.md:55–62; src/web/battleSettings.ts:1–93",
+          "resolved_sources": [
+            {
+              "path": "specs/visuals.md",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/visuals.md"
+            },
+            {
+              "path": "src/web/battleSettings.ts",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/web/battleSettings.ts"
+            }
+          ]
+        }
+      ],
+      "test_sources": [
+        {
+          "description": "src/web/battleSettings.test.ts:5–42",
+          "resolved_sources": [
+            {
+              "path": "src/web/battleSettings.test.ts",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/web/battleSettings.test.ts"
+            }
+          ]
+        }
+      ],
+      "observed_assertions_or_evidence": "groundScale不正群、version3、camera一致、1missing、新隊列0/0、v1少数値",
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "layer": "Vitest unit",
+      "ci_status": "see-evidence",
+      "gap_or_proposed_change": "全field上下限と欠落/非object、camera距離0.5境界、v1全既定と入力維持が未対応。独立入力/期待でparameterize"
+    },
+    {
+      "id": "WF-A02",
+      "domain": "settings-parser",
+      "requirement": "adventure設定24項目の型/version/有限値/範囲/欠落拒否",
+      "specification_sources": [
+        {
+          "description": "README.md:124–128; src/web/adventureSettings.ts:1–115",
+          "resolved_sources": [
+            {
+              "path": "README.md",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/README.md"
+            },
+            {
+              "path": "src/web/adventureSettings.ts",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/web/adventureSettings.ts"
+            }
+          ]
+        }
+      ],
+      "test_sources": [
+        {
+          "description": "tests/e2e/settings.spec.ts:150–209にhappy pathのみ",
+          "resolved_sources": [
+            {
+              "path": "tests/e2e/settings.spec.ts",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/settings.spec.ts"
+            }
+          ]
+        }
+      ],
+      "observed_assertions_or_evidence": "parser負例assertionなし・dedicated testなし",
+      "coverage_status": "missing-negative-boundary",
+      "audit_classification": "missing-negative",
+      "layer": "Vitest unit",
+      "ci_status": "see-evidence",
+      "gap_or_proposed_change": "battle同様の公開parse契約testを追加。field正本参照だけで実装の計算をoracleへ複写しない"
+    },
+    {
+      "id": "WF-A03",
+      "domain": "settings-api",
+      "requirement": "両APIは同一Origin・JSON POSTのみ受理、他は拒否",
+      "specification_sources": [
+        {
+          "description": "specs/visuals.md:62; scripts/*-settings-plugin.ts:27–34",
+          "resolved_sources": [
+            {
+              "path": "specs/visuals.md",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/visuals.md"
+            }
+          ]
+        }
+      ],
+      "test_sources": [
+        {
+          "description": "tests/e2e/settings.spec.ts:137–147",
+          "resolved_sources": [
+            {
+              "path": "tests/e2e/settings.spec.ts",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/settings.spec.ts"
+            }
+          ]
+        }
+      ],
+      "observed_assertions_or_evidence": "battle invalid version400・foreign origin403のみ",
+      "coverage_status": "partial",
+      "audit_classification": "partial-not-CI",
+      "layer": "HTTP integration",
+      "ci_status": "excluded-at-least-in-part",
+      "gap_or_proposed_change": "GET/他method405、Origin無し/偽値、Content-Type違い、adventure側全拒否を共通ケースで補う"
+    },
+    {
+      "id": "WF-A04",
+      "domain": "settings-api",
+      "requirement": "保存並行409・4096B超413・完了後再利用可",
+      "specification_sources": [
+        {
+          "description": "scripts/battle-settings-plugin.ts:36–42; scripts/adventure-settings-plugin.ts:34–40",
+          "resolved_sources": [
+            {
+              "path": "scripts/adventure-settings-plugin.ts",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/scripts/adventure-settings-plugin.ts"
+            },
+            {
+              "path": "scripts/battle-settings-plugin.ts",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/scripts/battle-settings-plugin.ts"
+            }
+          ]
+        }
+      ],
+      "test_sources": [
+        {
+          "description": "なし",
+          "resolved_sources": []
+        }
+      ],
+      "observed_assertions_or_evidence": "該当409/413・stream/concurrency assertionなし",
+      "coverage_status": "missing",
+      "audit_classification": "missing",
+      "layer": "HTTP integration",
+      "ci_status": "see-evidence",
+      "gap_or_proposed_change": "一時serverと限定した並行requestで境界/終了後解除を検証"
+    },
+    {
+      "id": "WF-A05",
+      "domain": "settings-api",
+      "requirement": "固定保存先・一時置換、失敗時旧JSONを維持、モデル画像を書き換えない",
+      "specification_sources": [
+        {
+          "description": "specs/visuals.md:62; scripts/battle-settings-plugin.ts:50–59; scripts/adventure-settings-plugin.ts:48–56",
+          "resolved_sources": [
+            {
+              "path": "scripts/adventure-settings-plugin.ts",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/scripts/adventure-settings-plugin.ts"
+            },
+            {
+              "path": "scripts/battle-settings-plugin.ts",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/scripts/battle-settings-plugin.ts"
+            },
+            {
+              "path": "specs/visuals.md",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/visuals.md"
+            }
+          ]
+        }
+      ],
+      "test_sources": [
+        {
+          "description": "settings.spec.ts:112–120,203–208は成功後UI",
+          "resolved_sources": [
+            {
+              "path": "tests/e2e/settings.spec.ts",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/settings.spec.ts"
+            }
+          ]
+        }
+      ],
+      "observed_assertions_or_evidence": "正常応答後読込の一部のみ、ファイル失敗/保存先/旧byte保護なし",
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "layer": "HTTP + temp filesystem integration",
+      "ci_status": "see-evidence",
+      "gap_or_proposed_change": "両APIで保存前後・不正/書込失敗・並行・余分なpath入力を観測。handlerの呼出回数を主oracleにしない"
+    },
+    {
+      "id": "WF-A06",
+      "domain": "settings-harness",
+      "requirement": "保存テストは元repo設定を上書きせず一時copyを破棄",
+      "specification_sources": [
+        {
+          "description": "README.md:69; scripts/serve-settings-test.mjs:6–35",
+          "resolved_sources": [
+            {
+              "path": "README.md",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/README.md"
+            },
+            {
+              "path": "scripts/serve-settings-test.mjs",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/scripts/serve-settings-test.mjs"
+            }
+          ]
+        }
+      ],
+      "test_sources": [
+        {
+          "description": "なし",
+          "resolved_sources": []
+        }
+      ],
+      "observed_assertions_or_evidence": "helperのcopy設計は存在するが保護assertionなし",
+      "coverage_status": "missing",
+      "audit_classification": "missing",
+      "layer": "tooling integration",
+      "ci_status": "see-evidence",
+      "gap_or_proposed_change": "元設定hash不変とtemp変更/終了後cleanupを小さな一時repoで検証。testごとの標準JSON再初期化も検討"
+    },
+    {
+      "id": "WF-B01",
+      "domain": "build",
+      "requirement": "Biome・tsc・全src Vitestと配布buildを実行",
+      "specification_sources": [
+        {
+          "description": "AGENTS.md:16; package.json:11–14; .github/workflows/ci.yml:11–23",
+          "resolved_sources": [
+            {
+              "path": ".github/workflows/ci.yml",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/.github/workflows/ci.yml"
+            },
+            {
+              "path": "AGENTS.md",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/AGENTS.md"
+            },
+            {
+              "path": "package.json",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/package.json"
+            }
+          ]
+        }
+      ],
+      "test_sources": [
+        {
+          "description": "CI verify",
+          "resolved_sources": []
+        }
+      ],
+      "observed_assertions_or_evidence": "npm run check; npm run build",
+      "coverage_status": "assertion-present",
+      "audit_classification": "mapped",
+      "layer": "static + unit/domain integration",
+      "ci_status": "see-evidence",
+      "gap_or_proposed_change": "型/整形はruntime仕様coverageと別に報告。tsconfigにはimport経由のplugin TSも入るため単純scripts除外とは言えない"
+    },
+    {
+      "id": "WF-B02",
+      "domain": "build",
+      "requirement": "通常配布はdebugURLを無視、debug保存key分離",
+      "specification_sources": [
+        {
+          "description": "specs/overview.md:84–90; specs/visuals.md:12; src/web/main.ts:3–27",
+          "resolved_sources": [
+            {
+              "path": "specs/overview.md",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/overview.md"
+            },
+            {
+              "path": "specs/visuals.md",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/visuals.md"
+            },
+            {
+              "path": "src/web/main.ts",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/web/main.ts"
+            }
+          ]
+        }
+      ],
+      "test_sources": [
+        {
+          "description": "tests/e2e/campaign.spec.ts:181–220",
+          "resolved_sources": [
+            {
+              "path": "tests/e2e/campaign.spec.ts",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/campaign.spec.ts"
+            }
+          ]
+        }
+      ],
+      "observed_assertions_or_evidence": "URL改変/BackForward→title、normal/debug保存key保持",
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "layer": "Playwright built E2E",
+      "ci_status": "see-evidence",
+      "gap_or_proposed_change": "runtime起動境界は既存で有効。配布からeditor/debugモジュール・dev保存API・fixtureが除去されるartifact/API境界は直接未assert"
+    },
+    {
+      "id": "WF-B03",
+      "domain": "assets",
+      "requirement": "LFS pointer等のまま配布しない",
+      "specification_sources": [
+        {
+          "description": "README.md:75; scripts/check-assets.mjs:4–28",
+          "resolved_sources": [
+            {
+              "path": "README.md",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/README.md"
+            },
+            {
+              "path": "scripts/check-assets.mjs",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/scripts/check-assets.mjs"
+            }
+          ]
+        }
+      ],
+      "test_sources": [
+        {
+          "description": "build checker checks 11 named assets' magic",
+          "resolved_sources": []
+        }
+      ],
+      "observed_assertions_or_evidence": "GLB/PNG先頭byte照合、実ファイルなしでbuildfail",
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "layer": "build contract",
+      "ci_status": "see-evidence",
+      "gap_or_proposed_change": "public36ファイル中license以外の全runtime assetへ自動列挙/manifest検査なし。gilberta・face/expression・webp/font等はこのchecker対象外。全てが未ロードという意味ではない"
+    },
+    {
+      "id": "WF-B04",
+      "domain": "discovery",
+      "requirement": "全browser契約をPR CIで検証する",
+      "specification_sources": [
+        {
+          "description": "package.json:16,20; playwright.config.ts:24–40",
+          "resolved_sources": [
+            {
+              "path": "package.json",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/package.json"
+            },
+            {
+              "path": "playwright.config.ts",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/playwright.config.ts"
+            }
+          ]
+        }
+      ],
+      "test_sources": [
+        {
+          "description": "CI invokes built/debug/ui only",
+          "resolved_sources": []
+        }
+      ],
+      "observed_assertions_or_evidence": "settings/renderer/cullingは通常CI未実行",
+      "coverage_status": "missing-gate",
+      "audit_classification": "missing-gate",
+      "layer": "workflow gate",
+      "ci_status": "see-evidence",
+      "gap_or_proposed_change": "最初は既存4projectsを全実行し最適化を後回し。新specファイルがexplicit testMatchから漏れるのを発見catalogと照合"
+    },
+    {
+      "id": "WF-B05",
+      "domain": "coverage-map",
+      "requirement": "実装済み全仕様→具体input/oracle/test/assertionへ対応、未対応merge不可",
+      "specification_sources": [
+        {
+          "description": "docs/testing.md; AGENTS.md:15-17",
+          "resolved_sources": [
+            {
+              "path": "AGENTS.md",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/AGENTS.md"
+            },
+            {
+              "path": "docs/testing.md",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/docs/testing.md"
+            }
+          ]
+        }
+      ],
+      "test_sources": [
+        {
+          "description": "mainに完全表なし; PR100は方針/局所対応だけ",
+          "resolved_sources": []
+        }
+      ],
+      "observed_assertions_or_evidence": "mapping file/schema/CI validationなし",
+      "coverage_status": "missing-gate",
+      "audit_classification": "missing-gate",
+      "layer": "review + lightweight static checker",
+      "ci_status": "see-evidence",
+      "gap_or_proposed_change": "単一JSON契約catalogとtest title内stable ID、CI discovery/results連携。意味妥当性はreview必須"
+    },
+    {
+      "id": "WF-B06",
+      "domain": "merge",
+      "requirement": "CIと未対応ゼロをmergeの必須条件にする",
+      "specification_sources": [
+        {
+          "description": "GitHub branches/main API observed 2026-10-03",
+          "resolved_sources": []
+        }
+      ],
+      "test_sources": [
+        {
+          "description": "API main.protected=false; status checks off/contexts[]",
+          "resolved_sources": []
+        }
+      ],
+      "observed_assertions_or_evidence": "rulesets403(plan制約); protection詳細403権限制約",
+      "coverage_status": "not-enforced",
+      "audit_classification": "confirmed-not-enforced",
+      "layer": "GitHub governance",
+      "ci_status": "see-evidence",
+      "gap_or_proposed_change": "設定を勝手に変更しない。利用可能なら必須check/review protection、不可なら正確head SHAでprocedure gate。GitHub強制済みとは報告しない"
+    },
+    {
+      "id": "WF-B07",
+      "domain": "visual-oracle",
+      "requirement": "承認状態の意味ある見た目違いを自動検知",
+      "specification_sources": [
+        {
+          "description": "scripts/compare-party-ui.py:37–44,75–91; CI:44–48",
+          "resolved_sources": [
+            {
+              "path": "scripts/compare-party-ui.py",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/scripts/compare-party-ui.py"
+            }
+          ]
+        }
+      ],
+      "test_sources": [
+        {
+          "description": "formation撮影→compare metrics/artifacts",
+          "resolved_sources": []
+        }
+      ],
+      "observed_assertions_or_evidence": "pixel mismatchはstatus REVIEW_REQUIREDを出すだけ。違い量で失敗しない",
+      "coverage_status": "manual-only",
+      "audit_classification": "missing-visual-gate",
+      "layer": "review evidence, not VRT",
+      "ci_status": "see-evidence",
+      "gap_or_proposed_change": "完成像の人判断を仕様化/承認済runtime baselineに固定し、必要状態のtoHaveScreenshotへ。手動diff生成をtest保証として数えない"
+    },
+    {
+      "id": "WF-B08",
+      "domain": "test-policy",
+      "requirement": "focused/skip/新test未発見でCIgreenへすり抜けない",
+      "specification_sources": [
+        {
+          "description": "playwright.config.ts; vitest.config.ts; biome.json",
+          "resolved_sources": [
+            {
+              "path": "biome.json",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/biome.json"
+            },
+            {
+              "path": "playwright.config.ts",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/playwright.config.ts"
+            },
+            {
+              "path": "vitest.config.ts",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/vitest.config.ts"
+            }
+          ]
+        }
+      ],
+      "test_sources": [
+        {
+          "description": "configに明示forbidOnly等なし、current only無、intentional skip3箇所",
+          "resolved_sources": []
+        }
+      ],
+      "observed_assertions_or_evidence": "既定linter/runner効果までは静的設定から未確定",
+      "coverage_status": "partially-unverified",
+      "audit_classification": "partially-unverified",
+      "layer": "CI policy",
+      "ci_status": "see-evidence",
+      "gap_or_proposed_change": "Playwright forbidOnlyをCI明示、Vitest有効設定を確認。skip allowlistと発見件数ではなく全testIDリスト/結果を照合"
+    },
+    {
+      "id": "WF-B09",
+      "domain": "documentation",
+      "requirement": "現在仕様・source・test・手順を同じPRで一致させる",
+      "specification_sources": [
+        {
+          "description": "docs/documentation.md:17–21; README.md:93,112,116; specs/visuals.md:9–10",
+          "resolved_sources": [
+            {
+              "path": "README.md",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/README.md"
+            },
+            {
+              "path": "docs/documentation.md",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/docs/documentation.md"
+            },
+            {
+              "path": "specs/visuals.md",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/visuals.md"
+            }
+          ]
+        }
+      ],
+      "test_sources": [
+        {
+          "description": "README v4/shops excluded/旧partyflow、visuals debug無しURLが残る",
+          "resolved_sources": []
+        }
+      ],
+      "observed_assertions_or_evidence": "main source/APIに対して複数stale記述を確認",
+      "coverage_status": "spec-conflict",
+      "audit_classification": "inconsistent",
+      "layer": "editorial contract",
+      "ci_status": "see-evidence",
+      "gap_or_proposed_change": "spec正本を先に解決。衝突は勝手にcovered扱いにせずblocking status。旧plan/artifactを全仕様分母へ混ぜない"
+    },
+    {
+      "id": "WF-B11",
+      "domain": "baseline-policy",
+      "requirement": "基準更新は意図したvisual差を独立review、CIは既存基準比較",
+      "specification_sources": [
+        {
+          "description": "docs/testing.md:39; README.md:69–71; PR100 party test",
+          "resolved_sources": [
+            {
+              "path": "README.md",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/README.md"
+            },
+            {
+              "path": "docs/testing.md",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/docs/testing.md"
+            }
+          ]
+        }
+      ],
+      "test_sources": [
+        {
+          "description": "baselineレビューは文書規約。main PNG15、PR100候補PNG2追加",
+          "resolved_sources": []
+        }
+      ],
+      "observed_assertions_or_evidence": "baselineと実装修正を同時に変えればblind updateでgreenになり得る",
+      "coverage_status": "procedural-only",
+      "audit_classification": "procedural-only",
+      "layer": "VRT review + CI",
+      "ci_status": "see-evidence",
+      "gap_or_proposed_change": "snapshot更新diff/理由/契約IDをPRに記す。既存基準変更はreview。CIに--update-snapshotsを入れない"
+    }
+  ]
+}

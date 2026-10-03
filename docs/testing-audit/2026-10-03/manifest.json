@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "repository": "karin0624/endfield_rpg",
+  "audited_commit": "4866de71c2200781926f2bdb9611410822163ca5",
+  "audit_date_utc": "2026-10-03",
+  "execution": "Source inspection only. Application/unit/integration/browser/CI/mutation tests were not executed by this audit.",
+  "purpose": "Immutable audit input for implementing and reviewing a maintainable specification-to-test architecture. This is not itself an executable coverage gate.",
+  "files": {
+    "contracts-battle.json": {
+      "records": 92,
+      "status_counts": {
+        "assertion-present": 55,
+        "partial": 26,
+        "missing": 6,
+        "deferred": 4,
+        "provenance": 1
+      }
+    },
+    "contracts-items.json": {
+      "records": 56,
+      "status_counts": {
+        "partial": 37,
+        "missing": 4,
+        "assertion-present": 15
+      }
+    },
+    "contracts-progression.json": {
+      "records": 102,
+      "status_counts": {
+        "assertion-present": 59,
+        "partial": 31,
+        "missing": 12
+      }
+    },
+    "contracts-ui.json": {
+      "records": 150,
+      "status_counts": {
+        "assertion-present": 59,
+        "missing": 23,
+        "partial": 66,
+        "manual-only": 2
+      }
+    },
+    "contracts-workflow.json": {
+      "records": 30,
+      "status_counts": {
+        "assertion-present": 8,
+        "partial": 10,
+        "missing": 4,
+        "missing-negative-boundary": 1,
+        "missing-gate": 2,
+        "not-enforced": 1,
+        "manual-only": 1,
+        "partially-unverified": 1,
+        "spec-conflict": 1,
+        "procedural-only": 1
+      }
+    },
+    "test-quality.json": {
+      "findings": 31
+    },
+    "repository-inventory.csv": {
+      "files": 321
+    }
+  },
+  "status_definition": {
+    "assertion-present": "Applicable behavioral assertion was found for this bounded contract; not a passing run or exhaustive proof.",
+    "partial": "Existing assertion covers a subset; the remaining clause or boundary is recorded.",
+    "missing": "No applicable assertion located for an implemented contract.",
+    "missing-negative-boundary": "Positive flow exists; rejection boundary is absent.",
+    "manual-only": "Captures, metrics or human review exist without an automated pass/fail oracle for this visual contract.",
+    "missing-gate": "Documented obligation is not connected to a machine gate.",
+    "not-enforced": "GitHub enforcement was observed absent at audit time.",
+    "spec-conflict": "Specification or documentation conflicts require reconciliation.",
+    "deferred": "Unimplemented or explicitly out-of-scope feature; excluded from missing implemented coverage.",
+    "provenance": "Current specification/domain distinction; not an implemented-test deficit.",
+    "partially-unverified": "Static evidence does not establish the effective enforcement behavior.",
+    "procedural-only": "Review procedure exists without equivalent automated assurance."
+  },
+  "field_notes": {
+    "tests": "Specific named cases, source anchors and actual assertions; combined observations are retained separately where the audit grouped tests.",
+    "ci_status": "Static configuration mapping, separate from execution. excluded-at-least-in-part includes settings/renderer/culling omitted by the audited PR command.",
+    "candidate_regression": "An unexecuted discriminating counterexample; never an observed surviving mutation.",
+    "gap_or_candidate_regression": "The source audit combined its limit with a possible regression; this text is not an execution result.",
+    "specification_sources": "Immutable repo sources unless a linked GitHub issue is explicitly mutable. Descriptive grouped source references retain resolved repository links when possible."
+  },
+  "limits": [
+    "Domain rows overlap and have different granularity; do not sum into unique requirement counts or coverage percentages.",
+    "Issue references were inspected on the audit date and are mutable; repository references use the audited commit.",
+    "Grouped records require semantic review and possible splitting before use as a maintained catalog.",
+    "Repository inventory classifies 321 files but does not certify complete semantic inspection of every file.",
+    "Document-data consistency was validated separately; npm run check, builds and browser runs are not claimed.",
+    "The pending PR100 delta is frozen to cbda26fb3c98c1deb8559d64b4db47494982fa72 and is not main coverage."
+  ]
+}

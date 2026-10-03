@@ -1,0 +1,4010 @@
+{
+  "schema_version": 1,
+  "repository": "karin0624/endfield_rpg",
+  "audited_commit": "4866de71c2200781926f2bdb9611410822163ca5",
+  "domain": "battle",
+  "method": "Static requirement-to-implementation-to-assertion inspection.",
+  "test_execution": "not-run",
+  "counterexamples": "Reasoned regression candidates; no mutation execution claimed.",
+  "status_counts": {
+    "assertion-present": 55,
+    "partial": 26,
+    "missing": 6,
+    "deferred": 4,
+    "provenance": 1
+  },
+  "contracts": [
+    {
+      "id": "BAT-T01",
+      "domain": "timeline",
+      "requirement": "速度100/50の間隔100/200からA100→A200→B200を選ぶ",
+      "specification_sources": [
+        {
+          "path": "specs/battle.md",
+          "lines": "37",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/battle.md#L37",
+          "section": "## 操作"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/battleTimeline.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battleTimeline.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "速度と論理時刻から次の行動者を選ぶ",
+          "sources": [
+            {
+              "path": "src/game/battleTimeline.test.ts",
+              "lines": "12",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battleTimeline.test.ts#L12"
+            }
+          ],
+          "assertion": "time/idを100/A,200/A,200/Bへ比較"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "BAT-T02",
+      "domain": "timeline",
+      "requirement": "同時刻は開始時配列順、ID順ではない",
+      "specification_sources": [
+        {
+          "path": "specs/battle.md",
+          "lines": "37",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/battle.md#L37",
+          "section": "## 操作"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/battleTimeline.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battleTimeline.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "同時刻は戦闘開始時の固定順で選ぶ",
+          "sources": [
+            {
+              "path": "src/game/battleTimeline.test.ts",
+              "lines": "40",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battleTimeline.test.ts#L40"
+            }
+          ],
+          "assertion": "first→second at200"
+        },
+        {
+          "name": "加入・4枠と控え・育成・回復・%s帰還・保存・再出撃",
+          "sources": [
+            {
+              "path": "src/game/multidayAcceptance.test.ts",
+              "lines": "23",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/multidayAcceptance.test.ts#L23"
+            }
+          ],
+          "assertion": "multidayFixtureのplayer,a,b,cはspeed100。同時刻で辞書順aより定義先頭playerの攻撃を受理。次戦player skill後にa攻撃も受理。専用timeline fixtureだけでは弱いが統合caseがIDsort変異を区別する。"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "BAT-T03",
+      "domain": "timeline",
+      "requirement": "間隔max(1,round(10000/speed))は整数tick",
+      "specification_sources": [
+        {
+          "path": "specs/battle.md",
+          "lines": "37",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/battle.md#L37",
+          "section": "## 操作"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/battleTimeline.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battleTimeline.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "行動間隔を整数tickへ丸め、最低1tickにする",
+          "sources": [
+            {
+              "path": "src/game/battleTimeline.test.ts",
+              "lines": "119",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battleTimeline.test.ts#L119"
+            }
+          ],
+          "assertion": "speed90→111,70→143,20000→1"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "BAT-T04",
+      "domain": "timeline",
+      "requirement": "入力待ち中にadvanceしても論理時刻/全nextActionTimeを進めない",
+      "specification_sources": [
+        {
+          "path": "specs/battle.md",
+          "lines": "37",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/battle.md#L37",
+          "section": "## 操作"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/battleTimeline.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battleTimeline.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "速度と論理時刻から次の行動者を選ぶ",
+          "sources": [
+            {
+              "path": "src/game/battleTimeline.test.ts",
+              "lines": "12",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battleTimeline.test.ts#L12"
+            }
+          ],
+          "assertion": "再advanceのcurrentActorId=Aだけをassert"
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "再呼出し後の時刻・nextActionTimeを確認しない",
+      "candidate_regression": "IDをAのまま時刻+1した返値も当該assertを満たす",
+      "risk": "medium"
+    },
+    {
+      "id": "BAT-T05",
+      "domain": "timeline",
+      "requirement": "completeは時刻+間隔とcurrentActor=nullを返し、自動で次actorを選ばない",
+      "specification_sources": [
+        {
+          "path": "specs/battle.md",
+          "lines": "37",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/battle.md#L37",
+          "section": "## 操作"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/battleTimeline.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battleTimeline.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "速度と論理時刻から次の行動者を選ぶ",
+          "sources": [
+            {
+              "path": "src/game/battleTimeline.test.ts",
+              "lines": "12",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battleTimeline.test.ts#L12"
+            }
+          ],
+          "assertion": "complete後さらにadvanceした結果を検査"
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "complete直後のnullとlogicalTime不変を未assert",
+      "candidate_regression": "complete内で先にadvanceしても次のadvanceがno-opなら通る",
+      "risk": "medium"
+    },
+    {
+      "id": "BAT-T06",
+      "domain": "timeline",
+      "requirement": "不能者を選択/予測から除外し、現在actorの不能化で入力待ち解除",
+      "specification_sources": [
+        {
+          "path": "specs/battle.md",
+          "lines": "37",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/battle.md#L37",
+          "section": "## 操作"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/battleTimeline.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battleTimeline.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "現在の行動者が戦闘不能になったら入力待ちを解除する",
+          "sources": [
+            {
+              "path": "src/game/battleTimeline.test.ts",
+              "lines": "73",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battleTimeline.test.ts#L73"
+            }
+          ],
+          "assertion": "currentActorId null、全不能後予測[]"
+        },
+        {
+          "name": "戦闘不能者を候補から除外する",
+          "sources": [
+            {
+              "path": "src/game/battleTimeline.test.ts",
+              "lines": "57",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battleTimeline.test.ts#L57"
+            }
+          ],
+          "assertion": "deadを除外しalive200、全不能後[]"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "BAT-T07",
+      "domain": "timeline",
+      "requirement": "予測は現在actorを含み、繰り返しても元state不変",
+      "specification_sources": [
+        {
+          "path": "specs/battle.md",
+          "lines": "37",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/battle.md#L37",
+          "section": "## 操作"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/battleTimeline.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battleTimeline.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "予測を繰り返しても実状態を変更しない",
+          "sources": [
+            {
+              "path": "src/game/battleTimeline.test.ts",
+              "lines": "83",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battleTimeline.test.ts#L83"
+            }
+          ],
+          "assertion": "A100,A200,B200を2回、元stateとstructuredClone(before)を比較"
+        },
+        {
+          "name": "現在の行動者を含む状態からも予測できる",
+          "sources": [
+            {
+              "path": "src/game/battleTimeline.test.ts",
+              "lines": "103",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battleTimeline.test.ts#L103"
+            }
+          ],
+          "assertion": "予測A100/A200/B200と元A/time100"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "BAT-T08",
+      "domain": "timeline",
+      "requirement": "予測count0=[]、負/小数/NaN等の非整数拒否",
+      "specification_sources": [
+        {
+          "path": "specs/battle.md",
+          "lines": "37",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/battle.md#L37",
+          "section": "## 操作"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/battleTimeline.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battleTimeline.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "不正な速度・IDと負の予測数を拒否する",
+          "sources": [
+            {
+              "path": "src/game/battleTimeline.test.ts",
+              "lines": "131",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battleTimeline.test.ts#L131"
+            }
+          ],
+          "assertion": "count-1 toThrow"
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "count0/1.5/NaN/Infinityと終了済battle側分岐なし",
+      "candidate_regression": "count0を1件返す実装を検出しない",
+      "risk": "low"
+    },
+    {
+      "id": "BAT-T09",
+      "domain": "timeline",
+      "requirement": "空/重複ID、非正/非有限速度、安全整数tick不可の定義拒否",
+      "specification_sources": [
+        {
+          "path": "specs/battle.md",
+          "lines": "37",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/battle.md#L37",
+          "section": "## 操作"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/battleTimeline.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battleTimeline.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "不正な速度・IDと負の予測数を拒否する",
+          "sources": [
+            {
+              "path": "src/game/battleTimeline.test.ts",
+              "lines": "131",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battleTimeline.test.ts#L131"
+            }
+          ],
+          "assertion": "speed0,1e-100,duplicate Aはthrow"
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "emptyID/negative/NaN/Infinity speedを直接試さない",
+      "candidate_regression": "Infinity speedを1tickとして受理しても通り得る",
+      "risk": "medium"
+    },
+    {
+      "id": "BAT-T10",
+      "domain": "timeline",
+      "requirement": "complete時の次回時刻加算も安全整数域を超えたら例外",
+      "specification_sources": [
+        {
+          "path": "specs/battle.md",
+          "lines": "37",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/battle.md#L37",
+          "section": "## 操作"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/battleTimeline.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battleTimeline.ts"
+        }
+      ],
+      "tests": [],
+      "coverage_status": "missing",
+      "audit_classification": "missing",
+      "ci_status": "not-assessed",
+      "gap": "battleTimeline.tsの安全整数加算guard未試験",
+      "candidate_regression": "speed=10000/MAX_SAFE_INTEGERで合法作成→advance→completeを検査する",
+      "risk": "low"
+    },
+    {
+      "id": "BAT-T11",
+      "domain": "core-purity",
+      "requirement": "全公開遷移/受理攻撃/skillは元stateや入力定義を破壊しない",
+      "specification_sources": [
+        {
+          "path": "specs/battle.md",
+          "lines": "37",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/battle.md#L37",
+          "section": "## 操作"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/battleTimeline.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battleTimeline.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "予測を繰り返しても実状態を変更しない",
+          "sources": [
+            {
+              "path": "src/game/battleTimeline.test.ts",
+              "lines": "83",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battleTimeline.test.ts#L83"
+            }
+          ],
+          "assertion": "予測だけbefore deep snapshot"
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "受理advance/complete/alive変更/basic/skillで元入力deep snapshotなし",
+      "candidate_regression": "元combatant.hpを破壊して正しい次stateを返しても結果値テストを通過し得る",
+      "risk": "medium"
+    },
+    {
+      "id": "BAT-B01",
+      "domain": "initialization",
+      "requirement": "戦闘は味方と敵を最低1体ずつ必要とする",
+      "specification_sources": [
+        {
+          "path": "specs/battle.md",
+          "lines": "37",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/battle.md#L37",
+          "section": "## 操作"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/battle.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battle.ts"
+        }
+      ],
+      "tests": [],
+      "coverage_status": "missing",
+      "audit_classification": "missing",
+      "ci_status": "not-assessed",
+      "gap": "片側欠如/空配列の明示assertなし",
+      "candidate_regression": "敵なしの定義を即勝利として受理するguard削除を区別する専用例がない",
+      "risk": "medium"
+    },
+    {
+      "id": "BAT-B02",
+      "domain": "initialization",
+      "requirement": "初期HP0による片側全滅を勝利/敗北へ即決定する",
+      "specification_sources": [
+        {
+          "path": "specs/battle.md",
+          "lines": "37",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/battle.md#L37",
+          "section": "## 操作"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/battle.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battle.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "HP0の初期戦闘者から勝敗を一意に決める",
+          "sources": [
+            {
+              "path": "src/game/battle.test.ts",
+              "lines": "222",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battle.test.ts#L222"
+            }
+          ],
+          "assertion": "victory/defeatとHP0側isAlive false"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "BAT-B03",
+      "domain": "definition-validation",
+      "requirement": "HP/攻撃力/bonus有限非負、maxHP正有限、hitRate0..1、team閉集合",
+      "specification_sources": [
+        {
+          "path": "specs/battle.md",
+          "lines": "37",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/battle.md#L37",
+          "section": "## 操作"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/battle.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battle.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "HPと攻撃力の不正な定義値を拒否する",
+          "sources": [
+            {
+              "path": "src/game/battle.test.ts",
+              "lines": "262",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battle.test.ts#L262"
+            }
+          ],
+          "assertion": "hp-1/attackPower NaNを拒否。別caseにbonus-1/Infinity/NaN"
+        },
+        {
+          "name": "通常攻撃パッシブだけでも命中乱数を使い、負の補正を拒否する",
+          "sources": [
+            {
+              "path": "src/game/battle.test.ts",
+              "lines": "348",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battle.test.ts#L348"
+            }
+          ],
+          "assertion": "bonus -1/Infinity/NaN拒否、bonusのみ正量のhit RNG"
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "team不正/maxHp0/NaN/hitRate範囲外等の個別反例なし",
+      "candidate_regression": "hitRate2を受理しても正規データ例では分からない",
+      "risk": "medium"
+    },
+    {
+      "id": "BAT-B04",
+      "domain": "basic-core",
+      "requirement": "debug/demo/敵用通常攻撃は指定相手HPだけ固定attackPower分減らす",
+      "specification_sources": [
+        {
+          "path": "specs/battle.md",
+          "lines": "37",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/battle.md#L37",
+          "section": "## 操作"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/battle.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battle.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "指定した敵だけに攻撃力分の固定ダメージを与え、継続時は次の行動者へ進める",
+          "sources": [
+            {
+              "path": "src/game/battle.test.ts",
+              "lines": "42",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battle.test.ts#L42"
+            }
+          ],
+          "assertion": "hero20/companion15/slime4、eventdamage8、次hero200"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "BAT-B05",
+      "domain": "death",
+      "requirement": "overkill HPは0で止まり、attack→defeatedを返して予告から除外",
+      "specification_sources": [
+        {
+          "path": "specs/battle.md",
+          "lines": "37",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/battle.md#L37",
+          "section": "## 操作"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/battle.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battle.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "HPを0未満にせず、倒れた敵を行動順から除外する",
+          "sources": [
+            {
+              "path": "src/game/battle.test.ts",
+              "lines": "70",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battle.test.ts#L70"
+            }
+          ],
+          "assertion": "HP5へ8→0、順序、12件予告に死者なし"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "high"
+    },
+    {
+      "id": "BAT-B06",
+      "domain": "outcome",
+      "requirement": "最後の敵で勝利、最後の味方で敗北、勝敗event一度のみ",
+      "specification_sources": [
+        {
+          "path": "specs/battle.md",
+          "lines": "37",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/battle.md#L37",
+          "section": "## 操作"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/battle.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battle.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "最後の敵が倒れた時点で勝利し、勝敗イベントを一度だけ返す",
+          "sources": [
+            {
+              "path": "src/game/battle.test.ts",
+              "lines": "109",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battle.test.ts#L109"
+            }
+          ],
+          "assertion": "attack→defeated→battle-ended、actor null、再入力false/events[]。敗北別caseあり"
+        },
+        {
+          "name": "最後の味方が倒れた時点で敗北する",
+          "sources": [
+            {
+              "path": "src/game/battle.test.ts",
+              "lines": "138",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battle.test.ts#L138"
+            }
+          ],
+          "assertion": "defeat・末尾battle-ended"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "high"
+    },
+    {
+      "id": "BAT-B07",
+      "domain": "outcome",
+      "requirement": "終了後advance/loop/予告/追加入力は進行しない",
+      "specification_sources": [
+        {
+          "path": "specs/battle.md",
+          "lines": "37",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/battle.md#L37",
+          "section": "## 操作"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/battle.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battle.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "固定操作列で勝利し、勝敗確定後の追撃を行わず、再戦を初期化する",
+          "sources": [
+            {
+              "path": "src/game/battle.test.ts",
+              "lines": "297",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battle.test.ts#L297"
+            }
+          ],
+          "assertion": "終了後loop {state,events:[]}と勝敗1件"
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "終了後getBattleUpcomingActions=[]とadvanceBattleToNextActor不変の直接assertなし",
+      "candidate_regression": "終了後予告だけ返す変異がcoreテストを通り得る",
+      "risk": "medium"
+    },
+    {
+      "id": "BAT-B08",
+      "domain": "basic-validation",
+      "requirement": "順番外/未知対象/味方対象/死体の攻撃は理由付き拒否し元状態不変",
+      "specification_sources": [
+        {
+          "path": "specs/battle.md",
+          "lines": "37",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/battle.md#L37",
+          "section": "## 操作"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/battle.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battle.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "行動順外・不正対象・味方対象は状態を変えずに拒否する",
+          "sources": [
+            {
+              "path": "src/game/battle.test.ts",
+              "lines": "175",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battle.test.ts#L175"
+            }
+          ],
+          "assertion": "reason/events[]とstructuredClone(before)。死体は別case target-is-defeated"
+        },
+        {
+          "name": "戦闘不能の対象への追加入力を拒否する",
+          "sources": [
+            {
+              "path": "src/game/battle.test.ts",
+              "lines": "200",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battle.test.ts#L200"
+            }
+          ],
+          "assertion": "target-is-defeated,events[]"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "BAT-B09",
+      "domain": "basic-validation",
+      "requirement": "actor未選択の初期状態に攻撃するとno-current-actor拒否",
+      "specification_sources": [
+        {
+          "path": "specs/battle.md",
+          "lines": "37",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/battle.md#L37",
+          "section": "## 操作"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/battle.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battle.ts"
+        }
+      ],
+      "tests": [],
+      "coverage_status": "missing",
+      "audit_classification": "missing",
+      "ci_status": "not-assessed",
+      "gap": "createBattleState直後へのattack未試験",
+      "candidate_regression": "暗黙で初手を選んで攻撃を受理する実装を専用反例が検出しない",
+      "risk": "medium"
+    },
+    {
+      "id": "BAT-B10",
+      "domain": "enemy-loop",
+      "requirement": "連続敵手番を同期実行し、定義順で最初の生存味方を攻撃し次味方で停止",
+      "specification_sources": [
+        {
+          "path": "specs/battle.md",
+          "lines": "37",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/battle.md#L37",
+          "section": "## 操作"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/battle.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battle.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "開始時と味方の行動後に、連続する敵ターンを同期して解決する",
+          "sources": [
+            {
+              "path": "src/game/battle.test.ts",
+              "lines": "267",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battle.test.ts#L267"
+            }
+          ],
+          "assertion": "first-enemy→second-enemyがhero攻撃、hero15、次companion。dungeon.testで先頭死者を飛ばしgilberta14"
+        },
+        {
+          "name": "keeps a defeated ally incapacitated when another ally survives into the next battle",
+          "sources": [
+            {
+              "path": "src/game/dungeon.test.ts",
+              "lines": "186",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/dungeon.test.ts#L186"
+            }
+          ],
+          "assertion": "playerHP0の次戦でgilbertaHP14・currentActor gilberta"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "high"
+    },
+    {
+      "id": "BAT-B11",
+      "domain": "enemy-loop",
+      "requirement": "全滅後後続敵追撃なし、再戦はHP/順番を初期化",
+      "specification_sources": [
+        {
+          "path": "specs/battle.md",
+          "lines": "37",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/battle.md#L37",
+          "section": "## 操作"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/battle.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battle.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "敗北用データでは敵の同じルールで敗北し、後続の敵は追撃しない",
+          "sources": [
+            {
+              "path": "src/game/battle.test.ts",
+              "lines": "332",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battle.test.ts#L332"
+            }
+          ],
+          "assertion": "敵attack1件のみ、末尾defeat。固定操作列caseでrematch全HP/hero先手"
+        },
+        {
+          "name": "固定操作列で勝利し、勝敗確定後の追撃を行わず、再戦を初期化する",
+          "sources": [
+            {
+              "path": "src/game/battle.test.ts",
+              "lines": "297",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battle.test.ts#L297"
+            }
+          ],
+          "assertion": "再戦HP20/20/5/5、hero先手"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "high"
+    },
+    {
+      "id": "BAT-S01",
+      "domain": "skill-definition",
+      "requirement": "ID/name/description/tier、scene/target/effect閉集合、passiveに使用操作/疲労なし",
+      "specification_sources": [
+        {
+          "path": "specs/skills.md",
+          "lines": "5",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/skills.md#L5",
+          "section": "## 種別・効果・使用条件"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/skills.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skills.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "不正な分類・場面・対象・パッシブ操作を拒否する: %j",
+          "sources": [
+            {
+              "path": "src/game/skills.test.ts",
+              "lines": "166",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skills.test.ts#L166"
+            }
+          ],
+          "assertion": "空/未知/branchdamage/不整合target/passive fieldsを拒否"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "BAT-S02",
+      "domain": "skill-definition",
+      "requirement": "効果量と精神負荷は有限非負、小数/0を許容。係数は正有限",
+      "specification_sources": [
+        {
+          "path": "specs/skills.md",
+          "lines": "5",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/skills.md#L5",
+          "section": "## 種別・効果・使用条件"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/skills.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skills.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "非有限・負の数値%sを拒否する",
+          "sources": [
+            {
+              "path": "src/game/skills.test.ts",
+              "lines": "121",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skills.test.ts#L121"
+            }
+          ],
+          "assertion": "-1/NaN/±Infinityをactiveamount/fatigue/passiveamountでreject。小数受理とcoefficient拒否は別case"
+        },
+        {
+          "name": "整数以外の効果量・疲労増加や増加量0も定義できる",
+          "sources": [
+            {
+              "path": "src/game/skills.test.ts",
+              "lines": "79",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skills.test.ts#L79"
+            }
+          ],
+          "assertion": "amount12.5,load0/.25受理"
+        },
+        {
+          "name": "不正な能力値係数%sを拒否する",
+          "sources": [
+            {
+              "path": "src/game/skillAcquisition.test.ts",
+              "lines": "393",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skillAcquisition.test.ts#L393"
+            }
+          ],
+          "assertion": "coefficient0/-1/NaN/Infinity拒否"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "BAT-S03",
+      "domain": "skill-power",
+      "requirement": "base=amount+attackPowerまたはmaxHP×係数、端数保持、fatigue増加量は不変",
+      "specification_sources": [
+        {
+          "path": "specs/skills.md",
+          "lines": "5",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/skills.md#L5",
+          "section": "## 種別・効果・使用条件"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/skills.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skills.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "参照能力値で基礎効果だけが伸び、疲労増加量を変えない",
+          "sources": [
+            {
+              "path": "src/game/skillAcquisition.test.ts",
+              "lines": "365",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skillAcquisition.test.ts#L365"
+            }
+          ],
+          "assertion": "attack8→16,12→18;maxHP20 heal18;load4"
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "未知stat/不正参照値/基礎量overflowの拒否例なし",
+      "candidate_regression": "unknown statの定義を通すvalidator変異を正規stat例だけでは検出しない",
+      "risk": "low"
+    },
+    {
+      "id": "BAT-S04",
+      "domain": "passive-rank",
+      "requirement": "rankAmountsは各rank総量/個別上限、activeはrankなし",
+      "specification_sources": [
+        {
+          "path": "specs/skills.md",
+          "lines": "5",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/skills.md#L5",
+          "section": "## 種別・効果・使用条件"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/skills.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skills.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "個別上限と非一律の段階効果を持ち、範囲外ランクを拒否する",
+          "sources": [
+            {
+              "path": "src/game/skillAcquisition.test.ts",
+              "lines": "372",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skillAcquisition.test.ts#L372"
+            }
+          ],
+          "assertion": "rank2→4、上限2にrank3拒否、別skill rank3→9"
+        },
+        {
+          "name": "新規アクティブはランクなしで1回だけ取得でき、次の候補と二重入力から除外する",
+          "sources": [
+            {
+              "path": "src/game/skillAcquisition.test.ts",
+              "lines": "202",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skillAcquisition.test.ts#L202"
+            }
+          ],
+          "assertion": "rankなしactive取得、重複拒否"
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "passiveSkillAmountのrank0/負/小数/NaNの反例なし",
+      "candidate_regression": "rank1.5をundefinedで通す整数チェック欠落が残る",
+      "risk": "low"
+    },
+    {
+      "id": "BAT-S05",
+      "domain": "passive-projection",
+      "requirement": "basic専用bonusをactive参照attackに混ぜず、攻撃力/最大HPbonusだけ対応効果に反映",
+      "specification_sources": [
+        {
+          "path": "specs/skills.md",
+          "lines": "5",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/skills.md#L5",
+          "section": "## 種別・効果・使用条件"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/skills.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skills.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "加入・4枠と控え・育成・回復・%s帰還・保存・再出撃",
+          "sources": [
+            {
+              "path": "src/game/multidayAcceptance.test.ts",
+              "lines": "23",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/multidayAcceptance.test.ts#L23"
+            }
+          ],
+          "assertion": "次戦attackPower25/basicBonus2、active実量37.5（25×1.5）。grにmaxHPパッシブ差分HP26→30→33"
+        },
+        {
+          "name": "体力の習得とランク増加だけ現在HPへ加え、症状・疲労を維持する",
+          "sources": [
+            {
+              "path": "src/game/growthRuntime.test.ts",
+              "lines": "344",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/growthRuntime.test.ts#L344"
+            }
+          ],
+          "assertion": "HP26→30→33、症状維持"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "high"
+    },
+    {
+      "id": "BAT-S06",
+      "domain": "skill-catalog",
+      "requirement": "pool参照/重複/分類/不足、キャラ/初期skill/guaranteed参照を検査",
+      "specification_sources": [
+        {
+          "path": "specs/skills.md",
+          "lines": "5",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/skills.md#L5",
+          "section": "## 種別・効果・使用条件"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/skills.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skills.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "候補IDの参照切れ・重複・分類違い・不足・空IDを拒否する: %j",
+          "sources": [
+            {
+              "path": "src/game/skills.test.ts",
+              "lines": "194",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skills.test.ts#L194"
+            }
+          ],
+          "assertion": "missing/duplicate/wrongtier/2件/emptyをthrow。キャラと初期skill別table、保証はskillAcquisition.test"
+        },
+        {
+          "name": "キャラ・候補群・初期スキル参照と初期スキル重複を拒否する: %j",
+          "sources": [
+            {
+              "path": "src/game/skills.test.ts",
+              "lines": "210",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skills.test.ts#L210"
+            }
+          ],
+          "assertion": "missingキャラ/pool/初期skill/duplicate初期を拒否"
+        },
+        {
+          "name": "不正な保証定義を拒否する %j",
+          "sources": [
+            {
+              "path": "src/game/skillAcquisition.test.ts",
+              "lines": "383",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skillAcquisition.test.ts#L383"
+            }
+          ],
+          "assertion": "Lv1,unknown,passive guaranteedを拒否"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "BAT-U01",
+      "domain": "skill-validation",
+      "requirement": "currentactor/習得active/scene/both living/teamを検証し古い時刻と再送拒否",
+      "specification_sources": [
+        {
+          "path": "specs/skills.md",
+          "lines": "76",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/skills.md#L76",
+          "section": "## 通常探索の試用スキル操作"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/battle.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battle.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "対象違い・未習得・旧行動時刻・使用場面違いを拒否し、HP・疲労・時計・乱数を保持する",
+          "sources": [
+            {
+              "path": "src/game/battleSkill.test.ts",
+              "lines": "82",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battleSkill.test.ts#L82"
+            }
+          ],
+          "assertion": "wrongteam/unlearned/branchOnly/staleTime/replay reject"
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "wrongactor/HP正incapacity actorの直接例なし。state比較は元入力と同参照",
+      "candidate_regression": "拒否経路で入力fatigueを破壊して同じstateを返す変異がself-comparisonを満たし得る",
+      "risk": "medium"
+    },
+    {
+      "id": "BAT-U02",
+      "domain": "fatigue-order",
+      "requirement": "使用前fatigueで全効果→fatigue一度加算→発症。次回のみ新fatigue参照",
+      "specification_sources": [
+        {
+          "path": "specs/skills.md",
+          "lines": "76",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/skills.md#L76",
+          "section": "## 通常探索の試用スキル操作"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/battle.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battle.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "使用前100の倍率で16を8に減衰し、次の使用から104を参照する",
+          "sources": [
+            {
+              "path": "src/game/battleSkill.test.ts",
+              "lines": "43",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battleSkill.test.ts#L43"
+            }
+          ],
+          "assertion": "初回8/f100→104/enemy192、次enemy184.15686274509804。lsiはp20 vs p40を区別"
+        },
+        {
+          "name": "使用前20で効果を適用し、使用後40で発症し、重度80から100へ悪化する",
+          "sources": [
+            {
+              "path": "src/game/loadSymptomIntegration.test.ts",
+              "lines": "56",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/loadSymptomIntegration.test.ts#L56"
+            }
+          ],
+          "assertion": "今回13.333効果、使用後40で発症"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "high"
+    },
+    {
+      "id": "BAT-U03",
+      "domain": "fatigue-exemption",
+      "requirement": "負荷0active/passive/basicはfatigue倍率対象外、他症状まで消さない",
+      "specification_sources": [
+        {
+          "path": "specs/skills.md",
+          "lines": "76",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/skills.md#L76",
+          "section": "## 通常探索の試用スキル操作"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/battle.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battle.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "疲労増加0のアクティブと通常攻撃は疲労倍率対象外",
+          "sources": [
+            {
+              "path": "src/game/battleSkill.test.ts",
+              "lines": "125",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battleSkill.test.ts#L125"
+            }
+          ],
+          "assertion": "active16/basic8、fatigue100維持。sのquantity分類とmaの0load乱数も確認"
+        },
+        {
+          "name": "増加するアクティブのダメージ・回復量だけを識別する",
+          "sources": [
+            {
+              "path": "src/game/skills.test.ts",
+              "lines": "71",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skills.test.ts#L71"
+            }
+          ],
+          "assertion": "active正loadのみquantity、passive/basic/zero null"
+        },
+        {
+          "name": "負荷0・命中%sは疲労減衰・発症・命中乱数を使わない",
+          "sources": [
+            {
+              "path": "src/game/multiAttack.test.ts",
+              "lines": "174",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/multiAttack.test.ts#L174"
+            }
+          ],
+          "assertion": "rate0/1 eachhit・fatigue/RNG不変"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "high"
+    },
+    {
+      "id": "BAT-U04",
+      "domain": "healing",
+      "requirement": "healは自身含む生存味方、target有効maxHPでclamp、使用者有効maxHP参照",
+      "specification_sources": [
+        {
+          "path": "specs/skills.md",
+          "lines": "76",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/skills.md#L76",
+          "section": "## 通常探索の試用スキル操作"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/battle.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battle.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "回復の対象は自分を含む生存味方、上限でクランプしても疲労は一度加算する",
+          "sources": [
+            {
+              "path": "src/game/battleSkill.test.ts",
+              "lines": "57",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battleSkill.test.ts#L57"
+            }
+          ],
+          "assertion": "friend5→14/self実量0/fatigue103/dead拒否。lsiはactor症状付きmaxHPから48.333回復"
+        },
+        {
+          "name": "自己回復の基礎量は発症前の最大HPで計算し、発症後に上限だけ収める",
+          "sources": [
+            {
+              "path": "src/game/loadSymptomIntegration.test.ts",
+              "lines": "77",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/loadSymptomIntegration.test.ts#L77"
+            }
+          ],
+          "assertion": "effect48.333/HP90"
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "battleのHP正incapacity heal対象/actor、別target症状付き上限へ正量clampの反例なし",
+      "candidate_regression": "HP正incapacityをbattlehealだけ許してもbranch側の拒否テストは検出しない",
+      "risk": "medium"
+    },
+    {
+      "id": "BAT-U05",
+      "domain": "healing",
+      "requirement": "heal必中、missや実回復0でも有効使用はfatigue/発症一度",
+      "specification_sources": [
+        {
+          "path": "specs/skills.md",
+          "lines": "76",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/skills.md#L76",
+          "section": "## 通常探索の試用スキル操作"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/battle.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battle.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "命中0でも有効使用は疲労と追加発症を処理し、命中乱数だけを省く",
+          "sources": [
+            {
+              "path": "src/game/battleSkill.test.ts",
+              "lines": "67",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battleSkill.test.ts#L67"
+            }
+          ],
+          "assertion": "攻撃miss実量0/fatigue104/physical4。self満タンcaseで実回復0でも発症"
+        },
+        {
+          "name": "回復の対象は自分を含む生存味方、上限でクランプしても疲労は一度加算する",
+          "sources": [
+            {
+              "path": "src/game/battleSkill.test.ts",
+              "lines": "57",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battleSkill.test.ts#L57"
+            }
+          ],
+          "assertion": "self0回復でもfatigue103/発症後HP19"
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "命中0またはhaze大のactorがheal必中になる直接反例なし",
+      "candidate_regression": "healにもactorhitRateを適用する変異をrate1のheal例は見逃す",
+      "risk": "medium"
+    },
+    {
+      "id": "BAT-U06",
+      "domain": "skill-events",
+      "requirement": "各実行発にactual量/hitIndex/target/skill/effect/fatigueを返し、死亡直後defeated、全発後symptom/outcome",
+      "specification_sources": [
+        {
+          "path": "specs/skills.md",
+          "lines": "76",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/skills.md#L76",
+          "section": "## 通常探索の試用スキル操作"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/battle.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battle.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "全体攻撃は死体を除外して各敵の残りを打ち切り、全滅後は敵を進めない",
+          "sources": [
+            {
+              "path": "src/game/multiAttack.test.ts",
+              "lines": "153",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/multiAttack.test.ts#L153"
+            }
+          ],
+          "assertion": "skill,defeated,skill,defeated,symptom,battle-ended。通常複数発caseでz1/2/3,a1/2/3各量5"
+        },
+        {
+          "name": "%sは使用前能力・疲労で全効果を解決してから一度発症する",
+          "sources": [
+            {
+              "path": "src/game/multiAttack.test.ts",
+              "lines": "82",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/multiAttack.test.ts#L82"
+            }
+          ],
+          "assertion": "target/hitIndex/amountの全順序"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "high"
+    },
+    {
+      "id": "BAT-U07",
+      "domain": "action-cost",
+      "requirement": "skillは一行動でbasicと同じ間隔、必要敵行動を進め次味方へ",
+      "specification_sources": [
+        {
+          "path": "specs/skills.md",
+          "lines": "76",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/skills.md#L76",
+          "section": "## 通常探索の試用スキル操作"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/battle.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battle.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "%sは使用前能力・疲労で全効果を解決してから一度発症する",
+          "sources": [
+            {
+              "path": "src/game/multiAttack.test.ts",
+              "lines": "82",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/multiAttack.test.ts#L82"
+            }
+          ],
+          "assertion": "logicalTime200/nextAction200（interval100）。skillLoopで実探索→次戦結果"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "BAT-U08",
+      "domain": "skill-overflow",
+      "requirement": "fatigue加算が有限域超過ならnumeric-overflow拒否し副作用なし",
+      "specification_sources": [
+        {
+          "path": "specs/skills.md",
+          "lines": "76",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/skills.md#L76",
+          "section": "## 通常探索の試用スキル操作"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/battle.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battle.ts"
+        }
+      ],
+      "tests": [],
+      "coverage_status": "missing",
+      "audit_classification": "missing",
+      "ci_status": "not-assessed",
+      "gap": "battle.ts finite fatigueAfter guard未試験",
+      "candidate_regression": "有限MAX_VALUE fatigue+MAX_VALUE loadを入力してreject/snapshot不変を要求",
+      "risk": "low"
+    },
+    {
+      "id": "BAT-M01",
+      "domain": "multi-definition",
+      "requirement": "hitCount正安全整数/default1、damageのみ、全体heal/branchattack拒否",
+      "specification_sources": [
+        {
+          "path": "specs/skills.md",
+          "lines": "90",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/skills.md#L90",
+          "section": "## 多段・全体攻撃の定義と解決"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/battle.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battle.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "不正な回数%sと未承認の全体回復を拒否する",
+          "sources": [
+            {
+              "path": "src/game/multiAttack.test.ts",
+              "lines": "225",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/multiAttack.test.ts#L225"
+            }
+          ],
+          "assertion": "0/-1/1.5/NaN/Infinity/unsafeを拒否、all-enemiesheal拒否"
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "single-allyhealにhitCount1を付けた禁止境界なし",
+      "candidate_regression": "healhitCountを黙認しても既存allhealはtargetguardで拒否され通る",
+      "risk": "low"
+    },
+    {
+      "id": "BAT-M02",
+      "domain": "multi-target",
+      "requirement": "singleは対象ID、all-enemiesはnull。逆形式/死体/未知target拒否",
+      "specification_sources": [
+        {
+          "path": "specs/skills.md",
+          "lines": "90",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/skills.md#L90",
+          "section": "## 多段・全体攻撃の定義と解決"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/battle.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battle.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "不正対象・死体・対象形式・未習得・古い入力・再送は副作用なし",
+          "sources": [
+            {
+              "path": "src/game/multiAttack.test.ts",
+              "lines": "200",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/multiAttack.test.ts#L200"
+            }
+          ],
+          "assertion": "single null/all z,dead,missingなどacceptedfalse/events[]"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "BAT-M03",
+      "domain": "multi-order",
+      "requirement": "全体は生存敵の定義配列順、対象内hitIndex昇順、各発独立判定",
+      "specification_sources": [
+        {
+          "path": "specs/skills.md",
+          "lines": "90",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/skills.md#L90",
+          "section": "## 多段・全体攻撃の定義と解決"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/battle.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battle.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "seed17の混在命中は使用後の朦朧を先取りせず、命中→発症→候補の順で抽選する",
+          "sources": [
+            {
+              "path": "src/game/multiAttack.test.ts",
+              "lines": "119",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/multiAttack.test.ts#L119"
+            }
+          ],
+          "assertion": "辞書順と逆z→aでhit/hit/miss/miss、RNG1587069247"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "high"
+    },
+    {
+      "id": "BAT-M04",
+      "domain": "multi-snapshot",
+      "requirement": "全発の量/命中率は使用前snapshot。途中で使用後physical/hazeを反映しない",
+      "specification_sources": [
+        {
+          "path": "specs/skills.md",
+          "lines": "90",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/skills.md#L90",
+          "section": "## 多段・全体攻撃の定義と解決"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/battle.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battle.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "%sは使用前能力・疲労で全効果を解決してから一度発症する",
+          "sources": [
+            {
+              "path": "src/game/multiAttack.test.ts",
+              "lines": "82",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/multiAttack.test.ts#L82"
+            }
+          ],
+          "assertion": "maxHP200/f300から全発5、発症後maxHP100/f400で次回各2。seed17caseで3hit後haze100"
+        },
+        {
+          "name": "seed17の混在命中は使用後の朦朧を先取りせず、命中→発症→候補の順で抽選する",
+          "sources": [
+            {
+              "path": "src/game/multiAttack.test.ts",
+              "lines": "119",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/multiAttack.test.ts#L119"
+            }
+          ],
+          "assertion": "3hit後haze100/固定RNG"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "high"
+    },
+    {
+      "id": "BAT-M05",
+      "domain": "multi-death",
+      "requirement": "撃破後残り発/RNG打切り、単体を他敵へ振替しない",
+      "specification_sources": [
+        {
+          "path": "specs/skills.md",
+          "lines": "90",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/skills.md#L90",
+          "section": "## 多段・全体攻撃の定義と解決"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/battle.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battle.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "途中撃破で残りの命中抽選を打ち切り、他へ振り替えない",
+          "sources": [
+            {
+              "path": "src/game/multiAttack.test.ts",
+              "lines": "144",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/multiAttack.test.ts#L144"
+            }
+          ],
+          "assertion": "HP3へ実量3のみ、aHP100不変、RNG2165703038、defeated1"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "high"
+    },
+    {
+      "id": "BAT-M06",
+      "domain": "multi-cost",
+      "requirement": "全対象全発後にfatigue/発症/手番各一回、死体除外、全滅後敵追撃なし",
+      "specification_sources": [
+        {
+          "path": "specs/skills.md",
+          "lines": "90",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/skills.md#L90",
+          "section": "## 多段・全体攻撃の定義と解決"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/battle.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battle.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "全体攻撃は死体を除外して各敵の残りを打ち切り、全滅後は敵を進めない",
+          "sources": [
+            {
+              "path": "src/game/multiAttack.test.ts",
+              "lines": "153",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/multiAttack.test.ts#L153"
+            }
+          ],
+          "assertion": "二敵skill/defeated→symptom1→victory、時刻100維持"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "high"
+    },
+    {
+      "id": "BAT-R01",
+      "domain": "random",
+      "requirement": "uint32ストリーム、固定seedと受理操作で再現、次戦/帰還/読込保持",
+      "specification_sources": [
+        {
+          "path": "specs/status.md",
+          "lines": "46",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/status.md#L46",
+          "section": "## 命中とゲーム乱数"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/battle.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battle.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "現行保存を繰返し読んでもseed%sの命中と安定候補を再現する",
+          "sources": [
+            {
+              "path": "src/game/multidayAcceptance.test.ts",
+              "lines": "299",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/multidayAcceptance.test.ts#L299"
+            }
+          ],
+          "assertion": "seed3/1500読込を各2回。HP/候補/RNG3345418727または3510691723を独立数値期待"
+        },
+        {
+          "name": "戦闘・会話・退出は回復せず、次戦も状態と乱数を引き継ぐ",
+          "sources": [
+            {
+              "path": "src/game/status.test.ts",
+              "lines": "102",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/status.test.ts#L102"
+            }
+          ],
+          "assertion": "次戦RNG1586005467/帰還2165703038"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "high"
+    },
+    {
+      "id": "BAT-R02",
+      "domain": "random-consumption",
+      "requirement": "正量かつ0<rate<1のみhit draw。0/1、0damage、拒否、参照は消費しない",
+      "specification_sources": [
+        {
+          "path": "specs/status.md",
+          "lines": "46",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/status.md#L46",
+          "section": "## 命中とゲーム乱数"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/battle.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battle.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "拒否・行動順参照・確実な攻撃・0ダメージは乱数を消費しない",
+          "sources": [
+            {
+              "path": "src/game/status.test.ts",
+              "lines": "210",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/status.test.ts#L210"
+            }
+          ],
+          "assertion": "basic確実/0量/拒否でRNG1。maでactive rate0/1はRNG1"
+        },
+        {
+          "name": "負荷0・命中%sは疲労減衰・発症・命中乱数を使わない",
+          "sources": [
+            {
+              "path": "src/game/multiAttack.test.ts",
+              "lines": "174",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/multiAttack.test.ts#L174"
+            }
+          ],
+          "assertion": "rate0/1 RNG1"
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "active量0かつ中間rateのdraw省略は未assert",
+      "candidate_regression": "skill側だけamount>0条件を落としてもbasic0damageテストは通る",
+      "risk": "medium"
+    },
+    {
+      "id": "BAT-R03",
+      "domain": "random-boundary",
+      "requirement": "draw<effectiveHitRateのみ命中、同値は外れ",
+      "specification_sources": [
+        {
+          "path": "specs/status.md",
+          "lines": "46",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/status.md#L46",
+          "section": "## 命中とゲーム乱数"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/battle.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battle.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "seed1の独立した既知値で命中/失敗を決め、失敗も行動を完了する",
+          "sources": [
+            {
+              "path": "src/game/status.test.ts",
+              "lines": "195",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/status.test.ts#L195"
+            }
+          ],
+          "assertion": "seed1 firstdraw固定、rate.2 miss/.3 hit"
+        },
+        {
+          "name": "攻撃スキルもseed1の既知値で命中・外れを決め、拒否では乱数を進めない",
+          "sources": [
+            {
+              "path": "src/game/battleSkill.test.ts",
+              "lines": "108",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battleSkill.test.ts#L108"
+            }
+          ],
+          "assertion": "seed1rate.5のhit/miss/missとRNG"
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "draw==rate境界なし",
+      "candidate_regression": "rate1015568748/4294967296、seed1の同値外れで<から<=の変異を区別できる",
+      "risk": "medium"
+    },
+    {
+      "id": "BAT-R04",
+      "domain": "miss",
+      "requirement": "missはHP不変でも手番消費、basic miss/skill hitfalse amount0",
+      "specification_sources": [
+        {
+          "path": "specs/status.md",
+          "lines": "46",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/status.md#L46",
+          "section": "## 命中とゲーム乱数"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/battle.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battle.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "seed1の独立した既知値で命中/失敗を決め、失敗も行動を完了する",
+          "sources": [
+            {
+              "path": "src/game/status.test.ts",
+              "lines": "195",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/status.test.ts#L195"
+            }
+          ],
+          "assertion": "enemy200維持、allynext200、miss event。bsにskillmiss量0/時計進行"
+        },
+        {
+          "name": "命中0でも有効使用は疲労と追加発症を処理し、命中乱数だけを省く",
+          "sources": [
+            {
+              "path": "src/game/battleSkill.test.ts",
+              "lines": "67",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battleSkill.test.ts#L67"
+            }
+          ],
+          "assertion": "skill hitfalse amount0・論理時刻進行"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "BAT-F01",
+      "domain": "mental-fatigue",
+      "requirement": "finite非負連続値、初期0、無上限/使用禁止なし、m(f)=1/(1+f/100)",
+      "specification_sources": [
+        {
+          "path": "specs/status.md",
+          "lines": "52",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/status.md#L52",
+          "section": "## 連続数値の精神疲労（試用）"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/mentalFatigue.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/mentalFatigue.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "疲労%iの倍率と街回復",
+          "sources": [
+            {
+              "path": "src/game/mentalFatigue.test.ts",
+              "lines": "10",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/mentalFatigue.test.ts#L10"
+            }
+          ],
+          "assertion": "10/40/80→.90909/.71429/.55556。別case24.99/.25境界、10000倍率>0、不正値throw"
+        },
+        {
+          "name": "ラベル境界を越えても数値を丸めず、軽度未満も回復する",
+          "sources": [
+            {
+              "path": "src/game/mentalFatigue.test.ts",
+              "lines": "14",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/mentalFatigue.test.ts#L14"
+            }
+          ],
+          "assertion": "24.99倍率.800064,25=.8,10000>0"
+        },
+        {
+          "name": "不正疲労%sを拒否する",
+          "sources": [
+            {
+              "path": "src/game/mentalFatigue.test.ts",
+              "lines": "23",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/mentalFatigue.test.ts#L23"
+            }
+          ],
+          "assertion": "negative/NaN/Infinity throw"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "high"
+    },
+    {
+      "id": "BAT-F02",
+      "domain": "mental-label",
+      "requirement": "label25/50/75だけ派生、効果曲線は連続で値を丸めない",
+      "specification_sources": [
+        {
+          "path": "specs/status.md",
+          "lines": "52",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/status.md#L52",
+          "section": "## 連続数値の精神疲労（試用）"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/mentalFatigue.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/mentalFatigue.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "ラベル境界を越えても数値を丸めず、軽度未満も回復する",
+          "sources": [
+            {
+              "path": "src/game/mentalFatigue.test.ts",
+              "lines": "14",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/mentalFatigue.test.ts#L14"
+            }
+          ],
+          "assertion": "24.99なし/25軽度と各倍率"
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "mentalFatigueLabelの50/75直前直後なし。loadSymptomsは別API",
+      "candidate_regression": "mentalFatigueだけ50以降軽度のまま返しても当該テストは通る",
+      "risk": "medium"
+    },
+    {
+      "id": "BAT-F03",
+      "domain": "mental-recovery",
+      "requirement": "受理街完了一回で全名簿/控え10回復、小数やlabelなし正値も0へ",
+      "specification_sources": [
+        {
+          "path": "specs/status.md",
+          "lines": "52",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/status.md#L52",
+          "section": "## 連続数値の精神疲労（試用）"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/mentalFatigue.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/mentalFatigue.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "控えも回復し、探索中の通知は帰還後の再配送でも無料回復しない",
+          "sources": [
+            {
+              "path": "src/game/skillLoop.test.ts",
+              "lines": "130",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skillLoop.test.ts#L130"
+            }
+          ],
+          "assertion": "35.5/8.25→25.5/0。mfで19.125→9.125→0"
+        },
+        {
+          "name": "ラベル境界を越えても数値を丸めず、軽度未満も回復する",
+          "sources": [
+            {
+              "path": "src/game/mentalFatigue.test.ts",
+              "lines": "14",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/mentalFatigue.test.ts#L14"
+            }
+          ],
+          "assertion": "19.125→9.125→0"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "high"
+    },
+    {
+      "id": "BAT-F04",
+      "domain": "mental-persistence",
+      "requirement": "次戦/帰還HP回復/読込/再出撃にfatigue保持。再送/探索半日/途中通知で回復しない",
+      "specification_sources": [
+        {
+          "path": "specs/status.md",
+          "lines": "52",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/status.md#L52",
+          "section": "## 連続数値の精神疲労（試用）"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/mentalFatigue.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/mentalFatigue.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "次戦・帰還へ19を持ち越し、読込でも回復せず街探索一回で9へ回復する",
+          "sources": [
+            {
+              "path": "src/game/skillLoop.test.ts",
+              "lines": "62",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/skillLoop.test.ts#L62"
+            }
+          ],
+          "assertion": "4→7→11→19、繰返し読込19、街9、再送9、再出撃9"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "high"
+    },
+    {
+      "id": "BAT-F05",
+      "domain": "mental-definition",
+      "requirement": "scale/recovery/thresholdsは正有限、閾値昇順。不正定義拒否",
+      "specification_sources": [
+        {
+          "path": "specs/status.md",
+          "lines": "52",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/status.md#L52",
+          "section": "## 連続数値の精神疲労（試用）"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/mentalFatigue.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/mentalFatigue.ts"
+        }
+      ],
+      "tests": [],
+      "coverage_status": "missing",
+      "audit_classification": "missing",
+      "ci_status": "not-assessed",
+      "gap": "validateMentalFatigueDefinitionの無効設定入力テストなし",
+      "candidate_regression": "scale0/NaN、重複逆順thresholdを許しても正常trial定義は通る",
+      "risk": "low"
+    },
+    {
+      "id": "BAT-L01",
+      "domain": "physical-haze",
+      "requirement": "独立finite非負連続値、同種加算、cap200、小数保持、重度後も悪化",
+      "specification_sources": [
+        {
+          "path": "specs/status.md",
+          "lines": "5",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/status.md#L5",
+          "section": "## 肉体疲労・朦朧（連続数値・試用）"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/status.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/status.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "重度の再発症でも数値と効果が悪化し、部分回復でも改善する",
+          "sources": [
+            {
+              "path": "src/game/loadSymptoms.test.ts",
+              "lines": "44",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/loadSymptoms.test.ts#L44"
+            }
+          ],
+          "assertion": "physical80→100倍率.5555→.5、90へ回復。別case.125+.25=.375/cap200"
+        },
+        {
+          "name": "小・中・大負荷は異なる数値と完治回数になり、小数も保持する",
+          "sources": [
+            {
+              "path": "src/game/loadSymptoms.test.ts",
+              "lines": "59",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/loadSymptoms.test.ts#L59"
+            }
+          ],
+          "assertion": ".125+.25=.375"
+        },
+        {
+          "name": "大負荷は症状ごとの上限で止まり、調整した係数・上限・回復量を使う",
+          "sources": [
+            {
+              "path": "src/game/loadSymptoms.test.ts",
+              "lines": "78",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/loadSymptoms.test.ts#L78"
+            }
+          ],
+          "assertion": "cap200、tunedcap300/recovery7"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "high"
+    },
+    {
+      "id": "BAT-L02",
+      "domain": "status-effects",
+      "requirement": "physicalはbaseMaxHP/(1+value/100)をfloor/min1。hazeはbaseHit/(1+value/300)",
+      "specification_sources": [
+        {
+          "path": "specs/status.md",
+          "lines": "5",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/status.md#L5",
+          "section": "## 肉体疲労・朦朧（連続数値・試用）"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/status.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/status.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "基礎最大HPと基礎命中率へ連続倍率を独立して適用する",
+          "sources": [
+            {
+              "path": "src/game/status.test.ts",
+              "lines": "50",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/status.test.ts#L50"
+            }
+          ],
+          "assertion": "base200→160/133/114、rate.8→.73846/.68571/.64、min1、base7→5、異種不変"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "high"
+    },
+    {
+      "id": "BAT-L03",
+      "domain": "status-effects",
+      "requirement": "maxHPは基礎値から都度計算、次戦で倍率を複利適用しない",
+      "specification_sources": [
+        {
+          "path": "specs/status.md",
+          "lines": "5",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/status.md#L5",
+          "section": "## 肉体疲労・朦朧（連続数値・試用）"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/status.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/status.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "省略した基礎最大HPも初戦から固定し、次戦の肉体疲労が複利にならない",
+          "sources": [
+            {
+              "path": "src/game/status.test.ts",
+              "lines": "131",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/status.test.ts#L131"
+            }
+          ],
+          "assertion": "初戦と次戦HP181維持"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "high"
+    },
+    {
+      "id": "BAT-L04",
+      "domain": "status-recovery",
+      "requirement": "街固定10回復、症状回復でHP上限が戻っても現在HPは増えない",
+      "specification_sources": [
+        {
+          "path": "specs/status.md",
+          "lines": "5",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/status.md#L5",
+          "section": "## 肉体疲労・朦朧（連続数値・試用）"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/status.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/status.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "town signalは控えも回復し、重複・古いsignalは進めず、最大HP増加は治癒しない",
+          "sources": [
+            {
+              "path": "src/game/status.test.ts",
+              "lines": "88",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/status.test.ts#L88"
+            }
+          ],
+          "assertion": "physical10→0でもHP181、控えhaze20→10→0、同/古signal無効果"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "high"
+    },
+    {
+      "id": "BAT-L05",
+      "domain": "status-label",
+      "requirement": "症状label25/50/75、効果連続、0/正小値/重度以上も正しい倍率",
+      "specification_sources": [
+        {
+          "path": "specs/status.md",
+          "lines": "5",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/status.md#L5",
+          "section": "## 肉体疲労・朦朧（連続数値・試用）"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/status.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/status.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "値%sの表示・倍率・固定量回復",
+          "sources": [
+            {
+              "path": "src/game/loadSymptoms.test.ts",
+              "lines": "28",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/loadSymptoms.test.ts#L28"
+            }
+          ],
+          "assertion": "0/10/25/50/75/100/200の両症状。別case境界±.0001差<.000002"
+        },
+        {
+          "name": "表示境界%sの直前・直後で効果が飛ばない",
+          "sources": [
+            {
+              "path": "src/game/loadSymptoms.test.ts",
+              "lines": "36",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/loadSymptoms.test.ts#L36"
+            }
+          ],
+          "assertion": "25/50/75±.0001"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "BAT-L06",
+      "domain": "incapacity",
+      "requirement": "HP0遷移で6step、再付与延長なし、HP正でも不能、解除後HP0も不可",
+      "specification_sources": [
+        {
+          "path": "specs/status.md",
+          "lines": "5",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/status.md#L5",
+          "section": "## 肉体疲労・朦朧（連続数値・試用）"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/status.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/status.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "戦闘不能は再付与で延びず、HP回復とは別に6半日を要する",
+          "sources": [
+            {
+              "path": "src/game/status.test.ts",
+              "lines": "76",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/status.test.ts#L76"
+            }
+          ],
+          "assertion": "5step残1、6stepnull、HP200可/HP0不可。別casecurrent/予告除外と全員不能敗北"
+        },
+        {
+          "name": "HP正でも戦闘不能者は現在行動者・予告順から外れ、全員なら敗北",
+          "sources": [
+            {
+              "path": "src/game/status.test.ts",
+              "lines": "219",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/status.test.ts#L219"
+            }
+          ],
+          "assertion": "blocked除外/current/予告・全員敗北"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "high"
+    },
+    {
+      "id": "BAT-L07",
+      "domain": "incapacity-initial",
+      "requirement": "status省略初期HP0は初回不能6、明示回復済HP0は再付与しない",
+      "specification_sources": [
+        {
+          "path": "specs/status.md",
+          "lines": "5",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/status.md#L5",
+          "section": "## 肉体疲労・朦朧（連続数値・試用）"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/status.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/status.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "HP0への遷移で6半日を付与し、回復済みHP0の再評価は再付与しない",
+          "sources": [
+            {
+              "path": "src/game/status.test.ts",
+              "lines": "243",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/status.test.ts#L243"
+            }
+          ],
+          "assertion": "撃破enemy6、explicithealthyHP0/null"
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "省略status+初期HP0のsteps6を直接assertしない",
+      "candidate_regression": "省略時もhealthyのままalivefalseなら初期outcomeの試験は通る",
+      "risk": "medium"
+    },
+    {
+      "id": "BAT-L08",
+      "domain": "recovery-count",
+      "requirement": "症状残り街探索回数はceil(value/recovery)、端数10未満も1回",
+      "specification_sources": [
+        {
+          "path": "specs/status.md",
+          "lines": "5",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/status.md#L5",
+          "section": "## 肉体疲労・朦朧（連続数値・試用）"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/status.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/status.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "小・中・大負荷は異なる数値と完治回数になり、小数も保持する",
+          "sources": [
+            {
+              "path": "src/game/loadSymptoms.test.ts",
+              "lines": "59",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/loadSymptoms.test.ts#L59"
+            }
+          ],
+          "assertion": "load4/20/80の1/2/8回復数、小数残量をassert"
+        },
+        {
+          "name": "現在の症状と必要な街探索回数を伝え、健康な仲間にラベルを増やさない",
+          "sources": [
+            {
+              "path": "src/web/sessionFeedback.test.ts",
+              "lines": "4",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/web/sessionFeedback.test.ts#L4"
+            }
+          ],
+          "assertion": "physical50→あと5回、haze25→あと3回（ceilがfloorと異なる独立期待）、不能6回、healthyは空。"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "low"
+    },
+    {
+      "id": "BAT-O01",
+      "domain": "onset-probability",
+      "requirement": "有効load後のf/(100+f)で最大一種類、量は今回loadのみ",
+      "specification_sources": [
+        {
+          "path": "specs/status.md",
+          "lines": "60",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/status.md#L60",
+          "section": "## 有効なスキル使用後の追加発症（試用）"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/loadSymptoms.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/loadSymptoms.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "使用後精神疲労%sの確率は%s",
+          "sources": [
+            {
+              "path": "src/game/loadSymptoms.test.ts",
+              "lines": "95",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/loadSymptoms.test.ts#L95"
+            }
+          ],
+          "assertion": "f0/25/100/300/900→0/.2/.5/.75/.9。別case同load20でf100/900とも20"
+        },
+        {
+          "name": "増加量は今回の負荷だけで決まり、精神疲労を二重に乗算しない",
+          "sources": [
+            {
+              "path": "src/game/loadSymptoms.test.ts",
+              "lines": "126",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/loadSymptoms.test.ts#L126"
+            }
+          ],
+          "assertion": "f100/900でdose20"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "high"
+    },
+    {
+      "id": "BAT-O02",
+      "domain": "onset-order",
+      "requirement": "使用前効果→使用後fatigueで発症を判定し遡及しない",
+      "specification_sources": [
+        {
+          "path": "specs/status.md",
+          "lines": "60",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/status.md#L60",
+          "section": "## 有効なスキル使用後の追加発症（試用）"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/loadSymptoms.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/loadSymptoms.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "使用前20で効果を適用し、使用後40で発症し、重度80から100へ悪化する",
+          "sources": [
+            {
+              "path": "src/game/loadSymptomIntegration.test.ts",
+              "lines": "56",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/loadSymptomIntegration.test.ts#L56"
+            }
+          ],
+          "assertion": "13.333効果、seed1はp20で不成立/p40で成立、physical80→100、HP100、RNG1586005467"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "high"
+    },
+    {
+      "id": "BAT-O03",
+      "domain": "onset-candidates",
+      "requirement": "physical/haze定義順均等選択、真のcap候補だけ除外、精神/不能は候補外",
+      "specification_sources": [
+        {
+          "path": "specs/status.md",
+          "lines": "60",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/status.md#L60",
+          "section": "## 有効なスキル使用後の追加発症（試用）"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/loadSymptoms.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/loadSymptoms.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "真に上限の候補だけを除き、候補一つでも成功時は選択乱数を消費する",
+          "sources": [
+            {
+              "path": "src/game/loadSymptoms.test.ts",
+              "lines": "131",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/loadSymptoms.test.ts#L131"
+            }
+          ],
+          "assertion": "physical200/haze190→haze200、RNG1586005467。ccにincapacity/mentalFatigue拒否"
+        },
+        {
+          "name": "追加発症候補%sを既存APIで拒否する",
+          "sources": [
+            {
+              "path": "src/content/validateContent.test.ts",
+              "lines": "300",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/content/validateContent.test.ts#L300"
+            }
+          ],
+          "assertion": "incapacity/mentalFatigue候補reject"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "high"
+    },
+    {
+      "id": "BAT-O04",
+      "domain": "onset-rng",
+      "requirement": "hit全draw→onset→成功時selection。失敗1/成功2、一候補も2draw",
+      "specification_sources": [
+        {
+          "path": "specs/status.md",
+          "lines": "60",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/status.md#L60",
+          "section": "## 有効なスキル使用後の追加発症（試用）"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/loadSymptoms.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/loadSymptoms.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "失敗は判定1回、成功は判定→候補選択で2回だけ消費する",
+          "sources": [
+            {
+              "path": "src/game/loadSymptoms.test.ts",
+              "lines": "108",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/loadSymptoms.test.ts#L108"
+            }
+          ],
+          "assertion": "失敗1015568748/成功1586005467、seed3haze。maでhit/onset順RNG固定値"
+        },
+        {
+          "name": "seed17の混在命中は使用後の朦朧を先取りせず、命中→発症→候補の順で抽選する",
+          "sources": [
+            {
+              "path": "src/game/multiAttack.test.ts",
+              "lines": "119",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/multiAttack.test.ts#L119"
+            }
+          ],
+          "assertion": "3hit+onset+selectionのfixedRNG"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "high"
+    },
+    {
+      "id": "BAT-O05",
+      "domain": "onset-rng",
+      "requirement": "候補空/全cap/load0/p0は発症も追加RNGもなし",
+      "specification_sources": [
+        {
+          "path": "specs/status.md",
+          "lines": "60",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/status.md#L60",
+          "section": "## 有効なスキル使用後の追加発症（試用）"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/loadSymptoms.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/loadSymptoms.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "上限到達・空候補・負荷0・確率0は発症も乱数消費もない",
+          "sources": [
+            {
+              "path": "src/game/loadSymptoms.test.ts",
+              "lines": "171",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/loadSymptoms.test.ts#L171"
+            }
+          ],
+          "assertion": "全ケースrandomState1/applicationnull"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "high"
+    },
+    {
+      "id": "BAT-O06",
+      "domain": "onset-boundary",
+      "requirement": "draw==probabilityは不成立、有限精度p1でもonset/selectionを消費",
+      "specification_sources": [
+        {
+          "path": "specs/status.md",
+          "lines": "60",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/status.md#L60",
+          "section": "## 有効なスキル使用後の追加発症（試用）"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/loadSymptoms.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/loadSymptoms.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "ゼロ負荷は疲労減衰・追加発症を行わず、大負荷でも有限の症状上限で止める",
+          "sources": [
+            {
+              "path": "src/game/loadSymptomIntegration.test.ts",
+              "lines": "101",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/loadSymptomIntegration.test.ts#L101"
+            }
+          ],
+          "assertion": "巨大loadのcap200/symptom1のみ"
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "同値境界とp1の最終RNG固定値なし",
+      "candidate_regression": ">=から>、p1でonsetdraw省略する変異でもseed1のphysical/capは同じになり得る",
+      "risk": "medium"
+    },
+    {
+      "id": "BAT-O07",
+      "domain": "onset-healing",
+      "requirement": "発症はuserだけ。自己healは発症前量をevent確定し、その後maxHPだけclamp",
+      "specification_sources": [
+        {
+          "path": "specs/status.md",
+          "lines": "60",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/status.md#L60",
+          "section": "## 有効なスキル使用後の追加発症（試用）"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/loadSymptoms.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/loadSymptoms.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "自己回復の基礎量は発症前の最大HPで計算し、発症後に上限だけ収める",
+          "sources": [
+            {
+              "path": "src/game/loadSymptomIntegration.test.ts",
+              "lines": "77",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/loadSymptomIntegration.test.ts#L77"
+            }
+          ],
+          "assertion": "heal48.333eventとfinalHP90。brでtargethealthy、actorphysical3、自heal量10/final194"
+        },
+        {
+          "name": "固定乱数で使用者だけに今回負荷3を発症させ、自己回復後に上限へ収める",
+          "sources": [
+            {
+              "path": "src/game/branchSkill.test.ts",
+              "lines": "82",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/branchSkill.test.ts#L82"
+            }
+          ],
+          "assertion": "targethealthy/actorphysical3/selfevent10/final194"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "high"
+    },
+    {
+      "id": "BAT-O08",
+      "domain": "onset-validation",
+      "requirement": "症状cap/値域、seed、scale/cap/coefficient/recovery、閾値昇順/候補重複検証",
+      "specification_sources": [
+        {
+          "path": "specs/status.md",
+          "lines": "60",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/status.md#L60",
+          "section": "## 有効なスキル使用後の追加発症（試用）"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/loadSymptoms.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/loadSymptoms.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "上限超過の正本、不正seed、確率・症状定義を拒否する",
+          "sources": [
+            {
+              "path": "src/game/loadSymptoms.test.ts",
+              "lines": "208",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/loadSymptoms.test.ts#L208"
+            }
+          ],
+          "assertion": "201、seed-1/1.5/2^32/NaN、各設定0/-1/NaN/Inf、重複逆順cap同値、候補重複拒否"
+        },
+        {
+          "name": "不正値%sを拒否する",
+          "sources": [
+            {
+              "path": "src/game/loadSymptoms.test.ts",
+              "lines": "197",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/loadSymptoms.test.ts#L197"
+            }
+          ],
+          "assertion": "各APIに-1/NaN/±Infinity"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "BAT-G01",
+      "domain": "battle-rewards",
+      "requirement": "勝利XPは生存かつ参加可能な出撃者へ同額、不能/控えは除外",
+      "specification_sources": [
+        {
+          "path": "specs/progression.md",
+          "lines": "29",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/progression.md#L29",
+          "section": "## 通常操作との接続"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/growthRuntime.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/growthRuntime.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "生存出撃メンバーへ同額を渡し控えには渡さない",
+          "sources": [
+            {
+              "path": "src/game/growthRuntime.test.ts",
+              "lines": "321",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/growthRuntime.test.ts#L321"
+            }
+          ],
+          "assertion": "生存2人Lv3XP5。別case不能gilbertaはLv1XP0"
+        },
+        {
+          "name": "HP0／参加不能は成長投影で復活せず、勝利XPは生存出撃者に同額",
+          "sources": [
+            {
+              "path": "src/game/growthRuntime.test.ts",
+              "lines": "199",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/growthRuntime.test.ts#L199"
+            }
+          ],
+          "assertion": "playerLv3XP5/不能gilbertaLv1XP0"
+        },
+        {
+          "name": "加入・4枠と控え・育成・回復・%s帰還・保存・再出撃",
+          "sources": [
+            {
+              "path": "src/game/multidayAcceptance.test.ts",
+              "lines": "23",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/multidayAcceptance.test.ts#L23"
+            }
+          ],
+          "assertion": "勝利後4出撃者は各Lv4XP5、5人目reserveはLv2XP0のまま。gr単独caseのタイトルに反する控え不在をこの統合caseが補う。"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "BAT-G02",
+      "domain": "battle-rewards",
+      "requirement": "敗北XPなし即帰還、最終ボスXP0/新3択なし",
+      "specification_sources": [
+        {
+          "path": "specs/progression.md",
+          "lines": "29",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/progression.md#L29",
+          "section": "## 通常操作との接続"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/growthRuntime.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/growthRuntime.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "街XPを保存・持込み、勝利の各レベルを選び次戦へ反映し、最終ボスXP0から初期化する",
+          "sources": [
+            {
+              "path": "src/game/growthRuntime.test.ts",
+              "lines": "105",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/growthRuntime.test.ts#L105"
+            }
+          ],
+          "assertion": "boss前後XP同一/choice null。敗北別caseでnull dungeon/Lv1XP0/HP6/不能6"
+        },
+        {
+          "name": "敗北は直ちに帰還しHPを回復しても戦闘不能・疲労を残す",
+          "sources": [
+            {
+              "path": "src/game/growthRuntime.test.ts",
+              "lines": "179",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/growthRuntime.test.ts#L179"
+            }
+          ],
+          "assertion": "defeat時dungeonnull/HP6/incapacity6/level1XP0"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "high"
+    },
+    {
+      "id": "BAT-G03",
+      "domain": "growth-hp",
+      "requirement": "成長/パッシブは症状補正後maxHP増分のみ現在HP加算、全回復/HP0復活なし",
+      "specification_sources": [
+        {
+          "path": "specs/progression.md",
+          "lines": "29",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/progression.md#L29",
+          "section": "## 通常操作との接続"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/growthRuntime.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/growthRuntime.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "症状補正後の成長増分だけHPへ加え、回復通知はHPを増やさず時計も進めない",
+          "sources": [
+            {
+              "path": "src/game/loadSymptomIntegration.test.ts",
+              "lines": "115",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/loadSymptomIntegration.test.ts#L115"
+            }
+          ],
+          "assertion": "physical100のHP8→10、mental40/haze75維持。grでinjured18→26、passive30→33とHP0保持"
+        },
+        {
+          "name": "体力の習得とランク増加だけ現在HPへ加え、症状・疲労を維持する",
+          "sources": [
+            {
+              "path": "src/game/growthRuntime.test.ts",
+              "lines": "344",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/growthRuntime.test.ts#L344"
+            }
+          ],
+          "assertion": "傷18→26(nonfull28)/passive30→33"
+        },
+        {
+          "name": "戦闘でHP0になったキャラを成長投影で復活させない",
+          "sources": [
+            {
+              "path": "src/game/growthRuntime.test.ts",
+              "lines": "373",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/growthRuntime.test.ts#L373"
+            }
+          ],
+          "assertion": "HP0/incapacity6維持"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "high"
+    },
+    {
+      "id": "BAT-G04",
+      "domain": "growth-projection",
+      "requirement": "次戦に成長/習得を反映し、帰還で全名簿育成初期化→出撃者HP全回復/控えは縮小clamp",
+      "specification_sources": [
+        {
+          "path": "specs/progression.md",
+          "lines": "29",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/progression.md#L29",
+          "section": "## 通常操作との接続"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/growthRuntime.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/growthRuntime.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "余剰XP・報酬再送・HP差分を保持し、控えの育成も帰還で消す",
+          "sources": [
+            {
+              "path": "src/game/growthRuntime.test.ts",
+              "lines": "161",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/growthRuntime.test.ts#L161"
+            }
+          ],
+          "assertion": "控えLv3XP5→Lv1XP0,HP18/haze10保持。通しcaseで次maxHP36→帰還HP20/初期skills"
+        },
+        {
+          "name": "街XPを保存・持込み、勝利の各レベルを選び次戦へ反映し、最終ボスXP0から初期化する",
+          "sources": [
+            {
+              "path": "src/game/growthRuntime.test.ts",
+              "lines": "105",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/growthRuntime.test.ts#L105"
+            }
+          ],
+          "assertion": "nextmaxHP36/return20/fatigue保持/初期2skills"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "high"
+    },
+    {
+      "id": "BAT-G05",
+      "domain": "growth-invariance",
+      "requirement": "成長/パッシブは速度と基礎命中率を変更しない",
+      "specification_sources": [
+        {
+          "path": "specs/progression.md",
+          "lines": "29",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/progression.md#L29",
+          "section": "## 通常操作との接続"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/growthRuntime.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/growthRuntime.ts"
+        }
+      ],
+      "tests": [],
+      "coverage_status": "missing",
+      "audit_classification": "missing",
+      "ci_status": "not-assessed",
+      "gap": "成長前後のspeed/hitRate独立assertなし",
+      "candidate_regression": "レベルアップ時speed+1等の副作用をHP/XPだけの投影試験は見逃し得る",
+      "risk": "low"
+    },
+    {
+      "id": "BAT-P01",
+      "domain": "production-commands",
+      "requirement": "本編skill-only、basic直接ボタンは明示debug/demo限定",
+      "specification_sources": [
+        {
+          "path": "specs/visuals.md",
+          "lines": "32",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/visuals.md#L32",
+          "section": "## 戦闘の段階表示"
+        },
+        {
+          "path": "specs/visuals.md",
+          "lines": "21",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/visuals.md#L21",
+          "section": "| コマンド |"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/web/battleUi.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/web/battleUi.ts"
+        },
+        {
+          "path": "src/web/battleSequence.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/web/battleSequence.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "スキル専用の本編導線と、回復→発症のHP制限→敵の被弾を分離する",
+          "sources": [
+            {
+              "path": "tests/e2e/battle-ui.spec.ts",
+              "lines": "423",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/battle-ui.spec.ts#L423"
+            }
+          ],
+          "assertion": "通常攻撃button hidden、skill実使用。demo=1ではbasic enabled/HP6へ"
+        },
+        {
+          "name": "敵を選んで攻撃すると対象のHPが更新される",
+          "sources": [
+            {
+              "path": "tests/e2e/battle-ui.spec.ts",
+              "lines": "4",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/battle-ui.spec.ts#L4"
+            }
+          ],
+          "assertion": "demo=1 basic有効、targetHP6/14"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "high"
+    },
+    {
+      "id": "BAT-P02",
+      "domain": "impact-semantics",
+      "requirement": "actor→prepare→impact→result→settle、HPと結果数値はimpactから同時表示",
+      "specification_sources": [
+        {
+          "path": "specs/visuals.md",
+          "lines": "32",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/visuals.md#L32",
+          "section": "## 戦闘の段階表示"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/web/battleUi.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/web/battleUi.ts"
+        },
+        {
+          "path": "src/web/battleSequence.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/web/battleSequence.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "代表シーケンス：行動者・着弾・数値・省略・離脱",
+          "sources": [
+            {
+              "path": "tests/e2e/battle-ui.spec.ts",
+              "lines": "274",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/battle-ui.spec.ts#L274"
+            }
+          ],
+          "assertion": "actorでHP40/40、260msimpactで24/40と−16visible、80ms後−16"
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "actor/prepare時のnumber非表示、prepare終了直前のHP不変は未assert",
+      "candidate_regression": "開始直後から数値−16だけ出してもactor時はHPしか見ないので通り得る",
+      "risk": "high"
+    },
+    {
+      "id": "BAT-P03",
+      "domain": "semantic-format",
+      "requirement": "damage負号数値のみ、heal数値+回復、miss外れ、actor技名、重複名/発番号/上部実況なし",
+      "specification_sources": [
+        {
+          "path": "specs/visuals.md",
+          "lines": "32",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/visuals.md#L32",
+          "section": "## 戦闘の段階表示"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/web/battleUi.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/web/battleUi.ts"
+        },
+        {
+          "path": "src/web/battleSequence.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/web/battleSequence.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "代表シーケンス：行動者・着弾・数値・省略・離脱",
+          "sources": [
+            {
+              "path": "tests/e2e/battle-ui.spec.ts",
+              "lines": "274",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/battle-ui.spec.ts#L274"
+            }
+          ],
+          "assertion": "技名exact/数値exact−16。外れとheal別case、動きcaseでtoast hidden"
+        },
+        {
+          "name": "外れと回復を静止状態で区別し、2倍・即時でも確定は一回",
+          "sources": [
+            {
+              "path": "tests/e2e/battle-ui.spec.ts",
+              "lines": "341",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/battle-ui.spec.ts#L341"
+            }
+          ],
+          "assertion": "外れ・20回復・missimpacthidden"
+        },
+        {
+          "name": "技名と結果は動いて出入りし、常設HUDと確定回数は変わらない",
+          "sources": [
+            {
+              "path": "tests/e2e/battle-ui.spec.ts",
+              "lines": "554",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/battle-ui.spec.ts#L554"
+            }
+          ],
+          "assertion": "toast hidden"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "BAT-P04",
+      "domain": "event-not-recompute",
+      "requirement": "確定実量表示、使用後疲労で再計算せず、発症のHP制限を敵damageと分ける",
+      "specification_sources": [
+        {
+          "path": "specs/visuals.md",
+          "lines": "32",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/visuals.md#L32",
+          "section": "## 戦闘の段階表示"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/web/battleUi.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/web/battleUi.ts"
+        },
+        {
+          "path": "src/web/battleSequence.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/web/battleSequence.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "スキル専用の本編導線と、回復→発症のHP制限→敵の被弾を分離する",
+          "sources": [
+            {
+              "path": "tests/e2e/battle-ui.spec.ts",
+              "lines": "423",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/battle-ui.spec.ts#L423"
+            }
+          ],
+          "assertion": "7回復/HP17→症状75→78/HP16→敵−4/HP12"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "high"
+    },
+    {
+      "id": "BAT-P05",
+      "domain": "multi-playback",
+      "requirement": "multi/全体は確定target/hit順で一つずつ着弾し対応するHPだけ更新",
+      "specification_sources": [
+        {
+          "path": "specs/visuals.md",
+          "lines": "32",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/visuals.md#L32",
+          "section": "## 戦闘の段階表示"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/web/battleUi.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/web/battleUi.ts"
+        },
+        {
+          "path": "src/web/battleSequence.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/web/battleSequence.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "多段・全体攻撃の範囲、取消、各発の結果と一度の疲労を実UIで示す",
+          "sources": [
+            {
+              "path": "tests/e2e/battle-ui.spec.ts",
+              "lines": "217",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/battle-ui.spec.ts#L217"
+            }
+          ],
+          "assertion": "完了summary A1/2/3各4とAHP2/B14、全体後victory"
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "各発・各対象impact時のClock観測なし",
+      "candidate_regression": "presentationだけreverse(events)/一括HP更新してsummaryを正順に残しても通り得る",
+      "risk": "high"
+    },
+    {
+      "id": "BAT-P06",
+      "domain": "final-display",
+      "requirement": "再生後は確定stateへ揃え、各target/hit/実量/fatigue前後の静止記録保持",
+      "specification_sources": [
+        {
+          "path": "specs/visuals.md",
+          "lines": "32",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/visuals.md#L32",
+          "section": "## 戦闘の段階表示"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/web/battleUi.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/web/battleUi.ts"
+        },
+        {
+          "path": "src/web/battleSequence.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/web/battleSequence.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "多段・全体攻撃の範囲、取消、各発の結果と一度の疲労を実UIで示す",
+          "sources": [
+            {
+              "path": "tests/e2e/battle-ui.spec.ts",
+              "lines": "217",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/battle-ui.spec.ts#L217"
+            }
+          ],
+          "assertion": "A各発4/fatigue0→4、全体A2/B14/fatigue4→8、最終HP"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "BAT-P07",
+      "domain": "presentation-purity",
+      "requirement": "1倍/2倍/即時/skipは表示待機のみ変更、コアHP/time/fatigue/RNG不変で再確定なし",
+      "specification_sources": [
+        {
+          "path": "specs/visuals.md",
+          "lines": "32",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/visuals.md#L32",
+          "section": "## 戦闘の段階表示"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/web/battleUi.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/web/battleUi.ts"
+        },
+        {
+          "path": "src/web/battleSequence.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/web/battleSequence.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "外れと回復を静止状態で区別し、2倍・即時でも確定は一回",
+          "sources": [
+            {
+              "path": "tests/e2e/battle-ui.spec.ts",
+              "lines": "341",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/battle-ui.spec.ts#L341"
+            }
+          ],
+          "assertion": "速度変更後count2/疲労4→7。別skipcaseはcount1"
+        },
+        {
+          "name": "代表シーケンス：行動者・着弾・数値・省略・離脱",
+          "sources": [
+            {
+              "path": "tests/e2e/battle-ui.spec.ts",
+              "lines": "274",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/battle-ui.spec.ts#L274"
+            }
+          ],
+          "assertion": "skip後count1/fatigue0→4"
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "fixtureはcallback受理countのみ、authoritative snapshot/RNG/logicalTimeを観測しない",
+      "candidate_regression": "callback外でRNG消費またはdisplaycopy書戻ししてもcount/HP表示は一致し得る",
+      "risk": "high"
+    },
+    {
+      "id": "BAT-P08",
+      "domain": "input-lock",
+      "requirement": "再生中操作無効、連打で追加確定なし、再生後有効に戻る",
+      "specification_sources": [
+        {
+          "path": "specs/visuals.md",
+          "lines": "32",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/visuals.md#L32",
+          "section": "## 戦闘の段階表示"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/web/battleUi.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/web/battleUi.ts"
+        },
+        {
+          "path": "src/web/battleSequence.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/web/battleSequence.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "物品は確定回復を表示してから敵行動を再生し、勝敗演出や二重消費を起こさない",
+          "sources": [
+            {
+              "path": "tests/e2e/battle-ui.spec.ts",
+              "lines": "580",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/battle-ui.spec.ts#L580"
+            }
+          ],
+          "assertion": "dblclick count1、remaining1 disabled→enabled。multi skill dblclick後fatigue4"
+        },
+        {
+          "name": "多段・全体攻撃の範囲、取消、各発の結果と一度の疲労を実UIで示す",
+          "sources": [
+            {
+              "path": "tests/e2e/battle-ui.spec.ts",
+              "lines": "217",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/battle-ui.spec.ts#L217"
+            }
+          ],
+          "assertion": "skill dblclick後fatigue4/event3発"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "high"
+    },
+    {
+      "id": "BAT-P09",
+      "domain": "speed-contract",
+      "requirement": "速度変更は次phaseから、現在phaseの補間と待機速度一致",
+      "specification_sources": [
+        {
+          "path": "specs/visuals.md",
+          "lines": "32",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/visuals.md#L32",
+          "section": "## 戦闘の段階表示"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/web/battleUi.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/web/battleUi.ts"
+        },
+        {
+          "path": "src/web/battleSequence.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/web/battleSequence.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "結果の入場と退場の途中で速度を変えても現在の補間と待機は揃う",
+          "sources": [
+            {
+              "path": "tests/e2e/battle-ui.spec.ts",
+              "lines": "614",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/battle-ui.spec.ts#L614"
+            }
+          ],
+          "assertion": "result.19s保持/settle.12s保持、100msvisible+disabled→121mshidden+enabled/count1"
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "prepare/impact/defeat中の切替未assert。CSS値は視覚品質保証ではない",
+      "candidate_regression": "他phaseだけ途中変更でwaitを短縮する回帰を見逃す",
+      "risk": "medium"
+    },
+    {
+      "id": "BAT-P10",
+      "domain": "reduced-motion",
+      "requirement": "reduced-motionは動きなしでもactor/数値読み取り時間保持、途中changeも安全",
+      "specification_sources": [
+        {
+          "path": "specs/visuals.md",
+          "lines": "32",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/visuals.md#L32",
+          "section": "## 戦闘の段階表示"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/web/battleUi.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/web/battleUi.ts"
+        },
+        {
+          "path": "src/web/battleSequence.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/web/battleSequence.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "外れと回復を静止状態で区別し、2倍・即時でも確定は一回",
+          "sources": [
+            {
+              "path": "tests/e2e/battle-ui.spec.ts",
+              "lines": "341",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/battle-ui.spec.ts#L341"
+            }
+          ],
+          "assertion": "motionfalse/animationnone、80ms後同boundingBox"
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "途中media切替なし、読み取り時間は限定heal窓のみ",
+      "candidate_regression": "初期reduceだけ動作しchangeで待機が壊れても未検出",
+      "risk": "medium"
+    },
+    {
+      "id": "BAT-P11",
+      "domain": "exit-lifecycle",
+      "requirement": "離脱で旧待機/表示を破棄し同ID再戦へ旧結果を反映しない",
+      "specification_sources": [
+        {
+          "path": "specs/visuals.md",
+          "lines": "32",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/visuals.md#L32",
+          "section": "## 戦闘の段階表示"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/web/battleUi.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/web/battleUi.ts"
+        },
+        {
+          "path": "src/web/battleSequence.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/web/battleSequence.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "代表シーケンス：行動者・着弾・数値・省略・離脱",
+          "sources": [
+            {
+              "path": "tests/e2e/battle-ui.spec.ts",
+              "lines": "274",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/battle-ui.spec.ts#L274"
+            }
+          ],
+          "assertion": "heal開始→退出→再入場→3000ms後hidden/enemy40/count2"
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "開始直後以外のimpact/defeat/outcome中断なし",
+      "candidate_regression": "defeat待機中だけ旧hideが新battleへ漏れる回帰は初回heal中断で出ない",
+      "risk": "high"
+    },
+    {
+      "id": "BAT-P12",
+      "domain": "defeat-semantics",
+      "requirement": "defeated後に退場。結果進行はrenderer完了callbackに依存しない",
+      "specification_sources": [
+        {
+          "path": "specs/visuals.md",
+          "lines": "32",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/visuals.md#L32",
+          "section": "## 戦闘の段階表示"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/web/battleUi.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/web/battleUi.ts"
+        },
+        {
+          "path": "src/web/battleSequence.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/web/battleSequence.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "実ボタンから勝利し、再戦で初期状態へ戻る",
+          "sources": [
+            {
+              "path": "tests/e2e/battle-ui.spec.ts",
+              "lines": "18",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/battle-ui.spec.ts#L18"
+            }
+          ],
+          "assertion": "最終enemyhidden/victory/rematch"
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "致死impact→defeated→退場の境界時刻、renderer非完了時の結果進行未assert",
+      "candidate_regression": "core確定直後の早期非表示やrenderer待ちの停止を正常最終結果だけで防げない",
+      "risk": "high"
+    },
+    {
+      "id": "BAT-P13",
+      "domain": "target-location",
+      "requirement": "味方各人のheal/damageは本人位置、HUD位置は不変",
+      "specification_sources": [
+        {
+          "path": "specs/visuals.md",
+          "lines": "32",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/visuals.md#L32",
+          "section": "## 戦闘の段階表示"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/web/battleUi.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/web/battleUi.ts"
+        },
+        {
+          "path": "src/web/battleSequence.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/web/battleSequence.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "代表シーケンス：複数味方の回復と被弾は各自の位置に出る",
+          "sources": [
+            {
+              "path": "tests/e2e/battle-ui.spec.ts",
+              "lines": "377",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/battle-ui.spec.ts#L377"
+            }
+          ],
+          "assertion": "Gilberta23heal/Player20healのx差>20、player−4のcenter差<6、partybox不変"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "medium"
+    },
+    {
+      "id": "BAT-P14",
+      "domain": "item-sequence",
+      "requirement": "物品回復→敵攻撃の順で実量表示、fatigue不変、skip/連打で二重消費なし",
+      "specification_sources": [
+        {
+          "path": "specs/visuals.md",
+          "lines": "32",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/visuals.md#L32",
+          "section": "## 戦闘の段階表示"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/web/battleUi.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/web/battleUi.ts"
+        },
+        {
+          "path": "src/web/battleSequence.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/web/battleSequence.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "物品は確定回復を表示してから敵行動を再生し、勝敗演出や二重消費を起こさない",
+          "sources": [
+            {
+              "path": "tests/e2e/battle-ui.spec.ts",
+              "lines": "580",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/battle-ui.spec.ts#L580"
+            }
+          ],
+          "assertion": "HP10→18→14、stock2→1、count1、fatigue0、誤defeatなし"
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "",
+      "candidate_regression": "",
+      "risk": "high"
+    },
+    {
+      "id": "BAT-P15",
+      "domain": "cancel-purity",
+      "requirement": "skill取消/参照/対象選択はHP/fatigue/clock/RNGを変えない",
+      "specification_sources": [
+        {
+          "path": "specs/visuals.md",
+          "lines": "32",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/visuals.md#L32",
+          "section": "## 戦闘の段階表示"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/web/battleUi.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/web/battleUi.ts"
+        },
+        {
+          "path": "src/web/battleSequence.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/web/battleSequence.ts"
+        }
+      ],
+      "tests": [
+        {
+          "name": "スキルの予測・取消・使用から実コアの結果を表示する",
+          "sources": [
+            {
+              "path": "tests/e2e/battle-ui.spec.ts",
+              "lines": "41",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/battle-ui.spec.ts#L41"
+            }
+          ],
+          "assertion": "Escfocus復帰/fatigue0、その後0→4"
+        },
+        {
+          "name": "多段・全体攻撃の範囲、取消、各発の結果と一度の疲労を実UIで示す",
+          "sources": [
+            {
+              "path": "tests/e2e/battle-ui.spec.ts",
+              "lines": "217",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/battle-ui.spec.ts#L217"
+            }
+          ],
+          "assertion": "cancel後fatigue0"
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "取消後のHP/clock/RNG/症状の独立観測なし",
+      "candidate_regression": "preview/cancelでRNG1draw消費しても次の命中1攻撃とfatigueだけでは分からない",
+      "risk": "high"
+    },
+    {
+      "id": "BAT-D01",
+      "domain": "deferred",
+      "requirement": "途中速度変更/割込/追加turn/防御/逃走/戦略的敵AI/SPは未実装対象外",
+      "specification_sources": [
+        {
+          "path": "specs/battle.md",
+          "lines": "123",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/battle.md#L123",
+          "section": "## 対象外"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/battle.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battle.ts"
+        }
+      ],
+      "tests": [],
+      "coverage_status": "deferred",
+      "audit_classification": "deferred",
+      "ci_status": "not-assessed",
+      "gap": "実装済の検証不足として数えない",
+      "candidate_regression": "",
+      "risk": "none"
+    },
+    {
+      "id": "BAT-D02",
+      "domain": "deferred",
+      "requirement": "前衛/後衛の戦闘補正は現specにない。画面手前target選択はUI領域",
+      "specification_sources": [
+        {
+          "path": "specs/party.md",
+          "lines": "27",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/party.md#L27",
+          "section": "## 探索への引継ぎ"
+        },
+        {
+          "path": "specs/visuals.md",
+          "lines": "24",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/visuals.md#L24",
+          "section": "| 敵の状態・対象 |"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/battle.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battle.ts"
+        }
+      ],
+      "tests": [],
+      "coverage_status": "deferred",
+      "audit_classification": "deferred",
+      "ci_status": "not-assessed",
+      "gap": "配列順/投影順とゲーム上の前衛後衛ルールを混同しない",
+      "candidate_regression": "",
+      "risk": "none"
+    },
+    {
+      "id": "BAT-D03",
+      "domain": "deferred",
+      "requirement": "multi/all runtime実装済、本編catalogのmulti/all技提供は未実装",
+      "specification_sources": [
+        {
+          "path": "specs/skills.md",
+          "lines": "96",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/skills.md#L96",
+          "section": "現行の本編catalog"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/battle.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battle.ts"
+        }
+      ],
+      "tests": [],
+      "coverage_status": "deferred",
+      "audit_classification": "deferred",
+      "ci_status": "not-assessed",
+      "gap": "runtime保証と本編習得経路の将来追加を分ける",
+      "candidate_regression": "",
+      "risk": "none"
+    },
+    {
+      "id": "BAT-D04",
+      "domain": "deferred",
+      "requirement": "疲労/係数/回復/スキル構成の最終バランス・面白さは未確定",
+      "specification_sources": [
+        {
+          "path": "specs/skills.md",
+          "lines": "68",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/skills.md#L68",
+          "section": "## 検証用データ"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/battle.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/battle.ts"
+        }
+      ],
+      "tests": [],
+      "coverage_status": "deferred",
+      "audit_classification": "deferred",
+      "ci_status": "not-assessed",
+      "gap": "現試用値の自動保証から最終balanceを断定しない",
+      "candidate_regression": "",
+      "risk": "none"
+    },
+    {
+      "id": "BAT-V01",
+      "domain": "provenance",
+      "requirement": "現行の連続疲労曲線と、通常UIのスキル操作・debug/coreの通常攻撃を区別する",
+      "specification_sources": [
+        {
+          "path": "specs/status.md",
+          "lines": "56",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/status.md#L56",
+          "section": "試用曲線は"
+        },
+        {
+          "path": "specs/visuals.md",
+          "lines": "21",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/visuals.md#L21",
+          "section": "| コマンド |"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/mentalFatigue.ts",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/mentalFatigue.ts"
+        }
+      ],
+      "tests": [],
+      "coverage_status": "provenance",
+      "audit_classification": "provenance",
+      "ci_status": "not-assessed",
+      "gap": "現行仕様では疲労25の倍率は0.8。現行specを監査基準にし、debug/coreの公開契約を通常UIの操作と混同しない。",
+      "candidate_regression": "",
+      "risk": "none"
+    }
+  ]
+}

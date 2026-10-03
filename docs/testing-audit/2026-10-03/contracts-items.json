@@ -1,0 +1,3160 @@
+{
+  "schema_version": 1,
+  "repository": "karin0624/endfield_rpg",
+  "audited_commit": "4866de71c2200781926f2bdb9611410822163ca5",
+  "domain": "items",
+  "method": "Static requirement-to-implementation-to-assertion inspection.",
+  "test_execution": "not-run",
+  "counterexamples": "Reasoned regression candidates; no mutation execution claimed.",
+  "status_counts": {
+    "partial": 37,
+    "missing": 4,
+    "assertion-present": 15
+  },
+  "contracts": [
+    {
+      "id": "ITEM-01",
+      "domain": "initial-inventory",
+      "requirement": "New game has money30, no initial consumables, two physical weapons/two armors, no initial assignments. Trial distribution is not a final design decision.",
+      "specification_sources": [
+        {
+          "path": "specs/items.md",
+          "lines": "25-39",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/items.md#L25-L39"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/inventory.ts",
+          "lines": "11-16",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/inventory.ts#L11-L16",
+          "symbol": "createInventory"
+        },
+        {
+          "path": "src/content/itemSettings.ts",
+          "lines": "5-17",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/content/itemSettings.ts#L5-L17",
+          "symbol": "itemSettings"
+        },
+        {
+          "path": "src/content/equipmentDefinitions.ts",
+          "lines": "3-15",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/content/equipmentDefinitions.ts#L3-L15",
+          "symbol": "initialEquipment"
+        }
+      ],
+      "tests": [
+        {
+          "name": "市場で買物を複数回しても完了まで時間を進めず、持帰り・保存・持込み・途中帰還が一度だけ反映される",
+          "sources": [
+            {
+              "path": "src/game/inventoryIntegration.test.ts",
+              "lines": "62-103",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/inventoryIntegration.test.ts#L62-L103"
+            }
+          ],
+          "assertion": "Each of3 purchases accepted with elapsedHalfDays0 and save rejected. Town completion+save restore halfDays1/balance0/home3; repeat town rejected. Pack2 leaves home1; retreat+restore home3/RNG1586005467/halfDays2; repeat retreat rejected."
+        },
+        {
+          "name": "物品の買物・持込み・帰還・保存を通常画面で通す",
+          "sources": [
+            {
+              "path": "tests/e2e/campaign.spec.ts",
+              "lines": "226-294",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/campaign.spec.ts#L226-L294"
+            }
+          ],
+          "assertion": "Initial money30; qty4 purchase disabled; double-click buy2 gives money10/bag2; return home stock2/calendar night; backing out retains carry1/home2/calendar; full target disabled; retreat stock2/calendar nextday; save+reload money10/stock2; page errors empty. Screenshots not counted."
+        },
+        {
+          "name": "共有装備2組を2人へ割り当て、重複・HP増加回復を防いで保存する",
+          "sources": [
+            {
+              "path": "tests/e2e/campaign.spec.ts",
+              "lines": "296-333",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/campaign.spec.ts#L296-L333"
+            }
+          ],
+          "assertion": "Player w1/a1 displays HP20/24 attack9; gilberta w1 option disabled; w2/a2 displays HP18/22 attack7; save+reload armor1 and weapon2 selected; control stays in viewport at 320/390/1920. Screenshots not counted."
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "Money30 and two usable gear sets are observed; no exact initial owned-ID set, no auto-assignment, or empty inventory assertion.",
+      "candidate_regression": "Add a third unused gear instance or pre-assign the unused character armor; cited assertions would not detect the exact initial-state drift.",
+      "risk": "medium",
+      "proposed_change": "One Node createInventory contract test for exact initial public state."
+    },
+    {
+      "id": "ITEM-02",
+      "domain": "inventory-input",
+      "requirement": "Home creation rejects invalid quantities, unknown/nonstock items and duplicate item IDs; creates independent stock at version0.",
+      "specification_sources": [
+        {
+          "path": "specs/items.md",
+          "lines": "7",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/items.md#L7"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/items.ts",
+          "lines": "30-40",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.ts#L30-L40",
+          "symbol": "createItemState"
+        }
+      ],
+      "tests": [],
+      "coverage_status": "missing",
+      "audit_classification": "missing",
+      "ci_status": "not-assessed",
+      "gap": "No negative createItemState test; version0 is only a fixture assumption.",
+      "candidate_regression": "Remove duplicate-home validation; permit duplicate starting stacks.",
+      "risk": "medium",
+      "proposed_change": "Table-driven createItemState invalid input and initial result tests."
+    },
+    {
+      "id": "ITEM-03",
+      "domain": "packing",
+      "requirement": "Move only selected quantities home→carried bag using shared IDs; preserve unselected stock; do not carry important items.",
+      "specification_sources": [
+        {
+          "path": "specs/items.md",
+          "lines": "7-11",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/items.md#L7-L11"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/items.ts",
+          "lines": "53-84",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.ts#L53-L84",
+          "symbol": "packItems"
+        }
+      ],
+      "tests": [
+        {
+          "name": "選択数だけホームから移し、同品目の獲得分と持込み分を識別する",
+          "sources": [
+            {
+              "path": "src/game/items.test.ts",
+              "lines": "49-74",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.test.ts#L49-L74"
+            }
+          ],
+          "assertion": "home equals HP2/material1; bag equals HP3 carried/material2 carried/HP2 acquired; duplicate battle:1 accepted=false; after use+clear home HP6/material3, RNG123, lost=[]; second return accepted=false."
+        },
+        {
+          "name": "重要品は永続集合で重複せず、持込みも消費もできない",
+          "sources": [
+            {
+              "path": "src/game/items.test.ts",
+              "lines": "101-109",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.test.ts#L101-L109"
+            }
+          ],
+          "assertion": "Repeated acquire keeps importantIds=[trial-important]; pack and consume important item both accepted=false."
+        },
+        {
+          "name": "市場で買物を複数回しても完了まで時間を進めず、持帰り・保存・持込み・途中帰還が一度だけ反映される",
+          "sources": [
+            {
+              "path": "src/game/inventoryIntegration.test.ts",
+              "lines": "62-103",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/inventoryIntegration.test.ts#L62-L103"
+            }
+          ],
+          "assertion": "Each of3 purchases accepted with elapsedHalfDays0 and save rejected. Town completion+save restore halfDays1/balance0/home3; repeat town rejected. Pack2 leaves home1; retreat+restore home3/RNG1586005467/halfDays2; repeat retreat rejected."
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "No material gap identified for this stated contract in the cited assertions.",
+      "candidate_regression": "No untested counterexample claimed for this row; covered is static assertion adequacy, not exhaustive mutation proof.",
+      "risk": "medium"
+    },
+    {
+      "id": "ITEM-04",
+      "domain": "packing",
+      "requirement": "Accept valid duplicate selection rows by summing them; reject aggregate overstock atomically.",
+      "specification_sources": [
+        {
+          "path": "specs/items.md",
+          "lines": "7",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/items.md#L7"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/items.ts",
+          "lines": "42-50",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.ts#L42-L50",
+          "symbol": "mergeStacks"
+        },
+        {
+          "path": "src/game/items.ts",
+          "lines": "64-79",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.ts#L64-L79",
+          "symbol": "packItems"
+        }
+      ],
+      "tests": [
+        {
+          "name": "上限なしで持込みでき、重複行を合算して不足・不正数を拒否する",
+          "sources": [
+            {
+              "path": "src/game/items.test.ts",
+              "lines": "110-129",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.test.ts#L110-L129"
+            }
+          ],
+          "assertion": "Packing 10000 accepted=true; duplicate 3+3 against stock5 accepted=false; -1,0,1.5,NaN rejected; packing during exploration rejected."
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "The only duplicate-row case is 3+3 against stock5 and checks rejected only; no valid duplicate sum and no exact rejected state.",
+      "candidate_regression": "Reject every duplicate selection even when 1+2<=5. All existing duplicate-packing assertions still pass.",
+      "risk": "high",
+      "proposed_change": "Add valid rows1+2=>one carried stack3/home2; overstock across mixed items=>entire state unchanged."
+    },
+    {
+      "id": "ITEM-05",
+      "domain": "packing",
+      "requirement": "Reject zero, negative, fractional and invalid quantities; reject packing while already exploring.",
+      "specification_sources": [
+        {
+          "path": "specs/items.md",
+          "lines": "7",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/items.md#L7"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/items.ts",
+          "lines": "61-67",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.ts#L61-L67",
+          "symbol": "packItems"
+        }
+      ],
+      "tests": [
+        {
+          "name": "上限なしで持込みでき、重複行を合算して不足・不正数を拒否する",
+          "sources": [
+            {
+              "path": "src/game/items.test.ts",
+              "lines": "110-129",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.test.ts#L110-L129"
+            }
+          ],
+          "assertion": "Packing 10000 accepted=true; duplicate 3+3 against stock5 accepted=false; -1,0,1.5,NaN rejected; packing during exploration rejected."
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "No material gap identified for this stated contract in the cited assertions.",
+      "candidate_regression": "No untested counterexample claimed for this row; covered is static assertion adequacy, not exhaustive mutation proof.",
+      "risk": "medium"
+    },
+    {
+      "id": "ITEM-06",
+      "domain": "capacity",
+      "requirement": "No gameplay weight/capacity restriction for carry, pickup or purchase.",
+      "specification_sources": [
+        {
+          "path": "specs/items.md",
+          "lines": "9",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/items.md#L9"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/items.ts",
+          "lines": "64-79",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.ts#L64-L79",
+          "symbol": "packItems"
+        },
+        {
+          "path": "src/game/items.ts",
+          "lines": "97-110",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.ts#L97-L110",
+          "symbol": "receiveItems"
+        },
+        {
+          "path": "src/game/itemPurchase.ts",
+          "lines": "21-38",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/itemPurchase.ts#L21-L38",
+          "symbol": "purchaseItem"
+        }
+      ],
+      "tests": [
+        {
+          "name": "上限なしで持込みでき、重複行を合算して不足・不正数を拒否する",
+          "sources": [
+            {
+              "path": "src/game/items.test.ts",
+              "lines": "110-129",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.test.ts#L110-L129"
+            }
+          ],
+          "assertion": "Packing 10000 accepted=true; duplicate 3+3 against stock5 accepted=false; -1,0,1.5,NaN rejected; packing during exploration rejected."
+        },
+        {
+          "name": "所持金が足りれば3個を超える購入を受理する",
+          "sources": [
+            {
+              "path": "src/game/items.test.ts",
+              "lines": "189-200",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.test.ts#L189-L200"
+            }
+          ],
+          "assertion": "Buy10 for100 accepted, balance0, bag total13."
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "Packing10000 and buying10 are covered; no large receiveItems reward or total-bag threshold case.",
+      "candidate_regression": "Introduce a receiveItems-only quantity/total capacity limit above10; current reward cases use two units.",
+      "risk": "medium",
+      "proposed_change": "Test large pickup into already populated bag alongside existing large packing/purchase."
+    },
+    {
+      "id": "ITEM-07",
+      "domain": "consumption",
+      "requirement": "Aggregate bag count across origins and consume carried units before acquired units on every use.",
+      "specification_sources": [
+        {
+          "path": "specs/items.md",
+          "lines": "9",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/items.md#L9"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/items.ts",
+          "lines": "126-127",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.ts#L126-L127",
+          "symbol": "bagItemQuantity"
+        },
+        {
+          "path": "src/game/items.ts",
+          "lines": "141-154",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.ts#L141-L154",
+          "symbol": "consumeBagItem"
+        }
+      ],
+      "tests": [
+        {
+          "name": "同じ品物は合計数で扱い、持込みを使い切ってから獲得分を使う",
+          "sources": [
+            {
+              "path": "src/game/items.test.ts",
+              "lines": "171-180",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.test.ts#L171-L180"
+            }
+          ],
+          "assertion": "Total5 initially, after FOUR uses total1 and HP stacks exactly [{quantity:1,origin:acquired}]. No intermediate origin assertion."
+        },
+        {
+          "name": "選択数だけホームから移し、同品目の獲得分と持込み分を識別する",
+          "sources": [
+            {
+              "path": "src/game/items.test.ts",
+              "lines": "49-74",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.test.ts#L49-L74"
+            }
+          ],
+          "assertion": "home equals HP2/material1; bag equals HP3 carried/material2 carried/HP2 acquired; duplicate battle:1 accepted=false; after use+clear home HP6/material3, RNG123, lost=[]; second return accepted=false."
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "Only final origin after four uses is asserted; interim carried-first order is not observed.",
+      "candidate_regression": "Choose acquired first only while its quantity>1, then choose carried. Starting carried3/acquired2, four uses still leave acquired1; clear totals remain identical.",
+      "risk": "high",
+      "proposed_change": "After each of four uses assert [carried2/acquired2], [carried1/acquired2], [acquired2], [acquired1]."
+    },
+    {
+      "id": "ITEM-08",
+      "domain": "consumption",
+      "requirement": "Only consumables can be consumed; empty stock rejects and does not advance HP/turn.",
+      "specification_sources": [
+        {
+          "path": "specs/items.md",
+          "lines": "9-19",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/items.md#L9-L19"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/items.ts",
+          "lines": "136-154",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.ts#L136-L154",
+          "symbol": "consumeBagItem"
+        },
+        {
+          "path": "src/game/itemUse.ts",
+          "lines": "60-67",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/itemUse.ts#L60-L67",
+          "symbol": "useBattleRecoveryItem"
+        }
+      ],
+      "tests": [
+        {
+          "name": "重要品は永続集合で重複せず、持込みも消費もできない",
+          "sources": [
+            {
+              "path": "src/game/items.test.ts",
+              "lines": "101-109",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.test.ts#L101-L109"
+            }
+          ],
+          "assertion": "Repeated acquire keeps importantIds=[trial-important]; pack and consume important item both accepted=false."
+        },
+        {
+          "name": "使い切った品物ではHPも手番も更新しない",
+          "sources": [
+            {
+              "path": "src/game/itemUse.test.ts",
+              "lines": "121-132",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/itemUse.test.ts#L121-L132"
+            }
+          ],
+          "assertion": "After consuming both items, use rejected; currentActor ally and HP5 unchanged."
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "Important and empty bag rejected; material-consumption rejection never exercised.",
+      "candidate_regression": "Allow material kind through consumeBagItem guard while still refusing important kind.",
+      "risk": "medium",
+      "proposed_change": "Add material and unknown item refusal with exact unchanged public state."
+    },
+    {
+      "id": "ITEM-09",
+      "domain": "important-items",
+      "requirement": "Important ownership is separate, deduplicated, non-packable/non-consumable and persists across defeat/retreat.",
+      "specification_sources": [
+        {
+          "path": "specs/items.md",
+          "lines": "11",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/items.md#L11"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/items.ts",
+          "lines": "116-123",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.ts#L116-L123",
+          "symbol": "acquireImportantItem"
+        },
+        {
+          "path": "src/game/items.ts",
+          "lines": "64-65",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.ts#L64-L65",
+          "symbol": "packItems"
+        },
+        {
+          "path": "src/game/items.ts",
+          "lines": "139-140",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.ts#L139-L140",
+          "symbol": "consumeBagItem"
+        },
+        {
+          "path": "src/game/items.ts",
+          "lines": "202",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.ts#L202",
+          "symbol": "returnItems"
+        }
+      ],
+      "tests": [
+        {
+          "name": "重要品は永続集合で重複せず、持込みも消費もできない",
+          "sources": [
+            {
+              "path": "src/game/items.test.ts",
+              "lines": "101-109",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.test.ts#L101-L109"
+            }
+          ],
+          "assertion": "Repeated acquire keeps importantIds=[trial-important]; pack and consume important item both accepted=false."
+        },
+        {
+          "name": "%sは持込み消耗品・素材と獲得品を同じ注入抽選へ渡す [defeat, retreat]",
+          "sources": [
+            {
+              "path": "src/game/items.test.ts",
+              "lines": "75-100",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.test.ts#L75-L100"
+            }
+          ],
+          "assertion": "Seed1 returns home HP4/material3, loss HP1 carried/material1 carried/material1 acquired, importantIds=[trial-important], RNG3327581586; replay accepted=false and policy called once."
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "No material gap identified for this stated contract in the cited assertions.",
+      "candidate_regression": "No untested counterexample claimed for this row; covered is static assertion adequacy, not exhaustive mutation proof.",
+      "risk": "medium"
+    },
+    {
+      "id": "ITEM-10",
+      "domain": "important-items",
+      "requirement": "Invalid important-item acquisition rejects; already-owned acquisition is a no-op including version.",
+      "specification_sources": [
+        {
+          "path": "specs/items.md",
+          "lines": "11-45",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/items.md#L11-L45"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/items.ts",
+          "lines": "116-123",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.ts#L116-L123",
+          "symbol": "acquireImportantItem"
+        }
+      ],
+      "tests": [
+        {
+          "name": "重要品は永続集合で重複せず、持込みも消費もできない",
+          "sources": [
+            {
+              "path": "src/game/items.test.ts",
+              "lines": "101-109",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.test.ts#L101-L109"
+            }
+          ],
+          "assertion": "Repeated acquire keeps importantIds=[trial-important]; pack and consume important item both accepted=false."
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "Only IDs deduplication asserted; invalid acquisition and duplicate version stability absent. acquireImportantItem has no expectedVersion parameter, unlike general item-operation wording.",
+      "candidate_regression": "Increment version on duplicate acquire while returning same importantIds; add non-important ID to importantIds on request.",
+      "risk": "medium",
+      "proposed_change": "Assert invalid acquisition unchanged; duplicate acquire leaves version/home/bag unchanged; clarify expectedVersion exception in spec."
+    },
+    {
+      "id": "ITEM-11",
+      "domain": "rewards",
+      "requirement": "Accept a resolved reward once per exploration and put it in acquired stock, keeping carried stock separate.",
+      "specification_sources": [
+        {
+          "path": "specs/items.md",
+          "lines": "23",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/items.md#L23"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/items.ts",
+          "lines": "86-114",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.ts#L86-L114",
+          "symbol": "receiveItems"
+        }
+      ],
+      "tests": [
+        {
+          "name": "選択数だけホームから移し、同品目の獲得分と持込み分を識別する",
+          "sources": [
+            {
+              "path": "src/game/items.test.ts",
+              "lines": "49-74",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.test.ts#L49-L74"
+            }
+          ],
+          "assertion": "home equals HP2/material1; bag equals HP3 carried/material2 carried/HP2 acquired; duplicate battle:1 accepted=false; after use+clear home HP6/material3, RNG123, lost=[]; second return accepted=false."
+        },
+        {
+          "name": "金額・バッグを一度に更新し、連打と復元後の同じ取引を拒否する",
+          "sources": [
+            {
+              "path": "src/game/items.test.ts",
+              "lines": "144-161",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.test.ts#L144-L161"
+            }
+          ],
+          "assertion": "Buy2: accepted=true, balance10, bag total5, acquired stack2, exploration7; same stale input rejected; JSON-round-tripped same transaction with current version2 rejected."
+        },
+        {
+          "name": "%sは持込み消耗品・素材と獲得品を同じ注入抽選へ渡す [defeat, retreat]",
+          "sources": [
+            {
+              "path": "src/game/items.test.ts",
+              "lines": "75-100",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.test.ts#L75-L100"
+            }
+          ],
+          "assertion": "Seed1 returns home HP4/material3, loss HP1 carried/material1 carried/material1 acquired, importantIds=[trial-important], RNG3327581586; replay accepted=false and policy called once."
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "No material gap identified for this stated contract in the cited assertions.",
+      "candidate_regression": "No untested counterexample claimed for this row; covered is static assertion adequacy, not exhaustive mutation proof.",
+      "risk": "medium"
+    },
+    {
+      "id": "ITEM-12",
+      "domain": "rewards",
+      "requirement": "Different reward IDs merge acquired quantity; new exploration resets receipt scope, so a prior reward ID can be accepted again.",
+      "specification_sources": [
+        {
+          "path": "specs/items.md",
+          "lines": "23-45",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/items.md#L23-L45"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/items.ts",
+          "lines": "80",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.ts#L80",
+          "symbol": "packItems"
+        },
+        {
+          "path": "src/game/items.ts",
+          "lines": "105-109",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.ts#L105-L109",
+          "symbol": "receiveItems"
+        }
+      ],
+      "tests": [
+        {
+          "name": "市場で買物を複数回しても完了まで時間を進めず、持帰り・保存・持込み・途中帰還が一度だけ反映される",
+          "sources": [
+            {
+              "path": "src/game/inventoryIntegration.test.ts",
+              "lines": "62-103",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/inventoryIntegration.test.ts#L62-L103"
+            }
+          ],
+          "assertion": "Each of3 purchases accepted with elapsedHalfDays0 and save rejected. Town completion+save restore halfDays1/balance0/home3; repeat town rejected. Pack2 leaves home1; retreat+restore home3/RNG1586005467/halfDays2; repeat retreat rejected."
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "Three purchases test quantity accumulation but not exact one-stack normalization; new-exploration same reward ID not exercised.",
+      "candidate_regression": "Keep a global received-ID set across departures, or append duplicate acquired rows instead of merging.",
+      "risk": "medium",
+      "proposed_change": "Receive rewardA then rewardB with same item; clear/redepart; receive rewardA again and assert accepted with exact quantities."
+    },
+    {
+      "id": "ITEM-13",
+      "domain": "rewards",
+      "requirement": "Invalid reward item/quantity, stale version and receipt outside exploration reject without partial update.",
+      "specification_sources": [
+        {
+          "path": "specs/items.md",
+          "lines": "23-45",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/items.md#L23-L45"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/items.ts",
+          "lines": "93-97",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.ts#L93-L97",
+          "symbol": "receiveItems"
+        }
+      ],
+      "tests": [
+        {
+          "name": "金額・バッグを一度に更新し、連打と復元後の同じ取引を拒否する",
+          "sources": [
+            {
+              "path": "src/game/items.test.ts",
+              "lines": "144-161",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.test.ts#L144-L161"
+            }
+          ],
+          "assertion": "Buy2: accepted=true, balance10, bag total5, acquired stack2, exploration7; same stale input rejected; JSON-round-tripped same transaction with current version2 rejected."
+        },
+        {
+          "name": "不足金額・個数・場所の不適合を拒否する",
+          "sources": [
+            {
+              "path": "src/game/items.test.ts",
+              "lines": "162-167",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.test.ts#L162-L167"
+            }
+          ],
+          "assertion": "Balance19 for cost20, quantity-1, dungeon and home each accepted=false. No returned-state/balance equality assertion."
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "Some stale cases via purchase, no direct invalid mixed loot, no reward-at-home, no direct same-state equality.",
+      "candidate_regression": "Apply first valid stack from a mixed reward before rejecting its invalid second stack; or allow receipt at home.",
+      "risk": "medium",
+      "proposed_change": "Table direct receiveItems invalid cases, asserting exact returned input state and no receipt ID appended."
+    },
+    {
+      "id": "ITEM-14",
+      "domain": "purchase",
+      "requirement": "Purchase in town exploration only, matching exploration ID; positive safe-integer quantity and sufficient funds.",
+      "specification_sources": [
+        {
+          "path": "specs/items.md",
+          "lines": "25",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/items.md#L25"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/itemPurchase.ts",
+          "lines": "20-26",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/itemPurchase.ts#L20-L26",
+          "symbol": "purchaseItem"
+        }
+      ],
+      "tests": [
+        {
+          "name": "不足金額・個数・場所の不適合を拒否する",
+          "sources": [
+            {
+              "path": "src/game/items.test.ts",
+              "lines": "162-167",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.test.ts#L162-L167"
+            }
+          ],
+          "assertion": "Balance19 for cost20, quantity-1, dungeon and home each accepted=false. No returned-state/balance equality assertion."
+        },
+        {
+          "name": "金額・バッグを一度に更新し、連打と復元後の同じ取引を拒否する",
+          "sources": [
+            {
+              "path": "src/game/items.test.ts",
+              "lines": "144-161",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.test.ts#L144-L161"
+            }
+          ],
+          "assertion": "Buy2: accepted=true, balance10, bag total5, acquired stack2, exploration7; same stale input rejected; JSON-round-tripped same transaction with current version2 rejected."
+        },
+        {
+          "name": "所持金が足りれば3個を超える購入を受理する",
+          "sources": [
+            {
+              "path": "src/game/items.test.ts",
+              "lines": "189-200",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.test.ts#L189-L200"
+            }
+          ],
+          "assertion": "Buy10 for100 accepted, balance0, bag total13."
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "Town/dungeon/home and quantity-1 tested; mismatched town exploration ID and zero/fraction/NaN not tested.",
+      "candidate_regression": "Remove explorationId equality guard; a stale town session ID purchases from current bag.",
+      "risk": "high",
+      "proposed_change": "Table wrong exploration,0,1.5,NaN,Infinity and insufficient balance; assert balances and bags unchanged."
+    },
+    {
+      "id": "ITEM-15",
+      "domain": "purchase",
+      "requirement": "Injected offer/price yields exact debit and acquired quantity, with HP8/price10/start30 production settings. No stock counter.",
+      "specification_sources": [
+        {
+          "path": "specs/items.md",
+          "lines": "25",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/items.md#L25"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/content/itemSettings.ts",
+          "lines": "5-19",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/content/itemSettings.ts#L5-L19",
+          "symbol": "itemSettings/recoveryItemOffer"
+        },
+        {
+          "path": "src/game/itemPurchase.ts",
+          "lines": "25-39",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/itemPurchase.ts#L25-L39",
+          "symbol": "purchaseItem"
+        }
+      ],
+      "tests": [
+        {
+          "name": "金額・バッグを一度に更新し、連打と復元後の同じ取引を拒否する",
+          "sources": [
+            {
+              "path": "src/game/items.test.ts",
+              "lines": "144-161",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.test.ts#L144-L161"
+            }
+          ],
+          "assertion": "Buy2: accepted=true, balance10, bag total5, acquired stack2, exploration7; same stale input rejected; JSON-round-tripped same transaction with current version2 rejected."
+        },
+        {
+          "name": "所持金が足りれば3個を超える購入を受理する",
+          "sources": [
+            {
+              "path": "src/game/items.test.ts",
+              "lines": "189-200",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.test.ts#L189-L200"
+            }
+          ],
+          "assertion": "Buy10 for100 accepted, balance0, bag total13."
+        },
+        {
+          "name": "疲労100でも8回復し、味方の1行動を消費する。再送で消費・行動・乱数を重ねない",
+          "sources": [
+            {
+              "path": "src/game/itemUse.test.ts",
+              "lines": "51-69",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/itemUse.test.ts#L51-L69"
+            }
+          ],
+          "assertion": "Actor HP5→13, mentalFatigue100, nextActionTime200, healthy status, other ally HP5; next actor target, RNG23; bag2→1; replay rejected, HP13/bag1."
+        },
+        {
+          "name": "市場で買物を複数回しても完了まで時間を進めず、持帰り・保存・持込み・途中帰還が一度だけ反映される",
+          "sources": [
+            {
+              "path": "src/game/inventoryIntegration.test.ts",
+              "lines": "62-103",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/inventoryIntegration.test.ts#L62-L103"
+            }
+          ],
+          "assertion": "Each of3 purchases accepted with elapsedHalfDays0 and save rejected. Town completion+save restore halfDays1/balance0/home3; repeat town rejected. Pack2 leaves home1; retreat+restore home3/RNG1586005467/halfDays2; repeat retreat rejected."
+        },
+        {
+          "name": "物品の買物・持込み・帰還・保存を通常画面で通す",
+          "sources": [
+            {
+              "path": "tests/e2e/campaign.spec.ts",
+              "lines": "226-294",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/campaign.spec.ts#L226-L294"
+            }
+          ],
+          "assertion": "Initial money30; qty4 purchase disabled; double-click buy2 gives money10/bag2; return home stock2/calendar night; backing out retains carry1/home2/calendar; full target disabled; retreat stock2/calendar nextday; save+reload money10/stock2; page errors empty. Screenshots not counted."
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "No material gap identified for this stated contract in the cited assertions.",
+      "candidate_regression": "No untested counterexample claimed for this row; covered is static assertion adequacy, not exhaustive mutation proof.",
+      "risk": "medium"
+    },
+    {
+      "id": "ITEM-16",
+      "domain": "purchase",
+      "requirement": "Rejected purchase and duplicate transaction must not partially update money, stock, version or receipt IDs.",
+      "specification_sources": [
+        {
+          "path": "specs/items.md",
+          "lines": "25-45",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/items.md#L25-L45"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/itemPurchase.ts",
+          "lines": "20-39",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/itemPurchase.ts#L20-L39",
+          "symbol": "purchaseItem"
+        }
+      ],
+      "tests": [
+        {
+          "name": "金額・バッグを一度に更新し、連打と復元後の同じ取引を拒否する",
+          "sources": [
+            {
+              "path": "src/game/items.test.ts",
+              "lines": "144-161",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.test.ts#L144-L161"
+            }
+          ],
+          "assertion": "Buy2: accepted=true, balance10, bag total5, acquired stack2, exploration7; same stale input rejected; JSON-round-tripped same transaction with current version2 rejected."
+        },
+        {
+          "name": "不足金額・個数・場所の不適合を拒否する",
+          "sources": [
+            {
+              "path": "src/game/items.test.ts",
+              "lines": "162-167",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.test.ts#L162-L167"
+            }
+          ],
+          "assertion": "Balance19 for cost20, quantity-1, dungeon and home each accepted=false. No returned-state/balance equality assertion."
+        },
+        {
+          "name": "物品の買物・持込み・帰還・保存を通常画面で通す",
+          "sources": [
+            {
+              "path": "tests/e2e/campaign.spec.ts",
+              "lines": "226-294",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/campaign.spec.ts#L226-L294"
+            }
+          ],
+          "assertion": "Initial money30; qty4 purchase disabled; double-click buy2 gives money10/bag2; return home stock2/calendar night; backing out retains carry1/home2/calendar; full target disabled; retreat stock2/calendar nextday; save+reload money10/stock2; page errors empty. Screenshots not counted."
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "Core refusal tests check accepted=false only. UI double-click covers one realistic repeated purchase, not all rejected transitions.",
+      "candidate_regression": "On insufficient funds return accepted=false but increment items.version or lower balance; assertion-only core rejection tests still pass.",
+      "risk": "high",
+      "proposed_change": "Assert complete rejected {items,balance,offer} values for insufficient, invalid, stale and duplicate cases."
+    },
+    {
+      "id": "ITEM-17",
+      "domain": "purchase",
+      "requirement": "Transaction IDs use reserved purchase: reward namespace and remain distinct from ordinary reward IDs.",
+      "specification_sources": [
+        {
+          "path": "specs/items.md",
+          "lines": "25",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/items.md#L25"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/itemPurchase.ts",
+          "lines": "27-32",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/itemPurchase.ts#L27-L32",
+          "symbol": "purchaseItem"
+        }
+      ],
+      "tests": [
+        {
+          "name": "金額・バッグを一度に更新し、連打と復元後の同じ取引を拒否する",
+          "sources": [
+            {
+              "path": "src/game/items.test.ts",
+              "lines": "144-161",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.test.ts#L144-L161"
+            }
+          ],
+          "assertion": "Buy2: accepted=true, balance10, bag total5, acquired stack2, exploration7; same stale input rejected; JSON-round-tripped same transaction with current version2 rejected."
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "Duplicate transaction covered but no assertion of namespace or same raw ID as ordinary reward.",
+      "candidate_regression": "Remove purchase: prefix; same raw event/transaction ID collides, current tests never combine them.",
+      "risk": "medium",
+      "proposed_change": "Receive ordinary reward ID x then purchase transaction x; both accepted exactly once; assert receipt IDs."
+    },
+    {
+      "id": "ITEM-18",
+      "domain": "purchase-input",
+      "requirement": "Invalid balance/price rejected by exception; overflow cost not applied; price0 is permitted by API.",
+      "specification_sources": [
+        {
+          "path": "specs/items.md",
+          "lines": "25",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/items.md#L25"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/itemPurchase.ts",
+          "lines": "22-26",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/itemPurchase.ts#L22-L26",
+          "symbol": "purchaseItem"
+        }
+      ],
+      "tests": [],
+      "coverage_status": "missing",
+      "audit_classification": "missing",
+      "ci_status": "not-assessed",
+      "gap": "No injected invalid price/balance, overflow or free-price boundary tests.",
+      "candidate_regression": "Allow fractional price or unsafe cost; award stock for invalid economic quote.",
+      "risk": "medium",
+      "proposed_change": "Table NaN/negative/fractional/unsafe input and safe zero-price success."
+    },
+    {
+      "id": "ITEM-19",
+      "domain": "healing",
+      "requirement": "HP8 (or injected value) heals exactly one living eligible ally including self; no mental-fatigue attenuation/increase, symptom effect or RNG use.",
+      "specification_sources": [
+        {
+          "path": "specs/items.md",
+          "lines": "15",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/items.md#L15"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/itemUse.ts",
+          "lines": "25-39",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/itemUse.ts#L25-L39",
+          "symbol": "previewRecoveryItem"
+        },
+        {
+          "path": "src/game/itemUse.ts",
+          "lines": "60-83",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/itemUse.ts#L60-L83",
+          "symbol": "useBattleRecoveryItem"
+        }
+      ],
+      "tests": [
+        {
+          "name": "疲労100でも8回復し、味方の1行動を消費する。再送で消費・行動・乱数を重ねない",
+          "sources": [
+            {
+              "path": "src/game/itemUse.test.ts",
+              "lines": "51-69",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/itemUse.test.ts#L51-L69"
+            }
+          ],
+          "assertion": "Actor HP5→13, mentalFatigue100, nextActionTime200, healthy status, other ally HP5; next actor target, RNG23; bag2→1; replay rejected, HP13/bag1."
+        },
+        {
+          "name": "肉体疲労による有効上限10で止まり、症状と療養残りを変えない",
+          "sources": [
+            {
+              "path": "src/game/itemUse.test.ts",
+              "lines": "70-80",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/itemUse.test.ts#L70-L80"
+            }
+          ],
+          "assertion": "Target HP7→10 at physicalFatigue100; mentalFatigue100 and target.status unchanged; event.amount=3."
+        },
+        {
+          "name": "回復量の別案を注入できる",
+          "sources": [
+            {
+              "path": "src/game/itemUse.test.ts",
+              "lines": "169-174",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/itemUse.test.ts#L169-L174"
+            }
+          ],
+          "assertion": "Injected hpRecovery3 accepted and HP5→8."
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "No material gap identified for this stated contract in the cited assertions.",
+      "candidate_regression": "No untested counterexample claimed for this row; covered is static assertion adequacy, not exhaustive mutation proof.",
+      "risk": "medium"
+    },
+    {
+      "id": "ITEM-20",
+      "domain": "healing",
+      "requirement": "Clamp healing to effective maximum after physical fatigue; reject dead/incapacitated/enemy/missing targets.",
+      "specification_sources": [
+        {
+          "path": "specs/items.md",
+          "lines": "15",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/items.md#L15"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/itemUse.ts",
+          "lines": "32-39",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/itemUse.ts#L32-L39",
+          "symbol": "previewRecoveryItem"
+        }
+      ],
+      "tests": [
+        {
+          "name": "肉体疲労による有効上限10で止まり、症状と療養残りを変えない",
+          "sources": [
+            {
+              "path": "src/game/itemUse.test.ts",
+              "lines": "70-80",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/itemUse.test.ts#L70-L80"
+            }
+          ],
+          "assertion": "Target HP7→10 at physicalFatigue100; mentalFatigue100 and target.status unchanged; event.amount=3."
+        },
+        {
+          "name": "HP0またはHPが残る戦闘不能を回復・蘇生せず、個数も減らさない",
+          "sources": [
+            {
+              "path": "src/game/itemUse.test.ts",
+              "lines": "81-89",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/itemUse.test.ts#L81-L89"
+            }
+          ],
+          "assertion": "HP0 and HP20 with incapacityRecoverySteps6: accepted=false, bag2 and current actor ally unchanged."
+        },
+        {
+          "name": "敵・不存在・手番違い・古い探索/版の入力を拒否する",
+          "sources": [
+            {
+              "path": "src/game/itemUse.test.ts",
+              "lines": "90-103",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/itemUse.test.ts#L90-L103"
+            }
+          ],
+          "assertion": "Enemy/missing target, actor target, action time99, exploration8, version0 each rejected; bag2."
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "No material gap identified for this stated contract in the cited assertions.",
+      "candidate_regression": "No untested counterexample claimed for this row; covered is static assertion adequacy, not exhaustive mutation proof.",
+      "risk": "medium"
+    },
+    {
+      "id": "ITEM-21",
+      "domain": "healing",
+      "requirement": "Full/zero-actual-recovery targets consume neither item nor action; preview gives precise amount and refusal reason.",
+      "specification_sources": [
+        {
+          "path": "specs/items.md",
+          "lines": "19",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/items.md#L19"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/itemUse.ts",
+          "lines": "25-39",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/itemUse.ts#L25-L39",
+          "symbol": "previewRecoveryItem"
+        },
+        {
+          "path": "src/game/itemUse.ts",
+          "lines": "60-65",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/itemUse.ts#L60-L65",
+          "symbol": "useBattleRecoveryItem"
+        },
+        {
+          "path": "src/game/itemUse.ts",
+          "lines": "106-111",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/itemUse.ts#L106-L111",
+          "symbol": "useBranchRecoveryItem"
+        }
+      ],
+      "tests": [
+        {
+          "name": "満タン対象は実回復0で使用できず個数と手番を消費しない",
+          "sources": [
+            {
+              "path": "src/game/itemUse.test.ts",
+              "lines": "133-148",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/itemUse.test.ts#L133-L148"
+            }
+          ],
+          "assertion": "Full target: accepted=false, bag2, actor ally; preview exactly {usable:false,amount:0,reason:no-recovery}."
+        },
+        {
+          "name": "対象選択へ有効上限を考慮した回復見込みと拒否理由を返す",
+          "sources": [
+            {
+              "path": "src/game/itemUse.test.ts",
+              "lines": "149-168",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/itemUse.test.ts#L149-L168"
+            }
+          ],
+          "assertion": "HP17 preview=>usable true amount3; HP0=>invalid-target; unknown item=>invalid-item; full branch target rejected with bag2."
+        },
+        {
+          "name": "分岐で正常回復後に残数${carried - 1}に応じてfocusを戻し再操作できる [残数0, 残数1]",
+          "sources": [
+            {
+              "path": "tests/e2e/campaign.spec.ts",
+              "lines": "335-385",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/campaign.spec.ts#L335-L385"
+            }
+          ],
+          "assertion": "Preview+4; resulting text HP24 mentalFatigue0 and calendar night. Remaining1 restores focus and permits reopen showing HP24/24/use disabled; remaining0 disables item and focuses route battle button."
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "No material gap identified for this stated contract in the cited assertions.",
+      "candidate_regression": "No untested counterexample claimed for this row; covered is static assertion adequacy, not exhaustive mutation proof.",
+      "risk": "medium"
+    },
+    {
+      "id": "ITEM-22",
+      "domain": "healing-input",
+      "requirement": "Injected hpRecovery must be finite and positive.",
+      "specification_sources": [
+        {
+          "path": "specs/items.md",
+          "lines": "15",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/items.md#L15"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/itemUse.ts",
+          "lines": "36",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/itemUse.ts#L36",
+          "symbol": "previewRecoveryItem"
+        }
+      ],
+      "tests": [
+        {
+          "name": "回復量の別案を注入できる",
+          "sources": [
+            {
+              "path": "src/game/itemUse.test.ts",
+              "lines": "169-174",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/itemUse.test.ts#L169-L174"
+            }
+          ],
+          "assertion": "Injected hpRecovery3 accepted and HP5→8."
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "Only positive alternate amount3 tested.",
+      "candidate_regression": "Accept hpRecovery0,negative,NaN or Infinity silently.",
+      "risk": "low",
+      "proposed_change": "Small table for invalid catalog definition; keep success amount3."
+    },
+    {
+      "id": "ITEM-23",
+      "domain": "battle-use",
+      "requirement": "Only ongoing current eligible ally may use; match action time, exploration and inventory version; consume once and advance actor.",
+      "specification_sources": [
+        {
+          "path": "specs/items.md",
+          "lines": "17-47",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/items.md#L17-L47"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/itemUse.ts",
+          "lines": "49-83",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/itemUse.ts#L49-L83",
+          "symbol": "useBattleRecoveryItem"
+        }
+      ],
+      "tests": [
+        {
+          "name": "疲労100でも8回復し、味方の1行動を消費する。再送で消費・行動・乱数を重ねない",
+          "sources": [
+            {
+              "path": "src/game/itemUse.test.ts",
+              "lines": "51-69",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/itemUse.test.ts#L51-L69"
+            }
+          ],
+          "assertion": "Actor HP5→13, mentalFatigue100, nextActionTime200, healthy status, other ally HP5; next actor target, RNG23; bag2→1; replay rejected, HP13/bag1."
+        },
+        {
+          "name": "敵・不存在・手番違い・古い探索/版の入力を拒否する",
+          "sources": [
+            {
+              "path": "src/game/itemUse.test.ts",
+              "lines": "90-103",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/itemUse.test.ts#L90-L103"
+            }
+          ],
+          "assertion": "Enemy/missing target, actor target, action time99, exploration8, version0 each rejected; bag2."
+        },
+        {
+          "name": "使い切った品物ではHPも手番も更新しない",
+          "sources": [
+            {
+              "path": "src/game/itemUse.test.ts",
+              "lines": "121-132",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/itemUse.test.ts#L121-L132"
+            }
+          ],
+          "assertion": "After consuming both items, use rejected; currentActor ally and HP5 unchanged."
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "Wrong actor/time/exploration/version and current actor advancement covered; current enemy actor, incapacitated actor and terminal outcome not directly exercised.",
+      "candidate_regression": "Remove battle.outcome guard, permitting item use in ended battle with otherwise matching actor/time.",
+      "risk": "medium",
+      "proposed_change": "Publicly reach terminal battle and reject use; enemy turn and incapacitated actor cases; assert full states unchanged."
+    },
+    {
+      "id": "ITEM-24",
+      "domain": "branch-use",
+      "requirement": "Use only in ongoing selectable branch; reject active battle/conversation, wrong route/node/exploration, terminal route or no available outgoing node.",
+      "specification_sources": [
+        {
+          "path": "specs/items.md",
+          "lines": "17",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/items.md#L17"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/itemUse.ts",
+          "lines": "94-105",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/itemUse.ts#L94-L105",
+          "symbol": "useBranchRecoveryItem"
+        }
+      ],
+      "tests": [
+        {
+          "name": "分岐では位置・乱数・成長・疲労を進めず1人を回復し、再送を拒否する",
+          "sources": [
+            {
+              "path": "src/game/itemUse.test.ts",
+              "lines": "104-120",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/itemUse.test.ts#L104-L120"
+            }
+          ],
+          "assertion": "HP13/mentalFatigue100, currentNode entrance, RNG23, resolvedNodeIds=[entrance]; replay rejected; while battle-a activity is active branch use rejected."
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "Only active battle and replay rejection tested; other guard dimensions absent.",
+      "candidate_regression": "Drop route-id check; accept item in a mismatched route object with outgoing nodes.",
+      "risk": "high",
+      "proposed_change": "Table boundary states using public dungeon operations; stale node/exploration plus wrong route, conversation, cleared/dead-end."
+    },
+    {
+      "id": "ITEM-25",
+      "domain": "branch-use",
+      "requirement": "Branch use changes only target HP/item count: preserve other participants/reserves, flags, node resolution, RNG, growth, fatigue, clock and recovery.",
+      "specification_sources": [
+        {
+          "path": "specs/items.md",
+          "lines": "17-27",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/items.md#L17-L27"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/itemUse.ts",
+          "lines": "109-116",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/itemUse.ts#L109-L116",
+          "symbol": "useBranchRecoveryItem"
+        },
+        {
+          "path": "src/game/expedition.ts",
+          "lines": "214-235",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/expedition.ts#L214-L235",
+          "symbol": "actInExpedition"
+        }
+      ],
+      "tests": [
+        {
+          "name": "分岐では位置・乱数・成長・疲労を進めず1人を回復し、再送を拒否する",
+          "sources": [
+            {
+              "path": "src/game/itemUse.test.ts",
+              "lines": "104-120",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/itemUse.test.ts#L104-L120"
+            }
+          ],
+          "assertion": "HP13/mentalFatigue100, currentNode entrance, RNG23, resolvedNodeIds=[entrance]; replay rejected; while battle-a activity is active branch use rejected."
+        },
+        {
+          "name": "分岐で正常回復後に残数${carried - 1}に応じてfocusを戻し再操作できる [残数0, 残数1]",
+          "sources": [
+            {
+              "path": "tests/e2e/campaign.spec.ts",
+              "lines": "335-385",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/campaign.spec.ts#L335-L385"
+            }
+          ],
+          "assertion": "Preview+4; resulting text HP24 mentalFatigue0 and calendar night. Remaining1 restores focus and permits reopen showing HP24/24/use disabled; remaining0 disables item and focuses route battle button."
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "Node/RNG/resolution/target fatigue and visible calendar covered; fixture has one ally and no nonempty flags/growth/reserve/recovery values.",
+      "candidate_regression": "Clear flags or reset growth when processing branch-item; heal every member instead of target.",
+      "risk": "high",
+      "proposed_change": "Nonempty flags/growth, reserve and two eligible participants; assert target HP delta and entire unaffected public domains unchanged."
+    },
+    {
+      "id": "ITEM-26",
+      "domain": "integration-lock",
+      "requirement": "Item use and equipment edits must obey pending mandatory growth-choice input lock.",
+      "specification_sources": [
+        {
+          "path": "specs/items.md",
+          "lines": "17",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/items.md#L17"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/expedition.ts",
+          "lines": "172-175",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/expedition.ts#L172-L175",
+          "symbol": "actInExpedition"
+        },
+        {
+          "path": "src/game/equipmentRuntime.ts",
+          "lines": "26-36",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/equipmentRuntime.ts#L26-L36",
+          "symbol": "editHomeEquipment"
+        }
+      ],
+      "tests": [],
+      "coverage_status": "missing",
+      "audit_classification": "missing",
+      "ci_status": "not-assessed",
+      "gap": "Generic growth tests check enter/return/party/town/save, not item or equipment commands.",
+      "candidate_regression": "Special-case item or gear before hasPendingGrowth guard and permit consumption/equipment change while mandatory choice is pending.",
+      "risk": "high",
+      "proposed_change": "Reach pending choice through XP public operations; both item variants and gear edit rejected, all domains unchanged."
+    },
+    {
+      "id": "ITEM-27",
+      "domain": "integration-stale-input",
+      "requirement": "Battle item bridge binds current expedition, node and active battle; old battle input cannot act in another battle even at identical logical time.",
+      "specification_sources": [
+        {
+          "path": "specs/items.md",
+          "lines": "47",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/items.md#L47"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/itemUse.ts",
+          "lines": "125-154",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/itemUse.ts#L125-L154",
+          "symbol": "performDungeonRecoveryItem"
+        },
+        {
+          "path": "src/game/expedition.ts",
+          "lines": "178-188",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/expedition.ts#L178-L188",
+          "symbol": "actInExpedition"
+        }
+      ],
+      "tests": [
+        {
+          "name": "戦闘使用は敵行動まで進め、名簿とバッグを確定し、前ノード・同じ入力の再送を拒否する",
+          "sources": [
+            {
+              "path": "src/game/inventoryIntegration.test.ts",
+              "lines": "104-143",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/inventoryIntegration.test.ts#L104-L143"
+            }
+          ],
+          "assertion": "Previous node entrance rejected. Valid battle-a item accepted, itemRecovery.type=item-recovery, bag total1, roster mentalFatigue0; replay rejected. Does NOT assert HP, enemy events or RNG."
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "One wrong expectedNode and immediate replay only. No two actual battles/redeparture with equal logical time and stale command.",
+      "candidate_regression": "Trust battle logical time and current item version after entering a second battle with same clock; accept stale first-battle input.",
+      "risk": "high",
+      "proposed_change": "Capture command at battleA, enter battleB/next expedition with same logical time, submit stale IDs/version; assert no changes."
+    },
+    {
+      "id": "ITEM-28",
+      "domain": "integration-atomicity",
+      "requirement": "Production item bridge commits healing, consumption, enemy auto-actions, roster HP and RNG together; preserves item event before enemy events.",
+      "specification_sources": [
+        {
+          "path": "specs/items.md",
+          "lines": "17-47",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/items.md#L17-L47"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/itemUse.ts",
+          "lines": "146-154",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/itemUse.ts#L146-L154",
+          "symbol": "performDungeonRecoveryItem"
+        },
+        {
+          "path": "src/game/expedition.ts",
+          "lines": "214-235",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/expedition.ts#L214-L235",
+          "symbol": "actInExpedition"
+        }
+      ],
+      "tests": [
+        {
+          "name": "戦闘使用は敵行動まで進め、名簿とバッグを確定し、前ノード・同じ入力の再送を拒否する",
+          "sources": [
+            {
+              "path": "src/game/inventoryIntegration.test.ts",
+              "lines": "104-143",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/inventoryIntegration.test.ts#L104-L143"
+            }
+          ],
+          "assertion": "Previous node entrance rejected. Valid battle-a item accepted, itemRecovery.type=item-recovery, bag total1, roster mentalFatigue0; replay rejected. Does NOT assert HP, enemy events or RNG."
+        },
+        {
+          "name": "通常戦闘で持込み物品を一度だけ使い敵行動の後に入力へ戻る",
+          "sources": [
+            {
+              "path": "tests/e2e/campaign.spec.ts",
+              "lines": "387-420",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/campaign.spec.ts#L387-L420"
+            }
+          ],
+          "assertion": "Preview+4, after use skill input enabled, result text HP4 recovered/mental fatigue unchanged, item count0 disabled, calendar still night. No asserted post-enemy HP or event damage."
+        },
+        {
+          "name": "物品は確定回復を表示してから敵行動を再生し、勝敗演出や二重消費を起こさない",
+          "sources": [
+            {
+              "path": "tests/e2e/battle-ui.spec.ts",
+              "lines": "580-612",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/battle-ui.spec.ts#L580-L612"
+            }
+          ],
+          "assertion": "Double-click use gives commit1, UI HP10→18→14, item1 disabled during sequence then enabled/focused after skip, recovery8 text, mentalFatigue0, no defeat, commit count still1. Fixture manually bridges useBattleRecoveryItem→advanceBattleToNextAllyInput."
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "Node bridge test only checks event TYPE, bag1, fatigue0, accepted/rejected. UI fixture tests numeric enemy hit but manually calls low-level heal+enemy loop, bypassing production bridge.",
+      "candidate_regression": "Drop roster HP assignment only for item command or replace returned enemy events with []; Node bridge assertions still pass; campaign E2E has no post-enemy HP/event assertion.",
+      "risk": "high",
+      "proposed_change": "Node integration must assert independent exact heal event, enemy damage events, roster/dungeon/battle HP, current actor, RNG and one decrement."
+    },
+    {
+      "id": "ITEM-29",
+      "domain": "recovery-events",
+      "requirement": "Recovery event exposes actual amount plus correct target/item and battle actor; branch actor is absent.",
+      "specification_sources": [
+        {
+          "path": "specs/items.md",
+          "lines": "17-57",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/items.md#L17-L57"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/itemUse.ts",
+          "lines": "78-83",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/itemUse.ts#L78-L83",
+          "symbol": "useBattleRecoveryItem"
+        },
+        {
+          "path": "src/game/itemUse.ts",
+          "lines": "116",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/itemUse.ts#L116",
+          "symbol": "useBranchRecoveryItem"
+        }
+      ],
+      "tests": [
+        {
+          "name": "肉体疲労による有効上限10で止まり、症状と療養残りを変えない",
+          "sources": [
+            {
+              "path": "src/game/itemUse.test.ts",
+              "lines": "70-80",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/itemUse.test.ts#L70-L80"
+            }
+          ],
+          "assertion": "Target HP7→10 at physicalFatigue100; mentalFatigue100 and target.status unchanged; event.amount=3."
+        },
+        {
+          "name": "戦闘使用は敵行動まで進め、名簿とバッグを確定し、前ノード・同じ入力の再送を拒否する",
+          "sources": [
+            {
+              "path": "src/game/inventoryIntegration.test.ts",
+              "lines": "104-143",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/inventoryIntegration.test.ts#L104-L143"
+            }
+          ],
+          "assertion": "Previous node entrance rejected. Valid battle-a item accepted, itemRecovery.type=item-recovery, bag total1, roster mentalFatigue0; replay rejected. Does NOT assert HP, enemy events or RNG."
+        },
+        {
+          "name": "物品は確定回復を表示してから敵行動を再生し、勝敗演出や二重消費を起こさない",
+          "sources": [
+            {
+              "path": "tests/e2e/battle-ui.spec.ts",
+              "lines": "580-612",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/battle-ui.spec.ts#L580-L612"
+            }
+          ],
+          "assertion": "Double-click use gives commit1, UI HP10→18→14, item1 disabled during sequence then enabled/focused after skip, recovery8 text, mentalFatigue0, no defeat, commit count still1. Fixture manually bridges useBattleRecoveryItem→advanceBattleToNextAllyInput."
+        },
+        {
+          "name": "分岐で正常回復後に残数${carried - 1}に応じてfocusを戻し再操作できる [残数0, 残数1]",
+          "sources": [
+            {
+              "path": "tests/e2e/campaign.spec.ts",
+              "lines": "335-385",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/campaign.spec.ts#L335-L385"
+            }
+          ],
+          "assertion": "Preview+4; resulting text HP24 mentalFatigue0 and calendar night. Remaining1 restores focus and permits reopen showing HP24/24/use disabled; remaining0 disables item and focuses route battle button."
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "Event amount3 and type covered, self-recovery UI does not distinguish actor from target; full event payload never asserted.",
+      "candidate_regression": "Set event.actorId=target.id for ally-target heal or event.targetId=actor.id; self-target E2E unchanged.",
+      "risk": "medium",
+      "proposed_change": "Assert complete public event for ally-target capped battle heal and branch heal."
+    },
+    {
+      "id": "ITEM-30",
+      "domain": "time",
+      "requirement": "Purchase/use/navigation/equipment edits do not advance life or recuperation clocks; session completion advances half-day once.",
+      "specification_sources": [
+        {
+          "path": "specs/items.md",
+          "lines": "27",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/items.md#L27"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/expedition.ts",
+          "lines": "459-500",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/expedition.ts#L459-L500",
+          "symbol": "completeTownExploration"
+        },
+        {
+          "path": "src/game/equipmentRuntime.ts",
+          "lines": "42-53",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/equipmentRuntime.ts#L42-L53",
+          "symbol": "editHomeEquipment"
+        },
+        {
+          "path": "src/game/itemUse.ts",
+          "lines": "112-117",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/itemUse.ts#L112-L117",
+          "symbol": "useBranchRecoveryItem"
+        }
+      ],
+      "tests": [
+        {
+          "name": "市場で買物を複数回しても完了まで時間を進めず、持帰り・保存・持込み・途中帰還が一度だけ反映される",
+          "sources": [
+            {
+              "path": "src/game/inventoryIntegration.test.ts",
+              "lines": "62-103",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/inventoryIntegration.test.ts#L62-L103"
+            }
+          ],
+          "assertion": "Each of3 purchases accepted with elapsedHalfDays0 and save rejected. Town completion+save restore halfDays1/balance0/home3; repeat town rejected. Pack2 leaves home1; retreat+restore home3/RNG1586005467/halfDays2; repeat retreat rejected."
+        },
+        {
+          "name": "物品の買物・持込み・帰還・保存を通常画面で通す",
+          "sources": [
+            {
+              "path": "tests/e2e/campaign.spec.ts",
+              "lines": "226-294",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/campaign.spec.ts#L226-L294"
+            }
+          ],
+          "assertion": "Initial money30; qty4 purchase disabled; double-click buy2 gives money10/bag2; return home stock2/calendar night; backing out retains carry1/home2/calendar; full target disabled; retreat stock2/calendar nextday; save+reload money10/stock2; page errors empty. Screenshots not counted."
+        },
+        {
+          "name": "分岐で正常回復後に残数${carried - 1}に応じてfocusを戻し再操作できる [残数0, 残数1]",
+          "sources": [
+            {
+              "path": "tests/e2e/campaign.spec.ts",
+              "lines": "335-385",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/campaign.spec.ts#L335-L385"
+            }
+          ],
+          "assertion": "Preview+4; resulting text HP24 mentalFatigue0 and calendar night. Remaining1 restores focus and permits reopen showing HP24/24/use disabled; remaining0 disables item and focuses route battle button."
+        },
+        {
+          "name": "通常戦闘で持込み物品を一度だけ使い敵行動の後に入力へ戻る",
+          "sources": [
+            {
+              "path": "tests/e2e/campaign.spec.ts",
+              "lines": "387-420",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/campaign.spec.ts#L387-L420"
+            }
+          ],
+          "assertion": "Preview+4, after use skill input enabled, result text HP4 recovered/mental fatigue unchanged, item count0 disabled, calendar still night. No asserted post-enemy HP or event damage."
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "Life-clock observations strong; no nonzero recuperation/symptom counters during gear/purchase/item operations.",
+      "candidate_regression": "Advance recoverySteps or reduce incapacity counter on purchase/gear use while leaving elapsedHalfDays unchanged.",
+      "risk": "high",
+      "proposed_change": "One integration fixture with nonzero symptoms/incapacity and recoverySteps; assert both clocks and status unchanged until conversation completes."
+    },
+    {
+      "id": "ITEM-31",
+      "domain": "return-clear",
+      "requirement": "Clear returns all carried/acquired stock to home atomically, ends bag, reports no losses and does not call RNG policy.",
+      "specification_sources": [
+        {
+          "path": "specs/items.md",
+          "lines": "31-35",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/items.md#L31-L35"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/items.ts",
+          "lines": "176-202",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.ts#L176-L202",
+          "symbol": "returnItems"
+        }
+      ],
+      "tests": [
+        {
+          "name": "選択数だけホームから移し、同品目の獲得分と持込み分を識別する",
+          "sources": [
+            {
+              "path": "src/game/items.test.ts",
+              "lines": "49-74",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.test.ts#L49-L74"
+            }
+          ],
+          "assertion": "home equals HP2/material1; bag equals HP3 carried/material2 carried/HP2 acquired; duplicate battle:1 accepted=false; after use+clear home HP6/material3, RNG123, lost=[]; second return accepted=false."
+        },
+        {
+          "name": "クリアは抽選せず、未決のロスト方針や不正な保持数を暗黙補完しない",
+          "sources": [
+            {
+              "path": "src/game/items.test.ts",
+              "lines": "130-139",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.test.ts#L130-L139"
+            }
+          ],
+          "assertion": "Clear accepted and policy not called; retreat without policy throws; defeat policy retaining [4,2] from [3,2] throws; wrong exploration8 rejected without calling policy."
+        },
+        {
+          "name": "市場で買物を複数回しても完了まで時間を進めず、持帰り・保存・持込み・途中帰還が一度だけ反映される",
+          "sources": [
+            {
+              "path": "src/game/inventoryIntegration.test.ts",
+              "lines": "62-103",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/inventoryIntegration.test.ts#L62-L103"
+            }
+          ],
+          "assertion": "Each of3 purchases accepted with elapsedHalfDays0 and save rejected. Town completion+save restore halfDays1/balance0/home3; repeat town rejected. Pack2 leaves home1; retreat+restore home3/RNG1586005467/halfDays2; repeat retreat rejected."
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "No material gap identified for this stated contract in the cited assertions.",
+      "candidate_regression": "No untested counterexample claimed for this row; covered is static assertion adequacy, not exhaustive mutation proof.",
+      "risk": "medium"
+    },
+    {
+      "id": "ITEM-32",
+      "domain": "return-loss",
+      "requirement": "Defeat and retreat sample every carried/acquired consumable/material unit independently with approved p=.5, using game RNG; exact lost quantities and next RNG returned.",
+      "specification_sources": [
+        {
+          "path": "specs/items.md",
+          "lines": "31-33",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/items.md#L31-L33"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/items.ts",
+          "lines": "181-202",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.ts#L181-L202",
+          "symbol": "returnItems"
+        },
+        {
+          "path": "src/game/itemRetention.ts",
+          "lines": "5-20",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/itemRetention.ts#L5-L20",
+          "symbol": "independentItemRetention"
+        },
+        {
+          "path": "src/content/itemSettings.ts",
+          "lines": "5-19",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/content/itemSettings.ts#L5-L19",
+          "symbol": "itemRetentionPolicy"
+        }
+      ],
+      "tests": [
+        {
+          "name": "%sは持込み消耗品・素材と獲得品を同じ注入抽選へ渡す [defeat, retreat]",
+          "sources": [
+            {
+              "path": "src/game/items.test.ts",
+              "lines": "75-100",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.test.ts#L75-L100"
+            }
+          ],
+          "assertion": "Seed1 returns home HP4/material3, loss HP1 carried/material1 carried/material1 acquired, importantIds=[trial-important], RNG3327581586; replay accepted=false and policy called once."
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "No material gap identified for this stated contract in the cited assertions.",
+      "candidate_regression": "No untested counterexample claimed for this row; covered is static assertion adequacy, not exhaustive mutation proof.",
+      "risk": "medium"
+    },
+    {
+      "id": "ITEM-33",
+      "domain": "return-loss",
+      "requirement": "All retained and all lost outcomes possible, no minimum kept; empty bag does not advance RNG; p0/p1 are injectable.",
+      "specification_sources": [
+        {
+          "path": "specs/items.md",
+          "lines": "33",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/items.md#L33"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/itemRetention.ts",
+          "lines": "5-20",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/itemRetention.ts#L5-L20",
+          "symbol": "independentItemRetention"
+        }
+      ],
+      "tests": [
+        {
+          "name": "50%独立抽選は1個なら全保持と全損の両方があり、空バッグは乱数を進めない",
+          "sources": [
+            {
+              "path": "src/game/items.test.ts",
+              "lines": "181-188",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.test.ts#L181-L188"
+            }
+          ],
+          "assertion": "One unit seed1 defeat=>[1], seed1000 retreat=>[0]; empty bag seed7=>{quantities:[],randomState:7}; p0=>[0], p1=>[1]."
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "No material gap identified for this stated contract in the cited assertions.",
+      "candidate_regression": "No untested counterexample claimed for this row; covered is static assertion adequacy, not exhaustive mutation proof.",
+      "risk": "medium"
+    },
+    {
+      "id": "ITEM-34",
+      "domain": "return-exemptions",
+      "requirement": "Home remainder, important items and physical gear are excluded from losses.",
+      "specification_sources": [
+        {
+          "path": "specs/items.md",
+          "lines": "31",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/items.md#L31"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/items.ts",
+          "lines": "202",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.ts#L202",
+          "symbol": "returnItems"
+        },
+        {
+          "path": "src/game/inventory.ts",
+          "lines": "18-30",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/inventory.ts#L18-L30",
+          "symbol": "finishInventory"
+        }
+      ],
+      "tests": [
+        {
+          "name": "%sは持込み消耗品・素材と獲得品を同じ注入抽選へ渡す [defeat, retreat]",
+          "sources": [
+            {
+              "path": "src/game/items.test.ts",
+              "lines": "75-100",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.test.ts#L75-L100"
+            }
+          ],
+          "assertion": "Seed1 returns home HP4/material3, loss HP1 carried/material1 carried/material1 acquired, importantIds=[trial-important], RNG3327581586; replay accepted=false and policy called once."
+        },
+        {
+          "name": "共有実物は同時装備不可で、装着で回復せず、解除時はHP上限へ収める",
+          "sources": [
+            {
+              "path": "src/game/inventoryIntegration.test.ts",
+              "lines": "144-160",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/inventoryIntegration.test.ts#L144-L160"
+            }
+          ],
+          "assertion": "Armor equip retains HP20, grown maxHp24; second character same armor rejected, exploration edit rejected, spoof home during dungeon rejected; return HP24/owned length2; roundtrip then remove armor HP20; reassignment to gilberta accepted."
+        },
+        {
+          "name": "市場で買物を複数回しても完了まで時間を進めず、持帰り・保存・持込み・途中帰還が一度だけ反映される",
+          "sources": [
+            {
+              "path": "src/game/inventoryIntegration.test.ts",
+              "lines": "62-103",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/inventoryIntegration.test.ts#L62-L103"
+            }
+          ],
+          "assertion": "Each of3 purchases accepted with elapsedHalfDays0 and save rejected. Town completion+save restore halfDays1/balance0/home3; repeat town rejected. Pack2 leaves home1; retreat+restore home3/RNG1586005467/halfDays2; repeat retreat rejected."
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "Home and important exemption have exact outcomes; gear tested only owned count during empty-bag retreat. No gear assignment/content equality under nonempty loss or defeat.",
+      "candidate_regression": "On nonempty defeat clear gear assignments (but keep owned array), current gear-return case uses empty retreat.",
+      "risk": "high",
+      "proposed_change": "Mixed loss bag plus equipped two-character gear: assert owned+assignments unchanged for defeat and retreat."
+    },
+    {
+      "id": "ITEM-35",
+      "domain": "retention-contract",
+      "requirement": "Nonclear return requires policy; policy receives exact bag/seed/outcome and returns aligned in-range integral quantities and uint32 RNG; invalid output is rejected.",
+      "specification_sources": [
+        {
+          "path": "specs/items.md",
+          "lines": "33",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/items.md#L33"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/items.ts",
+          "lines": "181-192",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.ts#L181-L192",
+          "symbol": "returnItems"
+        }
+      ],
+      "tests": [
+        {
+          "name": "クリアは抽選せず、未決のロスト方針や不正な保持数を暗黙補完しない",
+          "sources": [
+            {
+              "path": "src/game/items.test.ts",
+              "lines": "130-139",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.test.ts#L130-L139"
+            }
+          ],
+          "assertion": "Clear accepted and policy not called; retreat without policy throws; defeat policy retaining [4,2] from [3,2] throws; wrong exploration8 rejected without calling policy."
+        },
+        {
+          "name": "%sは持込み消耗品・素材と獲得品を同じ注入抽選へ渡す [defeat, retreat]",
+          "sources": [
+            {
+              "path": "src/game/items.test.ts",
+              "lines": "75-100",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.test.ts#L75-L100"
+            }
+          ],
+          "assertion": "Seed1 returns home HP4/material3, loss HP1 carried/material1 carried/material1 acquired, importantIds=[trial-important], RNG3327581586; replay accepted=false and policy called once."
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "Missing policy and quantity above stack covered; no length mismatch/negative/fractional/NaN/invalid RNG; spy called once but exact outcome argument not checked.",
+      "candidate_regression": "Always pass retreat to injected policy for defeat; accept negative/fractional quantities or out-of-range randomState.",
+      "risk": "medium",
+      "proposed_change": "Table invalid policy outputs; separate policy records its exact documented input arguments for both return reasons."
+    },
+    {
+      "id": "ITEM-36",
+      "domain": "retention-input",
+      "requirement": "Independent probability must be finite and between0 and1.",
+      "specification_sources": [
+        {
+          "path": "specs/items.md",
+          "lines": "33",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/items.md#L33"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/itemRetention.ts",
+          "lines": "5-7",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/itemRetention.ts#L5-L7",
+          "symbol": "independentItemRetention"
+        }
+      ],
+      "tests": [
+        {
+          "name": "50%独立抽選は1個なら全保持と全損の両方があり、空バッグは乱数を進めない",
+          "sources": [
+            {
+              "path": "src/game/items.test.ts",
+              "lines": "181-188",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.test.ts#L181-L188"
+            }
+          ],
+          "assertion": "One unit seed1 defeat=>[1], seed1000 retreat=>[0]; empty bag seed7=>{quantities:[],randomState:7}; p0=>[0], p1=>[1]."
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "p0/p1 successes covered, invalid p cases missing.",
+      "candidate_regression": "Clamp invalid probability instead of rejecting NaN,-.1,1.1,Infinity.",
+      "risk": "low",
+      "proposed_change": "Table invalid probability factory inputs."
+    },
+    {
+      "id": "ITEM-37",
+      "domain": "return-replay",
+      "requirement": "Reject stale version/wrong exploration/repeated return without another transfer or RNG draw; loss details are informational.",
+      "specification_sources": [
+        {
+          "path": "specs/items.md",
+          "lines": "35-45",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/items.md#L35-L45"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/items.ts",
+          "lines": "176-179",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.ts#L176-L179",
+          "symbol": "returnItems"
+        },
+        {
+          "path": "src/game/items.ts",
+          "lines": "202",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.ts#L202",
+          "symbol": "returnItems"
+        }
+      ],
+      "tests": [
+        {
+          "name": "選択数だけホームから移し、同品目の獲得分と持込み分を識別する",
+          "sources": [
+            {
+              "path": "src/game/items.test.ts",
+              "lines": "49-74",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.test.ts#L49-L74"
+            }
+          ],
+          "assertion": "home equals HP2/material1; bag equals HP3 carried/material2 carried/HP2 acquired; duplicate battle:1 accepted=false; after use+clear home HP6/material3, RNG123, lost=[]; second return accepted=false."
+        },
+        {
+          "name": "クリアは抽選せず、未決のロスト方針や不正な保持数を暗黙補完しない",
+          "sources": [
+            {
+              "path": "src/game/items.test.ts",
+              "lines": "130-139",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.test.ts#L130-L139"
+            }
+          ],
+          "assertion": "Clear accepted and policy not called; retreat without policy throws; defeat policy retaining [4,2] from [3,2] throws; wrong exploration8 rejected without calling policy."
+        },
+        {
+          "name": "%sは持込み消耗品・素材と獲得品を同じ注入抽選へ渡す [defeat, retreat]",
+          "sources": [
+            {
+              "path": "src/game/items.test.ts",
+              "lines": "75-100",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.test.ts#L75-L100"
+            }
+          ],
+          "assertion": "Seed1 returns home HP4/material3, loss HP1 carried/material1 carried/material1 acquired, importantIds=[trial-important], RNG3327581586; replay accepted=false and policy called once."
+        },
+        {
+          "name": "市場で買物を複数回しても完了まで時間を進めず、持帰り・保存・持込み・途中帰還が一度だけ反映される",
+          "sources": [
+            {
+              "path": "src/game/inventoryIntegration.test.ts",
+              "lines": "62-103",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/inventoryIntegration.test.ts#L62-L103"
+            }
+          ],
+          "assertion": "Each of3 purchases accepted with elapsedHalfDays0 and save rejected. Town completion+save restore halfDays1/balance0/home3; repeat town rejected. Pack2 leaves home1; retreat+restore home3/RNG1586005467/halfDays2; repeat retreat rejected."
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "Repeated return with missing bag and wrong exploration tested; stale expectedVersion with still-live bag is not isolated.",
+      "candidate_regression": "Remove expectedVersion check: duplicate-return tests still fail on null exploration; stale command with active bag succeeds.",
+      "risk": "high",
+      "proposed_change": "Return live bag using stale version and valid current exploration, spy policy not called, all domains unchanged."
+    },
+    {
+      "id": "ITEM-38",
+      "domain": "return-integration",
+      "requirement": "Map dungeon clear/defeat/retreat to matching item return; commit loss,RNG,growth reset,HP recovery,half-day exactly once.",
+      "specification_sources": [
+        {
+          "path": "specs/items.md",
+          "lines": "35",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/items.md#L35"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/expedition.ts",
+          "lines": "272-330",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/expedition.ts#L272-L330",
+          "symbol": "leaveExpedition"
+        },
+        {
+          "path": "src/game/expedition.ts",
+          "lines": "264-267",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/expedition.ts#L264-L267",
+          "symbol": "actInExpedition auto defeat"
+        }
+      ],
+      "tests": [
+        {
+          "name": "市場で買物を複数回しても完了まで時間を進めず、持帰り・保存・持込み・途中帰還が一度だけ反映される",
+          "sources": [
+            {
+              "path": "src/game/inventoryIntegration.test.ts",
+              "lines": "62-103",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/inventoryIntegration.test.ts#L62-L103"
+            }
+          ],
+          "assertion": "Each of3 purchases accepted with elapsedHalfDays0 and save rejected. Town completion+save restore halfDays1/balance0/home3; repeat town rejected. Pack2 leaves home1; retreat+restore home3/RNG1586005467/halfDays2; repeat retreat rejected."
+        },
+        {
+          "name": "共有実物は同時装備不可で、装着で回復せず、解除時はHP上限へ収める",
+          "sources": [
+            {
+              "path": "src/game/inventoryIntegration.test.ts",
+              "lines": "144-160",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/inventoryIntegration.test.ts#L144-L160"
+            }
+          ],
+          "assertion": "Armor equip retains HP20, grown maxHp24; second character same armor rejected, exploration edit rejected, spoof home during dungeon rejected; return HP24/owned length2; roundtrip then remove armor HP20; reassignment to gilberta accepted."
+        },
+        {
+          "name": "装備補正は成長へ重ねず、戦闘・帰還・保存に同じ値を使う",
+          "sources": [
+            {
+              "path": "src/game/inventoryIntegration.test.ts",
+              "lines": "161-171",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/inventoryIntegration.test.ts#L161-L171"
+            }
+          ],
+          "assertion": "Weapon equipped: first departure attack9, return+save restore grown attack9, second departure attack9. Growth bonus remains zero throughout."
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "Production inventory integration only retreat and town clear; no nonempty inventory with boss clear or automatic defeat plus growth.",
+      "candidate_regression": "Route cleared dungeon through defeat loss policy; empty/default-inventory route tests cannot detect inventory loss.",
+      "risk": "high",
+      "proposed_change": "Three public life-loop cases with nonempty packed/acquired bag, nonzero growth, gear and symptoms; assert all result domains incl completion.lostItems."
+    },
+    {
+      "id": "ITEM-39",
+      "domain": "versioning",
+      "requirement": "Every accepted pack/receipt/consume/return increments version once; rejected operations leave it and source state unchanged.",
+      "specification_sources": [
+        {
+          "path": "specs/items.md",
+          "lines": "45",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/items.md#L45"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/items.ts",
+          "lines": "61-72",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.ts#L61-L72",
+          "symbol": "packItems"
+        },
+        {
+          "path": "src/game/items.ts",
+          "lines": "93-105",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.ts#L93-L105",
+          "symbol": "receiveItems"
+        },
+        {
+          "path": "src/game/items.ts",
+          "lines": "136-149",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.ts#L136-L149",
+          "symbol": "consumeBagItem"
+        },
+        {
+          "path": "src/game/items.ts",
+          "lines": "176-202",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.ts#L176-L202",
+          "symbol": "returnItems"
+        }
+      ],
+      "tests": [
+        {
+          "name": "金額・バッグを一度に更新し、連打と復元後の同じ取引を拒否する",
+          "sources": [
+            {
+              "path": "src/game/items.test.ts",
+              "lines": "144-161",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.test.ts#L144-L161"
+            }
+          ],
+          "assertion": "Buy2: accepted=true, balance10, bag total5, acquired stack2, exploration7; same stale input rejected; JSON-round-tripped same transaction with current version2 rejected."
+        },
+        {
+          "name": "敵・不存在・手番違い・古い探索/版の入力を拒否する",
+          "sources": [
+            {
+              "path": "src/game/itemUse.test.ts",
+              "lines": "90-103",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/itemUse.test.ts#L90-L103"
+            }
+          ],
+          "assertion": "Enemy/missing target, actor target, action time99, exploration8, version0 each rejected; bag2."
+        },
+        {
+          "name": "上限なしで持込みでき、重複行を合算して不足・不正数を拒否する",
+          "sources": [
+            {
+              "path": "src/game/items.test.ts",
+              "lines": "110-129",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/items.test.ts#L110-L129"
+            }
+          ],
+          "assertion": "Packing 10000 accepted=true; duplicate 3+3 against stock5 accepted=false; -1,0,1.5,NaN rejected; packing during exploration rejected."
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "Some fixture version constants indirectly constrain +1; exact unchanged rejected version and source-state immutability not systematically asserted.",
+      "candidate_regression": "Mutate source bag before returning a new object, or increment version on a rejected pack; most tests only inspect returned accepted flag.",
+      "risk": "high",
+      "proposed_change": "Public operation transition table with version n→n+1 on success and deep public value preservation on rejection; do not demand object identity."
+    },
+    {
+      "id": "GEAR-01",
+      "domain": "equipment-slots",
+      "requirement": "One weapon/one armor slot, equipped from home; change/unequip preserves other slot and uses owned physical instances.",
+      "specification_sources": [
+        {
+          "path": "specs/items.md",
+          "lines": "39",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/items.md#L39"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/equipment.ts",
+          "lines": "63-94",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/equipment.ts#L63-L94",
+          "symbol": "assignEquipment"
+        },
+        {
+          "path": "src/game/equipmentRuntime.ts",
+          "lines": "14-54",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/equipmentRuntime.ts#L14-L54",
+          "symbol": "editHomeEquipment"
+        }
+      ],
+      "tests": [
+        {
+          "name": "ホームで両枠へ装備・交換・解除でき、探索中は街でも変更しない",
+          "sources": [
+            {
+              "path": "src/game/equipment.test.ts",
+              "lines": "11-24",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/equipment.test.ts#L11-L24"
+            }
+          ],
+          "assertion": "Legacy changeEquipment: equip weapon+armor yields both IDs; exploration unassign rejected preserving loadout; home weapon removal preserves armor."
+        },
+        {
+          "name": "共有実物は同時装備不可で、装着で回復せず、解除時はHP上限へ収める",
+          "sources": [
+            {
+              "path": "src/game/inventoryIntegration.test.ts",
+              "lines": "144-160",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/inventoryIntegration.test.ts#L144-L160"
+            }
+          ],
+          "assertion": "Armor equip retains HP20, grown maxHp24; second character same armor rejected, exploration edit rejected, spoof home during dungeon rejected; return HP24/owned length2; roundtrip then remove armor HP20; reassignment to gilberta accepted."
+        },
+        {
+          "name": "共有装備2組を2人へ割り当て、重複・HP増加回復を防いで保存する",
+          "sources": [
+            {
+              "path": "tests/e2e/campaign.spec.ts",
+              "lines": "296-333",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/campaign.spec.ts#L296-L333"
+            }
+          ],
+          "assertion": "Player w1/a1 displays HP20/24 attack9; gilberta w1 option disabled; w2/a2 displays HP18/22 attack7; save+reload armor1 and weapon2 selected; control stays in viewport at 320/390/1920. Screenshots not counted."
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "Legacy helper covers slot semantics; production runtime covers initial assignment/removal, but replacement by another same-slot physical instance preserving other slot not explicit.",
+      "candidate_regression": "Production assignEquipment resets the other slot when replacing occupied weapon; UI test only equips empty slots then removes weapon with no armor assertion afterward.",
+      "risk": "medium",
+      "proposed_change": "At editHomeEquipment API equip both, replace weapon1→weapon2, remove armor; exact assignments and projected stats."
+    },
+    {
+      "id": "GEAR-02",
+      "domain": "equipment-ownership",
+      "requirement": "Same physical instance cannot serve two characters; different instances of one definition can; freeing it permits reassignment.",
+      "specification_sources": [
+        {
+          "path": "specs/items.md",
+          "lines": "39",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/items.md#L39"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/equipment.ts",
+          "lines": "72-91",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/equipment.ts#L72-L91",
+          "symbol": "assignEquipment"
+        }
+      ],
+      "tests": [
+        {
+          "name": "共有実物は同時装備不可で、装着で回復せず、解除時はHP上限へ収める",
+          "sources": [
+            {
+              "path": "src/game/inventoryIntegration.test.ts",
+              "lines": "144-160",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/inventoryIntegration.test.ts#L144-L160"
+            }
+          ],
+          "assertion": "Armor equip retains HP20, grown maxHp24; second character same armor rejected, exploration edit rejected, spoof home during dungeon rejected; return HP24/owned length2; roundtrip then remove armor HP20; reassignment to gilberta accepted."
+        },
+        {
+          "name": "共有装備2組を2人へ割り当て、重複・HP増加回復を防いで保存する",
+          "sources": [
+            {
+              "path": "tests/e2e/campaign.spec.ts",
+              "lines": "296-333",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/campaign.spec.ts#L296-L333"
+            }
+          ],
+          "assertion": "Player w1/a1 displays HP20/24 attack9; gilberta w1 option disabled; w2/a2 displays HP18/22 attack7; save+reload armor1 and weapon2 selected; control stays in viewport at 320/390/1920. Screenshots not counted."
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "No material gap identified for this stated contract in the cited assertions.",
+      "candidate_regression": "No untested counterexample claimed for this row; covered is static assertion adequacy, not exhaustive mutation proof.",
+      "risk": "medium"
+    },
+    {
+      "id": "GEAR-03",
+      "domain": "equipment-validation",
+      "requirement": "Production equipment rejects unknown/unowned instance and wrong slot.",
+      "specification_sources": [
+        {
+          "path": "specs/items.md",
+          "lines": "39",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/items.md#L39"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/equipment.ts",
+          "lines": "72-81",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/equipment.ts#L72-L81",
+          "symbol": "assignEquipment"
+        },
+        {
+          "path": "src/game/equipmentRuntime.ts",
+          "lines": "37-38",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/equipmentRuntime.ts#L37-L38",
+          "symbol": "editHomeEquipment"
+        }
+      ],
+      "tests": [
+        {
+          "name": "枠違い・未提供・未知の装備を拒否する",
+          "sources": [
+            {
+              "path": "src/game/equipment.test.ts",
+              "lines": "25-29",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/equipment.test.ts#L25-L29"
+            }
+          ],
+          "assertion": "Legacy changeEquipment rejects wrong slot, unavailable definition, unknown definition."
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "Rejection assertions hit obsolete definition-ID changeEquipment only; runtime invokes assignEquipment and has separate guards.",
+      "candidate_regression": "Delete assignEquipment slot guard. Legacy changeEquipment rejection tests remain green; current production cases use valid slots.",
+      "risk": "high",
+      "proposed_change": "Port validation table to editHomeEquipment or assignEquipment with physical IDs; retain legacy-helper tests only if it remains supported API."
+    },
+    {
+      "id": "GEAR-04",
+      "domain": "equipment-location",
+      "requirement": "Equipment changes only at home; reject town/dungeon exploration, pending action, lingering bag, unjoined/unknown character and pending growth.",
+      "specification_sources": [
+        {
+          "path": "specs/items.md",
+          "lines": "39",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/items.md#L39"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/equipmentRuntime.ts",
+          "lines": "26-36",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/equipmentRuntime.ts#L26-L36",
+          "symbol": "editHomeEquipment"
+        }
+      ],
+      "tests": [
+        {
+          "name": "ホームで両枠へ装備・交換・解除でき、探索中は街でも変更しない",
+          "sources": [
+            {
+              "path": "src/game/equipment.test.ts",
+              "lines": "11-24",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/equipment.test.ts#L11-L24"
+            }
+          ],
+          "assertion": "Legacy changeEquipment: equip weapon+armor yields both IDs; exploration unassign rejected preserving loadout; home weapon removal preserves armor."
+        },
+        {
+          "name": "共有実物は同時装備不可で、装着で回復せず、解除時はHP上限へ収める",
+          "sources": [
+            {
+              "path": "src/game/inventoryIntegration.test.ts",
+              "lines": "144-160",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/inventoryIntegration.test.ts#L144-L160"
+            }
+          ],
+          "assertion": "Armor equip retains HP20, grown maxHp24; second character same armor rejected, exploration edit rejected, spoof home during dungeon rejected; return HP24/owned length2; roundtrip then remove armor HP20; reassignment to gilberta accepted."
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "Exploration flag and active dungeon tested. No actual town-exploration game with location=home, unjoined/unknown, lingering bag or pending growth.",
+      "candidate_regression": "Remove pendingAction+items.exploration guards; spoof location home during town buy permits gear change.",
+      "risk": "high",
+      "proposed_change": "Runtime table actual town session and pending growth, unjoined/unknown; all state unchanged."
+    },
+    {
+      "id": "GEAR-05",
+      "domain": "equipment-stats",
+      "requirement": "Weapon+1 attack, armor+4 maxHP, no speed effect; inject additive bonuses; project once from base across return/save/redeparture.",
+      "specification_sources": [
+        {
+          "path": "specs/items.md",
+          "lines": "41",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/items.md#L41"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/equipment.ts",
+          "lines": "34-51",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/equipment.ts#L34-L51",
+          "symbol": "equipmentStats"
+        },
+        {
+          "path": "src/game/equipment.ts",
+          "lines": "95-111",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/equipment.ts#L95-L111",
+          "symbol": "assignedEquipmentStats"
+        },
+        {
+          "path": "src/game/growthRuntime.ts",
+          "lines": "48-55",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/growthRuntime.ts#L48-L55",
+          "symbol": "grownCharacters"
+        }
+      ],
+      "tests": [
+        {
+          "name": "既存能力へ注入補正を投影し、固有技/初期技を装備の有無で制限しない",
+          "sources": [
+            {
+              "path": "src/game/equipment.test.ts",
+              "lines": "30-46",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/equipment.test.ts#L30-L46"
+            }
+          ],
+          "assertion": "Projected HP24/attack9/speed100 versus empty HP20/attack8; learnedSkills after equals nonempty before; injected +2 weapon gives attack10."
+        },
+        {
+          "name": "装備補正は成長へ重ねず、戦闘・帰還・保存に同じ値を使う",
+          "sources": [
+            {
+              "path": "src/game/inventoryIntegration.test.ts",
+              "lines": "161-171",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/inventoryIntegration.test.ts#L161-L171"
+            }
+          ],
+          "assertion": "Weapon equipped: first departure attack9, return+save restore grown attack9, second departure attack9. Growth bonus remains zero throughout."
+        },
+        {
+          "name": "共有装備2組を2人へ割り当て、重複・HP増加回復を防いで保存する",
+          "sources": [
+            {
+              "path": "tests/e2e/campaign.spec.ts",
+              "lines": "296-333",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/campaign.spec.ts#L296-L333"
+            }
+          ],
+          "assertion": "Player w1/a1 displays HP20/24 attack9; gilberta w1 option disabled; w2/a2 displays HP18/22 attack7; save+reload armor1 and weapon2 selected; control stays in viewport at 320/390/1920. Screenshots not counted."
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "No material gap identified for this stated contract in the cited assertions.",
+      "candidate_regression": "No untested counterexample claimed for this row; covered is static assertion adequacy, not exhaustive mutation proof.",
+      "risk": "medium"
+    },
+    {
+      "id": "GEAR-06",
+      "domain": "equipment-hp",
+      "requirement": "Increasing maximum does not heal; reducing maximum clamps only excess current HP and preserves status/other characters.",
+      "specification_sources": [
+        {
+          "path": "specs/items.md",
+          "lines": "41",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/items.md#L41"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/equipmentRuntime.ts",
+          "lines": "39-50",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/equipmentRuntime.ts#L39-L50",
+          "symbol": "editHomeEquipment"
+        }
+      ],
+      "tests": [
+        {
+          "name": "共有実物は同時装備不可で、装着で回復せず、解除時はHP上限へ収める",
+          "sources": [
+            {
+              "path": "src/game/inventoryIntegration.test.ts",
+              "lines": "144-160",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/inventoryIntegration.test.ts#L144-L160"
+            }
+          ],
+          "assertion": "Armor equip retains HP20, grown maxHp24; second character same armor rejected, exploration edit rejected, spoof home during dungeon rejected; return HP24/owned length2; roundtrip then remove armor HP20; reassignment to gilberta accepted."
+        },
+        {
+          "name": "共有装備2組を2人へ割り当て、重複・HP増加回復を防いで保存する",
+          "sources": [
+            {
+              "path": "tests/e2e/campaign.spec.ts",
+              "lines": "296-333",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/campaign.spec.ts#L296-L333"
+            }
+          ],
+          "assertion": "Player w1/a1 displays HP20/24 attack9; gilberta w1 option disabled; w2/a2 displays HP18/22 attack7; save+reload armor1 and weapon2 selected; control stays in viewport at 320/390/1920. Screenshots not counted."
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "HP20→20 when armor raises max24, then HP24→20 removal covered. Removal when wounded below cap and fatigue-adjusted cap not covered.",
+      "candidate_regression": "Always set HP to new max on equipment removal; covered fixture starts exactly24 and expects20, so unintended wounded healing escapes.",
+      "risk": "high",
+      "proposed_change": "Wounded HP10 remove armor stays10; fatigue50 produces independent effective cap; other member HP/status untouched."
+    },
+    {
+      "id": "GEAR-07",
+      "domain": "equipment-growth-order",
+      "requirement": "Compute (base + gear + exploration growth) once, then apply symptom multiplier; apply same result in battle, return, save validation and home edits.",
+      "specification_sources": [
+        {
+          "path": "specs/items.md",
+          "lines": "41",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/items.md#L41"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/equipmentRuntime.ts",
+          "lines": "39-50",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/equipmentRuntime.ts#L39-L50",
+          "symbol": "editHomeEquipment"
+        },
+        {
+          "path": "src/game/growthRuntime.ts",
+          "lines": "48-101",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/growthRuntime.ts#L48-L101",
+          "symbol": "grownCharacters/projectGrowth"
+        },
+        {
+          "path": "src/game/save.ts",
+          "lines": "173-178",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/save.ts#L173-L178",
+          "symbol": "deserializeGame HP ceiling"
+        }
+      ],
+      "tests": [
+        {
+          "name": "装備補正は成長へ重ねず、戦闘・帰還・保存に同じ値を使う",
+          "sources": [
+            {
+              "path": "src/game/inventoryIntegration.test.ts",
+              "lines": "161-171",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/inventoryIntegration.test.ts#L161-L171"
+            }
+          ],
+          "assertion": "Weapon equipped: first departure attack9, return+save restore grown attack9, second departure attack9. Growth bonus remains zero throughout."
+        },
+        {
+          "name": "共有実物は同時装備不可で、装着で回復せず、解除時はHP上限へ収める",
+          "sources": [
+            {
+              "path": "src/game/inventoryIntegration.test.ts",
+              "lines": "144-160",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/inventoryIntegration.test.ts#L144-L160"
+            }
+          ],
+          "assertion": "Armor equip retains HP20, grown maxHp24; second character same armor rejected, exploration edit rejected, spoof home during dungeon rejected; return HP24/owned length2; roundtrip then remove armor HP20; reassignment to gilberta accepted."
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "Gear test named growth stacking uses zero growth and healthy status throughout; separate growth tests have no assigned gear.",
+      "candidate_regression": "Apply fatigue to base+growth then add armor afterward; all current healthy gear fixtures produce same values.",
+      "risk": "high",
+      "proposed_change": "Nonzero gear+growth+physical fatigue fixture with independent numeric cap; run projection, home edit, save validation, departure and return."
+    },
+    {
+      "id": "GEAR-08",
+      "domain": "equipment-skills",
+      "requirement": "Equipment does not restrict innate/initial skill availability.",
+      "specification_sources": [
+        {
+          "path": "specs/items.md",
+          "lines": "41",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/items.md#L41"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/equipment.ts",
+          "lines": "51",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/equipment.ts#L51",
+          "symbol": "equipmentStats preserves character"
+        },
+        {
+          "path": "src/game/party.ts",
+          "lines": "101-126",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/party.ts#L101-L126",
+          "symbol": "getPartyCombatants"
+        }
+      ],
+      "tests": [
+        {
+          "name": "既存能力へ注入補正を投影し、固有技/初期技を装備の有無で制限しない",
+          "sources": [
+            {
+              "path": "src/game/equipment.test.ts",
+              "lines": "30-46",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/equipment.test.ts#L30-L46"
+            }
+          ],
+          "assertion": "Projected HP24/attack9/speed100 versus empty HP20/attack8; learnedSkills after equals nonempty before; injected +2 weapon gives attack10."
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "Before/after learnedSkills equality is a legitimate invariant, not a circular numeric oracle; could strengthen with an actual usable-skill result.",
+      "candidate_regression": "No untested counterexample claimed for this row; covered is static assertion adequacy, not exhaustive mutation proof.",
+      "risk": "medium"
+    },
+    {
+      "id": "GEAR-09",
+      "domain": "equipment-input",
+      "requirement": "Projection rejects missing equipped definition/unowned instance and invalid projected HP/attack.",
+      "specification_sources": [
+        {
+          "path": "specs/items.md",
+          "lines": "41",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/items.md#L41"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/equipment.ts",
+          "lines": "44-50",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/equipment.ts#L44-L50",
+          "symbol": "equipmentStats"
+        },
+        {
+          "path": "src/game/equipment.ts",
+          "lines": "100-105",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/equipment.ts#L100-L105",
+          "symbol": "assignedEquipmentStats"
+        }
+      ],
+      "tests": [],
+      "coverage_status": "missing",
+      "audit_classification": "missing",
+      "ci_status": "not-assessed",
+      "gap": "No invalid stat definition or unresolved owned-instance projection assertions.",
+      "candidate_regression": "Silently ignore missing equipped definition or allow maxHp<=0.",
+      "risk": "low",
+      "proposed_change": "Small pure public projection invalid-input table; keep separate from player input validation."
+    },
+    {
+      "id": "SAVEITEM-01",
+      "domain": "save-roundtrip",
+      "requirement": "Save/restore inventory money, home quantities, assignments and gear-derived stats without purchase, healing, loss reroll or initial replenishment.",
+      "specification_sources": [
+        {
+          "path": "specs/save.md",
+          "lines": "20-22",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/save.md#L20-L22"
+        },
+        {
+          "path": "specs/items.md",
+          "lines": "47",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/items.md#L47"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/save.ts",
+          "lines": "64-98",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/save.ts#L64-L98",
+          "symbol": "parseInventory"
+        },
+        {
+          "path": "src/game/save.ts",
+          "lines": "245-268",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/save.ts#L245-L268",
+          "symbol": "serializeGame"
+        },
+        {
+          "path": "src/game/equipmentSave.ts",
+          "lines": "10-56",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/equipmentSave.ts#L10-L56",
+          "symbol": "parseSavedEquipment"
+        }
+      ],
+      "tests": [
+        {
+          "name": "市場で買物を複数回しても完了まで時間を進めず、持帰り・保存・持込み・途中帰還が一度だけ反映される",
+          "sources": [
+            {
+              "path": "src/game/inventoryIntegration.test.ts",
+              "lines": "62-103",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/inventoryIntegration.test.ts#L62-L103"
+            }
+          ],
+          "assertion": "Each of3 purchases accepted with elapsedHalfDays0 and save rejected. Town completion+save restore halfDays1/balance0/home3; repeat town rejected. Pack2 leaves home1; retreat+restore home3/RNG1586005467/halfDays2; repeat retreat rejected."
+        },
+        {
+          "name": "共有実物は同時装備不可で、装着で回復せず、解除時はHP上限へ収める",
+          "sources": [
+            {
+              "path": "src/game/inventoryIntegration.test.ts",
+              "lines": "144-160",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/inventoryIntegration.test.ts#L144-L160"
+            }
+          ],
+          "assertion": "Armor equip retains HP20, grown maxHp24; second character same armor rejected, exploration edit rejected, spoof home during dungeon rejected; return HP24/owned length2; roundtrip then remove armor HP20; reassignment to gilberta accepted."
+        },
+        {
+          "name": "装備補正は成長へ重ねず、戦闘・帰還・保存に同じ値を使う",
+          "sources": [
+            {
+              "path": "src/game/inventoryIntegration.test.ts",
+              "lines": "161-171",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/inventoryIntegration.test.ts#L161-L171"
+            }
+          ],
+          "assertion": "Weapon equipped: first departure attack9, return+save restore grown attack9, second departure attack9. Growth bonus remains zero throughout."
+        },
+        {
+          "name": "物品の買物・持込み・帰還・保存を通常画面で通す",
+          "sources": [
+            {
+              "path": "tests/e2e/campaign.spec.ts",
+              "lines": "226-294",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/campaign.spec.ts#L226-L294"
+            }
+          ],
+          "assertion": "Initial money30; qty4 purchase disabled; double-click buy2 gives money10/bag2; return home stock2/calendar night; backing out retains carry1/home2/calendar; full target disabled; retreat stock2/calendar nextday; save+reload money10/stock2; page errors empty. Screenshots not counted."
+        },
+        {
+          "name": "共有装備2組を2人へ割り当て、重複・HP増加回復を防いで保存する",
+          "sources": [
+            {
+              "path": "tests/e2e/campaign.spec.ts",
+              "lines": "296-333",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/campaign.spec.ts#L296-L333"
+            }
+          ],
+          "assertion": "Player w1/a1 displays HP20/24 attack9; gilberta w1 option disabled; w2/a2 displays HP18/22 attack7; save+reload armor1 and weapon2 selected; control stays in viewport at 320/390/1920. Screenshots not counted."
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "Roundtrips observe money/stock/RNG and some assignments/stats. Exact item version, owned IDs/count after restore, all assignments and depleted custom ownership not directly asserted.",
+      "candidate_regression": "Reset item version to0 on restore; top up owned gear with initial missing copies while retaining assignments. No exact version/owned-restored-set assertions.",
+      "risk": "high",
+      "proposed_change": "Roundtrip small nondefault ownership and nonzero item version; assert exact full inventory and RNG, with injured HP unchanged."
+    },
+    {
+      "id": "SAVEITEM-02",
+      "domain": "save-location",
+      "requirement": "Reject external save payload containing an exploration bag; normal live-session saves remain blocked during exploration.",
+      "specification_sources": [
+        {
+          "path": "specs/save.md",
+          "lines": "20",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/save.md#L20"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/save.ts",
+          "lines": "25-34",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/save.ts#L25-L34",
+          "symbol": "canSaveGame"
+        },
+        {
+          "path": "src/game/save.ts",
+          "lines": "71-74",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/save.ts#L71-L74",
+          "symbol": "parseInventory"
+        }
+      ],
+      "tests": [
+        {
+          "name": "市場で買物を複数回しても完了まで時間を進めず、持帰り・保存・持込み・途中帰還が一度だけ反映される",
+          "sources": [
+            {
+              "path": "src/game/inventoryIntegration.test.ts",
+              "lines": "62-103",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/inventoryIntegration.test.ts#L62-L103"
+            }
+          ],
+          "assertion": "Each of3 purchases accepted with elapsedHalfDays0 and save rejected. Town completion+save restore halfDays1/balance0/home3; repeat town rejected. Pack2 leaves home1; retreat+restore home3/RNG1586005467/halfDays2; repeat retreat rejected."
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "Active-session save attempts also have pending clock/conversation; no malformed external saved payload with nonnull bag isolates parser rejection. Avoid constructing unreachable live-state fixtures only to hit a guard.",
+      "candidate_regression": "Remove both items.exploration guards; ordinary active-session tests still reject on other conditions.",
+      "risk": "high",
+      "proposed_change": "Corrupt an otherwise valid serialized save payload to contain a nonnull exploration bag and assert invalid-data. This tests external input validation without inventing an unreachable normal gameplay state."
+    },
+    {
+      "id": "SAVEITEM-03",
+      "domain": "save-item-validation",
+      "requirement": "Saved version/balance are nonnegative safe integer counters; home quantities positive integral; IDs known and no duplicate home rows.",
+      "specification_sources": [
+        {
+          "path": "specs/save.md",
+          "lines": "20",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/save.md#L20"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/save.ts",
+          "lines": "43-45",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/save.ts#L43-L45",
+          "symbol": "counter"
+        },
+        {
+          "path": "src/game/save.ts",
+          "lines": "64-90",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/save.ts#L64-L90",
+          "symbol": "parseInventory"
+        }
+      ],
+      "tests": [
+        {
+          "name": "旧形式・負数・未知物品・装備の重複割当てを保存復元で拒否する",
+          "sources": [
+            {
+              "path": "src/game/inventoryIntegration.test.ts",
+              "lines": "172-222",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/inventoryIntegration.test.ts#L172-L222"
+            }
+          ],
+          "assertion": "Corrupt version4, balance-1, unknown home item quantity1, or w1 assigned to player and gilberta; deserialize accepted=false each."
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "Only balance-1 and unknown home ID tested. No item version, quantity0/negative/fractional/overflow, duplicate home row, malformed container/extra/missing field tests.",
+      "candidate_regression": "Permit duplicate hp-recovery home rows or fractional quantity; existing malformed item fixture only uses unknown ID.",
+      "risk": "high",
+      "proposed_change": "Table each promised invalid input through deserializeGame; assert invalid-data and no throw."
+    },
+    {
+      "id": "SAVEITEM-04",
+      "domain": "save-catalog",
+      "requirement": "Current production has no materials/important definitions, so their saved IDs reject rather than silently inventing content.",
+      "specification_sources": [
+        {
+          "path": "specs/save.md",
+          "lines": "20",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/save.md#L20"
+        },
+        {
+          "path": "specs/items.md",
+          "lines": "49",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/items.md#L49"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/save.ts",
+          "lines": "86-93",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/save.ts#L86-L93",
+          "symbol": "parseInventory"
+        },
+        {
+          "path": "src/content/itemSettings.ts",
+          "lines": "14-17",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/content/itemSettings.ts#L14-L17",
+          "symbol": "itemCatalog"
+        }
+      ],
+      "tests": [
+        {
+          "name": "旧形式・負数・未知物品・装備の重複割当てを保存復元で拒否する",
+          "sources": [
+            {
+              "path": "src/game/inventoryIntegration.test.ts",
+              "lines": "172-222",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/inventoryIntegration.test.ts#L172-L222"
+            }
+          ],
+          "assertion": "Corrupt version4, balance-1, unknown home item quantity1, or w1 assigned to player and gilberta; deserialize accepted=false each."
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "Unknown home ID tested; nonempty importantIds not tested, nor test-only material/important IDs explicitly.",
+      "candidate_regression": "Accept any importantIds strings on restore; no current save rejection checks this field.",
+      "risk": "medium",
+      "proposed_change": "Corrupt a valid save with trial-important and trial-material; both invalid-data. Do not add fictional production acquisition just to create a roundtrip."
+    },
+    {
+      "id": "SAVEITEM-05",
+      "domain": "save-equipment-validation",
+      "requirement": "Saved physical ownership validates definition IDs, nonblank unique instances; assignments unique per joined character, correct slot, owned IDs and exclusive physical use.",
+      "specification_sources": [
+        {
+          "path": "specs/save.md",
+          "lines": "20",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/save.md#L20"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/equipmentSave.ts",
+          "lines": "10-56",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/equipmentSave.ts#L10-L56",
+          "symbol": "parseSavedEquipment"
+        },
+        {
+          "path": "src/game/save.ts",
+          "lines": "184",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/save.ts#L184",
+          "symbol": "joined assignment validation"
+        }
+      ],
+      "tests": [
+        {
+          "name": "旧形式・負数・未知物品・装備の重複割当てを保存復元で拒否する",
+          "sources": [
+            {
+              "path": "src/game/inventoryIntegration.test.ts",
+              "lines": "172-222",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/inventoryIntegration.test.ts#L172-L222"
+            }
+          ],
+          "assertion": "Corrupt version4, balance-1, unknown home item quantity1, or w1 assigned to player and gilberta; deserialize accepted=false each."
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "Only cross-character double assignment tested. All other promised corruption boundaries lack direct cases.",
+      "candidate_regression": "Allow duplicate owned instance IDs, unknown unused definition, wrong-slot armor, or assignment to unjoined gilberta.",
+      "risk": "high",
+      "proposed_change": "Public deserializeGame table for each field, plus valid two copies same definition to avoid over-rejection."
+    },
+    {
+      "id": "SAVEITEM-06",
+      "domain": "save-hp-validation",
+      "requirement": "HP ceiling on restore includes gear+saved growth then physical-fatigue multiplier; below-cap injured HP stays exact.",
+      "specification_sources": [
+        {
+          "path": "specs/save.md",
+          "lines": "20-22",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/save.md#L20-L22"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/save.ts",
+          "lines": "173-178",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/save.ts#L173-L178",
+          "symbol": "deserializeGame"
+        }
+      ],
+      "tests": [
+        {
+          "name": "共有実物は同時装備不可で、装着で回復せず、解除時はHP上限へ収める",
+          "sources": [
+            {
+              "path": "src/game/inventoryIntegration.test.ts",
+              "lines": "144-160",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/inventoryIntegration.test.ts#L144-L160"
+            }
+          ],
+          "assertion": "Armor equip retains HP20, grown maxHp24; second character same armor rejected, exploration edit rejected, spoof home during dungeon rejected; return HP24/owned length2; roundtrip then remove armor HP20; reassignment to gilberta accepted."
+        },
+        {
+          "name": "共有装備2組を2人へ割り当て、重複・HP増加回復を防いで保存する",
+          "sources": [
+            {
+              "path": "tests/e2e/campaign.spec.ts",
+              "lines": "296-333",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/campaign.spec.ts#L296-L333"
+            }
+          ],
+          "assertion": "Player w1/a1 displays HP20/24 attack9; gilberta w1 option disabled; w2/a2 displays HP18/22 attack7; save+reload armor1 and weapon2 selected; control stays in viewport at 320/390/1920. Screenshots not counted."
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "Equipped HP24 restored healthy case and ordinary injury displayed after save; combined gear/growth/fatigue validation boundary absent.",
+      "candidate_regression": "Apply armor after fatigue in save validation, allowing excess HP that runtime should reject.",
+      "risk": "high",
+      "proposed_change": "At nonzero gear+growth+fatigue accept exact independent cap, reject epsilon above, restore wounded HP unchanged."
+    },
+    {
+      "id": "SAVEITEM-07",
+      "domain": "save-format",
+      "requirement": "v5 item/equipment payload accepted; v4 refused with no migration or deletion.",
+      "specification_sources": [
+        {
+          "path": "specs/save.md",
+          "lines": "20-22",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/save.md#L20-L22"
+        },
+        {
+          "path": "docs/adr/0005-approved-item-settings.md",
+          "lines": "17-17",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/docs/adr/0005-approved-item-settings.md#L17-L17"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/game/save.ts",
+          "lines": "110-126",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/save.ts#L110-L126",
+          "symbol": "deserializeGame version gate"
+        }
+      ],
+      "tests": [
+        {
+          "name": "旧形式・負数・未知物品・装備の重複割当てを保存復元で拒否する",
+          "sources": [
+            {
+              "path": "src/game/inventoryIntegration.test.ts",
+              "lines": "172-222",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/game/inventoryIntegration.test.ts#L172-L222"
+            }
+          ],
+          "assertion": "Corrupt version4, balance-1, unknown home item quantity1, or w1 assigned to player and gilberta; deserialize accepted=false each."
+        }
+      ],
+      "coverage_status": "partial",
+      "audit_classification": "partial",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "v4 rejection asserted accepted=false here; exact unsupported-version and storage preservation are the saveSlot boundary tests.",
+      "candidate_regression": "Silently migrate an old itemless payload into fresh inventory would violate contract; audit saveSlot/legacy tests before declaring this mutation surviving.",
+      "risk": "high",
+      "proposed_change": "Keep one explicit v4 unsupported-version + unchanged stored bytes integration test; avoid duplicate old-version checks across files."
+    },
+    {
+      "id": "UIITEM-01",
+      "domain": "ui-bridge",
+      "requirement": "UI displays actual recovery before enemy events, disables inputs during animation, double-click/skip do not consume twice.",
+      "specification_sources": [
+        {
+          "path": "specs/items.md",
+          "lines": "57",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/specs/items.md#L57"
+        }
+      ],
+      "implementation_sources": [
+        {
+          "path": "src/web/battleUi.ts",
+          "lines": "625-750",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/web/battleUi.ts#L625-L750",
+          "symbol": "mountBattleUi"
+        },
+        {
+          "path": "src/web/battleSequence.ts",
+          "lines": "82-128",
+          "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/src/web/battleSequence.ts#L82-L128",
+          "symbol": "sequence playback"
+        }
+      ],
+      "tests": [
+        {
+          "name": "物品は確定回復を表示してから敵行動を再生し、勝敗演出や二重消費を起こさない",
+          "sources": [
+            {
+              "path": "tests/e2e/battle-ui.spec.ts",
+              "lines": "580-612",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/battle-ui.spec.ts#L580-L612"
+            }
+          ],
+          "assertion": "Double-click use gives commit1, UI HP10→18→14, item1 disabled during sequence then enabled/focused after skip, recovery8 text, mentalFatigue0, no defeat, commit count still1. Fixture manually bridges useBattleRecoveryItem→advanceBattleToNextAllyInput."
+        },
+        {
+          "name": "通常戦闘で持込み物品を一度だけ使い敵行動の後に入力へ戻る",
+          "sources": [
+            {
+              "path": "tests/e2e/campaign.spec.ts",
+              "lines": "387-420",
+              "url": "https://github.com/karin0624/endfield_rpg/blob/4866de71c2200781926f2bdb9611410822163ca5/tests/e2e/campaign.spec.ts#L387-L420"
+            }
+          ],
+          "assertion": "Preview+4, after use skill input enabled, result text HP4 recovered/mental fatigue unchanged, item count0 disabled, calendar still night. No asserted post-enemy HP or event damage."
+        }
+      ],
+      "coverage_status": "assertion-present",
+      "audit_classification": "covered",
+      "ci_status": "configured-for-ci-not-executed-in-audit",
+      "gap": "Numeric behavior and exactly-once commit assertions are valid UI contracts. Screenshot artifacts are excluded. Speed-change item-specific branch is not directly covered and remains UI-auditor follow-up.",
+      "candidate_regression": "No untested counterexample claimed for this row; covered is static assertion adequacy, not exhaustive mutation proof.",
+      "risk": "medium"
+    }
+  ]
+}
