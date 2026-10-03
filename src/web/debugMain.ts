@@ -195,6 +195,7 @@ if (!battleMode) {
     document.body.classList.add("dungeon-mode");
     const actionId = game.clock?.pendingAction?.id;
     disposeDungeon = mountDungeonUi(app, {
+      allowBasicAttack: true,
       initialState: game.dungeon,
       getGrowth: () => game.growth,
       chooseGrowth: (input) => {

@@ -20,6 +20,7 @@ async function winByAttacking(page: Page) {
   const victory = page.getByRole("heading", { name: "戦闘に勝利しました" });
   for (let turn = 0; turn < 12 && !(await victory.isVisible()); turn++) {
     await page.getByRole("button", { name: "通常攻撃" }).click();
+    await expect(page.locator("[data-battle-ui]")).toHaveAttribute("data-replaying", "false", { timeout: 60_000 });
   }
   await expect(victory).toBeVisible();
 }
@@ -151,7 +152,10 @@ test("全滅帰還でHP全回復し、街探索6回で戦闘不能から復帰�
   const attack = page.getByRole("button", { name: "通常攻撃" });
   await expect(attack).toBeEnabled({ timeout: 60_000 });
   const defeat = page.getByRole("heading", { name: "戦闘に敗北しました" });
-  for (let turn = 0; turn < 10 && !(await defeat.isVisible()); turn++) await attack.click();
+  for (let turn = 0; turn < 10 && !(await defeat.isVisible()); turn++) {
+    await attack.click();
+    await expect(page.locator("[data-battle-ui]")).toHaveAttribute("data-replaying", "false", { timeout: 60_000 });
+  }
   await expect(defeat).toBeVisible();
   await page.getByRole("button", { name: "戦闘を終えてルートへ戻る" }).click();
   await expect(page.locator("[data-calendar]")).toHaveText("1日目 · 夜");
@@ -500,7 +504,10 @@ test("初期症状の試験データから実操作で数値回復・全滅帰�
   const attack = page.getByRole("button", { name: "通常攻撃" });
   await expect(attack).toBeEnabled({ timeout: 60_000 });
   const defeat = page.getByRole("heading", { name: "戦闘に敗北しました" });
-  for (let turn = 0; turn < 12 && !(await defeat.isVisible()); turn++) await attack.click();
+  for (let turn = 0; turn < 12 && !(await defeat.isVisible()); turn++) {
+    await attack.click();
+    await expect(page.locator("[data-battle-ui]")).toHaveAttribute("data-replaying", "false", { timeout: 60_000 });
+  }
   await expect(defeat).toBeVisible();
   await page.getByRole("button", { name: "戦闘を終えてルートへ戻る" }).click();
   await page.getByRole("link", { name: "出撃編成を見る" }).click();
@@ -626,6 +633,7 @@ test("通常探索のスキル使用を次戦・帰還・保存読込・街回�
     await page.getByRole("button", { name, exact: true }).click();
     if (target) await page.getByRole("combobox", { name: "回復対象" }).selectOption(target);
     await page.getByRole("button", { name: "使用する", exact: true }).click();
+    await expect(page.locator("[data-battle-ui]")).toHaveAttribute("data-replaying", "false", { timeout: 60_000 });
     await expect(endsBattle ? page.getByRole("button", { name: "戦闘を終えてルートへ戻る" }) : skills).toBeEnabled();
   };
   await use("検証用攻撃");

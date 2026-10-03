@@ -5,12 +5,14 @@ export const createUiTestRenderer: DungeonBattleRendererFactory = (canvas) => ({
   beginBattle(combatants) {
     const hidden = new Set<string>();
     const enemies = combatants.filter(({ team }) => team === "enemy");
+    const allies = combatants.filter(({ team }) => team === "ally");
     const rect = (id: string) => {
-      const index = enemies.findIndex((enemy) => enemy.id === id);
+      const isAlly = allies.some((ally) => ally.id === id);
+      const index = (isAlly ? allies : enemies).findIndex((member) => member.id === id);
       if (index < 0) return undefined;
       const width = canvas.clientWidth;
       const height = canvas.clientHeight;
-      const left = width * (0.2 + index * 0.14);
+      const left = width * ((isAlly ? 0.65 : 0.2) + index * 0.14);
       const top = height * (0.55 + index * 0.1);
       return {
         left,

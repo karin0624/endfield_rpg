@@ -91,6 +91,7 @@ if (new URLSearchParams(location.search).has("demo")) {
   if (!game.dungeon) throw new Error("探索を開始できませんでした");
   document.body.classList.add("dungeon-mode");
   dispose = mountDungeonUi(app, {
+    allowBasicAttack: true,
     initialState: game.dungeon,
     getGrowth: () => game.growth,
     chooseGrowth(input) {
