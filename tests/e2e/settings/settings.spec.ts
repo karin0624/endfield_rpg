@@ -63,6 +63,9 @@ function fieldInput(page: Page, key: keyof typeof fields) {
 }
 
 async function editSettings(page: Page) {
+  // Batch real input while the render loop is paused, then await the final
+  // grounding result. Input events, draft storage and the final WebGL view stay real.
+  await page.clock.pauseAt(new Date("2026-10-03T12:01:00Z"));
   for (const [key, value] of Object.entries(changes)) {
     const input = fieldInput(page, key as keyof typeof fields);
     if (key === "groundScale") {
@@ -72,9 +75,12 @@ async function editSettings(page: Page) {
       await input.fill(String(value));
     }
   }
+  await page.clock.resume();
+  await expect(page.getByRole("button", { name: "標準として保存", exact: true })).toBeEnabled({ timeout: 60_000 });
 }
 
 test("構図設定の静止画を比較する", async ({ page }) => {
+  await page.clock.install({ time: new Date("2026-10-03T12:00:00Z") });
   await collectCoverage(page);
   await page.goto("/?debug=1&edit=1");
   await expect(page.getByRole("button", { name: "標準として保存", exact: true })).toBeEnabled({ timeout: 60_000 });
@@ -90,10 +96,13 @@ test("構図設定の静止画を比較する", async ({ page }) => {
 });
 
 test("構図を一時保存・標準保存し、通常表示に反映する", async ({ page }) => {
+  await page.clock.install({ time: new Date("2026-10-03T12:00:00Z") });
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await collectCoverage(page);
-  await page.goto("/?debug=1&edit=1");
+  // Draft, focus and export belong to the real editor's input/API boundary.
+  // After saving, the normal app and grounding checks below use real WebGL.
+  await page.goto("/tests/fixtures/battle-editor.html");
   const save = page.getByRole("button", { name: "標準として保存", exact: true });
   const editor = page.getByRole("complementary", { name: "構図設定" });
   const message = editor.getByRole("status");
@@ -275,7 +284,7 @@ test("構図の全20項目は数値とスライダーが双方向同期しJSON�
 });
 
 for (const kind of ["battle", "adventure"] as const) {
-  const query = kind === "battle" ? "edit" : "adventureEdit";
+  const editorPath = kind === "battle" ? "/tests/fixtures/battle-editor.html" : "/?debug=1&adventureEdit=1";
   const panelName = kind === "battle" ? "構図設定" : "会話画面の配置設定";
   const key = kind === "battle" ? "cameraY" : "leftX";
   const editedValue = kind === "battle" ? "8" : "31";
@@ -284,7 +293,7 @@ for (const kind of ["battle", "adventure"] as const) {
   test(`${kind}設定は保存の応答待ち・失敗・再試行を通じて編集値と最後の標準を保つ`, async ({ page }) => {
     await page.setViewportSize({ width: 640, height: 480 });
     await collectCoverage(page);
-    await page.goto(`/?debug=1&${query}=1`);
+    await page.goto(editorPath);
     const panel = page.getByRole("complementary", { name: panelName });
     const save = panel.getByRole("button", { name: "標準として保存", exact: true });
     const input = panel.locator(`input[type=number][data-key="${key}"]`);
@@ -343,7 +352,7 @@ for (const kind of ["battle", "adventure"] as const) {
       };
     }, draftKey);
     await collectCoverage(page);
-    await page.goto(`/?debug=1&${query}=1`);
+    await page.goto(editorPath);
     const panel = page.getByRole("complementary", { name: panelName });
     const save = panel.getByRole("button", { name: "標準として保存", exact: true });
     await expect(save).toBeEnabled({ timeout: 60_000 });
@@ -360,7 +369,7 @@ test("構図の壊れたdraftは理由を示し標準へ戻り、会話の無効
     localStorage.setItem("endfield.adventure-settings.draft.v1", "{broken");
   });
   await collectCoverage(page);
-  await page.goto("/?debug=1&edit=1");
+  await page.goto("/tests/fixtures/battle-editor.html");
   const battle = page.getByRole("complementary", { name: "構図設定" });
   await expect(battle.getByRole("status")).toContainText("読み取れなかった", { timeout: 60_000 });
   await expect(battle.getByRole("button", { name: "標準として保存", exact: true })).toBeEnabled({ timeout: 60_000 });

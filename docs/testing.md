@@ -12,6 +12,8 @@
 
 同じ保証は、必要な境界を通る最も低コストの層で担う。規則の全組合せをブラウザへ複製しない。VRTはブラウザテストに置く**視覚assertion**であり、操作やゲーム状態を一括で保証する独立層ではない。
 
+[GoogleのTesting Pyramid](https://testing.googleblog.com/2015/04/just-say-no-to-more-end-to-end-tests.html)と[Kent C. DoddsのTesting Trophy](https://kentcdodds.com/blog/the-testing-trophy-and-testing-classifications)を参考に、割合を合否目標とせず、保証に必要な境界と実測した費用からテストを選ぶ。
+
 ## 保証対象からテストを選ぶ
 
 層は使用する通信方式やファイルの置き場ではなく、保証する責務で分ける。必要な境界を実際に通し、同じ保証をより低コストで検証できる層を優先する。
@@ -61,7 +63,7 @@ Playwrightと実Babylon.js/WebGLを使う。実表示の比較にはVRTを使う
 | ロジックの結合と内部状態 | 保存APIに409の並行処理、413の上限入力、500の書込み失敗を実HTTPで渡し、応答と旧保存bytes保持をassert。mock呼出回数だけで保存成功としない |
 | 入力から画面・状態への接続 | campaignの親capture／bubbleを通す候補の押し直しで、各入力直後の選択状態をassert。dialogを閉じた後のfocus、ARIA、保存結果も実入力から確認 |
 | 入力から画面・状態への接続 | Playwright Clockで表示時刻を制御し、各着弾のHPと、速度・省略・退出後の実論理状態／RNGをassert |
-| 入力から画面・状態への接続 | 構図全controlの同期・draft・JSON出力は実エディターと描画代替を接続。重い地面計算を各入力で繰り返さない |
+| 入力から画面・状態への接続 | 構図全controlの同期・draft・保存の待機／失敗／再試行・JSON出力は実エディターと描画代替を接続。保存後の通常表示・実地面の範囲外拒否・構図VRTは実WebGLで確認 |
 | 入力・実表示 | 編成の選択／解除、押下／focus／disabled、狭幅、保存後の実会話をVRT比較。RGB／outline／CSS変数だけの比較を見た目の保証にしない |
 | 実描画と資源 | 実投影・素材・DPR・非rootのasset URL・cullingを確認。退出・pagehide・HMRでの資源解放、仕様化されたWebGL資源数／HTTP取得回数をassert |
 | 通常配布 | 通常buildの起動・入力・保存導線と、デバッグ機能・開発API・fixtureの混入禁止を確認 |
@@ -86,9 +88,17 @@ Node.jsは `.nvmrc` の24系を使う。ブラウザは固定した `mcr.microso
 
 待機は対象の完了条件を再試行付きassertionやイベントで待つ。準備完了と無関係なボタン、固定sleep、操作間のcooldownを同期条件にしない。表示時間はPlaywright Clockで制御し、実ネットワークの保留は解放可能なgateを使う。リサイズは最終ステージ寸法と札／マーカーの位置関係を同時に確認し、途中の寸法を成功にしない。画像不一致をsleep、許容差増加、無審査のbaseline更新で隠さない。
 
+[Playwright Clock](https://playwright.dev/docs/clock)はアプリがtimerやrAFを登録する前に導入する。`runFor`は途中の全timer・rAFを実行する。段階の到達とその状態が保証対象である場合に限り、非同期に連鎖する各段階の期限へ個別に`fastForward`できる。`fastForward`は期限を超えたtimer・rAFを各一回だけ発火し、連続描画の検証を代替しない。一括の大きなjumpでは後続timerの開始が遅れる。補間や連続描画を保証するケースは必要なフレームを実行し、固定段階VRTでは撮影時刻と最後の描画標本を保つ。構図入力の一括操作では編集中の時計を止め、再開後に実接地の完了と既存VRTを確認できる。いずれも、実入力・実ロジック・必要な実描画を通す責務を変えない。[画像比較](https://playwright.dev/docs/test-snapshots)の基準・許容差・固定環境を保ち、撮影資料の生成でVRT成功を代替しない。
+
 CIを直列実行して5分未満にすることを目指すが、超過だけをPR却下やtimeoutの理由にしない。品質を先に担保し、低コスト層への移動、重複除去、時計制御、明示実行の範囲を検討する。同じ保証で目標へ収まらない場合は、実測と残る保証をIssueへ示し、次の最適化で相談する。同じ仕様保証を欠く削除やassertionの弱化で時間を合わせない。実測と受入条件は [性能改善Issue #102](https://github.com/karin0624/endfield_rpg/issues/102) へ記録する。診断への引継ぎでは工程別・ケース別の時間とログを保全し、件数や構造の固定ではなく同じ仕様保証を実証できる再編を検討する。
 
 録画・承認画像とのoverlayは `playwright.evidence.config.ts` 等のレビュー資料であり、品質ケースのskipとして混ぜない。失敗時の画像・trace・JSON、coverageのHTML/LCOVをartifactへ保存する。基準画像の更新は差分理由と実画像をレビューし、自動生成したから正しいとは扱わない。
+
+### ローカルで検証してから提出する
+
+実装中は変更箇所の短いテストとtraceで失敗原因・費用を確かめる。コード変更の提出前は実装を終え、`npm run check`、変更に必要な全ローカルテスト、固定Dockerの全既定project・coverage・関連VRT・通常buildを完走し、独立レビューで指摘された点を修正する。代表数件の成功だけで全件確認をCIへ委ねない。修正が保証へ影響する場合は、必要なローカル検証を再実行する。文書だけの変更はリンク・内容・差分など、変更に必要な検査を行う。
+
+レビューと修正後の差分・実行結果・ログを揃えてから、変更をまとめてpushしPRする。CIの実行ごとに小修正を送る反復を通常の開発手順にしない。GitHub側の権限・required checksやActions固有のartifact処理など、ローカルでは確認できない条件だけを例外とし、理由と未確認内容をPRへ示してCIで確認する。依存・実素材・固定ブラウザを取得すれば実行できるテストは、この例外にしない。
 
 ## Coverageと差分レビュー
 

@@ -299,11 +299,11 @@ for (const real of [false, true]) {
   }, testInfo) => {
     await page.setViewportSize({ width: 1920, height: 1080 });
     await page.emulateMedia({ reducedMotion: "no-preference" });
+    await page.clock.install({ time: new Date("2026-10-03T12:00:00Z") });
     await page.goto(`/tests/fixtures/battle-sequence.html${real ? "?real=1" : ""}`);
     const skills = page.getByRole("button", { name: "スキル", exact: true });
     await expect(skills).toBeEnabled({ timeout: 60_000 });
-    await page.clock.install({ time: new Date("2026-10-03T12:00:00Z") });
-    await page.clock.pauseAt(new Date("2026-10-03T12:00:01Z"));
+    await page.clock.pauseAt(new Date("2026-10-03T12:01:00Z"));
     await skills.click();
     await page.getByRole("button", { name: "検証用攻撃", exact: true }).click();
     const partyBefore = await page.locator(".party").boundingBox();
@@ -313,19 +313,22 @@ for (const real of [false, true]) {
     await expect(page.locator(".sequence-actor")).toHaveText("検証用攻撃");
     await expect(page.locator("[data-enemy-hp]")).toHaveText("40 / 40");
     await page.screenshot({ path: testInfo.outputPath(`sequence-${real ? "real" : "ui"}-actor.png`) });
-    await page.clock.runFor(260);
+    // Each async phase schedules the next timer. Jump to its own deadline,
+    // keeping the same impact time without drawing every intervening WebGL frame.
+    await page.clock.fastForward(120);
+    await page.clock.fastForward(140);
     await expect(sequence).toHaveAttribute("data-phase", "impact");
     await expect(page.locator("[data-enemy-hp]")).toHaveText("24 / 40");
     await expect(page.locator(".sequence-number")).toBeVisible();
     await expect(page.locator(".sequence-number")).toHaveText("−16");
     await page.screenshot({ path: testInfo.outputPath(`sequence-${real ? "real" : "ui"}-impact.png`) });
-    await page.clock.runFor(80);
+    await page.clock.fastForward(80);
     await expect(page.locator(".sequence-number")).toBeVisible();
     await expect(page.locator(".sequence-number")).toHaveText("−16");
     expect(await page.locator(".party").boundingBox()).toEqual(partyBefore);
     await page.screenshot({ path: testInfo.outputPath(`sequence-${real ? "real" : "ui"}-result.png`) });
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.clock.runFor(64);
+    await page.clock.fastForward(64);
     await expect(page.locator(".sequence-number")).toBeVisible();
     const numberBox = await page.locator(".sequence-number").boundingBox();
     expect(numberBox?.x).toBeGreaterThanOrEqual(0);
@@ -353,6 +356,7 @@ for (const real of [false, true]) {
     await page.clock.resume();
     await page.getByRole("button", { name: "戦闘を開始" }).click();
     await expect(skills).toBeEnabled({ timeout: 60_000 });
+    // Drain every chained timer so a leaked old replay cannot hide behind a jump.
     await page.clock.runFor(3000);
     await expect(page.locator(".battle-sequence")).toBeHidden();
     await expect(page.locator("[data-enemy-hp]")).toHaveText("40 / 40");
@@ -401,17 +405,20 @@ for (const real of [false, true]) {
   }, testInfo) => {
     await page.setViewportSize({ width: 1920, height: 1080 });
     await page.emulateMedia({ reducedMotion: "no-preference" });
+    await page.clock.install({ time: new Date("2026-10-03T12:00:00Z") });
     await page.goto(`/tests/fixtures/battle-sequence.html?party=1${real ? "&real=1" : ""}`);
     const skills = page.getByRole("button", { name: "スキル", exact: true });
     await expect(skills).toBeEnabled({ timeout: 60_000 });
-    await page.clock.install({ time: new Date("2026-10-03T12:00:00Z") });
-    await page.clock.pauseAt(new Date("2026-10-03T12:00:01Z"));
+    await page.clock.pauseAt(new Date("2026-10-03T12:01:00Z"));
     async function heal(target: string) {
       await skills.click();
       await page.getByRole("button", { name: "検証用回復", exact: true }).click();
       await page.getByRole("combobox", { name: "回復対象" }).selectOption(target);
       await page.getByRole("button", { name: "使用する", exact: true }).click();
-      await page.clock.runFor(340);
+      // Keep all three deadlines: one large jump would defer chained phases.
+      await page.clock.fastForward(120);
+      await page.clock.fastForward(140);
+      await page.clock.fastForward(80);
     }
     const number = page.locator(".sequence-number");
     const partyBefore = await page.locator(".party").boundingBox();
@@ -426,7 +433,8 @@ for (const real of [false, true]) {
     const player = await number.boundingBox();
     expect(Math.abs((player?.x ?? 0) - (gilberta?.x ?? 0))).toBeGreaterThan(20);
     await page.screenshot({ path: testInfo.outputPath(`sequence-${real ? "real" : "ui"}-heal-player.png`) });
-    await page.clock.runFor(1200);
+    // Finish healing, cross the enemy pause, and reach the enemy's result.
+    for (const duration of [380, 120, 360, 120, 140, 80]) await page.clock.fastForward(duration);
     await expect(number).toHaveText("−4");
     const damage = await number.boundingBox();
     expect(
@@ -1212,16 +1220,20 @@ for (const effect of ["攻撃", "回復"] as const) {
     const frames =
       effect === "攻撃"
         ? ([
-            [60, "actor"],
-            [240, "impact"],
-            [140, "result"],
-            [460, "defeat"],
+            [[], 60, "actor"],
+            [[60, 140], 40, "impact"],
+            [[40, 92], 8, "result"],
+            [[280, 120, 56], 4, "defeat"],
           ] as const)
         : ([
-            [300, "heal-impact"],
-            [340, "heal-result"],
+            [[120, 140], 40, "heal-impact"],
+            [[40, 300], 0, "heal-result"],
           ] as const);
-    for (const [advance, state] of frames) {
+    for (const [jumps, advance, state] of frames) {
+      // Cross each chained phase deadline separately. Keep the original final
+      // rAF sample (result 432ms, defeat 896ms) and screenshot time (440/900ms).
+      // Intermediate WebGL frames are not assertions; these exact pixels are.
+      for (const duration of jumps) await page.clock.fastForward(duration);
       await page.clock.runFor(advance);
       // Playwright Clock controls the confirmed-event timeline; Web Animations
       // has a separate clock. Seek its visible CSS effects to the same authored frame.
