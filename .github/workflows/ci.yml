@@ -62,7 +62,6 @@ jobs:
           echo "head=$PR_HEAD" >> coverage/revision.txt
           echo "base=$PR_BASE" >> coverage/revision.txt
       - run: npm ci
-      - run: npm run build
       - name: Record unchanged baseline bytes for independent review
         run: |
           mkdir -p test-results
@@ -95,13 +94,14 @@ jobs:
         if: success() || failure()
       - name: Check all collected browser cases executed and passed
         if: success() || failure()
-        run: node scripts/check-test-execution.mjs playwright test-results/playwright-discovery.json test-results/playwright.json
+        run: node scripts/check-test-execution.mjs playwright test-results/playwright-discovery.json test-results/playwright.json coverage
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: playwright-results
+          name: playwright-results-and-coverage
           path: |
             test-results/playwright*.json
+            coverage/browser/
             coverage/revision.txt
             playwright-report/
           if-no-files-found: error
@@ -133,48 +133,4 @@ jobs:
             test-results/**/hp-onset-*.png
             test-results/**/*-readiness.json
           if-no-files-found: error
-          retention-days: 14
-
-  browser-coverage:
-    runs-on: ubuntu-latest
-    container:
-      image: mcr.microsoft.com/playwright:v1.63.0-noble
-      options: --ipc=host
-    steps:
-      - run: apt-get update && apt-get install -y git-lfs ffmpeg python3-pil
-      - uses: actions/checkout@v7
-        with:
-          lfs: true
-      - name: Trust checked-out workspace for container shell
-        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
-      - name: Record tested integration revision
-        env:
-          PR_HEAD: ${{ github.event.pull_request.head.sha }}
-          PR_BASE: ${{ github.event.pull_request.base.sha }}
-        run: |
-          mkdir -p coverage
-          git rev-parse HEAD > coverage/revision.txt
-          echo "head=$PR_HEAD" >> coverage/revision.txt
-          echo "base=$PR_BASE" >> coverage/revision.txt
-      - run: npm ci
-      - run: node scripts/check-assets.mjs
-      - run: npm run test:coverage:inside
-      - name: Check all analysis-run cases executed and passed
-        if: success() || failure()
-        run: node scripts/check-test-execution.mjs playwright test-results/playwright-coverage-discovery.json test-results/playwright-coverage.json coverage
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: browser-coverage-and-results
-          path: |
-            coverage/browser/
-            coverage/revision.txt
-            test-results/playwright-coverage*.json
-            playwright-report/coverage/
-          if-no-files-found: error
-      - uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: browser-coverage-failures
-          path: test-results/coverage/
           retention-days: 14

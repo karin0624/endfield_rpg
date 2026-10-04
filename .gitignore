@@ -6,6 +6,3 @@ test-results/
 playwright-report/
 
 dist-debug/
-
-dist-coverage/
-dist-debug-coverage/

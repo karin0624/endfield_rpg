@@ -9,7 +9,7 @@
 ## 仕様・実行照合とマージ前説明
 
 - [ ] 変更した受入条件と境界を具体的なテスト名・assertionへ対応付け、不足・未監査・矛盾を隠していない。
-- [ ] 最終headとbase SHAの組、verify/browser/browser-coverageの実行結果・coverage・全必須projectを確認した。部分実行や古いheadの成功で代用していない。
+- [ ] 最終headとbase SHAの組、verify/browserの実行結果・coverage・全必須projectを確認した。部分実行や古いheadの成功で代用していない。
 - [ ] 既存保証／今回追加／削除と代替／残る未検証を、具体例・assertion・担当技術の階層で説明した。
 - [ ] VRT基準の更新理由・画像レビュー・更新なしの比較結果を示した。目視をテストと呼んでいない。
 

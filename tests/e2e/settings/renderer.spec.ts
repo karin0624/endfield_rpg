@@ -238,7 +238,7 @@ test("非rootのBASE_URLでビルドした配布物から実素材を取得し�
     configFile: false,
     mode: "debug",
     base: "/nested/rpg/",
-    build: { outDir, ...(process.env.COVERAGE_BROWSER === "1" ? { sourcemap: "inline", minify: false } : {}) },
+    build: { outDir, ...(process.env.COVERAGE_BROWSER === "1" ? { sourcemap: "hidden" } : {}) },
     logLevel: "error",
   });
   // A real Vite base setting exercises emitted asset URLs; rewriting HTTP requests would hide the bug.

@@ -35,7 +35,11 @@ it("rejects filtered or list-only native CLI runs instead of reusing a previous 
     for (const project of projects)
       writeFileSync(
         join(root, `tests/e2e/${project}.spec.mjs`),
-        `import {test,expect} from '@playwright/test'; test('${project}',()=>expect(1+1).toBe(2));`,
+        `import {test,expect} from '@playwright/test'; test('${project}',({},info)=>{
+          expect(process.env.COVERAGE_BROWSER).toBe('1');
+          info.annotations.push({type:'browser-coverage',description:'runner-policy fixture'});
+          expect(1+1).toBe(2);
+        });`,
       );
     const complete = run();
     expect(complete.status, complete.stdout + complete.stderr).toBe(0);
@@ -53,6 +57,13 @@ it("rejects filtered or list-only native CLI runs instead of reusing a previous 
       results.map((result) => result.status),
       JSON.stringify(results),
     ).toEqual([1, 1]);
+    writeFileSync(
+      join(root, "tests/e2e/built.spec.mjs"),
+      "import {test,expect} from '@playwright/test'; test('built',()=>expect(1+1).toBe(2));",
+    );
+    const missingCoverage = run();
+    expect(missingCoverage.status, missingCoverage.stdout + missingCoverage.stderr).toBe(1);
+    expect(missingCoverage.stderr).toContain("Missing per-case browser coverage collection");
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

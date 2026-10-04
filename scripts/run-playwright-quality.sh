@@ -3,8 +3,7 @@ set -eu
 
 mode=${1:-}
 case "$mode" in
-  e2e) report=playwright; gate_mode= ;;
-  coverage) report=playwright-coverage; gate_mode=coverage; export COVERAGE_BROWSER=1 ;;
+  e2e|coverage) report=playwright; gate_mode=coverage; export COVERAGE_BROWSER=1 ;;
   long) report=playwright-long; gate_mode=long ;;
   *) echo "Usage: $0 {e2e|coverage|long} [Playwright options]" >&2; exit 2 ;;
 esac

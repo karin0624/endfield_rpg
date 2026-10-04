@@ -17,7 +17,7 @@
 | [specs/adventure.md](specs/adventure.md) | 街・会話のゲーム状態、入力、条件、型付き会話データ |
 | [specs/battle.md](specs/battle.md) | タイムライン戦闘、通常攻撃、勝敗の状態・操作・受入例 |
 | [specs/visuals.md](specs/visuals.md) | 戦闘画面の配置・構図設定・描画 |
-| [specs/design-guidelines.md](specs/design-guidelines.md) | UIの配色、部品、操作状態、マーカー |
+| [docs/design-guidelines.md](docs/design-guidelines.md) | UIの配色、部品、操作状態、マーカーの設計指針 |
 | [docs/ui-asset-production.md](docs/ui-asset-production.md) | UI完成画像の承認・再承認・pixel diff・PR審査と画像制作の手順 |
 | [docs/testing.md](docs/testing.md) | Nodeテスト、ブラウザE2E、VRTの責務と実行環境 |
 | [docs/documentation.md](docs/documentation.md) | 文書の役割、仕様とADRの書き分け、更新規則 |
@@ -27,6 +27,7 @@
 | [全体ロードマップ（Issue #1）](https://github.com/karin0624/endfield_rpg/issues/1) | GitHub上の進捗の入口 |
 
 現在のゲーム仕様の正本は`specs/`、判断の経緯は`docs/adr/`、計画とテスト方針は`docs/`、Issueは変更単位と受入条件、`AGENTS.md`は作業規約とする。
+`docs/design-guidelines.md`は設計指針であり、配置だけで実装仕様・必須テスト・マージ条件に昇格させない。
 
 ## 必要な環境
 
@@ -54,10 +55,10 @@ npm ci
 | `npm run check` | Biome、TypeScriptの型チェック、Node環境のVitestを1回実行する |
 | `npm run build:debug` | 明示デバッグ版を`dist-debug/`へ生成する。通常配布には使わない |
 | `npm run build` | 型チェック後に配布用ファイルを`dist/`へ生成する |
-| `npm run test:e2e` | 固定コンテナで配布画面の描画・接続と、描画だけを代替した戦闘UIの実入力を確認する |
+| `npm run test:e2e` | 固定コンテナで全ブラウザprojectの描画・接続・実入力・VRTを確認し、同じ実行のproject別coverageを生成する |
 | `npm run test:ui` | 固定コンテナで本番UI・実コアの戦闘操作と複数画面寸法を確認する。地形を描画せず、配布ビルドを必要としない |
 | `npm run test:editor` | 固定コンテナで構図設定のVRT・保存操作・描画資源を単独で確認する |
-| `npm run test:coverage` | 既定の全ブラウザprojectを解析buildで実行し、project別coverageを生成する |
+| `npm run test:coverage` | `test:e2e`と同じ全件実行・project別coverage生成（別名） |
 | `npm run test:long` | 長い通常campaign経路と10状態VRTを明示実行する。通常PR CIには含めない |
 
 `lint`と`check`はwatchモードを使わず、結果を終了コードで返す。Biomeの設定は[`biome.json`](biome.json)。`npm run format`はリポジトリ全体を書き換えるため、変更ファイルだけ整えるときは`npx biome check --write path/to/file`を使う。Codexは[`AGENTS.md`](AGENTS.md)の指示に従い、コード変更後に`npm run check`を実行する。ゲーム本体のテストにはブラウザ、DOM、Babylon.js、WebGLを必要としない。

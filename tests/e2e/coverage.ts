@@ -6,6 +6,7 @@ export { expect } from "@playwright/test";
 const enabled = process.env.COVERAGE_BROWSER === "1";
 const collectors = new WeakMap<Page, () => Promise<void>>();
 const createdContexts = new WeakMap<Browser, BrowserContext[]>();
+const buildSourceMaps = new Map<string, { sources: string[] }>();
 
 /** Collect immediately before a reload or a second document navigation. V8 can discard old document hits. */
 export async function collectCoverage(page: Page) {
@@ -88,13 +89,34 @@ export const test = base.extend<{ _coverageBoundary: undefined }>({
         if (/\/preload-helper-[^/]+\.js$/.test(path)) continue;
         const inline = entry.source?.match(/sourceMappingURL=data:application\/json[^,]*;base64,([^\s]+)/);
         // Vite also emits import/re-export-only facades; their implementation is in the mapped target chunk.
-        const facade = /^import \{[\w$ ,]+\} from "\.\/[^"\n]+\.js";\s*export \{[\w$ ,]+\};\s*$/.test(
+        const facade = /^import\s*\{[\w$ ,]+\}\s*from\s*"\.\/[^"\n]+\.js";\s*export\s*\{[\w$ ,]+\};?\s*$/.test(
           entry.source ?? "",
         );
-        if (!inline && facade) continue;
-        if (!inline) throw new Error(`Missing inline source map: ${entry.url}`);
-        const sourceMap = JSON.parse(Buffer.from(inline[1], "base64").toString("utf8"));
-        if (!Array.isArray(sourceMap.sources)) throw new Error(`Invalid source map: ${entry.url}`);
+        let sourceMap: { sources: string[] } | undefined;
+        if (inline) sourceMap = JSON.parse(Buffer.from(inline[1], "base64").toString("utf8"));
+        else {
+          // Hidden build maps live beside each emitted chunk, including non-root/independent builds.
+          const mapURL = new URL(entry.url);
+          mapURL.pathname += ".map";
+          mapURL.search = "";
+          sourceMap = buildSourceMaps.get(mapURL.href);
+          if (!sourceMap) {
+            const response = await page.request.get(mapURL.href);
+            if (!response.ok()) {
+              if (facade) continue;
+              throw new Error(`Missing browser source map: ${mapURL.href} (${response.status()})`);
+            }
+            try {
+              sourceMap = await response.json();
+            } catch (cause) {
+              if (facade) continue;
+              throw new Error(`Invalid browser source map: ${mapURL.href}`, { cause });
+            }
+            if (!Array.isArray(sourceMap?.sources)) throw new Error(`Invalid source map: ${entry.url}`);
+            buildSourceMaps.set(mapURL.href, sourceMap);
+          }
+        }
+        if (!sourceMap || !Array.isArray(sourceMap.sources)) throw new Error(`Invalid source map: ${entry.url}`);
         if (path.includes("/src/") || sourceMap.sources.some((source: string) => /(?:^|\/)src\//.test(source))) {
           mapped.push({ ...entry, sourceMap });
         }

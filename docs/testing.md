@@ -4,6 +4,8 @@
 
 実装済みの仕様はすべてテストする。仕様の正本は `specs/`、公開の入力・前提・独立した期待結果はテストコードに置く。仕様やassertionを巨大な別台帳へ転記しない。目視確認は開発中のデバッグ・デザインレビューであり、テストではない。撮影・録画・overlayの生成も、自動VRTの成功とは区別する。
 
+`docs/design-guidelines.md` は設計指針であり、`specs/`への配置だけで実装仕様・必須テスト・マージ条件に昇格させない。外観回帰の期待結果は承認された画面仕様とVRT基準に基づく。
+
 型検査、coverage率、似た名前のテスト、成功件数だけでは仕様の充足を証明できない。受入条件に対して、何を入力し、どの結果をどこでassertするかをレビューする。未対応・未監査・仕様矛盾・将来未実装を区別し、実装に合わせて期待を狭めたり、テストの不足を目視で埋め合わせたりしない。
 
 同じ保証は、必要な境界を通る最も低コストの層で担う。規則の全組合せをブラウザへ複製しない。VRTはブラウザテストに置く**視覚assertion**であり、操作やゲーム状態を一括で保証する独立層ではない。
@@ -71,9 +73,9 @@ Node.jsは `.nvmrc` の24系を使う。ブラウザは固定した `mcr.microso
 | コマンド | 担当 |
 | --- | --- |
 | `npm run check` | Biome・型・Vitest・V8 coverage・発見／実行結果照合。ブラウザなし |
-| `npm run test:e2e` | 既定の `built`・`debug`・`ui`・`settings` 全project |
+| `npm run test:e2e` | 既定の `built`・`debug`・`ui`・`settings` 全projectを一回実行し、合否・VRT・native V8 coverageを確認 |
 | `npm run test:ui` / `npm run test:editor` | 変更箇所の短い確認。全projectの最終チェックは代替しない |
-| `npm run test:coverage` | 同じ既定ケースをsourcemap付き解析buildで再実行し、project別のnative V8レポートを生成 |
+| `npm run test:coverage` | `test:e2e`と同じ全件実行・coverage生成の別名。CIでは二重実行しない |
 | `npm run test:long` | 明示実行する長い通常campaign経路と10状態VRT |
 
 長いタイトル→導入→街→編成→戦闘→帰還→保存再開と10状態VRTは `tests/long/campaign.spec.ts` に内容と基準bytesを保持し、明示実行する。削除・skipはしない。短い通常配布・入力・VRT境界、renderer/HMR/settingsは既定CIに残す。
@@ -90,9 +92,9 @@ CIを直列実行して5分未満にすることを目指すが、超過だけ�
 
 Vitest 5の標準 `@vitest/coverage-v8` で `src/**/*.ts` と `scripts/*.{ts,mjs}` をincludeし、未読込ファイルも分母へ含める。`coverage/unit/` を責務に照らして確認する。率を上げるだけのテストは追加しない。
 
-ブラウザはPlaywright native V8とMonocartを使い、自前のsrc TSをsourcemapで正規化する。全srcの未読込も含め、vendor・テスト・CSSを混ぜない。`coverage/browser/{built,debug,ui,settings}/` はprojectごとの実行由来のレポートであり、同じ分母を平均・合算したり、unit率と統合したりしない。解析buildは通常配布と別に生成し、通常buildの短い境界も実行する。
+ブラウザはPlaywright native V8とMonocartを使い、自前のsrc TSをsourcemapで正規化する。全srcの未読込も含め、vendor・テスト・CSSを混ぜない。`coverage/browser/{built,debug,ui,settings}/` はprojectごとの実行由来のレポートであり、同じ分母を平均・合算したり、unit率と統合したりしない。通常配布と同じminification・tree shakingのbuildを`dist/`・`dist-debug/`へ一度生成し、hidden sourcemapだけを付加する。共有fixtureが実行中のV8データへ隣接する外部mapを渡す。fixture／エディターのdevソースはViteのinline mapを使う。専用の非minify解析buildは作らない。配布・操作・VRTの合否とcoverageは同じ実行から得る。全srcの未読込ファイルは分母から除外しない。minification後のV8データを再mappingするため、counterや率は旧非minify解析buildと同じになるとは限らない。旧レポートとの率の単純比較を品質の判定に使わない。
 
-CIはgit上の品質テストファイル、runnerの `--list`、実JSON結果を照合し、空／未発見ファイル、重複名、未実行、skip/todo/only、失敗・retry・期待失敗を拒否する。Vitestの標準Reporter APIで個別retryと期待失敗も確認する。ブラウザ解析は共有fixtureを必須にし、追加context/pageや遷移前回収漏れ、ケースごとの収集欠落を拒否する。手書きの仕様ID・テストID台帳や独自runnerは増やさない。
+CIはgit上の品質テストファイル、runnerの `--list`、実JSON結果を照合し、空／未発見ファイル、重複名、未実行、skip/todo/only、失敗・retry・期待失敗を拒否する。Vitestの標準Reporter APIで個別retryと期待失敗も確認する。全件ブラウザ実行は共有fixtureを必須にし、追加context/pageや遷移前回収漏れ、map欠落・不正、ケースごとの収集欠落を拒否する。手書きの仕様ID・テストID台帳や独自runnerは増やさない。
 
 自動検査は登録漏れや未実行を検出するが、assertionの意味や自然言語仕様の完全性は証明しない。PRでは次を確認する。
 

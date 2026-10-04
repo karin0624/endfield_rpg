@@ -11,7 +11,7 @@ const uiOnly = process.env.PLAYWRIGHT_UI === "1";
 
 export default defineConfig({
   testDir: "./tests/e2e",
-  outputDir: coverage ? "test-results/coverage" : "test-results/browser",
+  outputDir: "test-results/browser",
   globalSetup: coverage ? "./scripts/browser-coverage-setup.mjs" : undefined,
   globalTeardown: coverage ? "./scripts/browser-coverage-teardown.mjs" : undefined,
   forbidOnly: true,
@@ -20,8 +20,8 @@ export default defineConfig({
   updateSnapshots: "none",
   reporter: [
     ["list"],
-    ["html", { open: "never", outputFolder: coverage ? "playwright-report/coverage" : "playwright-report" }],
-    ["json", { outputFile: coverage ? "test-results/playwright-coverage.json" : "test-results/playwright.json" }],
+    ["html", { open: "never", outputFolder: "playwright-report" }],
+    ["json", { outputFile: "test-results/playwright.json" }],
   ],
   timeout: 120_000,
   workers: 1,
@@ -67,11 +67,11 @@ export default defineConfig({
         ]
       : [
           {
-            command: `npx vite preview --outDir ${coverage ? "dist-debug-coverage" : "dist-debug"} --host 127.0.0.1 --port 4175 --strictPort`,
+            command: "npx vite preview --outDir dist-debug --host 127.0.0.1 --port 4175 --strictPort",
             wait: { stdout: /Local:\s+http:\/\/127\.0\.0\.1:4175\// },
           },
           {
-            command: `npx vite preview --outDir ${coverage ? "dist-coverage" : "dist"} --host 127.0.0.1 --port 4173 --strictPort`,
+            command: "npx vite preview --outDir dist --host 127.0.0.1 --port 4173 --strictPort",
             wait: { stdout: /Local:\s+http:\/\/127\.0\.0\.1:4173\// },
           },
           {
