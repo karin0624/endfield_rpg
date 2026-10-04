@@ -11,8 +11,8 @@
     import { mountGrowthChoice } from "/src/web/growthChoiceUi.ts";
     import "/src/web/style.css";
 
-    const initial = createExplorationSkills("acceptance", 3, growthRules.progression, skillCatalog);
-    const reward = grantSkillExperience(initial, "acceptance", { id: "fixture", allocations: [{ characterId: "player", experience: 10 }] }, growthRules.progression, skillCatalog);
+    const initial = createExplorationSkills(3, growthRules.progression, skillCatalog);
+    const reward = grantSkillExperience(initial,{ allocations: [{ characterId: "player", experience: 10 }] }, growthRules.progression, skillCatalog);
     if (!reward.accepted) throw new Error(reward.reason);
     mountGrowthChoice(document.querySelector("#choice"), reward.state, skillCatalog, { player: "ロッシ" }, input => {
       const result = chooseSkill(reward.state, input, skillCatalog);

@@ -73,7 +73,7 @@ export function validateContent(content: ContentDefinitions): void {
     if (!profile || profile.initialSkillIds === null) throw new Error(`初期スキル定義が未接続です: ${id}`);
   }
   // progression・初期習得・保証解禁レベルの整合も公開の生成APIで検証する。
-  createExplorationSkills("content-validation", 1, growth.progression, skills);
+  createExplorationSkills(1, growth.progression, skills);
   for (const key of ["battleExperience", "eventExperience", "townExperience"] as const) {
     if (!Number.isSafeInteger(growth[key]) || growth[key] < 0)
       throw new Error(`経験値報酬は安全な非負整数です: ${key}=${growth[key]}`);

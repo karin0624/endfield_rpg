@@ -10,6 +10,8 @@ export default mergeConfig(
     input: {
       campaign: resolve(import.meta.dirname, "tests/fixtures/campaign-view.html"),
       adventure: resolve(import.meta.dirname, "tests/fixtures/adventure-view.html"),
+      battle: resolve(import.meta.dirname, "tests/fixtures/battle-view.html"),
+      dungeon: resolve(import.meta.dirname, "tests/fixtures/dungeon-view.html"),
       partyApproved: resolve(import.meta.dirname, "tests/fixtures/party-approved.html"),
       partySelection: resolve(import.meta.dirname, "tests/fixtures/party-selection.html"),
     },

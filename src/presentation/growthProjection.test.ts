@@ -12,11 +12,10 @@ import { reduceGrowthPresentation } from "./growthModel";
 import { projectGrowthChoice } from "./growthProjection";
 
 function reward(catalog: SkillCatalog = skillCatalog, experience = 10): ExplorationSkills {
-  const state = createExplorationSkills("growth-display", 1, growthRules.progression, catalog);
+  const state = createExplorationSkills(1, growthRules.progression, catalog);
   const result = grantSkillExperience(
     state,
-    "growth-display",
-    { id: "completed-event", allocations: [{ characterId: "player", experience }] },
+    { allocations: [{ characterId: "player", experience }] },
     growthRules.progression,
     catalog,
   );

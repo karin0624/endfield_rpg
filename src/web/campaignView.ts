@@ -55,7 +55,7 @@ export function createCampaignView(root: HTMLDivElement, send: (event: CampaignE
         clear();
         return;
       }
-      // Dungeon's native ownership/presentation is migrated next; its existing view currently occupies this root.
+      // The parent adapter owns Dungeon's native renderer; this view releases the preceding screen first.
       if (frame.kind === "dungeon") {
         if (mode !== "dungeon") {
           clear();

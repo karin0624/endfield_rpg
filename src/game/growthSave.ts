@@ -22,22 +22,18 @@ export function parseSavedGrowth(
     randomState > 0xffffffff ||
     !rules.growth ||
     !record(value) ||
-    !keys(value, ["explorationId", "closed", "growth", "characters", "choice", "randomState"]) ||
-    typeof value.explorationId !== "string" ||
-    !/^(growth|expedition):[1-9]\d*$/.test(value.explorationId) ||
+    !keys(value, ["townExperienceClaimed", "closed", "growth", "characters", "choice", "randomState"]) ||
+    typeof value.townExperienceClaimed !== "boolean" ||
     typeof value.closed !== "boolean" ||
     value.choice !== null ||
     value.randomState !== randomState
   )
     return;
-  const initial = createExplorationSkills(value.explorationId, randomState, rules.growth.progression, rules.catalog);
+  const initial = createExplorationSkills(randomState, rules.growth.progression, rules.catalog);
   if (
     !record(value.growth) ||
-    !keys(value.growth, ["characters", "appliedRewardIds"]) ||
+    !keys(value.growth, ["characters"]) ||
     !Array.isArray(value.growth.characters) ||
-    !Array.isArray(value.growth.appliedRewardIds) ||
-    !value.growth.appliedRewardIds.every((id) => typeof id === "string" && id.trim()) ||
-    new Set(value.growth.appliedRewardIds).size !== value.growth.appliedRewardIds.length ||
     !Array.isArray(value.characters) ||
     value.characters.length !== initial.characters.length ||
     value.growth.characters.length !== initial.characters.length
@@ -156,9 +152,9 @@ export function parseSavedGrowth(
     characters.push({ characterId: base.characterId, learned });
   }
   return {
-    explorationId: value.explorationId,
+    townExperienceClaimed: value.townExperienceClaimed,
     closed: value.closed,
-    growth: { characters: growth, appliedRewardIds: [...value.growth.appliedRewardIds] },
+    growth: { characters: growth },
     characters,
     choice: null,
     randomState,

@@ -171,9 +171,6 @@ describe("街のセーブ", () => {
       v.party.members[0].status.incapacityRecoverySteps = 0;
     },
     (v: SavePayload) => {
-      v.clock.elapsedHalfDays = 1;
-    },
-    (v: SavePayload) => {
       v.clock.recoverySteps = 1;
     },
     (v: SavePayload) => {
@@ -228,10 +225,7 @@ describe("保存JSONの公開境界", () => {
     ["整数でない生活時計", "clock.elapsedHalfDays", 0.5],
     ["安全整数外の生活時計", "clock.elapsedHalfDays", Number.MAX_SAFE_INTEGER],
     ["負の療養回数", "clock.recoverySteps", -1],
-    ["行動IDのゼロ", "clock.nextActionId", 0],
-    ["生活時計と行動IDの矛盾", "clock.nextActionId", 2],
-    ["負の物品版", "inventory.items.version", -1],
-    ["端数の物品版", "inventory.items.version", 0.5],
+    ["生活時計を超える療養回数", "clock.recoverySteps", 1],
     ["端数の所持金", "inventory.balance", 0.5],
     ["探索バッグの残存", "inventory.items.exploration", {}],
     ["未定義の重要品", "inventory.items.importantIds", ["unknown-important"]],
@@ -260,13 +254,13 @@ describe("保存JSONの公開境界", () => {
         ],
         slots: ["player", null, null, null],
       },
-      clock: { elapsedHalfDays: 0, recoverySteps: 0, nextActionId: 1 },
+      clock: { elapsedHalfDays: 0, recoverySteps: 0 },
       randomState: 1,
       growth: null,
       inventory: {
         balance: 0,
         equipment: { owned: [], assignments: [] },
-        items: { version: 0, home: [], importantIds: [], exploration: null },
+        items: { home: [], importantIds: [], exploration: null },
       },
     };
     expect(deserializeGame(JSON.stringify(source), definitions)).toMatchObject({ accepted: true });
@@ -274,11 +268,11 @@ describe("保存JSONの公開境界", () => {
       [[], ["version", "adventure", "party", "clock", "randomState", "growth", "inventory"]],
       [["adventure"], ["currentPlaceId", "flags"]],
       [["party"], ["members", "slots"]],
-      [["clock"], ["elapsedHalfDays", "recoverySteps", "nextActionId"]],
+      [["clock"], ["elapsedHalfDays", "recoverySteps"]],
       [["inventory"], ["balance", "equipment", "items"]],
       [
         ["inventory", "items"],
-        ["version", "home", "importantIds", "exploration"],
+        ["home", "importantIds", "exploration"],
       ],
       [
         ["party", "members", "0"],
@@ -315,7 +309,7 @@ describe("保存JSONの公開境界", () => {
     const game = { ...initial(), randomState };
     const loaded = restored(game);
     expect(loaded.randomState).toBe(randomState);
-    expect(loaded.clock).toMatchObject({ elapsedHalfDays: 0, recoverySteps: 0, nextActionId: 1, pendingAction: null });
+    expect(loaded.clock).toMatchObject({ elapsedHalfDays: 0, recoverySteps: 0, pendingAction: null });
     expect(loaded.party.members[0].hp).toBe(20);
   });
 });
@@ -337,15 +331,15 @@ it("負傷・症状・非ゼロ時計を編成と実保存読込で回復させ�
   if (!again.clock) throw new Error("clock missing");
   expect(getCalendar(again.clock)).toEqual({ day: 1, period: "night" });
   expect(again.party.members[0]).toMatchObject({ hp: 3.25, mentalFatigue: 4.5, status: { haze: 20 } });
-  expect(again.clock).toMatchObject({ elapsedHalfDays: 1, recoverySteps: 1, nextActionId: 2 });
+  expect(again.clock).toMatchObject({ elapsedHalfDays: 1, recoverySteps: 1 });
   expect(again.randomState).toBe(1);
 });
 it("スカラーや配列JSONを保存として受理しない", () => {
   for (const bytes of ["null", "[]", "true", "1", '"save"'])
     expect(deserializeGame(bytes, definitions)).toEqual({ accepted: false, reason: "invalid-data" });
 });
-it("時計・療養残りの型と安全整数上限、既処理通知の遅れを拒否する", () => {
-  for (const field of ["elapsedHalfDays", "recoverySteps", "nextActionId"]) {
+it("時計・療養残りの型と安全整数上限を拒否する", () => {
+  for (const field of ["elapsedHalfDays", "recoverySteps"]) {
     for (const value of [-1, 0.5, Number.MAX_SAFE_INTEGER, "1"]) {
       const payload = JSON.parse(encoded(initial()));
       payload.clock[field] = value;

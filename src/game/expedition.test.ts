@@ -254,8 +254,7 @@ describe("仲間と出撃編成", () => {
     for (let step = 1; step <= 6; step++) {
       const started = beginTownExploration(state, "market", initialAdventure);
       if (!started.accepted) throw new Error(started.reason);
-      const id = started.state.clock?.pendingAction?.id;
-      if (id === undefined) throw new Error("街探索IDがありません");
+
       const completed = actInTown(started.state, { type: "advance" }, companions, initialAdventure);
       if (!completed.accepted) throw new Error(completed.reason);
       state = completed.state;

@@ -22,12 +22,7 @@ export function ensureGrowth(game: ExpeditionGame, rules: BattleSkillRules): Exp
   if (!rules.growth || (game.growth && !game.growth.closed)) return game;
   return {
     ...game,
-    growth: createExplorationSkills(
-      `growth:${game.clock?.nextActionId ?? 1}`,
-      game.randomState ?? 1,
-      rules.growth.progression,
-      rules.catalog,
-    ),
+    growth: createExplorationSkills(game.randomState ?? 1, rules.growth.progression, rules.catalog),
   };
 }
 export function growthStats(id: string, state: ExplorationSkills | undefined, rules: BattleSkillRules) {
@@ -105,7 +100,6 @@ export function rewardGrowth(game: ExpeditionGame, reward: ExperienceReward, rul
   if (!ready.growth || !rules.growth) return { accepted: false, state: game, reason: "growth-unavailable" } as const;
   const result = grantSkillExperience(
     { ...ready.growth, randomState: ready.randomState ?? 1 },
-    ready.growth.explorationId,
     reward,
     rules.growth.progression,
     rules.catalog,
@@ -113,11 +107,10 @@ export function rewardGrowth(game: ExpeditionGame, reward: ExperienceReward, rul
   if (!result.accepted) return { ...result, state: game };
   return {
     accepted: true,
-    state: projectGrowth(
-      { ...ready, growth: result.state, randomState: result.state.randomState },
-      ready.growth,
-      rules,
-    ),
+    state: {
+      ...projectGrowth({ ...ready, growth: result.state, randomState: result.state.randomState }, ready.growth, rules),
+      growth: result.state,
+    },
   } as const;
 }
 export function chooseGrowthSkill(game: ExpeditionGame, skillId: string, rules: BattleSkillRules) {

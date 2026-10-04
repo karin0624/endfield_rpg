@@ -44,7 +44,7 @@ describe("読み取り専用の詳細表示", () => {
     expect(characterLearning("missing", context)).toEqual({ level: undefined, learned: undefined });
   });
   it("現在のレベルと習得を読み、空の習得や欠落を初期値で埋めず、正本を変えない", () => {
-    const growth = createExplorationSkills("display", 731, growthRules.progression, skillCatalog);
+    const growth = createExplorationSkills(731, growthRules.progression, skillCatalog);
     const current = {
       ...growth,
       growth: { ...growth.growth, characters: growth.growth.characters.map((entry) => ({ ...entry, level: 4 })) },

@@ -28,7 +28,6 @@ export const returnedCampaign = {
     dungeon: null,
     inventory: {
       items: {
-        version: 4,
         home: [],
         importantIds: [],
         exploration: null,
@@ -59,12 +58,12 @@ export const returnedCampaign = {
     clock: {
       elapsedHalfDays: 2,
       recoverySteps: 1,
-      nextActionId: 3,
+
       pendingAction: null,
     },
     randomState: 2388811721,
     growth: {
-      explorationId: "expedition:2",
+      townExperienceClaimed: true,
       closed: true,
       growth: {
         characters: [
@@ -89,7 +88,6 @@ export const returnedCampaign = {
             pendingChoiceLevels: [],
           },
         ],
-        appliedRewardIds: ["town-exploration", "expedition:2:conversation-b"],
       },
       characters: [
         {
@@ -132,7 +130,6 @@ export const returnedCampaign = {
     },
   },
   completion: {
-    id: 2,
     kind: "dungeon-expedition",
     calendarHalfDays: 1,
     recoverySteps: 0,

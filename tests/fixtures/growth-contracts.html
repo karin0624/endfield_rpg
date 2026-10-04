@@ -23,8 +23,8 @@
       pools:[{id:"pool",candidates:{normal:["known","new","other"],advanced:["advanced-known","advanced-new","advanced-other"],ultimate:["ultimate-known","ultimate-new","ultimate-other"]}}],
       characters:ids.map(characterId=>({characterId,poolId:"pool",initialSkillIds:shortage?["known","other"]:["known"],guaranteedUnlocks:[{level:2,skillId:"guaranteed"}]})),
     };
-    const initial = createExplorationSkills("ui-contract", 1, progression, catalog);
-    const result = grantSkillExperience(initial,"ui-contract",{id:"reward",allocations:ids.map(characterId=>({characterId,experience:10}))},progression,catalog);
+    const initial = createExplorationSkills(1, progression, catalog);
+    const result = grantSkillExperience(initial,{allocations:ids.map(characterId=>({characterId,experience:10}))},progression,catalog);
     if(!result.accepted) throw new Error(result.reason);
     let state=result.state, commits=0, dispose=()=>{};
     function render(){

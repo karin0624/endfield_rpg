@@ -30,7 +30,6 @@ export function purchaseItem(
     accepted: true as const,
     items: {
       ...items,
-      version: items.version + 1,
       exploration: {
         ...exploration,
         bag: [

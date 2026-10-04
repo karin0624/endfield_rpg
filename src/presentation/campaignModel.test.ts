@@ -154,18 +154,18 @@ describe("本編の現在画面とゲーム状態", () => {
       carryQuantity: 0,
       game: { dungeon: { currentNodeId: "entrance", outcome: "ongoing" }, clock: { elapsedHalfDays: 0 } },
     });
-    const moved = reduceCampaign(state, { type: "dungeon", command: { type: "enter", nodeId: "missing" } });
+    const moved = reduceCampaign(state, { type: "dungeon", event: { type: "enter", nodeId: "missing" } });
     expect(moved.dungeonResult?.accepted).toBe(false);
     expect(moved.state.game).toEqual(state.game);
-    state = send(state, { type: "return-home" });
+    state = send(state, { type: "dungeon", event: { type: "return" } });
     expect(state).toMatchObject({
       screen: { kind: "home" },
       game: { dungeon: null, clock: { elapsedHalfDays: 1, recoverySteps: 0 } },
     });
-    expect(reduceCampaign(state, { type: "return-home" }).handled).toBe(false);
+    expect(reduceCampaign(state, { type: "dungeon", event: { type: "return" } }).handled).toBe(false);
     state = command(command(state, "destinations"), "prepare-departure");
     state = send(state, { type: "party", event: { type: "depart" } });
-    state = send(state, { type: "return-home" });
+    state = send(state, { type: "dungeon", event: { type: "return" } });
     expect(state.game.clock).toMatchObject({ elapsedHalfDays: 2, recoverySteps: 0 });
   });
 
@@ -253,7 +253,7 @@ describe("本編の現在画面とゲーム状態", () => {
     const source = home();
     const rewarded = rewardGrowth(
       source.game,
-      { id: "previous-event", allocations: [{ characterId: "player", experience: 5 }] },
+      { allocations: [{ characterId: "player", experience: 5 }] },
       campaignRules,
     );
     if (!rewarded.accepted) throw new Error(rewarded.reason);
@@ -261,7 +261,7 @@ describe("本編の現在画面とゲーム状態", () => {
     state = send(state, { type: "town", event: { type: "select", placeId: "market" } });
     state = send(state, { type: "town", event: { type: "advance" } });
     expect(state).toMatchObject({
-      screen: { kind: "growth", returnTo: "town" },
+      screen: { kind: "growth" },
       game: {
         clock: { elapsedHalfDays: 1, recoverySteps: 1 },
         growth: { choice: { characterId: "player", level: 2, status: "offered" } },
@@ -307,18 +307,16 @@ describe("本編の現在画面とゲーム状態", () => {
 
   it("各画面に未定義の操作はゲームを変えず、戻った現在画面の操作は再び有効になる", () => {
     const initial = createCampaignModel();
-    for (const state of [
-      initial,
-      command(initial, "new-game"),
-      command(command(initial, "new-game"), "accept"),
-      home(),
-      command(home(), "equipment"),
-      command(home(), "destinations"),
-    ]) {
+    for (const [state, expectedAccept] of [
+      [initial, false],
+      [command(initial, "new-game"), true],
+      [command(command(initial, "new-game"), "accept"), false],
+      [home(), false],
+      [command(home(), "equipment"), false],
+      [command(home(), "destinations"), false],
+    ] as const) {
       const before = structuredClone(state.game);
-      expect(reduceCampaign(state, { type: "command", command: "accept" }).handled).toBe(
-        state.screen.kind === "confirm",
-      );
+      expect(reduceCampaign(state, { type: "command", command: "accept" }).handled).toBe(expectedAccept);
       expect(reduceCampaign(state, { type: "town", event: { type: "advance" } })).toMatchObject({
         handled: false,
         state,
@@ -350,5 +348,24 @@ describe("本編の現在画面とゲーム状態", () => {
       { type: "focused", target: { kind: "heading" } },
     ] as const)
       expect(reduceCampaign(state, event)).toMatchObject({ state, handled: false, effects: [] });
+  });
+  it("実探索の読込中に退出すると資源終了を発行し、遅着結果でゲームや画面を再開しない", () => {
+    let state = command(command(home(), "destinations"), "prepare-departure");
+    state = send(state, { type: "party", event: { type: "depart" } });
+    const started = reduceCampaign(state, { type: "dungeon", event: { type: "enter", nodeId: "battle-a" } });
+    expect(started.effects).toEqual([{ type: "dungeon", effect: { type: "open-scene", owner: 1 } }]);
+    const before = structuredClone(started.state.game);
+    const closed = reduceCampaign(started.state, { type: "disposed" });
+    expect(closed.effects).toEqual([{ type: "dungeon", effect: { type: "close-scene" } }]);
+    expect(projectCampaign(closed.state).kind).toBe("disposed");
+    for (const event of [
+      { type: "scene-ready", owner: 1 },
+      { type: "scene-error", owner: 1, reason: "退出後に素材取得が終了" },
+    ] as const) {
+      const late = reduceCampaign(closed.state, { type: "dungeon", event: { type: "battle", event } });
+      expect(late.handled).toBe(false);
+      expect(late.state.game).toEqual(before);
+      expect(late.effects).toEqual([]);
+    }
   });
 });

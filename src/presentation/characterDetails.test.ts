@@ -123,13 +123,9 @@ describe("人物詳細の読み取り投影", () => {
       })),
     };
     const growth = { catalog, fatigue: mentalFatigueDefinition, growth: growthRules };
-    const reward = rewardGrowth(
-      game(),
-      { id: "detail-experience", allocations: [{ characterId: "player", experience: 30 }] },
-      growth,
-    );
+    const reward = rewardGrowth(game(), { allocations: [{ characterId: "player", experience: 30 }] }, growth);
     if (!reward.accepted) throw new Error(reward.reason);
-    let state = reward.state;
+    let state: ExpeditionGame = reward.state;
     for (const skillId of ["test-strength", "test-vitality", "test-vitality"]) {
       const current = state.growth;
       if (!current?.choice) throw new Error("成長選択がありません");
@@ -167,7 +163,7 @@ describe("人物詳細の読み取り投影", () => {
     expect(state).toEqual(before);
     details = reduceCharacterDetails(details, { type: "close" }).state;
     if (!state.growth) throw new Error("育成状態がありません");
-    const reset = resetExplorationSkills(state.growth, state.growth.explorationId, growthRules.progression, catalog);
+    const reset = resetExplorationSkills(state.growth, growthRules.progression, catalog);
     if (!reset.accepted) throw new Error(reset.reason);
     state = { ...state, growth: reset.state };
     const resetBefore = structuredClone(state);

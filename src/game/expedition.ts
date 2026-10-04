@@ -117,16 +117,7 @@ export function departOnExpedition(
   if (clock.pendingAction !== null) return { accepted: false, state, reason: "action-in-progress" };
   const reason = departureRejection(state.party);
   if (reason) return { accepted: false, state, reason };
-  const packed = state.inventory
-    ? packItems(
-        state.inventory.items,
-        state.inventory.items.version,
-        clock.nextActionId,
-        "dungeon",
-        itemSelection,
-        itemCatalog,
-      )
-    : undefined;
+  const packed = state.inventory ? packItems(state.inventory.items, "dungeon", itemSelection, itemCatalog) : undefined;
   if (packed && !packed.accepted) return { accepted: false, state, reason: "invalid-items" };
   const ready = skills?.growth ? ensureGrowth(state, skills) : state;
   const dungeon = createDungeonState(
@@ -139,8 +130,7 @@ export function departOnExpedition(
   const departed = {
     ...ready,
     ...(state.inventory && packed?.accepted ? { inventory: { ...state.inventory, items: packed.state } } : {}),
-    growth: ready.growth ? { ...ready.growth, explorationId: `expedition:${clock.nextActionId}` } : undefined,
-    dungeon: { ...dungeon, expeditionActionId: clock.nextActionId },
+    dungeon,
     clock: beginTimedAction(clock, "dungeon-expedition"),
   };
   return { accepted: true, state: skills?.growth ? projectGrowth(departed, departed.growth, skills) : departed };
@@ -246,7 +236,6 @@ export function actInExpedition(
     const reward = rewardGrowth(
       updated,
       {
-        id: `${updated.growth?.explorationId}:${node.id}`,
         allocations: dungeon.party
           .filter((member) => canParticipate(member.hp, member.status))
           .map(({ id }) => ({
@@ -278,12 +267,7 @@ export function leaveExpedition(state: ExpeditionGame, skills?: BattleSkillRules
   const result = completeTimedAction(clock);
   let resetState = state;
   if (skills?.growth && state.growth) {
-    const reset = resetExplorationSkills(
-      state.growth,
-      state.growth.explorationId,
-      skills.growth.progression,
-      skills.catalog,
-    );
+    const reset = resetExplorationSkills(state.growth, skills.growth.progression, skills.catalog);
     if (!reset.accepted) return { accepted: false, state, reason: "not-on-route" };
     resetState = projectGrowth({ ...state, growth: reset.state }, state.growth, skills);
   }
@@ -419,16 +403,7 @@ export function beginTownExploration(
   if (state.dungeon !== null) return { accepted: false, state, reason: "not-in-town" };
   const clock = state.clock ?? createActionClock();
   if (clock.pendingAction !== null) return { accepted: false, state, reason: "action-in-progress" };
-  const packed = state.inventory
-    ? packItems(
-        state.inventory.items,
-        state.inventory.items.version,
-        clock.nextActionId,
-        "town",
-        itemSelection,
-        itemCatalog,
-      )
-    : undefined;
+  const packed = state.inventory ? packItems(state.inventory.items, "town", itemSelection, itemCatalog) : undefined;
   if (packed && !packed.accepted) return { accepted: false, state, reason: "invalid-items" };
   const result = selectTownPlace(state.adventure, placeId, definition);
   if (!result.accepted) return { accepted: false, state, reason: result.reason };
@@ -522,11 +497,10 @@ export function actInTown(
   if (completed.accepted && skills?.growth) {
     const ready = ensureGrowth(completed.state, skills);
     const experience = skills.growth.townExperience;
-    if (!ready.growth?.growth.appliedRewardIds.includes("town-exploration")) {
+    if (!ready.growth?.townExperienceClaimed) {
       const reward = rewardGrowth(
         ready,
         {
-          id: "town-exploration",
           allocations: ready.party.members
             .filter((member) => canParticipate(member.hp, member.status))
             .map(({ id }) => ({ characterId: id, experience })),
@@ -536,7 +510,7 @@ export function actInTown(
       if (!reward.accepted) throw new Error(`街の成長報酬を適用できません: ${reward.reason}`);
       return {
         ...completed,
-        state: reward.state,
+        state: { ...reward.state, growth: { ...reward.state.growth, townExperienceClaimed: true } },
         completion: completed.completion ? { ...completed.completion, recruitedIds } : undefined,
       };
     }

@@ -7,8 +7,8 @@ import { mentalFatigueDefinition } from "../content/mentalFatigueDefinition";
 import { saveDefinitions } from "../content/saveDefinitions";
 import { skillCatalog } from "../content/skillDefinitions";
 import { createInitialGameState } from "../game/createInitialGameState";
+import type { DungeonActionResult } from "../game/dungeon";
 import {
-  actInExpedition,
   departOnExpedition,
   type ExpeditionGame,
   type GameActionCompletion,
@@ -17,7 +17,15 @@ import {
 import { chooseGrowthSkill, hasPendingGrowth } from "../game/growthRuntime";
 import { createParty } from "../game/party";
 import { deserializeGame, serializeGame } from "../game/save";
+import type { BattleInput } from "./battleModel";
 import type { CampaignEvent } from "./campaignModel";
+import {
+  createDungeonModel,
+  type DungeonEffect,
+  type DungeonInput,
+  type DungeonModel,
+  reduceDungeon,
+} from "./dungeonModel";
 import type { GrowthFocus } from "./growthModel";
 import { reduceGrowthPresentation } from "./growthModel";
 import { createTownState, reduceTown, type TownInput, type TownState } from "./townModel";
@@ -31,12 +39,14 @@ export interface DebugSessionModel {
   readonly completion?: GameActionCompletion;
   readonly saveStatus: string;
   readonly editorEntry: boolean;
+  readonly expedition: DungeonModel | null;
 }
-export type DebugSessionEvent = CampaignEvent | { readonly type: "return" };
+export type DebugSessionEvent = CampaignEvent;
 export type DebugSessionEffect =
   | { readonly type: "write-save"; readonly data: string }
   | { readonly type: "read-save" }
-  | { readonly type: "replace-town-view" };
+  | { readonly type: "replace-town-view" }
+  | { readonly type: "dungeon"; readonly effect: DungeonEffect };
 export function createDebugSessionModel(entry: "town" | "dungeon", editorEntry = false): DebugSessionModel {
   const initial: ExpeditionGame = {
     adventure: createInitialGameState(initialGameOptions),
@@ -54,6 +64,18 @@ export function createDebugSessionModel(entry: "town" | "dungeon", editorEntry =
     growthFocus: null,
     saveStatus: "",
     editorEntry,
+    expedition:
+      entry === "dungeon"
+        ? createDungeonModel({
+            game,
+            route: initialDungeon,
+            adventure: initialAdventure,
+            rules: debugSessionRules,
+            basicAttack: true,
+            items: false,
+            enemyDepths: [],
+          })
+        : null,
   };
 }
 export function debugTownInput(state: DebugSessionModel): TownInput {
@@ -68,15 +90,41 @@ export function debugTownInput(state: DebugSessionModel): TownInput {
     departure: { characters, route: initialDungeon, adventure: initialAdventure, skills: debugSessionRules },
   };
 }
-export function reduceDebugSession(state: DebugSessionModel, event: DebugSessionEvent) {
+export function debugDungeonInput(
+  state: DebugSessionModel,
+  enemyDepths: BattleInput["enemyDepths"] = [],
+): DungeonInput {
+  return {
+    game: state.game,
+    route: initialDungeon,
+    adventure: initialAdventure,
+    rules: debugSessionRules,
+    basicAttack: true,
+    items: false,
+    enemyDepths,
+  };
+}
+export function reduceDebugSession(
+  state: DebugSessionModel,
+  event: DebugSessionEvent,
+  enemyDepths: BattleInput["enemyDepths"] = [],
+) {
   const result = (next = state, effects: readonly DebugSessionEffect[] = [], handled = true) => ({
     state: next,
     effects,
     handled,
-    dungeonResult: undefined as ReturnType<typeof actInExpedition>["result"] | undefined,
+    dungeonResult: undefined as DungeonActionResult | undefined,
   });
   const ignored = () => result(state, [], false);
-  if (event.type === "disposed") return result({ ...state, screen: "disposed", growthFocus: null });
+  if (event.type === "disposed") {
+    const closed = state.expedition
+      ? reduceDungeon(state.expedition, debugDungeonInput(state, enemyDepths), { type: "closed" })
+      : null;
+    return result(
+      { ...state, screen: "disposed", growthFocus: null, expedition: null },
+      closed?.effects.map((effect) => ({ type: "dungeon", effect })) ?? [],
+    );
+  }
   if (state.screen === "disposed") return ignored();
   if (event.type === "save-written" && state.screen === "saving")
     return result({
@@ -137,10 +185,13 @@ export function reduceDebugSession(state: DebugSessionModel, event: DebugSession
       completion: changed.action?.accepted ? changed.completion : state.completion,
       screen: changed.dungeon ? "dungeon" : hasPendingGrowth(changed.game) ? "growth" : "town",
       growthFocus: hasPendingGrowth(changed.game) ? { kind: "heading" } : null,
+      expedition: changed.dungeon
+        ? createDungeonModel(debugDungeonInput({ ...state, game: changed.game }))
+        : state.expedition,
     };
     return result(next, [], changed.handled);
   }
-  if (event.type === "growth" && (state.screen === "growth" || state.screen === "dungeon")) {
+  if (event.type === "growth" && state.screen === "growth") {
     if (event.event.type !== "choose") {
       const moved = reduceGrowthPresentation(state.growthFocus, event.event, state.game.growth?.choice ?? null);
       return moved.handled ? result({ ...state, growthFocus: moved.focus }) : ignored();
@@ -150,32 +201,50 @@ export function reduceDebugSession(state: DebugSessionModel, event: DebugSession
     return result({
       ...state,
       game: changed.state,
-      screen: state.screen === "dungeon" ? "dungeon" : hasPendingGrowth(changed.state) ? "growth" : "town",
+      screen: hasPendingGrowth(changed.state) ? "growth" : "town",
       growthFocus: hasPendingGrowth(changed.state) ? { kind: "heading" } : null,
       town: hasPendingGrowth(changed.state) ? state.town : createTownState(changed.state.adventure.currentPlaceId),
     });
   }
-  if (event.type === "dungeon" && state.screen === "dungeon") {
-    const changed = actInExpedition(state.game, event.command, initialDungeon, initialAdventure, debugSessionRules);
-    return {
-      ...result({ ...state, game: changed.state, completion: changed.completion ?? state.completion }),
-      dungeonResult: changed.result,
-    };
-  }
-  if (event.type === "return" && state.screen === "dungeon") {
-    const returned = state.game.dungeon
-      ? leaveExpedition(state.game, debugSessionRules)
-      : { accepted: true, state: state.game, completion: state.completion };
-    return returned.accepted
-      ? result({
-          ...state,
+  if (event.type === "dungeon" && state.screen === "dungeon" && state.expedition) {
+    const input = debugDungeonInput(state, enemyDepths);
+    const changed = reduceDungeon(state.expedition, input, event.event);
+    let next =
+      changed.state === state.expedition && changed.game === state.game
+        ? state
+        : {
+            ...state,
+            game: changed.game,
+            expedition: changed.state,
+            completion: changed.completion ?? state.completion,
+          };
+    let effects = changed.effects;
+    if (changed.returnRequested) {
+      const returned = changed.game.dungeon
+        ? leaveExpedition(changed.game, debugSessionRules)
+        : { accepted: true, state: changed.game, completion: changed.completion ?? state.completion };
+      if (returned.accepted) {
+        const closed = reduceDungeon(changed.state, { ...input, game: returned.state }, { type: "closed" });
+        next = {
+          ...next,
           game: returned.state,
+          expedition: null,
           screen: "town",
           town: createTownState(returned.state.adventure.currentPlaceId),
           completion: returned.completion,
           saveStatus: "",
-        })
-      : ignored();
+        };
+        effects = [...effects, ...closed.effects];
+      }
+    }
+    return {
+      ...result(
+        next,
+        effects.map((effect) => ({ type: "dungeon", effect })),
+        changed.handled,
+      ),
+      dungeonResult: changed.result,
+    };
   }
   return ignored();
 }

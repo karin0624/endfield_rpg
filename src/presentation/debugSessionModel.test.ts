@@ -47,10 +47,10 @@ describe("debug入口の現在セッション", () => {
       screen: "dungeon",
       game: { dungeon: { currentNodeId: "entrance" }, clock: { elapsedHalfDays: 0 } },
     });
-    const refused = reduceDebugSession(state, { type: "dungeon", command: { type: "enter", nodeId: "missing" } });
+    const refused = reduceDebugSession(state, { type: "dungeon", event: { type: "enter", nodeId: "missing" } });
     expect(refused.dungeonResult?.accepted).toBe(false);
     expect(refused.state.game).toEqual(state.game);
-    state = send(state, { type: "return" });
+    state = send(state, { type: "dungeon", event: { type: "return" } });
     expect(state).toMatchObject({
       screen: "town",
       game: { dungeon: null, clock: { elapsedHalfDays: 1, recoverySteps: 0 } },
@@ -58,7 +58,7 @@ describe("debug入口の現在セッション", () => {
     state = town(state, { type: "open-party" });
     state = town(state, { type: "party", event: { type: "depart" } });
     expect(state.screen).toBe("dungeon");
-    expect(send(state, { type: "return" }).game.clock?.elapsedHalfDays).toBe(2);
+    expect(send(state, { type: "dungeon", event: { type: "return" } }).game.clock?.elapsedHalfDays).toBe(2);
     expect(projectDebugSession(createDebugSessionModel("dungeon")).kind).toBe("dungeon");
   });
 
@@ -105,7 +105,7 @@ describe("debug入口の現在セッション", () => {
     const source = createDebugSessionModel("town");
     const rewarded = rewardGrowth(
       source.game,
-      { id: "before-town", allocations: [{ characterId: "player", experience: 5 }] },
+      { allocations: [{ characterId: "player", experience: 5 }] },
       debugSessionRules,
     );
     if (!rewarded.accepted) throw new Error(rewarded.reason);
@@ -156,8 +156,41 @@ describe("debug入口の現在セッション", () => {
     for (const event of [
       { type: "save-written", saved: true },
       { type: "town", event: { type: "select", placeId: "market" } },
-      { type: "return" },
+      { type: "dungeon", event: { type: "return" } },
     ] as const)
       expect(reduceDebugSession(disposed, event)).toMatchObject({ handled: false, state: disposed, effects: [] });
+  });
+  it("現在素材の失敗理由を表示して資源を閉じ、読込中退出後の完了も再開しない", () => {
+    const source = createDebugSessionModel("dungeon");
+    const entered = reduceDebugSession(source, { type: "dungeon", event: { type: "enter", nodeId: "battle-a" } });
+    expect(projectDebugSession(entered.state)).toMatchObject({
+      kind: "dungeon",
+      dungeon: { battle: { status: { ready: false, error: false, text: "戦闘画面を読み込んでいます…" } } },
+    });
+    const failed = reduceDebugSession(entered.state, {
+      type: "dungeon",
+      event: { type: "battle", event: { type: "scene-error", owner: 1, reason: "GLB取得失敗" } },
+    });
+    expect(failed.effects).toEqual([{ type: "dungeon", effect: { type: "close-scene", releaseRenderer: true } }]);
+    expect(projectDebugSession(failed.state)).toMatchObject({
+      dungeon: {
+        battle: {
+          status: {
+            error: true,
+            reason: "GLB取得失敗",
+            text: "戦闘画面を読み込めませんでした。素材とWebGL対応を確認して、再読み込みしてください。",
+          },
+        },
+      },
+    });
+    expect(failed.state.game).toEqual(entered.state.game);
+    const closed = reduceDebugSession(entered.state, { type: "disposed" });
+    expect(closed.effects).toEqual([{ type: "dungeon", effect: { type: "close-scene" } }]);
+    expect(
+      reduceDebugSession(closed.state, {
+        type: "dungeon",
+        event: { type: "battle", event: { type: "scene-ready", owner: 1 } },
+      }),
+    ).toMatchObject({ handled: false, state: closed.state, effects: [] });
   });
 });

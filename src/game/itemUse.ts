@@ -16,12 +16,10 @@ import { consumeBagItem, type ItemCatalog, type ItemState } from "./items";
 import { canParticipate, effectiveMaxHp, healthyStatus } from "./status";
 
 export interface RecoveryItemInput {
-  readonly expectedVersion: number;
-  readonly explorationId: number;
   readonly itemId: string;
   readonly targetId: string;
 }
-/** Target eligibility and actual recovery for selection UI; turn/session guards remain action-level checks. */
+/** Target eligibility and actual recovery for the current selection. */
 export function previewRecoveryItem(
   target: BattleCombatantDefinition | undefined,
   itemId: string,
@@ -43,15 +41,14 @@ export function previewRecoveryItem(
 export function useBattleRecoveryItem(
   items: ItemState,
   battle: BattleState,
-  input: RecoveryItemInput & { readonly actorId: string; readonly expectedActionTime: number },
+  input: RecoveryItemInput & { readonly actorId: string },
   catalog: ItemCatalog,
 ) {
   const rejected = { accepted: false as const, items, battle };
   const actor = battle.combatants.find(({ id }) => id === input.actorId);
   if (
-    items.exploration?.id !== input.explorationId ||
+    items.exploration?.destination !== "dungeon" ||
     battle.outcome !== "ongoing" ||
-    battle.logicalTime !== input.expectedActionTime ||
     battle.currentActorId !== input.actorId ||
     actor?.team !== "ally" ||
     !canParticipate(actor.hp, actor.status)
@@ -61,7 +58,7 @@ export function useBattleRecoveryItem(
   const preview = previewRecoveryItem(target, input.itemId, catalog);
   if (!preview.usable || !target) return { ...rejected, preview };
   const healed = { ...target, hp: target.hp + preview.amount };
-  const consumed = consumeBagItem(items, input.expectedVersion, input.itemId, catalog);
+  const consumed = consumeBagItem(items, input.itemId, catalog);
   if (!consumed.accepted) return rejected;
   const combatants = battle.combatants.map((c) => (c.id === healed.id ? healed : c));
   const timeline = completeCurrentAction({ ...battle, combatants });
@@ -81,21 +78,21 @@ export function useBattleRecoveryItem(
       actorId: actor.id,
       targetId: target.id,
       amount: healed.hp - target.hp,
+      targetHpBefore: target.hp,
+      targetHpAfter: healed.hp,
     },
   };
 }
 export function useBranchRecoveryItem(
   items: ItemState,
   dungeon: DungeonState,
-  input: RecoveryItemInput & { readonly expectedNodeId: string },
+  input: RecoveryItemInput,
   catalog: ItemCatalog,
   route: DungeonDefinition,
 ) {
   const rejected = { accepted: false as const, items, dungeon };
   if (
-    items.exploration?.id !== input.explorationId ||
-    dungeon.expeditionActionId !== input.explorationId ||
-    dungeon.currentNodeId !== input.expectedNodeId ||
+    items.exploration?.destination !== "dungeon" ||
     dungeon.outcome !== "ongoing" ||
     dungeon.activity !== null ||
     dungeon.activeNodeId !== null ||
@@ -107,21 +104,26 @@ export function useBranchRecoveryItem(
   const preview = previewRecoveryItem(target, input.itemId, catalog);
   if (!preview.usable || !target) return { ...rejected, preview };
   const healed = { ...target, hp: target.hp + preview.amount };
-  const consumed = consumeBagItem(items, input.expectedVersion, input.itemId, catalog);
+  const consumed = consumeBagItem(items, input.itemId, catalog);
   if (!consumed.accepted) return rejected;
   return {
     accepted: true as const,
     items: consumed.state,
     dungeon: { ...dungeon, party: dungeon.party.map((c) => (c.id === healed.id ? healed : c)) },
-    event: { type: "item-recovery" as const, itemId: input.itemId, targetId: target.id, amount: healed.hp - target.hp },
+    event: {
+      type: "item-recovery" as const,
+      itemId: input.itemId,
+      targetId: target.id,
+      amount: healed.hp - target.hp,
+      targetHpBefore: target.hp,
+      targetHpAfter: healed.hp,
+    },
   };
 }
 
-export type DungeonItemInput = RecoveryItemInput & { readonly expectedNodeId: string } & (
-    | { readonly type: "item"; readonly actorId: string; readonly expectedActionTime: number }
-    | { readonly type: "branch-item" }
-  );
-/** Bind the pure item operation to this exploration/node before running the existing enemy loop. */
+export type DungeonItemInput = RecoveryItemInput &
+  ({ readonly type: "item"; readonly actorId: string } | { readonly type: "branch-item" });
+/** Apply to the current activity, then publish its enemy responses. */
 export function performDungeonRecoveryItem(
   items: ItemState,
   dungeon: DungeonState,
@@ -133,8 +135,6 @@ export function performDungeonRecoveryItem(
     items,
     result: { accepted: false, state: dungeon, reason: "battle:action-not-current", events: [] },
   });
-  if (dungeon.expeditionActionId !== input.explorationId || dungeon.currentNodeId !== input.expectedNodeId)
-    return reject();
   if (input.type === "branch-item") {
     const used = useBranchRecoveryItem(items, dungeon, input, catalog, route);
     return used.accepted

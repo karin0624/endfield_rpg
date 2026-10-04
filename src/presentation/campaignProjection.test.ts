@@ -66,7 +66,6 @@ describe("確定した本編画面の読み取り専用投影", () => {
         party: { ...game.party, members: game.party.members.map((member) => ({ ...member, mentalFatigue: 20 })) },
       },
       completion: {
-        id: 1,
         kind: "dungeon-expedition",
         calendarHalfDays: 1,
         recoverySteps: 0,

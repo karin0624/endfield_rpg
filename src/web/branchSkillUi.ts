@@ -72,9 +72,6 @@ export function mountBranchSkillUi(
               actorId,
               skillId,
               targetId: member.id,
-              expectedVersion: state.branchSkillVersion,
-              expectedNodeId: state.currentNodeId,
-              expeditionActionId: state.expeditionActionId ?? -1,
             });
             dialog.close();
             committed(result);

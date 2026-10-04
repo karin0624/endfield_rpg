@@ -40,9 +40,6 @@ function input(game: ExpeditionGame, targetId: string, skillId = "test-strike"):
     actorId: "player",
     targetId,
     skillId,
-    expectedNodeId: game.dungeon.activeNodeId ?? "",
-    expectedActionTime: game.dungeon.activity.state.logicalTime,
-    expeditionActionId: game.dungeon.expeditionActionId ?? -1,
   };
 }
 function fatigue(game: ExpeditionGame) {
@@ -66,7 +63,7 @@ describe("通常探索から街保存までのスキルループ", () => {
     game = act(game, oldInput);
     expect(fatigue(game)).toBe(4);
     const resent = actInExpedition(game, oldInput, initialDungeon, initialAdventure, rules);
-    expect(resent.result).toMatchObject({ accepted: false, reason: "battle:action-not-current" });
+    expect(resent.result).toMatchObject({ accepted: false, reason: "battle:target-is-defeated" });
     expect(resent.state).toEqual(game);
     game = act(game, input(game, "player", "test-heal"));
     expect(fatigue(game)).toBe(7);
@@ -74,7 +71,7 @@ describe("通常探索から街保存までのスキルループ", () => {
     expect(fatigue(game)).toBe(11);
     game = act(game, { type: "enter", nodeId: "boss-c" });
     const staleNode = actInExpedition(game, oldInput, initialDungeon, initialAdventure, rules);
-    expect(staleNode.result).toMatchObject({ accepted: false, reason: "battle:action-not-current" });
+    expect(staleNode.result).toMatchObject({ accepted: false, reason: "battle:target-does-not-exist" });
     expect(staleNode.state).toEqual(game);
     game = act(game, input(game, "ruin-warden"));
     expect(game.dungeon?.activity).toMatchObject({

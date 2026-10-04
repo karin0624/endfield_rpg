@@ -45,7 +45,7 @@
     const capture = () => { document.querySelector("#state").textContent = JSON.stringify(game); };
     document.querySelector("#snapshot").onclick = capture;
     document.querySelector("#reset").onclick = () => {
-      const result = resetExplorationSkills(game.growth, game.growth.explorationId, growthRules.progression, catalog);
+      const result = resetExplorationSkills(game.growth, growthRules.progression, catalog);
       if (!result.accepted) throw new Error(result.reason);
       game = { ...game, growth: result.state };
       capture();

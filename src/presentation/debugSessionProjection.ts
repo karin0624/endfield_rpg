@@ -1,12 +1,14 @@
 import { characters } from "../content/characters";
+import type { BattleInput } from "./battleModel";
 import type { CampaignFocus } from "./campaignModel";
 import { campaignFeedback } from "./campaignProjection";
-import { type DebugSessionModel, debugSessionRules, debugTownInput } from "./debugSessionModel";
+import { type DebugSessionModel, debugDungeonInput, debugSessionRules, debugTownInput } from "./debugSessionModel";
+import { projectDungeon } from "./dungeonProjection";
 import { projectGrowthChoice } from "./growthProjection";
 import { calendarLabel } from "./statusText";
 import { projectTown } from "./townProjection";
 
-export function projectDebugSession(state: DebugSessionModel) {
+export function projectDebugSession(state: DebugSessionModel, enemyDepths: BattleInput["enemyDepths"] = []) {
   const focus: CampaignFocus | null =
     state.growthFocus?.kind === "heading"
       ? { kind: "growth-heading" }
@@ -46,5 +48,11 @@ export function projectDebugSession(state: DebugSessionModel) {
           )
         : null,
     };
-  return { ...base, kind: state.screen };
+  if (state.screen === "dungeon")
+    return {
+      ...base,
+      kind: "dungeon" as const,
+      dungeon: state.expedition ? projectDungeon(state.expedition, debugDungeonInput(state, enemyDepths)) : null,
+    };
+  return { ...base, kind: "disposed" as const };
 }

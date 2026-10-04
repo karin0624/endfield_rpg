@@ -94,7 +94,7 @@ async function enter() {
     };
   }
   const stock = [{ itemId: recoveryItemId, quantity: 2 }];
-  const packed = packItems(createItemState(stock, itemCatalog), 0, 1, "dungeon", stock, itemCatalog);
+  const packed = packItems(createItemState(stock, itemCatalog), "dungeon", stock, itemCatalog);
   if (!packed.accepted) throw new Error("Fixture item packing failed");
   let items = packed.state;
   confirmedState = advanceBattleToNextAllyInput(createBattleState(definitions)).state;
@@ -107,12 +107,9 @@ async function enter() {
         items,
         state,
         {
-          expectedVersion: items.version,
-          explorationId: 1,
           itemId: recoveryItemId,
           actorId,
           targetId,
-          expectedActionTime: state.logicalTime,
         },
         itemCatalog,
       );
@@ -133,7 +130,6 @@ async function enter() {
         actorId,
         targetId,
         skillId,
-        state.logicalTime,
         rules.catalog,
         rules.fatigue,
       );

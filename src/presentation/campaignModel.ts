@@ -8,11 +8,10 @@ import { mentalFatigueDefinition } from "../content/mentalFatigueDefinition";
 import { saveDefinitions } from "../content/saveDefinitions";
 import { skillCatalog } from "../content/skillDefinitions";
 import { createInitialGameState } from "../game/createInitialGameState";
+import type { DungeonActionResult } from "../game/dungeon";
 import type { EquipmentSlot } from "../game/equipment";
 import { editHomeEquipment } from "../game/equipmentRuntime";
 import {
-  actInExpedition,
-  type DungeonCommand,
   type ExpeditionGame,
   type GameActionCompletion,
   leaveExpedition,
@@ -22,6 +21,15 @@ import { chooseGrowthSkill, grownCharacters, hasPendingGrowth } from "../game/gr
 import { createInventory } from "../game/inventory";
 import { createParty } from "../game/party";
 import { deserializeGame, serializeGame } from "../game/save";
+import type { BattleInput } from "./battleModel";
+import {
+  createDungeonModel,
+  type DungeonEffect,
+  type DungeonEvent,
+  type DungeonInput,
+  type DungeonModel,
+  reduceDungeon,
+} from "./dungeonModel";
 import { type GrowthEvent, reduceGrowthPresentation } from "./growthModel";
 import { createPartyModel, type PartyEvent, type PartyInput, type PartyModel, reduceParty } from "./partyModel";
 import { calendarLabel } from "./statusText";
@@ -52,7 +60,7 @@ export type CampaignScreen =
   | { readonly kind: "saving"; readonly returnToTitle: boolean }
   | { readonly kind: "loading" }
   | { readonly kind: "party"; readonly party: Omit<PartyModel, "input">; readonly context: "edit" | "departure" }
-  | { readonly kind: "growth"; readonly returnTo: "town" | "dungeon" };
+  | { readonly kind: "growth" };
 export type CampaignFocus =
   | { readonly kind: "heading" }
   | { readonly kind: "command"; readonly command: string }
@@ -69,6 +77,7 @@ export interface CampaignModel {
   readonly message: string;
   readonly focus: CampaignFocus | null;
   readonly town: TownState;
+  readonly expedition: DungeonModel | null;
 }
 export type CampaignCommand =
   | "new-game"
@@ -104,19 +113,19 @@ export type CampaignEvent =
   | { readonly type: "save-read"; readonly result: { readonly data: string | null } | { readonly error: true } }
   | { readonly type: "town"; readonly event: TownEvent }
   | { readonly type: "growth"; readonly event: GrowthEvent }
-  | { readonly type: "dungeon"; readonly command: DungeonCommand }
-  | { readonly type: "return-home" }
+  | { readonly type: "dungeon"; readonly event: DungeonEvent }
   | { readonly type: "disposed" };
 export type CampaignEffect =
   | { readonly type: "write-save"; readonly data: string }
   | { readonly type: "read-save" }
-  | { readonly type: "report-carry-validity" };
+  | { readonly type: "report-carry-validity" }
+  | { readonly type: "dungeon"; readonly effect: DungeonEffect };
 export interface CampaignTransition {
   readonly state: CampaignModel;
   readonly effects: readonly CampaignEffect[];
   readonly handled: boolean;
   readonly townResult?: TownActionResult;
-  readonly dungeonResult?: ReturnType<typeof actInExpedition>["result"];
+  readonly dungeonResult?: DungeonActionResult;
 }
 export function createCampaignModel(): CampaignModel {
   return {
@@ -126,6 +135,7 @@ export function createCampaignModel(): CampaignModel {
     message: "",
     focus: { kind: "heading" },
     town: createTownState(initialGameOptions.startingPlaceId),
+    expedition: null,
   };
 }
 export function campaignCarryValid(state: CampaignModel): boolean {
@@ -152,7 +162,7 @@ function enter(
 }
 function townScreen(state: CampaignModel): CampaignModel {
   return hasPendingGrowth(state.game)
-    ? enter(state, { kind: "growth", returnTo: "town" }, "", { kind: "growth-heading" })
+    ? enter(state, { kind: "growth" }, "", { kind: "growth-heading" })
     : enter({ ...state, town: createTownState(state.game.adventure.currentPlaceId) }, { kind: "town" }, "", {
         kind: "town-place",
         placeId: state.game.adventure.currentPlaceId,
@@ -168,6 +178,30 @@ export function campaignTownInput(state: CampaignModel): TownInput {
     partyEntry: false,
     shopEnabled: true,
   };
+}
+export function campaignDungeonInput(state: CampaignModel, enemyDepths: BattleInput["enemyDepths"] = []): DungeonInput {
+  return {
+    game: state.game,
+    route: initialDungeon,
+    adventure: initialAdventure,
+    rules: campaignRules,
+    basicAttack: false,
+    items: true,
+    enemyDepths,
+  };
+}
+function dungeonScreen(state: CampaignModel): CampaignModel {
+  return enter(
+    {
+      ...state,
+      expedition: createDungeonModel(campaignDungeonInput(state)),
+      carryQuantity: 0,
+      completion: undefined,
+    },
+    { kind: "dungeon" },
+    "",
+    null,
+  );
 }
 function partyInput(state: CampaignModel, context: "edit" | "departure"): PartyInput {
   const displayCharacters = grownCharacters(state.game, campaignRules);
@@ -207,14 +241,26 @@ export function campaignPartyModel(
 ): PartyModel {
   return { ...screen.party, input: partyInput(state, screen.context) };
 }
-export function reduceCampaign(state: CampaignModel, event: CampaignEvent): CampaignTransition {
+export function reduceCampaign(
+  state: CampaignModel,
+  event: CampaignEvent,
+  enemyDepths: BattleInput["enemyDepths"] = [],
+): CampaignTransition {
   const result = (next = state, effects: readonly CampaignEffect[] = [], handled = true): CampaignTransition => ({
     state: next,
     effects,
     handled,
   });
   const ignored = () => result(state, [], false);
-  if (event.type === "disposed") return result(enter(state, { kind: "disposed" }, "", null));
+  if (event.type === "disposed") {
+    const closed = state.expedition
+      ? reduceDungeon(state.expedition, campaignDungeonInput(state, enemyDepths), { type: "closed" })
+      : null;
+    return result(
+      enter({ ...state, expedition: null }, { kind: "disposed" }, "", null),
+      closed?.effects.map((effect) => ({ type: "dungeon", effect })) ?? [],
+    );
+  }
   if (state.screen.kind === "disposed") return ignored();
   if (event.type === "focused") return result({ ...state, focus: event.target });
   if (event.type === "save-written" && state.screen.kind === "saving") {
@@ -280,7 +326,7 @@ export function reduceCampaign(state: CampaignModel, event: CampaignEvent): Camp
       if (effect.type !== "navigate") continue;
       next =
         effect.destination === "dungeon"
-          ? enter({ ...next, carryQuantity: 0, completion: undefined }, { kind: "dungeon" }, "", null)
+          ? dungeonScreen(next)
           : enter(next, { kind: effect.destination === "destinations" ? "destinations" : "home" }, "", {
               kind: "command",
               command: effect.destination === "destinations" ? "prepare-departure" : "edit-party",
@@ -312,7 +358,7 @@ export function reduceCampaign(state: CampaignModel, event: CampaignEvent): Camp
       townResult: changed.action,
     };
   }
-  if (event.type === "growth" && (state.screen.kind === "growth" || state.screen.kind === "dungeon")) {
+  if (event.type === "growth" && state.screen.kind === "growth") {
     const choice = state.game.growth?.choice;
     if (!choice || !state.game.growth) return ignored();
     if (event.event.type !== "choose") {
@@ -340,34 +386,42 @@ export function reduceCampaign(state: CampaignModel, event: CampaignEvent): Camp
     const changed = chooseGrowthSkill(state.game, event.event.skillId, campaignRules);
     if (!changed.accepted) return ignored();
     const next = { ...state, game: changed.state };
-    // The legacy dungeon view is replaced in the battle/route presentation phase of this refactor.
-    if (state.screen.kind === "growth")
-      return result(
-        state.screen.returnTo === "town"
-          ? townScreen(next)
-          : enter(
-              next,
-              hasPendingGrowth(next.game) ? state.screen : { kind: "dungeon" },
-              "",
-              hasPendingGrowth(next.game) ? { kind: "growth-heading" } : null,
-            ),
-      );
-    return result(next, [], changed.accepted);
+    return result(townScreen(next));
   }
-  if (event.type === "dungeon" && state.screen.kind === "dungeon") {
-    const changed = actInExpedition(state.game, event.command, initialDungeon, initialAdventure, campaignRules);
-    // The resolved result is rendered before the exit screen: defeat/return presentation owns this boundary.
+  if (event.type === "dungeon" && state.screen.kind === "dungeon" && state.expedition) {
+    const input = campaignDungeonInput(state, enemyDepths);
+    const changed = reduceDungeon(state.expedition, input, event.event);
+    let next =
+      changed.state === state.expedition && changed.game === state.game
+        ? state
+        : {
+            ...state,
+            game: changed.game,
+            expedition: changed.state,
+            completion: changed.completion ?? state.completion,
+          };
+    let effects = changed.effects;
+    if (changed.returnRequested) {
+      const returned = changed.game.dungeon
+        ? leaveExpedition(changed.game, campaignRules)
+        : { accepted: true, state: changed.game, completion: changed.completion ?? state.completion };
+      if (returned.accepted) {
+        const closed = reduceDungeon(changed.state, { ...input, game: returned.state }, { type: "closed" });
+        next = enter(
+          { ...next, game: returned.state, expedition: null, completion: returned.completion },
+          { kind: "home" },
+        );
+        effects = [...effects, ...closed.effects];
+      }
+    }
     return {
-      ...result({ ...state, game: changed.state, completion: changed.completion ?? state.completion }),
+      ...result(
+        next,
+        effects.map((effect) => ({ type: "dungeon", effect })),
+        changed.handled,
+      ),
       dungeonResult: changed.result,
     };
-  }
-  if (event.type === "return-home" && state.screen.kind === "dungeon") {
-    if (state.game.dungeon === null) return result(enter(state, { kind: "home" }));
-    const returned = leaveExpedition(state.game, campaignRules);
-    return returned.accepted
-      ? result(enter({ ...state, game: returned.state, completion: returned.completion }, { kind: "home" }))
-      : ignored();
   }
   if (event.type === "escape") {
     if (state.screen.kind === "confirm") return reduceCampaign(state, { type: "command", command: "cancel" });

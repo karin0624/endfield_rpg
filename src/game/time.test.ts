@@ -35,8 +35,7 @@ function accepted(result: TownActionResult): ExpeditionGame {
 }
 function town(state: ExpeditionGame): TownActionResult {
   const started = accepted(beginTownExploration(state, "market", initialAdventure));
-  const id = started.clock?.pendingAction?.id;
-  if (id === undefined) throw new Error("action");
+
   return actInTown(started, { type: "advance" }, characters, initialAdventure);
 }
 function dungeon(state: ExpeditionGame): ExpeditionGame {

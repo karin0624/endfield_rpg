@@ -12,17 +12,14 @@ export interface BagStack extends ItemStack {
   readonly origin: "carried" | "acquired";
 }
 export interface ItemState {
-  readonly version: number;
   readonly home: readonly ItemStack[];
   readonly importantIds: readonly string[];
   readonly exploration: {
-    readonly id: number;
     readonly destination: "town" | "dungeon";
     readonly bag: readonly BagStack[];
-    readonly rewardIds: readonly string[];
   } | null;
 }
-export type ItemRejection = "stale-input" | "wrong-place" | "invalid-item" | "insufficient-stock" | "duplicate-reward";
+export type ItemRejection = "wrong-place" | "invalid-item" | "insufficient-stock";
 export type ItemResult =
   | { readonly accepted: true; readonly state: ItemState }
   | { readonly accepted: false; readonly state: ItemState; readonly reason: ItemRejection };
@@ -30,7 +27,7 @@ export type ItemResult =
 export function createItemState(home: readonly ItemStack[], catalog: ItemCatalog): ItemState {
   if (home.some((stack) => !validStack(stack, catalog)) || new Set(home.map((s) => s.itemId)).size !== home.length)
     throw new Error("ホーム保管の定義が不正です");
-  return { version: 0, home: home.map((s) => ({ ...s })), importantIds: [], exploration: null };
+  return { home: home.map((s) => ({ ...s })), importantIds: [], exploration: null };
 }
 function validQuantity(quantity: number): boolean {
   return Number.isSafeInteger(quantity) && quantity > 0;
@@ -52,15 +49,11 @@ export function mergeStacks(stacks: readonly ItemStack[]): ItemStack[] {
 }
 export function packItems(
   state: ItemState,
-  expectedVersion: number,
-  explorationId: number,
   destination: "town" | "dungeon",
   selection: readonly ItemStack[],
   catalog: ItemCatalog,
 ): ItemResult {
-  if (state.version !== expectedVersion) return { accepted: false, state, reason: "stale-input" };
   if (state.exploration) return { accepted: false, state, reason: "wrong-place" };
-  if (!Number.isSafeInteger(explorationId) || explorationId < 0) throw new RangeError("探索IDが不正です");
   if (selection.some((s) => !validStack(s, catalog))) return { accepted: false, state, reason: "invalid-item" };
   const selected = mergeStacks(selection);
   if (selected.some((s) => s.quantity > (state.home.find((h) => h.itemId === s.itemId)?.quantity ?? 0)))
@@ -69,40 +62,27 @@ export function packItems(
     accepted: true,
     state: {
       ...state,
-      version: state.version + 1,
       home: state.home
         .map((s) => ({ ...s, quantity: s.quantity - (selected.find((p) => p.itemId === s.itemId)?.quantity ?? 0) }))
         .filter((s) => s.quantity > 0),
       exploration: {
-        id: explorationId,
         destination,
         bag: selected.map((s) => ({ ...s, origin: "carried" })),
-        rewardIds: [],
       },
     },
   };
 }
-/** The caller identifies a resolved battle/event; retries cannot grant its loot again. */
-export function receiveItems(
-  state: ItemState,
-  expectedVersion: number,
-  rewardId: string,
-  loot: readonly ItemStack[],
-  catalog: ItemCatalog,
-): ItemResult {
-  if (state.version !== expectedVersion) return { accepted: false, state, reason: "stale-input" };
+/** Add loot from the current resolved activity to its exploration bag. */
+export function receiveItems(state: ItemState, loot: readonly ItemStack[], catalog: ItemCatalog): ItemResult {
   const exploration = state.exploration;
   if (!exploration) return { accepted: false, state, reason: "wrong-place" };
-  if (exploration.rewardIds.includes(rewardId)) return { accepted: false, state, reason: "duplicate-reward" };
   if (loot.some((s) => !validStack(s, catalog))) return { accepted: false, state, reason: "invalid-item" };
   return {
     accepted: true,
     state: {
       ...state,
-      version: state.version + 1,
       exploration: {
         ...exploration,
-        rewardIds: [...exploration.rewardIds, rewardId],
         bag: [
           ...exploration.bag.filter((s) => s.origin === "carried"),
           ...mergeStacks([...exploration.bag.filter((s) => s.origin === "acquired"), ...loot]).map(
@@ -119,7 +99,7 @@ export function acquireImportantItem(state: ItemState, itemId: string, catalog: 
   if (state.importantIds.includes(itemId)) return { accepted: true, state };
   return {
     accepted: true,
-    state: { ...state, version: state.version + 1, importantIds: [...state.importantIds, itemId] },
+    state: { ...state, importantIds: [...state.importantIds, itemId] },
   };
 }
 /** UI sees one count; origin is internal accounting only. */
@@ -127,13 +107,7 @@ export function bagItemQuantity(state: ItemState, itemId: string): number {
   return state.exploration?.bag.filter((s) => s.itemId === itemId).reduce((total, s) => total + s.quantity, 0) ?? 0;
 }
 /** Consume carried stock first, then acquired stock, without asking the player. */
-export function consumeBagItem(
-  state: ItemState,
-  expectedVersion: number,
-  itemId: string,
-  catalog: ItemCatalog,
-): ItemResult {
-  if (state.version !== expectedVersion) return { accepted: false, state, reason: "stale-input" };
+export function consumeBagItem(state: ItemState, itemId: string, catalog: ItemCatalog): ItemResult {
   const exploration = state.exploration;
   if (!exploration) return { accepted: false, state, reason: "wrong-place" };
   if (catalog.find(({ id }) => id === itemId)?.kind !== "consumable")
@@ -146,7 +120,6 @@ export function consumeBagItem(
     accepted: true,
     state: {
       ...state,
-      version: state.version + 1,
       exploration: {
         ...exploration,
         bag: exploration.bag
@@ -167,16 +140,12 @@ export type RetentionPolicy = (
 };
 export function returnItems(
   state: ItemState,
-  expectedVersion: number,
-  explorationId: number,
   outcome: "cleared" | "defeat" | "retreat",
   randomState: number,
   retention?: RetentionPolicy,
 ): ItemResult & { readonly randomState: number; readonly lost?: readonly BagStack[] } {
-  if (state.version !== expectedVersion) return { accepted: false, state, reason: "stale-input", randomState };
   const exploration = state.exploration;
-  if (!exploration || exploration.id !== explorationId)
-    return { accepted: false, state, reason: "wrong-place", randomState };
+  if (!exploration) return { accepted: false, state, reason: "wrong-place", randomState };
   let retained = { quantities: exploration.bag.map((s) => s.quantity) as readonly number[], randomState };
   if (outcome !== "cleared") {
     if (!retention) throw new Error("ロストの調整方針が必要です");
@@ -199,7 +168,7 @@ export function returnItems(
     lost: exploration.bag
       .map((s, i) => ({ ...s, quantity: s.quantity - retained.quantities[i] }))
       .filter((s) => s.quantity > 0),
-    state: { ...state, version: state.version + 1, home: mergeStacks([...state.home, ...kept]), exploration: null },
+    state: { ...state, home: mergeStacks([...state.home, ...kept]), exploration: null },
   };
 }
 
@@ -209,4 +178,6 @@ export interface ItemRecoveryEvent {
   readonly targetId: string;
   readonly itemId: string;
   readonly amount: number;
+  readonly targetHpBefore: number;
+  readonly targetHpAfter: number;
 }

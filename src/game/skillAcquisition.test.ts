@@ -75,7 +75,7 @@ function accepted(result: AcquisitionResult): ExplorationSkills {
   return result.state;
 }
 function start(definition = progression(), skills = catalog): ExplorationSkills {
-  return createExplorationSkills("run-1", createGameRandom(1), definition, skills);
+  return createExplorationSkills(createGameRandom(1), definition, skills);
 }
 function reward(
   state: ExplorationSkills,
@@ -83,11 +83,8 @@ function reward(
   definition = progression(),
   skills = catalog,
   characterId = "player",
-  id = "reward-1",
 ): ExplorationSkills {
-  return accepted(
-    grantSkillExperience(state, "run-1", { id, allocations: [{ characterId, experience }] }, definition, skills),
-  );
+  return accepted(grantSkillExperience(state, { allocations: [{ characterId, experience }] }, definition, skills));
 }
 function select(
   state: ExplorationSkills,
@@ -104,9 +101,7 @@ describe("探索内スキル取得コア", () => {
     let state = accepted(
       grantSkillExperience(
         start(),
-        "run-1",
         {
-          id: "both",
           allocations: [
             { characterId: "gilberta", experience: 20 },
             { characterId: "player", experience: 20 },
@@ -140,9 +135,8 @@ describe("探索内スキル取得コア", () => {
     expect(
       state.characters.map(({ learned }) => learned.filter(({ acquisition }) => acquisition === "choice").length),
     ).toEqual([2, 2]);
-    expect(grantSkillExperience(state, "run-1", { id: "both", allocations: [] }, definition, catalog)).toMatchObject({
-      accepted: false,
-      reason: "reward-already-applied",
+    expect(grantSkillExperience(state, { allocations: [] }, definition, catalog)).toMatchObject({
+      accepted: true,
       state,
     });
   });
@@ -152,7 +146,7 @@ describe("探索内スキル取得コア", () => {
     expect(state.choice?.candidateIds).not.toContain("required");
     expect(state.characters[0].learned.some(({ skillId }) => skillId === "required")).toBe(false);
     state = select(state);
-    state = reward(state, 40, definition, catalog, "player", "cross-levels");
+    state = reward(state, 40, definition, catalog, "player");
     expect(state.characters[0].learned.filter(({ skillId }) => skillId === "required")).toEqual([
       { skillId: "required", type: "active", origin: "expedition", acquisition: "guaranteed" },
     ]);
@@ -188,13 +182,7 @@ describe("探索内スキル取得コア", () => {
       expect(state).toEqual(before);
     }
     expect(
-      grantSkillExperience(
-        state,
-        "run-1",
-        { id: "next", allocations: [{ characterId: "player", experience: 10 }] },
-        definition,
-        catalog,
-      ),
+      grantSkillExperience(state, { allocations: [{ characterId: "player", experience: 10 }] }, definition, catalog),
     ).toMatchObject({ accepted: false, reason: "pending-choice", state: before });
     expect(state).toEqual(before);
   });
@@ -209,7 +197,7 @@ describe("探索内スキル取得コア", () => {
       origin: "expedition",
     });
     expect(chooseSkill(state, "test-heal", catalog)).toMatchObject({ accepted: false, state });
-    state = reward(state, 10, definition, catalog, "player", "next");
+    state = reward(state, 10, definition, catalog, "player");
     expect(state.choice?.candidateIds).not.toContain("test-heal");
   });
   it("初期パッシブを強化し、個別上限の到達後は候補から除外する", () => {
@@ -221,7 +209,7 @@ describe("探索内スキル取得コア", () => {
       origin: "initial",
       acquisition: "initial",
     });
-    state = reward(state, 10, definition, catalog, "player", "next");
+    state = reward(state, 10, definition, catalog, "player");
     expect(state.choice?.candidateIds).not.toContain("test-strength");
   });
   it("ランク3のパッシブを新規習得から各段階強化まで扱う", () => {
@@ -236,12 +224,12 @@ describe("探索内スキル取得コア", () => {
       ],
     };
     let state = start(definition, skills);
-    for (const [id, rank, amount] of [
-      ["a", 1, 1],
-      ["b", 2, 4],
-      ["c", 3, 9],
+    for (const [rank, amount] of [
+      [1, 1],
+      [2, 4],
+      [3, 9],
     ] as const) {
-      state = select(reward(state, 10, definition, skills, "player", id), "long-passive", skills);
+      state = select(reward(state, 10, definition, skills, "player"), "long-passive", skills);
       expect(state.characters[0].learned.find(({ skillId }) => skillId === "long-passive")).toMatchObject({
         type: "passive",
         rank,
@@ -285,9 +273,9 @@ describe("探索内スキル取得コア", () => {
   it("初期化で保証・抽選・強化・権利を除き、初期能力と初期パッシブに戻す", () => {
     const definition = progression(1, 1);
     let state = select(reward(start(definition), 10, definition), "test-strength");
-    state = reward(state, 30, definition, catalog, "player", "to-five");
+    state = reward(state, 30, definition, catalog, "player");
     const rng = state.randomState;
-    state = accepted(resetExplorationSkills(state, "run-1", definition, catalog));
+    state = accepted(resetExplorationSkills(state, definition, catalog));
     expect(state.characters[0].learned).toEqual([
       { skillId: "test-strength", type: "passive", rank: 1, origin: "initial", acquisition: "initial" },
     ]);
@@ -299,13 +287,12 @@ describe("探索内スキル取得コア", () => {
     });
     expect(state.choice).toBeNull();
     expect(state.randomState).toBe(rng);
-    expect(state.growth.appliedRewardIds).toEqual(["reward-1", "to-five"]);
     expect(chooseSkill(state, "extra", catalog)).toMatchObject({
       accepted: false,
       reason: "closed-exploration",
       state,
     });
-    const next = createExplorationSkills("run-2", state.randomState, definition, catalog);
+    const next = createExplorationSkills(state.randomState, definition, catalog);
     expect(next.randomState).toBe(rng);
     expect(chooseSkill(next, "test-strength", catalog)).toMatchObject({
       accepted: false,
@@ -340,7 +327,7 @@ describe("探索内スキル取得コア", () => {
     };
     let state = reward(start(definition, skills), 10, definition, skills);
     state = select(state, "test-heal", skills);
-    state = accepted(resetExplorationSkills(state, "run-1", definition, skills));
+    state = accepted(resetExplorationSkills(state, definition, skills));
     expect(state.characters[0].learned).toEqual([
       { skillId: "test-strike", type: "active", origin: "initial", acquisition: "initial" },
       { skillId: "test-strength", type: "passive", origin: "initial", acquisition: "initial", rank: 1 },
@@ -351,8 +338,7 @@ describe("探索内スキル取得コア", () => {
     expect(
       grantSkillExperience(
         state,
-        "run-1",
-        { id: "bad", allocations: [{ characterId: "missing", experience: 20 }] },
+        { allocations: [{ characterId: "missing", experience: 20 }] },
         progression(),
         catalog,
       ),
@@ -458,8 +444,8 @@ it("通常パッシブのランク2は上位分類の候補へ移らない", () 
     ],
   };
   let state = start(definition, skills);
-  for (const id of ["first", "second"])
-    state = select(reward(state, 10, definition, skills, "player", id), "long-passive", skills);
+  for (let level = 0; level < 2; level++)
+    state = select(reward(state, 10, definition, skills, "player"), "long-passive", skills);
   expect(state.characters[0].learned).toContainEqual({
     skillId: "long-passive",
     type: "passive",
@@ -467,7 +453,7 @@ it("通常パッシブのランク2は上位分類の候補へ移らない", () 
     acquisition: "choice",
     rank: 2,
   });
-  state = reward(state, 10, definition, skills, "player", "advanced");
+  state = reward(state, 10, definition, skills, "player");
   expect(state.choice?.level).toBe(5);
   expect([...(state.choice?.candidateIds ?? [])].sort()).toEqual([
     "test-heal-advanced",

@@ -18,14 +18,7 @@ export function createInventory(): Inventory {
 export function finishInventory(inventory: Inventory, outcome: "cleared" | "defeat" | "retreat", randomState: number) {
   const exploration = inventory.items.exploration;
   if (!exploration) throw new Error("帰還する物品バッグがありません");
-  const result = returnItems(
-    inventory.items,
-    inventory.items.version,
-    exploration.id,
-    outcome,
-    randomState,
-    itemRetentionPolicy,
-  );
+  const result = returnItems(inventory.items, outcome, randomState, itemRetentionPolicy);
   if (!result.accepted) throw new Error("物品の帰還が拒否されました");
   return { inventory: { ...inventory, items: result.state }, randomState: result.randomState, lost: result.lost ?? [] };
 }

@@ -86,7 +86,7 @@ it("有効な旧v4保存の拒否でも元のスロットと現在セッショ�
       ],
       slots: ["player", null, null, null],
     },
-    clock: { elapsedHalfDays: 0, recoverySteps: 0, nextActionId: 1 },
+    clock: { elapsedHalfDays: 0, recoverySteps: 0 },
     randomState: 1,
     growth: null,
   });

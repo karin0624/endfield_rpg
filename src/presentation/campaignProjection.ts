@@ -4,14 +4,17 @@ import { recoveryItemId } from "../content/itemSettings";
 import { grownCharacters } from "../game/growthRuntime";
 import { characterById } from "../game/party";
 import { effectiveMaxHp, healthyStatus } from "../game/status";
+import type { BattleInput } from "./battleModel";
 import {
   type CampaignCommand,
   type CampaignModel,
+  campaignDungeonInput,
   campaignPartyModel,
   campaignRules,
   campaignTownInput,
 } from "./campaignModel";
 import { characterPortraitPath } from "./characterPortrait";
+import { projectDungeon } from "./dungeonProjection";
 import { projectGrowthChoice } from "./growthProjection";
 import { projectParty } from "./partyProjection";
 import { calendarLabel, completionFeedback, mentalFatigueText, symptomLabel } from "./statusText";
@@ -41,7 +44,7 @@ export function campaignFeedback(state: Pick<CampaignModel, "game" | "completion
     }),
   ];
 }
-export function projectCampaign(state: CampaignModel) {
+export function projectCampaign(state: CampaignModel, enemyDepths: BattleInput["enemyDepths"] = []) {
   const command = (id: CampaignCommand, label: string, primary = false): CommandFrame => ({
     command: id,
     label,
@@ -212,6 +215,16 @@ export function projectCampaign(state: CampaignModel) {
           : null,
       };
     case "dungeon":
+      return {
+        ...base,
+        kind: "dungeon" as const,
+        title: "",
+        copy: [],
+        commands: [],
+        dungeon: state.expedition
+          ? projectDungeon(state.expedition, campaignDungeonInput(state, enemyDepths), "ホームへ帰還")
+          : null,
+      };
     case "disposed":
       return { ...base, kind: screen.kind, title: "", copy: [], commands: [] };
   }

@@ -113,7 +113,11 @@ describe("battle", () => {
         targetHpBefore: 5,
         targetHpAfter: 0,
       },
-      { type: "combatant-defeated", combatantId: "slime" },
+      {
+        type: "combatant-defeated",
+        combatantId: "slime",
+        statusAfter: { physicalFatigue: 0, haze: 0, incapacityRecoverySteps: 6 },
+      },
     ]);
     expect(result.state.combatants).toEqual(
       expect.arrayContaining([expect.objectContaining({ id: "slime", hp: 0, isAlive: false })]),
@@ -140,7 +144,11 @@ describe("battle", () => {
     expect(result.state.currentActorId).toBeNull();
     expect(result.events).toEqual([
       expect.objectContaining({ type: "attack" }),
-      { type: "combatant-defeated", combatantId: "slime" },
+      {
+        type: "combatant-defeated",
+        combatantId: "slime",
+        statusAfter: { physicalFatigue: 0, haze: 0, incapacityRecoverySteps: 6 },
+      },
       { type: "battle-ended", outcome: "victory" },
     ]);
 

@@ -15,15 +15,20 @@ export const symptomNames = { physicalFatigue: "肉体疲労", haze: "朦朧" } 
 export function loadSymptomText(kind: LoadSymptomKind, value: number): string {
   return `${formatAmount(value)}（${loadSymptomLabel(value, loadSymptomDefinition.symptoms[kind])}）`;
 }
-export function symptomDescriptions(
-  status: CharacterStatus,
-): readonly { icon: string; label: string; detail: string }[] {
-  const symptoms = (["physicalFatigue", "haze"] as const)
+interface SymptomDescription {
+  readonly kind: "physicalFatigue" | "haze" | "incapacity";
+  readonly icon: string;
+  readonly label: string;
+  readonly detail: string;
+}
+export function symptomDescriptions(status: CharacterStatus): readonly SymptomDescription[] {
+  const symptoms: SymptomDescription[] = (["physicalFatigue", "haze"] as const)
     .filter((kind) => status[kind] > 0)
     .map((kind) => {
       const definition = loadSymptomDefinition.symptoms[kind];
       const penalty = `${kind === "physicalFatigue" ? "最大HP" : "命中率"} × ${formatAmount(loadSymptomMultiplier(status[kind], definition) * 100)}%`;
       return {
+        kind,
         icon: kind === "physicalFatigue" ? "体" : "朦",
         label: `${symptomNames[kind]}・${loadSymptomLabel(status[kind], definition)}`,
         detail: `${penalty}（あと街探索${symptomRecoverySteps(status[kind], kind)}回）`,
@@ -31,6 +36,7 @@ export function symptomDescriptions(
     });
   if (status.incapacityRecoverySteps !== null)
     symptoms.push({
+      kind: "incapacity",
       icon: "休",
       label: "戦闘不能",
       detail: `戦闘参加不可（あと街探索${status.incapacityRecoverySteps}回）`,

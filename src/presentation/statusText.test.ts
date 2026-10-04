@@ -45,7 +45,6 @@ it("街での軽快と復帰を表示し、変化のない仲間は結果へ並�
   expect(
     completionFeedback(
       {
-        id: 1,
         kind: "town-exploration",
         calendarHalfDays: 1,
         recoverySteps: 1,

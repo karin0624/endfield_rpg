@@ -440,9 +440,10 @@ export function mountDungeonUi(
         (result) => {
           if (result.accepted) {
             const used = result.events.find((event) => event.type === "skill");
+            const cost = result.events.find((event) => event.type === "skill-cost");
             branchResult =
               used?.type === "skill"
-                ? `HPを${Number(used.amount.toFixed(2))}回復。精神疲労 ${used.fatigueBefore} → ${used.fatigueAfter}。`
+                ? `HPを${Number(used.amount.toFixed(2))}回復。${cost ? `精神疲労 ${cost.fatigueBefore} → ${cost.fatigueAfter}。` : ""}`
                 : "";
             for (const event of result.events)
               if (event.type === "symptom")
@@ -468,9 +469,6 @@ export function mountDungeonUi(
             type: "branch-item",
             itemId: recoveryItemId,
             targetId,
-            explorationId: dungeonState.expeditionActionId ?? -1,
-            expectedVersion: items.version,
-            expectedNodeId: dungeonState.currentNodeId,
           });
           if (!result.accepted) return false;
           const event = result.itemRecovery;
@@ -654,7 +652,7 @@ export function mountDungeonUi(
               }
             : undefined,
           useItem: options.getItems
-            ? (battleState, actorId, targetId) => {
+            ? (_battleState, actorId, targetId) => {
                 const items = options.getItems?.();
                 if (!items) return { accepted: false, reason: "物品がありません" };
                 const result = options.dispatch({
@@ -662,10 +660,6 @@ export function mountDungeonUi(
                   itemId: recoveryItemId,
                   actorId,
                   targetId,
-                  explorationId: state.expeditionActionId ?? -1,
-                  expectedVersion: items.version,
-                  expectedNodeId: state.currentNodeId,
-                  expectedActionTime: battleState.logicalTime,
                 });
                 if (!result.accepted || !result.battleState) return { accepted: false, reason: "使用できません" };
                 dungeonState = result.state;
@@ -678,15 +672,12 @@ export function mountDungeonUi(
               }
             : undefined,
           skillRules: options.skillRules,
-          useSkill: (battleState, actorId, targetId, skillId) => {
+          useSkill: (_battleState, actorId, targetId, skillId) => {
             const result = options.dispatch({
               type: "skill",
               actorId,
               targetId,
               skillId,
-              expectedActionTime: battleState.logicalTime,
-              expectedNodeId: state.activeNodeId ?? "",
-              expeditionActionId: state.expeditionActionId ?? -1,
             });
             if (!result.accepted) return { accepted: false, reason: result.reason };
             dungeonState = result.state;

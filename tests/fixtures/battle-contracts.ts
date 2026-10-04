@@ -106,7 +106,7 @@ if (query.has("branch")) {
   const renderer = createUiTestRenderer(canvas, parseBattleSettings(savedSettings)).beginBattle(definitions);
   await renderer.ready;
   const stock = [{ itemId: recoveryItemId, quantity: 2 }];
-  const packed = packItems(createItemState(stock, itemCatalog), 0, 1, "dungeon", stock, itemCatalog);
+  const packed = packItems(createItemState(stock, itemCatalog), "dungeon", stock, itemCatalog);
   if (!packed.accepted) throw new Error(packed.reason);
   let items = packed.state;
   let confirmed = advanceBattleToNextAllyInput(createBattleState(definitions)).state;
@@ -128,12 +128,9 @@ if (query.has("branch")) {
         items,
         state,
         {
-          expectedVersion: items.version,
-          explorationId: 1,
           itemId: recoveryItemId,
           actorId,
           targetId,
-          expectedActionTime: state.logicalTime,
         },
         itemCatalog,
       );
@@ -150,7 +147,6 @@ if (query.has("branch")) {
         actorId,
         targetId,
         skillId,
-        state.logicalTime,
         catalog,
         mentalFatigueDefinition,
       );

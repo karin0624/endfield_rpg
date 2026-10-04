@@ -53,19 +53,16 @@ describe("Issue46: 公開操作による複数日受入", () => {
     function town(place = "market") {
       operations.push({ town: place });
       accept(beginTownExploration(game, place, adventure));
-      const id = game.clock?.pendingAction?.id ?? -1;
       accept(actInTown(game, { type: "advance" }, characters, adventure, mentalFatigueDefinition, rules));
       expect(actInTown(game, { type: "advance" }, characters, adventure, mentalFatigueDefinition, rules)).toMatchObject(
         { accepted: false, state: game },
       );
-      return id;
     }
     function selection() {
       const choice = game.growth?.choice;
       if (!choice || !game.growth) throw new Error("必須選択なし");
       const skillId = choice.level === 2 ? "test-strength" : choice.level === 3 ? "test-power" : "test-vitality";
       return {
-        explorationId: game.growth.explorationId,
         characterId: choice.characterId,
         level: choice.level,
         skillId,
@@ -126,9 +123,6 @@ describe("Issue46: 公開操作による複数日受入", () => {
         actorId: "player",
         targetId: "player",
         skillId: "test-heal",
-        expectedVersion: game.dungeon?.branchSkillVersion ?? -1,
-        expectedNodeId: game.dungeon?.currentNodeId ?? "",
-        expeditionActionId: game.dungeon?.expeditionActionId ?? -1,
       };
     }
     town("recruit");
@@ -171,12 +165,12 @@ describe("Issue46: 公開操作による複数日受入", () => {
     resolve();
     expect(game.party.members[0].hp).toBe(26); // Two levels +8 and vitality +4, no free full heal.
     expect(game.randomState).toBe(2885962492); // Seed3, thirteen offers, three draws each.
-    reject(oldBranch);
     reject({ ...heal(), targetId: "reserve" });
-    const first = heal();
+    const first = oldBranch;
     const healed = act(first);
     expect(healed.result.events).toMatchObject([
-      { type: "skill", amount: expect.closeTo(18.8, 10), fatigueBefore: 0, fatigueAfter: 50 },
+      { type: "skill", amount: expect.closeTo(18.8, 10) },
+      { type: "skill-cost", actorId: "player", fatigueBefore: 0, fatigueAfter: 50 },
       { type: "symptom", kind: "physicalFatigue", before: 0, after: 50 },
     ]); // (8 + 216*.05) before onset; first two draws .00444, .42273.
     expect(game.party.members[0]).toMatchObject({
@@ -185,16 +179,15 @@ describe("Issue46: 公開操作による複数日受入", () => {
       status: { physicalFatigue: 50, haze: 0 },
     });
     expect(game.randomState).toBe(1815624078);
-    reject(first);
-    const second = act(heal()); // A fresh version intentionally repeats the use.
+    const second = act(first); // The same meaningful command is valid in the current route state.
     expect(second.result.events).toMatchObject([
-      { type: "skill", amount: expect.closeTo(10.133333333333333, 10), fatigueBefore: 50, fatigueAfter: 100 },
+      { type: "skill", amount: expect.closeTo(10.133333333333333, 10) },
+      { type: "skill-cost", actorId: "player", fatigueBefore: 50, fatigueAfter: 100 },
     ]);
-    expect(second.result.events).toHaveLength(1); // .75425 >= p(100)=.5, no onset.
+    expect(second.result.events.map((event) => event.type)).toEqual(["skill", "skill-cost"]); // .75425 >= p(100)=.5, no onset.
     expect(game.party.members[0].hp).toBeCloseTo(54.93333333333333, 10);
     expect(game.randomState).toBe(3239474069);
     expect(game.clock).toMatchObject({ elapsedHalfDays: 2, recoverySteps: 2 });
-    const expeditionId = game.clock?.pendingAction?.id;
     const lastBranch = heal();
     act({ type: "enter", nodeId: "boss" });
     if (outcome === "cleared") {
@@ -209,13 +202,14 @@ describe("Issue46: 公開操作による複数日受入", () => {
         actorId: "player",
         targetId: "boss-enemy",
         skillId: "test-light-strike",
-        expectedNodeId: "boss",
-        expectedActionTime: game.dungeon.activity.state.logicalTime,
-        expeditionActionId: expeditionId ?? -1,
       });
       expect(hit.result.events[0]).toMatchObject({
         type: "skill",
         amount: 37.5,
+      });
+      expect(hit.result.events).toContainEqual({
+        type: "skill-cost",
+        actorId: "player",
         fatigueBefore: 100,
         fatigueAfter: 100,
       });
@@ -223,7 +217,7 @@ describe("Issue46: 公開操作による複数日受入", () => {
       expect(game.dungeon?.outcome).toBe("cleared");
       expect(game.growth?.growth.characters.map(({ experience }) => experience)).toEqual([5, 5, 5, 5, 0]);
       expect(game.growth?.choice).toBeNull();
-      operations.push({ return: expeditionId });
+      operations.push({ return: "home" });
       accept(leaveExpedition(game, rules));
     }
     expect(game.dungeon).toBeNull();
@@ -280,7 +274,6 @@ describe("Issue46: 公開操作による複数日受入", () => {
       recoverySteps: outcome === "failed" ? 8 : 3,
     });
     depart();
-    reject(lastBranch);
     expect(chooseGrowthSkill(game, oldBattleChoice.skillId, rules)).toMatchObject({ accepted: false, state: game });
     expect(game.dungeon?.party[0]).toMatchObject({
       attackPower: outcome === "failed" ? 20 : 21,
@@ -290,7 +283,7 @@ describe("Issue46: 公開操作による複数日受入", () => {
     if (outcome === "cleared") {
       // Symptoms50 -> town40 -> expedition40 -> town30. Only two of these three half-days heal.
       expect(game.party.members[0].status?.physicalFatigue).toBe(40);
-      operations.push({ return: game.clock?.pendingAction?.id });
+      operations.push({ return: "home" });
       accept(leaveExpedition(game, rules));
       expect(game.party.members[0]).toMatchObject({ hp: 142, mentalFatigue: 90, status: { physicalFatigue: 40 } });
       town();

@@ -13,6 +13,7 @@ import type { ItemRecoveryEvent } from "../game/items";
 import { mentalFatigueMultiplier } from "../game/mentalFatigue";
 import { activeSkillBaseAmount, mentalFatigueAffectedQuantity, skillById } from "../game/skills";
 import { canParticipate, effectiveMaxHp } from "../game/status";
+import { createTetraMarkup } from "../presentation/battleGeometry";
 import { formatAmount, loadSymptomText, mentalFatigueText, symptomNames } from "../presentation/statusText";
 import type { BattlePresentation } from "./battlePresentation";
 import { createBattleSequence } from "./battleSequence";
@@ -22,73 +23,6 @@ import { renderSymptomIcons } from "./symptomIcons";
 
 const EVENT_TOAST_DURATION_MS = 300;
 const ENEMY_TURN_PAUSE_MS = 360;
-
-type Point3 = [number, number, number];
-
-const TETRA_VERTICES: readonly Point3[] = [
-  [0, -0.59, 1],
-  [0.8660254, -0.59, -0.5],
-  [-0.8660254, -0.59, -0.5],
-  [0, 1.13, 0],
-];
-const TETRA_FACES: readonly (readonly [number, number, number])[] = [
-  [0, 1, 2],
-  [0, 3, 1],
-  [1, 3, 2],
-  [2, 3, 0],
-];
-const TETRA_FACE_COLORS = ["var(--face-top)", "var(--face-dark)", "var(--face-mid)", "var(--face-light)"];
-
-/** SVG版の実3D四面体。面を奥行き順に重ね、CSSの平面回転による裏返りを防ぐ。 */
-function createTetraMarkup(angle: number): string {
-  const cos = Math.cos(angle);
-  const sin = Math.sin(angle);
-  const tilt = -0.18;
-  const cosTilt = Math.cos(tilt);
-  const sinTilt = Math.sin(tilt);
-  const vertices = TETRA_VERTICES.map(([x, y, z]): Point3 => {
-    const rotatedX = x * cos + z * sin;
-    const rotatedZ = -x * sin + z * cos;
-    return [rotatedX, y * cosTilt - rotatedZ * sinTilt, y * sinTilt + rotatedZ * cosTilt];
-  });
-  const projected: Point3[] = vertices.map(([x, y, z]) => [32 + x * 22, 29 + y * 24, z]);
-  const coordinates = (ids: readonly number[]) =>
-    ids.map((index) => `${projected[index][0].toFixed(3)},${projected[index][1].toFixed(3)}`).join(" ");
-  const orderedFaces = TETRA_FACES.map((indices, index) => ({
-    indices,
-    index,
-    depth: indices.reduce((sum, vertex) => sum + vertices[vertex][2], 0) / 3,
-  })).sort((first, second) => first.depth - second.depth);
-  const darkFaces = orderedFaces
-    .map(
-      (face) =>
-        `<polygon points="${coordinates(face.indices)}" fill="var(--marker-body)" stroke="var(--marker-body)" stroke-width="7" stroke-linejoin="round"/>`,
-    )
-    .join("");
-  const coloredFaces = orderedFaces
-    .map((face) => {
-      const engraving =
-        face.index === 0
-          ? ""
-          : (() => {
-              const tip = projected[3];
-              const rim = face.indices.filter((index) => index !== 3).map((index) => projected[index]);
-              if (rim.length !== 2) return "";
-              return [0.35, 0.58]
-                .map((amount) => {
-                  const first = rim[0].map((value, index) => value * (1 - amount) + tip[index] * amount);
-                  const second = rim[1].map((value, index) => value * (1 - amount) + tip[index] * amount);
-                  const middleX = (first[0] + second[0]) / 2;
-                  const middleY = (first[1] + second[1]) / 2;
-                  return `<path d="M${first[0]},${first[1]} Q${middleX},${middleY + 2.2} ${second[0]},${second[1]}" fill="none" stroke="var(--text-secondary)" stroke-width=".85" opacity=".4"/>`;
-                })
-                .join("");
-            })();
-      return `<polygon points="${coordinates(face.indices)}" fill="${TETRA_FACE_COLORS[face.index]}" stroke="var(--marker-edge)" stroke-width="1.8" stroke-linejoin="round"/>${engraving}`;
-    })
-    .join("");
-  return `${darkFaces}${coloredFaces}`;
-}
 
 const presentation: Record<string, { name: string; portrait?: string }> = {
   player: { name: "ロッシ", portrait: "characters/rossi/face.png" },
@@ -635,11 +569,7 @@ export function mountBattleUi(
       ...displayState,
       combatants: displayState.combatants.map((member) => {
         if (member.id !== event.targetId || event.type === "miss") return member;
-        const hp =
-          event.type === "attack"
-            ? event.targetHpAfter
-            : member.hp + (event.effect === "damage" ? -event.amount : event.amount);
-        return { ...member, hp };
+        return { ...member, hp: event.targetHpAfter };
       }),
     };
     renderCombatants();
@@ -673,17 +603,18 @@ export function mountBattleUi(
       : events;
     const skillEvents = confirmedEvents.filter((event) => event.type === "skill");
     const firstSkill = skillEvents[0];
+    const cost = confirmedEvents.find((event) => event.type === "skill-cost");
     let resultSummary = "";
     if (firstSkill) {
       const name = options.skillRules
         ? skillById(options.skillRules.catalog, firstSkill.skillId).name
         : firstSkill.skillId;
-      resultSummary = `${name}：${skillEvents.map((event) => `${combatantName(event.targetId)} ${event.hitIndex}発目 ${event.hit ? `${formatAmount(event.amount)}${event.effect === "damage" ? "ダメージ" : "回復"}` : "外れ"}`).join(" · ")} · 精神疲労 ${formatAmount(firstSkill.fatigueBefore)} → ${formatAmount(firstSkill.fatigueAfter)}`;
+      resultSummary = `${name}：${skillEvents.map((event) => `${combatantName(event.targetId)} ${event.hitIndex}発目 ${event.hit ? `${formatAmount(event.amount)}${event.effect === "damage" ? "ダメージ" : "回復"}` : "外れ"}`).join(" · ")}${cost ? ` · 精神疲労 ${formatAmount(cost.fatigueBefore)} → ${formatAmount(cost.fatigueAfter)}` : ""}`;
       skillResult.hidden = true;
     }
     let hasReplayedAllyAttack = false;
     let hasPausedBeforeEnemyTurn = false;
-    for (const [eventIndex, event] of confirmedEvents.entries()) {
+    for (const event of confirmedEvents) {
       if (disposed) return;
       if (event.type === "attack" || event.type === "miss" || event.type === "skill") {
         const actorTeam = teamFor(event.actorId);
@@ -725,22 +656,24 @@ export function mountBattleUi(
           displayState = {
             ...displayState,
             combatants: displayState.combatants.map((member) =>
-              member.id === event.targetId ? { ...member, hp: member.hp + event.amount } : member,
+              member.id === event.targetId ? { ...member, hp: event.targetHpAfter } : member,
             ),
           };
           renderCombatants();
           message = resultSummary;
           screenReaderStatus.textContent = message;
         });
+      } else if (event.type === "skill-cost") {
+        displayState = {
+          ...displayState,
+          combatants: displayState.combatants.map((member) =>
+            member.id === event.actorId ? { ...member, mentalFatigue: event.fatigueAfter } : member,
+          ),
+        };
+        renderCombatants();
       } else if (event.type === "symptom") {
         const detail = `${combatantName(event.actorId)}の${symptomNames[event.kind]}：${formatAmount(event.before)} → ${loadSymptomText(event.kind, event.after)}`;
         resultSummary += ` · ${detail}`;
-        // The next attack records HP after onset and before enemy damage; do not
-        // borrow the final HP when a later enemy has already damaged this actor.
-        const nextAttack = confirmedEvents
-          .slice(eventIndex + 1)
-          .find((later) => later.type === "attack" && later.targetId === event.actorId);
-        const confirmed = state.combatants.find((member) => member.id === event.actorId);
         displayState = {
           ...displayState,
           combatants: displayState.combatants.map((member) =>
@@ -748,9 +681,8 @@ export function mountBattleUi(
               ? member
               : {
                   ...member,
-                  status: { ...member.status, [event.kind]: event.after },
-                  mentalFatigue: confirmed?.mentalFatigue ?? member.mentalFatigue,
-                  hp: nextAttack?.type === "attack" ? nextAttack.targetHpBefore : (confirmed?.hp ?? member.hp),
+                  status: event.statusAfter,
+                  hp: event.actorHpAfter,
                 },
           ),
         };
@@ -762,7 +694,7 @@ export function mountBattleUi(
         displayState = {
           ...displayState,
           combatants: displayState.combatants.map((member) =>
-            member.id === event.combatantId ? { ...member, isAlive: false } : member,
+            member.id === event.combatantId ? { ...member, isAlive: false, status: event.statusAfter } : member,
           ),
         };
         renderCombatants();

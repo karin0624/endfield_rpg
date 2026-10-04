@@ -70,7 +70,7 @@ function recruitAdded(content: ContentDefinitions): ExpeditionGame {
     adventure: createInitialGameState(content.initial),
     party: createParty(content.characters, ["player"]),
     dungeon: null,
-    growth: createExplorationSkills("growth:1", 1, content.growth.progression, content.skills),
+    growth: createExplorationSkills(1, content.growth.progression, content.skills),
   };
   const start = beginTownExploration(game, "new-place", content.adventure);
   if (!start.accepted) throw new Error(start.reason);

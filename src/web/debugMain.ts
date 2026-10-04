@@ -70,40 +70,34 @@ if (!battleMode) {
       </div>
     </main>
   `;
-  const { createBattleScene } = await import("./battleScene");
-  const { mountBattleUi } = await import("./battleUi");
-  const { requiredElement } = await import("./requiredElement");
-  const canvas = requiredElement<HTMLCanvasElement>(app, "canvas");
-  const status = requiredElement<HTMLDivElement>(app, "[data-status]");
-  const board = requiredElement<HTMLDivElement>(app, "[data-board]");
-
-  try {
-    const settings = parseBattleSettings(savedSettings);
-    battle = createBattleScene(canvas, settings);
-    await battle.ready;
-    if (!disposed) {
-      canvas.dataset.ready = "true";
-      status.textContent = "表示準備完了";
-      status.classList.add("sr-only");
-      if (editing) {
+  if (!editing) {
+    const { mountDebugBattle } = await import("./debugBattleUi");
+    if (!disposed) disposeBattleUi = mountDebugBattle(app, parseBattleSettings(savedSettings), import.meta.env.DEV);
+  } else {
+    const { createBattleScene } = await import("./battleScene");
+    const { requiredElement } = await import("./requiredElement");
+    const canvas = requiredElement<HTMLCanvasElement>(app, "canvas");
+    const status = requiredElement<HTMLDivElement>(app, "[data-status]");
+    try {
+      const settings = parseBattleSettings(savedSettings);
+      battle = createBattleScene(canvas, settings);
+      await battle.ready;
+      if (!disposed) {
+        canvas.dataset.ready = "true";
+        status.textContent = "表示準備完了";
+        status.classList.add("sr-only");
         // Viteの配布ビルドでは、この分岐と設定UIのコードを含めない。
         const { mountBattleEditor } = await import("./battleEditor");
         if (!disposed) disposeEditor = mountBattleEditor(app, battle, settings);
-      } else {
-        disposeBattleUi = mountBattleUi(board, battle);
-        const utilities = document.createElement("div");
-        utilities.className = "battle-utility-controls";
-        utilities.innerHTML = `<a href="?debug=1">街へ戻る</a>
-          ${import.meta.env.DEV ? '<a href="?debug=1&edit=1">構図設定</a>' : ""}`;
-        app.append(utilities);
       }
-    }
-  } catch (error) {
-    if (!disposed) {
-      console.error(error);
-      battle?.dispose();
-      status.textContent = "戦闘画面を読み込めませんでした。素材の取得とWebGL対応を確認して、再読み込みしてください。";
-      status.dataset.error = "true";
+    } catch (error) {
+      if (!disposed) {
+        console.error(error);
+        battle?.dispose();
+        status.textContent =
+          "戦闘画面を読み込めませんでした。素材の取得とWebGL対応を確認して、再読み込みしてください。";
+        status.dataset.error = "true";
+      }
     }
   }
 }

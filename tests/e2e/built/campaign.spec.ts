@@ -541,11 +541,7 @@ async function loadInitialScenario(
     game = { ...game, party: { ...game.party, members: game.party.members.map((member) => ({ ...member, hp })) } };
   if (experience) {
     if (!saveDefinitions.skills) throw new Error("skill definitions missing");
-    const reward = rewardGrowth(
-      game,
-      { id: "initial-training", allocations: [{ characterId: "player", experience }] },
-      saveDefinitions.skills,
-    );
+    const reward = rewardGrowth(game, { allocations: [{ characterId: "player", experience }] }, saveDefinitions.skills);
     if (!reward.accepted) throw new Error(reward.reason);
     game = reward.state;
   }
@@ -650,7 +646,7 @@ test("市場の複数購入では療養を進めず、終了時にだけ非ゼ�
     dungeon: null,
     randomState: 1,
     inventory: createInventory(),
-    clock: { elapsedHalfDays: 2, recoverySteps: 1, nextActionId: 3, pendingAction: null },
+    clock: { elapsedHalfDays: 2, recoverySteps: 1, pendingAction: null },
   };
   game = applyPartyStatus(game, "player", { kind: "physicalFatigue", amount: 30 }, characters);
   game = applyPartyStatus(game, "gilberta", { kind: "incapacity" }, characters);
@@ -676,7 +672,7 @@ test("市場の複数購入では療養を進めず、終了時にだけ非ゼ�
   await expect(page.locator("[data-calendar]")).toHaveText("2日目 · 夜");
   await save(page);
   const persisted = JSON.parse((await page.evaluate(() => localStorage.getItem("endfield-rpg-game-save"))) ?? "null");
-  expect(persisted.clock).toEqual({ elapsedHalfDays: 3, recoverySteps: 2, nextActionId: 4 });
+  expect(persisted.clock).toEqual({ elapsedHalfDays: 3, recoverySteps: 2 });
   expect(persisted.party.members).toEqual(
     expect.arrayContaining([
       expect.objectContaining({ id: "player", status: expect.objectContaining({ physicalFatigue: 20 }) }),
@@ -758,7 +754,7 @@ test("街XPで生じた必須習得を終えると元の街へ戻り半日を二
   await expect(page.locator("[data-calendar]")).toHaveText("1日目 · 夜");
   await save(page);
   const saved = JSON.parse((await page.evaluate(() => localStorage.getItem("endfield-rpg-game-save"))) ?? "null");
-  expect(saved.clock).toEqual({ elapsedHalfDays: 1, recoverySteps: 1, nextActionId: 2 });
+  expect(saved.clock).toEqual({ elapsedHalfDays: 1, recoverySteps: 1 });
   expect(
     saved.growth.growth.characters.find((entry: { characterId: string }) => entry.characterId === "player")
       .pendingChoiceLevels,

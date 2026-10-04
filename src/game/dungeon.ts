@@ -75,8 +75,6 @@ export type DungeonActivity =
   | { readonly type: "conversation"; readonly state: GameState };
 
 export interface DungeonState {
-  readonly expeditionActionId?: number;
-  readonly branchSkillVersion: number;
   readonly dungeonId: string;
   /** The last entered node, or the entry node before the first choice. */
   readonly currentNodeId: string;
@@ -118,6 +116,8 @@ export type DungeonActionResult =
       readonly itemRecovery?: ItemRecoveryEvent;
       /** Final battle state for the screen result after the activity returns to the route. */
       readonly battleState?: BattleState;
+      /** Confirmed creation snapshot before enemy opening actions; events publish those actions. */
+      readonly battleBefore?: BattleState;
     }
   | {
       readonly accepted: false;
@@ -274,7 +274,7 @@ export function createDungeonState(
   }
   return {
     randomState,
-    branchSkillVersion: 0,
+
     dungeonId: definition.id,
     currentNodeId: entry.id,
     activeNodeId: null,
@@ -371,9 +371,10 @@ function startBattleNode(
       state: completeNode(started, node.id, node.type, loop.state.outcome),
       events: loop.events,
       battleState: loop.state,
+      battleBefore: battle,
     };
   }
-  return { accepted: true, state: started, events: loop.events };
+  return { accepted: true, state: started, events: loop.events, battleBefore: battle, battleState: loop.state };
 }
 
 /** Enter a directly connected node after the current node has been resolved. */
@@ -539,9 +540,6 @@ export interface DungeonSkillInput {
   readonly actorId: string;
   readonly targetId: string | null;
   readonly skillId: string;
-  readonly expectedActionTime: number;
-  readonly expectedNodeId: string;
-  readonly expeditionActionId: number;
 }
 export function performDungeonSkill(
   state: DungeonState,
@@ -549,15 +547,12 @@ export function performDungeonSkill(
   definition: DungeonDefinition,
   rules: BattleSkillRules,
 ): DungeonActionResult {
-  if (state.expeditionActionId !== input.expeditionActionId || state.activeNodeId !== input.expectedNodeId)
-    return reject(state, "battle:action-not-current");
   return resolveDungeonBattleAction(state, definition, (battle) =>
     performBattleSkillAndAdvanceToAllyInput(
       battle,
       input.actorId,
       input.targetId,
       input.skillId,
-      input.expectedActionTime,
       rules.catalog,
       rules.fatigue,
     ),
@@ -568,12 +563,9 @@ export interface DungeonBranchSkillInput {
   readonly actorId: string;
   readonly targetId: string;
   readonly skillId: string;
-  readonly expectedVersion: number;
-  readonly expectedNodeId: string;
-  readonly expeditionActionId: number;
 }
 
-/** A version identifies one accepted use, independent of the battle timeline. */
+/** A recovery skill is defined at the current route choice, using current participants and load. */
 export function performDungeonBranchSkill(
   state: DungeonState,
   input: DungeonBranchSkillInput,
@@ -584,12 +576,6 @@ export function performDungeonBranchSkill(
   if (state.outcome !== "ongoing") return reject(state, "dungeon-ended");
   if (state.activity !== null || state.activeNodeId !== null) return reject(state, "node-in-progress");
   if (!getAvailableDungeonNodes(state, definition).length) return reject(state, "current-node-unresolved");
-  if (
-    state.expeditionActionId !== input.expeditionActionId ||
-    state.currentNodeId !== input.expectedNodeId ||
-    state.branchSkillVersion !== input.expectedVersion
-  )
-    return reject(state, "battle:action-not-current");
   const actor = state.party.find(({ id }) => id === input.actorId);
   if (actor?.team !== "ally" || !canParticipate(actor.hp, actor.status))
     return reject(state, "battle:no-current-actor");
@@ -625,6 +611,10 @@ export function performDungeonBranchSkill(
     loadSymptomDefinition,
   );
   const actorStatus = { ...status, ...onset.symptoms };
+  const actorHpAfter = Math.min(
+    actor.id === target.id ? hp : actor.hp,
+    effectiveMaxHp(actor.maxHp ?? actor.hp, actorStatus),
+  );
   const party = state.party.map((member) => {
     const healed = member.id === target.id ? hp : member.hp;
     return member.id === actor.id
@@ -632,7 +622,7 @@ export function performDungeonBranchSkill(
           ...member,
           mentalFatigue: fatigueAfter,
           status: actorStatus,
-          hp: Math.min(healed, effectiveMaxHp(member.maxHp ?? member.hp, actorStatus)),
+          hp: actorHpAfter,
         }
       : { ...member, hp: healed };
   });
@@ -645,15 +635,18 @@ export function performDungeonBranchSkill(
       effect: "hp-recovery",
       hitIndex: 1,
       amount: hp - target.hp,
-      fatigueBefore,
-      fatigueAfter,
+      targetHpBefore: target.hp,
+      targetHpAfter: hp,
       hit: true,
     },
+    { type: "skill-cost", actorId: actor.id, fatigueBefore, fatigueAfter },
   ];
-  if (onset.application) events.push({ type: "symptom", actorId: actor.id, ...onset.application });
+  if (onset.application) {
+    events.push({ type: "symptom", actorId: actor.id, ...onset.application, actorHpAfter, statusAfter: actorStatus });
+  }
   return {
     accepted: true,
-    state: { ...state, party, randomState: onset.randomState, branchSkillVersion: state.branchSkillVersion + 1 },
+    state: { ...state, party, randomState: onset.randomState },
     events,
   };
 }

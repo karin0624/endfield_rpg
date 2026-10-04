@@ -71,8 +71,7 @@ function parseInventory(value: unknown): Inventory | undefined {
   const items = value.items;
   if (
     !record(items) ||
-    !keys(items, ["version", "home", "importantIds", "exploration"]) ||
-    !counter(items.version) ||
+    !keys(items, ["home", "importantIds", "exploration"]) ||
     items.exploration !== null ||
     !Array.isArray(items.home) ||
     !Array.isArray(items.importantIds)
@@ -97,7 +96,7 @@ function parseInventory(value: unknown): Inventory | undefined {
   return {
     balance: value.balance,
     equipment,
-    items: { version: items.version, home, importantIds: [], exploration: null },
+    items: { home, importantIds: [], exploration: null },
   };
 }
 
@@ -184,13 +183,10 @@ export function deserializeGame(data: string, definitions: SaveDefinitions): Sav
   }
   if (
     !record(clock) ||
-    !keys(clock, ["elapsedHalfDays", "recoverySteps", "nextActionId"]) ||
+    !keys(clock, ["elapsedHalfDays", "recoverySteps"]) ||
     !counter(clock.elapsedHalfDays) ||
     !counter(clock.recoverySteps) ||
-    !counter(clock.nextActionId) ||
-    clock.nextActionId < 1 ||
-    clock.elapsedHalfDays !== (clock.nextActionId - 1) * ACTION_HALF_DAYS ||
-    clock.recoverySteps > clock.nextActionId - 1 ||
+    clock.recoverySteps * ACTION_HALF_DAYS > clock.elapsedHalfDays ||
     typeof randomState !== "number" ||
     !Number.isInteger(randomState) ||
     randomState < 0 ||
@@ -214,7 +210,6 @@ export function deserializeGame(data: string, definitions: SaveDefinitions): Sav
       clock: {
         elapsedHalfDays: clock.elapsedHalfDays,
         recoverySteps: clock.recoverySteps,
-        nextActionId: clock.nextActionId,
         pendingAction: null,
       },
       randomState,
@@ -248,7 +243,6 @@ export function serializeGame(
     clock: {
       elapsedHalfDays: clock.elapsedHalfDays,
       recoverySteps: clock.recoverySteps,
-      nextActionId: clock.nextActionId,
     },
     randomState: game.randomState ?? 1,
   });

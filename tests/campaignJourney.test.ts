@@ -14,8 +14,9 @@ it("実コアで街・分岐成長・ボス戦・帰還・保存再開を確定�
   const initial = createCampaignModel();
   const initialGame = structuredClone(initial.game);
   let state = initial;
+  const depths = [{ id: "ruin-warden", depth: 3 }];
   const send = (event: CampaignEvent) => {
-    const transition = reduceCampaign(state, event);
+    const transition = reduceCampaign(state, event, depths);
     expect(transition.handled).toBe(true);
     state = transition.state;
     return transition;
@@ -28,44 +29,45 @@ it("実コアで街・分岐成長・ボス戦・帰還・保存再開を確定�
   expect(state.game.clock).toMatchObject({ elapsedHalfDays: 1, recoverySteps: 1 });
   for (const next of ["home", "destinations", "prepare-departure"] as const) command(next);
   send({ type: "party", event: { type: "depart" } });
-  send({ type: "dungeon", command: { type: "enter", nodeId: "conversation-b" } });
-  send({ type: "dungeon", command: { type: "advance" } });
-  send({ type: "dungeon", command: { type: "choose", optionId: "mark-on-map" } });
+  send({ type: "dungeon", event: { type: "enter", nodeId: "conversation-b" } });
+  send({ type: "dungeon", event: { type: "advance" } });
+  send({ type: "dungeon", event: { type: "choose", optionId: "mark-on-map" } });
   expect(state.game.growth?.choice).toMatchObject({
     level: 2,
     candidateIds: ["test-power", "test-vitality", "test-light-strike"],
   });
   expect(state.game.party.members.find(({ id }) => id === "player")?.hp).toBe(28);
-  send({ type: "growth", event: { type: "choose", skillId: "test-power" } });
+  send({ type: "dungeon", event: { type: "growth", event: { type: "choose", skillId: "test-power" } } });
   expect(state.game.growth?.choice).toMatchObject({
     level: 3,
     candidateIds: ["test-light-strike", "test-strength", "test-vitality"],
   });
-  send({ type: "growth", event: { type: "choose", skillId: "test-light-strike" } });
+  send({ type: "dungeon", event: { type: "growth", event: { type: "choose", skillId: "test-light-strike" } } });
   expect(state.game.growth?.choice).toBeNull();
-  send({ type: "dungeon", command: { type: "enter", nodeId: "boss-c" } });
-  for (const [expectedActionTime, hp, mentalFatigue, outcome] of [
-    [100, 23, 4, "ongoing"],
+  send({ type: "dungeon", event: { type: "enter", nodeId: "boss-c" } });
+  if (state.expedition?.screen.kind !== "battle") throw new Error("battle");
+  send({
+    type: "dungeon",
+    event: { type: "battle", event: { type: "scene-ready", owner: state.expedition.screen.battle.scene.owner } },
+  });
+  for (const [logicalTime, hp, mentalFatigue, outcome] of [
+    [200, 23, 4, "ongoing"],
     [200, 23, 8, "cleared"],
   ] as const) {
-    const result = send({
-      type: "dungeon",
-      command: {
-        type: "skill",
-        actorId: "player",
-        targetId: "ruin-warden",
-        skillId: "test-strike",
-        expectedActionTime,
-        expectedNodeId: "boss-c",
-        expeditionActionId: 2,
-      },
-    });
+    send({ type: "dungeon", event: { type: "battle", event: { type: "open-skills" } } });
+    send({ type: "dungeon", event: { type: "battle", event: { type: "select-skill", id: "test-strike" } } });
+    const result = send({ type: "dungeon", event: { type: "battle", event: { type: "use-skill" } } });
     expect(result.dungeonResult?.accepted).toBe(true);
+    if (result.dungeonResult?.accepted) expect(result.dungeonResult.battleState?.logicalTime).toBe(logicalTime);
     expect(state.game.party.members.find(({ id }) => id === "player")).toMatchObject({ hp, mentalFatigue });
     expect(state.game.dungeon?.outcome).toBe(outcome);
     expect(state.game.clock?.elapsedHalfDays).toBe(1);
+    const confirmed = structuredClone(state.game);
+    send({ type: "dungeon", event: { type: "battle", event: { type: "playback", event: { type: "skip" } } } });
+    expect(state.game).toEqual(confirmed);
   }
-  send({ type: "return-home" });
+  send({ type: "dungeon", event: { type: "battle", event: { type: "finish" } } });
+  send({ type: "dungeon", event: { type: "return" } });
   const beforeSave = state;
   const home = structuredClone(state.game);
   expect(state.game).toMatchObject({
