@@ -2,7 +2,7 @@
 
 恒常的な方針は [テスト設計](../testing.md)、仕様の正本は `specs/`、具体的な入力・assertionは各テストコードに置く。この記録は今回の変更理由と検証証跡であり、全assertionを転記する日常台帳ではない。過去の静的監査は [固定commitの記録](https://github.com/karin0624/endfield_rpg/tree/8bee4b79fac4bb95490efa8fc3fc064aa405d640/docs/testing-audit/2026-10-03) を参照する。領域間に重複する監査行数を一意の仕様数やcoverage率と扱わない。
 
-## #102の責務分離（実装中）
+## #102の責務分離とローカル検証
 
 ブラウザ非依存の明示状態と意味イベントでゲーム結果・画面遷移・draft・focus・dialog・演出を決め、ブラウザ接続は入力の変換と結果の適用だけにする。表示は代表snapshotから実UI・素材を直接描いてVRTで確認する。ゲーム進行やクリック連鎖を通すE2Eは廃止する。追加の実ブラウザ検証はrendererへ直接作用するWebGL資源の生成・切替・破棄に限定する。
 
@@ -40,9 +40,35 @@ Native資源検証はrendererへ直接create／switch／disposeを行い、warm�
 
 残る9枚は背景fixtureボタン端の14pxが2枚、長名の確定ボタン飾り端152〜223pxが4枚、低い画面の画像端11px、dialog角13px、購入ボタンのhover遷移中の色10,661pxである。旧資料にはNativeのsubpixel矩形・撮影時刻等がなく、完全一致は未確認とする。旧購入色は変更していないCSSの通常色とhover色の中間で、静止した両端へ合わせても一致しない。製品CSS・位置・確定状態・基準画像・許容差を残差へ合わせていない。これらの参考画像を新たな承認済みgoldenにしない。
 
-現行fixtureの全54基準使用と、全体source固定のheadless／VRT／Native／coverage・直列時間計測はまだ未確認。全体完了や5分達成は主張しない。品質を保った全ローカル検証が5分以内、または同品質で5分以内にできない明確な根拠が成立するまでPR禁止で、成立後も公開再開はユーザー確認に従う。
+参考画像の比較結果と、以下の正式な54基準によるVRT・全体検証は別の証拠である。参考画像の残差を基準画像の変更や許容差増加で隠さない。
 
 最初の全体実行はheadless795件とbuild成功後、未対応のsnapshot template token `{configDir}` がliteral pathとなり、画像比較前に基準ファイル不在で失敗した。全VRTに共通する構成不備として中断し、179.388秒・exit130の失敗資料を保全した。公式の相対template `tests/{arg}{ext}` へ修正し、基準path・bytes・matcher設定は変えない。この中断実行を全品質成功や性能達成へ数えない。
+
+### 全体検証と残る時間条件
+
+検証した実装はローカルcommit `24692b5bc06fd7810ac403faab6617de79ca6bfe`、tree `c5ca4d91e29a4cd1560f055dedb832c344988788`。固定Playwrightコンテナで実際の `npm run test:all` を起動からshutdownまで直列実行し、2026-10-04 22:58:09〜23:05:02 UTC、wall **413.243秒**・exit 0だった。既存依存がある状態でもwrapperの `npm ci` を実行しており、その費用も含む。後続の検証記録更新だけを含むheadを、この実装headの実行結果に読み替えない。
+
+全headlessは63ファイル795件成功、game・presentationのV8閾値と発見／実行ゲートも成功した。通常・debug・viewは各一度の標準minified build。ブラウザは実configの4project・12ファイル31件が一回ずつ成功し、retry／skip／期待失敗／global errorは0、各ケースのcoverage収集と実行照合も成功した。成功ケースの標準snapshot annotationから得た54のunique pathは旧54基準inventoryと一致し、missing／extraは0。実sourceと全compiled mapの不一致は0、実行前後のhead／tree、449 trackedファイル、CSS・素材・基準等162ファイルとLFS実体の変更も0だった。
+
+| 観測範囲 | 時間 |
+| --- | ---: |
+| 起動・npm ci・check・必要build・全ブラウザ・coverage／全gate・shutdown | 413.243秒 |
+| Playwright native run全体 | 336.627秒 |
+| ブラウザ各caseの合計（共通fixtureを含む） | 326.255秒 |
+| case合計：views／renderer／editor-views／editor-resources | 124.333／73.721／109.930／18.271秒 |
+| Playwright外のwall（npm ci・check・build・起動／終了等） | 76.616秒 |
+
+Vitestは従前の標準forks・file parallelism、実コンテナではmaxWorkers 4、Playwrightは1workerで、目標に合わせて並列設定を増やしていない。Vitest nativeは24.70秒、npm ciの表示は丸めた14秒、Vite表示は通常／debug／viewが1.47／1.38／1.12秒だった。これらの部分時間は上表の内数で、前処理や起動を含むコマンドwallとは異なる。Playwrightのcase外10.372秒を全てcoverage変換の費用とは扱わない。
+
+第二の全体実行は30成功／1失敗・411.654秒で、同じsceneの設定更新時にfixtureがモデル／viewを新規生成し、初期選択とHUDをやり直していた。旧撮影条件と実diffを確認し、同じsceneの更新はモデル／viewを保持する責務へ直した。通常のfresh生成と、独立5条件のdefault更新後に次BattleSceneが設定を引き継ぐ検証は維持した。単独診断の3画像一致後、上の第三全体実行で全gate・全54基準を再確認した。第二はPlaywright失敗後の実行ゲートに到達しておらず、全gate成功に数えない。
+
+成功sourceを保持して、標準CDP Profiler／PerformanceでNative準備と撮影を別に測った。初期準備7.118秒、warm切替1.739秒、内部構図更新4.042秒、previewの撮影2.558秒が観測された。CPU sampleにはray／vector計算と大きなNative処理の双方があり、TaskOtherをGPUだけ、coverageを唯一の原因とは断定できない。既存の接地cache・静止時の描画抑止・同値frameの抑止は既に働いており、重複cacheを追加していない。
+
+[Babylonの標準submesh最適化](https://doc.babylonjs.com/features/featuresDeepDive/scene/optimizeOctrees/)を隔離コピーで評価した。installed 9.27の `Mesh.subdivide(64)` の算式を実素材のindex数へ適用すると、一meshの末尾6三角形が分割範囲から欠けるため採用せず（これは算式による分析で、実method呼出しの結果ではない）、標準 `SubMesh.CreateFromIndices` で元の全index範囲を連続分割する一候補だけを試した。対象17meshのindex／position vertex生bytes、全範囲とmaterialIndexの変更は0、選抜5ケース・既存17画像assertion・warm三往復／素材HTTP一回／退出時GPU 0は成功した。しかし初期準備は6.119秒、warmは1.979秒、内部構図は3.978秒、preview撮影は2.697秒となり、ray sampleの改善は必要なwall短縮へ結び付かなかった。四隅caseも36.525秒で、元全体実行の26.837秒より遅い。各cold一回で分散未評価・部分実行と全体実行の条件差もあり、113秒の短縮を支持する結果ではないため製品へ採用しない。起動不備と候補の初期化例外は別の失敗記録として保持し、成功性能へ混ぜない。
+
+旧58bでのtrace filmstrip停止と小viewportの診断も有効な改善を示さず、設定を変えていない。[V8公式](https://v8.dev/blog/javascript-code-coverage)はprecise coverageの実行回数計測が最適化コンパイラを止める費用を説明するが、Playwrightの公開APIを迂回する独自collectorや粒度の弱化を採用する根拠にはしていない。rendererのfresh境界、全54画像、全収集／実行gateや必要時editorを削って5分達成とはしない。
+
+全品質検証は成功したが、300秒まで **113.243秒不足**している。今回確認した標準候補では必要短縮を実証できず、同品質のあらゆる実装で5分以内が物理的に不可能だという証明も成立していない。**#102の時間条件は未解決で、公開停止を継続する。** 生log／JSON、source固定とmap／54基準照合、Native CPU profile、候補の失敗・不採用根拠はローカル証跡へ保存した。旧参考30枚の取得48.365秒と失敗反復は全体wallとは別費用であり、54基準の成功でその残差まで一致したとは扱わない。
 
 ## 現在の保証対応
 
