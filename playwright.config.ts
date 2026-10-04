@@ -18,7 +18,7 @@ export const editorProjects = [
 export default defineConfig({
   testDir: "./tests",
   outputDir: "test-results/browser",
-  snapshotPathTemplate: "{configDir}/tests/{arg}{ext}",
+  snapshotPathTemplate: "tests/{arg}{ext}",
   globalSetup: coverage ? "./scripts/browser-coverage-setup.mjs" : undefined,
   globalTeardown: coverage ? "./scripts/browser-coverage-teardown.mjs" : undefined,
   forbidOnly: true,

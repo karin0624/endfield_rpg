@@ -42,6 +42,8 @@ Native資源検証はrendererへ直接create／switch／disposeを行い、warm�
 
 現行fixtureの全54基準使用と、全体source固定のheadless／VRT／Native／coverage・直列時間計測はまだ未確認。全体完了や5分達成は主張しない。品質を保った全ローカル検証が5分以内、または同品質で5分以内にできない明確な根拠が成立するまでPR禁止で、成立後も公開再開はユーザー確認に従う。
 
+最初の全体実行はheadless795件とbuild成功後、未対応のsnapshot template token `{configDir}` がliteral pathとなり、画像比較前に基準ファイル不在で失敗した。全VRTに共通する構成不備として中断し、179.388秒・exit130の失敗資料を保全した。公式の相対template `tests/{arg}{ext}` へ修正し、基準path・bytes・matcher設定は変えない。この中断実行を全品質成功や性能達成へ数えない。
+
 ## 現在の保証対応
 
 | 公開結果 | 主な検証 |
