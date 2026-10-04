@@ -12,12 +12,13 @@ import {
 import type { DungeonCommand } from "../game/expedition";
 import { bagItemQuantity, type ItemState } from "../game/items";
 import type { ExplorationSkills } from "../game/skillAcquisition";
+import { parseAdventureSettings } from "../presentation/adventureSettings";
+import { parseBattleSettings } from "../presentation/battleSettings";
 import savedAdventureSettings from "./adventure-settings.json";
-import { applyAdventureSettings, parseAdventureSettings } from "./adventureSettings";
+import { applyAdventureSettings } from "./adventureSettings";
 import savedBattleSettings from "./battle-settings.json";
 import type { DungeonBattleRenderer, DungeonBattleRendererFactory } from "./battlePresentation";
 import { createBattleRenderer } from "./battleScene";
-import { parseBattleSettings } from "./battleSettings";
 import { mountBattleUi } from "./battleUi";
 import { mountBranchSkillUi } from "./branchSkillUi";
 import { mountGrowthChoice } from "./growthChoiceUi";

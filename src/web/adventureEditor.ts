@@ -1,29 +1,20 @@
 import {
+  type AdventureEditorEvent,
+  type AdventureEditorFocus,
+  createAdventureEditorModel,
+  projectAdventureEditor,
+  reduceAdventureEditor,
+} from "../presentation/adventureEditorModel";
+import {
   type AdventureSettingKey,
   type AdventureSettings,
   adventureDraftStorageKey,
   adventureSettingsFields,
-  parseAdventureSettings,
-} from "./adventureSettings";
+} from "../presentation/adventureSettings";
 import { requiredElement } from "./requiredElement";
 
 type Preview = { applySettings(settings: AdventureSettings): void };
-
-export function mountAdventureEditor(app: HTMLDivElement, preview: Preview, initial: AdventureSettings): () => void {
-  let saved = { ...initial };
-  let current = { ...initial };
-  let initialMessage = "値を動かすと会話画面にすぐ反映されます。";
-  try {
-    const draft = localStorage.getItem(adventureDraftStorageKey);
-    if (draft !== null) {
-      current = parseAdventureSettings(JSON.parse(draft));
-      initialMessage = "前回の未保存の調整を復元しました。";
-    }
-  } catch {
-    current = { ...initial };
-    initialMessage = "前回の調整を読み取れなかったため、保存済みの標準を表示しています。";
-  }
-
+export function createAdventureEditorView(app: HTMLDivElement, emit: (event: AdventureEditorEvent) => boolean) {
   const panel = document.createElement("aside");
   panel.className = "adventure-editor-panel";
   panel.setAttribute("aria-label", "会話画面の配置設定");
@@ -68,116 +59,121 @@ export function mountAdventureEditor(app: HTMLDivElement, preview: Preview, init
   const message = requiredElement<HTMLParagraphElement>(panel, "[data-message]");
   const save = requiredElement<HTMLButtonElement>(panel, "[data-save]");
   const revert = requiredElement<HTMLButtonElement>(panel, "[data-revert]");
-  const previewOnly = requiredElement<HTMLButtonElement>(panel, "[data-preview-only]");
-  let saving = false;
-
-  function syncInputs(): void {
-    for (const input of inputs) {
-      input.value = String(current[input.dataset.key as AdventureSettingKey]);
-      input.removeAttribute("aria-invalid");
-    }
+  const preview = requiredElement<HTMLButtonElement>(panel, "[data-preview-only]");
+  const handles = new Map<string, HTMLElement>();
+  function register(node: HTMLElement, target: AdventureEditorFocus) {
+    handles.set(JSON.stringify(target), node);
+    node.addEventListener("focus", () => emit({ type: "focused", target }), { signal: events.signal });
+    node.addEventListener("blur", () => emit({ type: "blurred", target }), { signal: events.signal });
   }
-  function setMessage(text: string, error = false): void {
-    message.textContent = text;
-    message.classList.toggle("error", error);
+  register(requiredElement<HTMLAnchorElement>(panel, "a"), { kind: "normal" });
+  for (const [node, kind] of [
+    [preview, "preview"],
+    [back, "preview-back"],
+    [save, "save"],
+    [revert, "revert"],
+  ] as const) {
+    register(node, { kind });
+    node.addEventListener("click", () => emit({ type: kind }), { signal: events.signal });
   }
-  function storeDraft(): boolean {
-    try {
-      localStorage.setItem(adventureDraftStorageKey, JSON.stringify(current));
-      return true;
-    } catch {
-      return false;
-    }
+  for (const input of inputs) {
+    const key = input.dataset.key as AdventureSettingKey;
+    register(input, { kind: "field", key, control: input.type as "number" | "range" });
+    input.addEventListener("input", () => emit({ type: "field", key, raw: input.value }), { signal: events.signal });
   }
-  syncInputs();
-  preview.applySettings(current);
-  setMessage(initialMessage);
-
-  panel.addEventListener(
-    "input",
+  app.addEventListener(
+    "keydown",
     (event) => {
-      if (!(event.target instanceof HTMLInputElement) || saving) return;
-      const key = event.target.dataset.key as AdventureSettingKey;
-      try {
-        current = parseAdventureSettings({ ...current, [key]: event.target.valueAsNumber });
-        for (const input of inputs) {
-          if (input.dataset.key === key && input !== event.target) input.value = String(current[key]);
-          input.removeAttribute("aria-invalid");
-        }
-        preview.applySettings(current);
-        const stored = storeDraft();
-        save.disabled = false;
-        setMessage(
-          stored
-            ? "未保存の調整です。このブラウザに一時保存しています。"
-            : "調整は反映されていますが、このブラウザへの一時保存はできません。",
-        );
-      } catch (error) {
-        event.target.setAttribute("aria-invalid", "true");
-        save.disabled = true;
-        setMessage(error instanceof Error ? error.message : "数値を確認してください。", true);
+      if (emit({ type: "key", key: event.key, shift: event.shiftKey })) {
+        event.preventDefault();
+        event.stopPropagation();
       }
     },
     { signal: events.signal },
   );
-  revert.addEventListener(
-    "click",
-    () => {
-      current = { ...saved };
-      syncInputs();
-      preview.applySettings(current);
-      try {
-        localStorage.removeItem(adventureDraftStorageKey);
-      } catch {
-        // The preview still reflects the saved settings.
+  let appliedFocus: AdventureEditorFocus | null = null;
+  return {
+    render(frame: ReturnType<typeof projectAdventureEditor>) {
+      for (const input of inputs) {
+        const key = input.dataset.key as AdventureSettingKey;
+        const value =
+          input.type === "range" && frame.invalid.includes(key) ? String(frame.current[key]) : frame.raw[key];
+        if (input.value !== value) input.value = value;
+        input.disabled = !frame.inputsEnabled;
+        if (frame.invalid.includes(key)) input.setAttribute("aria-invalid", "true");
+        else input.removeAttribute("aria-invalid");
       }
-      save.disabled = false;
-      setMessage("保存済みの標準に戻しました。");
-    },
-    { signal: events.signal },
-  );
-  save.addEventListener(
-    "click",
-    async () => {
-      saving = true;
-      save.disabled = true;
-      setMessage("標準として保存しています…");
-      try {
-        const response = await fetch("/__dev/adventure-settings", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(current),
-          signal: events.signal,
-        });
-        const result = (await response.json()) as { message: string };
-        if (!response.ok) throw new Error(result.message);
-        saved = { ...current };
-        try {
-          localStorage.removeItem(adventureDraftStorageKey);
-        } catch {
-          // Saved JSON is the source of truth.
-        }
-        setMessage(result.message);
-      } catch (error) {
-        if (!events.signal.aborted) setMessage(error instanceof Error ? error.message : "保存できませんでした。", true);
-      } finally {
-        saving = false;
-        save.disabled = false;
+      message.textContent = frame.message;
+      message.classList.toggle("error", frame.error);
+      save.disabled = !frame.canSave;
+      document.body.classList.toggle("adventure-previewing", frame.preview);
+      if (frame.focus !== appliedFocus) {
+        appliedFocus = frame.focus;
+        const node = frame.focus && handles.get(JSON.stringify(frame.focus));
+        if (node && node !== document.activeElement) node.focus();
       }
     },
-    { signal: events.signal },
-  );
-  previewOnly.addEventListener("click", () => document.body.classList.add("adventure-previewing"), {
-    signal: events.signal,
-  });
-  back.addEventListener("click", () => document.body.classList.remove("adventure-previewing"), {
-    signal: events.signal,
-  });
+    dispose() {
+      events.abort();
+      panel.remove();
+      back.remove();
+      document.body.classList.remove("adventure-previewing");
+    },
+  };
+}
 
-  // ギルド初回は左右2人と選択肢を続けて確認できる。
-  requiredElement<HTMLButtonElement>(app, '[data-place-id="guild"]').click();
+export function mountAdventureEditor(app: HTMLDivElement, preview: Preview, initial: AdventureSettings): () => void {
+  let state = createAdventureEditorModel(initial);
+  const events = new AbortController();
+  const view = createAdventureEditorView(app, dispatch);
+  function dispatch(event: AdventureEditorEvent): boolean {
+    const previous = state;
+    const changed = reduceAdventureEditor(state, event);
+    state = changed.state;
+    if (state !== previous) view.render(projectAdventureEditor(state));
+    for (const effect of changed.effects) {
+      if (effect.type === "preview-settings") preview.applySettings(effect.settings);
+      else if (effect.type === "write-draft" || effect.type === "delete-draft") {
+        try {
+          if (effect.type === "write-draft")
+            localStorage.setItem(adventureDraftStorageKey, JSON.stringify(effect.settings));
+          else localStorage.removeItem(adventureDraftStorageKey);
+          dispatch({ type: "storage-result", available: true });
+        } catch {
+          dispatch({ type: "storage-result", available: false });
+        }
+      } else if (effect.type === "save") {
+        const body = JSON.stringify(effect.settings);
+        void (async () => {
+          try {
+            const response = await fetch("/__dev/adventure-settings", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body,
+              signal: events.signal,
+            });
+            const result = (await response.json()) as { message: string };
+            dispatch({ type: response.ok ? "save-success" : "save-failed", message: result.message });
+          } catch (error) {
+            if (!events.signal.aborted)
+              dispatch({
+                type: "save-failed",
+                message: error instanceof Error ? error.message : "保存できませんでした。",
+              });
+          }
+        })();
+      }
+    }
+    return changed.handled;
+  }
+  try {
+    dispatch({ type: "draft-read", value: localStorage.getItem(adventureDraftStorageKey), available: true });
+  } catch {
+    dispatch({ type: "draft-read", value: null, available: false });
+  }
   return () => {
+    state = reduceAdventureEditor(state, { type: "closed" }).state;
     events.abort();
-    document.body.classList.remove("adventure-previewing");
+    view.dispose();
   };
 }

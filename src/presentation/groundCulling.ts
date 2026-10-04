@@ -1,4 +1,4 @@
-import type { BattleEnvironment } from "./battleScene";
+import type { BattleEnvironment } from "./battleLayout";
 import type { BattleSettings } from "./battleSettings";
 
 /** Empirically checked view of this exact GLB, not a general inside/outside geometry test. */

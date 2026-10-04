@@ -1,9 +1,9 @@
 import { reduceBattleModel } from "../../src/presentation/battleModel";
 import { projectBattleActors } from "../../src/presentation/battleProjection";
+import { parseBattleSettings } from "../../src/presentation/battleSettings";
 import { projectBattleView } from "../../src/presentation/battleViewProjection";
 import savedSettings from "../../src/web/battle-settings.json";
 import { createBattleScene } from "../../src/web/battleScene";
-import { parseBattleSettings } from "../../src/web/battleSettings";
 import { createBattleView } from "../../src/web/battleView";
 import { requiredElement } from "../../src/web/requiredElement";
 import { battlePictures } from "../battlePictures";

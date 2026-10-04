@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import savedSettings from "./battle-settings.json";
+import savedSettings from "../web/battle-settings.json";
 import { parseBattleSettings } from "./battleSettings";
 import { canCullGround } from "./groundCulling";
 

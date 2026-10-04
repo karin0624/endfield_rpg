@@ -14,8 +14,8 @@ import { bagItemQuantity, createItemState, packItems } from "../../src/game/item
 import { useBattleRecoveryItem } from "../../src/game/itemUse";
 import { createParty, getPartyCombatants, setPartySlot } from "../../src/game/party";
 import { healthyStatus } from "../../src/game/status";
+import { parseBattleSettings } from "../../src/presentation/battleSettings";
 import savedSettings from "../../src/web/battle-settings.json";
-import { parseBattleSettings } from "../../src/web/battleSettings";
 import { mountBattleUi } from "../../src/web/battleUi";
 import { mountBranchSkillUi } from "../../src/web/branchSkillUi";
 import { createUiTestRenderer } from "./battle-presentation";

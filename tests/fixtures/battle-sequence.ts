@@ -10,9 +10,9 @@ import {
 } from "../../src/game/battle";
 import { bagItemQuantity, createItemState, packItems } from "../../src/game/items";
 import { useBattleRecoveryItem } from "../../src/game/itemUse";
+import { parseBattleSettings } from "../../src/presentation/battleSettings";
 import savedSettings from "../../src/web/battle-settings.json";
 import { createBattleScene } from "../../src/web/battleScene";
-import { parseBattleSettings } from "../../src/web/battleSettings";
 import { mountBattleUi } from "../../src/web/battleUi";
 import { requiredElement } from "../../src/web/requiredElement";
 import { createUiTestRenderer } from "./battle-presentation";

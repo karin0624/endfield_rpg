@@ -19,21 +19,26 @@ import { Scene } from "@babylonjs/core/scene";
 import "@babylonjs/loaders/glTF/2.0/glTFLoader";
 import { initialBattleCombatants } from "../content/initialBattle";
 import type { BattleCombatantDefinition } from "../game/battle";
+import {
+  type BattleActorLayout,
+  type BattleActorPlacement,
+  type BattleEnvironment,
+  createBattleLayout,
+  type GroundingSample,
+  projectActorPlacements,
+} from "../presentation/battleLayout";
 import { type BattleActorFrame, projectInitialBattleActors } from "../presentation/battleProjection";
-import { type BattleActorLayout, createBattleLayout, getFormationPositions } from "./battleLayout";
-import type { BattleSettings } from "./battleSettings";
-import { canCullGround, hasGroundCullingProfile } from "./groundCulling";
+
+export type { BattleEnvironment } from "../presentation/battleLayout";
+
+import type { BattleSettings } from "../presentation/battleSettings";
+import { canCullGround, hasGroundCullingProfile } from "../presentation/groundCulling";
 
 const assetUrl = (path: string) => `${import.meta.env.BASE_URL}assets/${path}`;
 const CONTACT_OFFSET = 0.01;
 const SHADOW_OFFSET = 0.005;
 const GROUND_RAY_ORIGIN_Y = 100;
 const GROUND_RAY_LENGTH = 300;
-
-interface PreviewCounts {
-  ally: number;
-  enemy: number;
-}
 
 interface SceneActor {
   readonly layout: BattleActorLayout;
@@ -70,9 +75,8 @@ export interface ScreenRect {
 
 export interface BattleScene {
   readonly ready: Promise<void>;
-  applySettings(next: BattleSettings): void;
-  previewSettings(next: BattleSettings): boolean;
-  setPreviewCounts(next: PreviewCounts): void;
+  applySettings(next: BattleSettings, placements?: readonly BattleActorPlacement[]): void;
+  previewSettings(next: BattleSettings, placements?: readonly BattleActorPlacement[]): boolean;
   getCombatantScreenRect(id: string): ScreenRect | undefined;
   getFrontmostEnemyId(candidateIds: readonly string[]): string | undefined;
   getCombatantDepths(): readonly { readonly id: string; readonly depth: number }[];
@@ -87,16 +91,11 @@ export interface BattleScene {
     durationMs?: number,
   ): void;
   resetCombatantPresentation(): void;
-  getPlacementWarnings(): string[];
+  getGroundingMeasurements(): readonly GroundingSample[];
   dispose(): void;
 }
 
 /** Asset paths select an environment; node/floor selection belongs to the caller. */
-export interface BattleEnvironment {
-  readonly ground: string;
-  readonly background: string;
-}
-
 export const initialBattleEnvironment: BattleEnvironment = {
   ground: "ground/ground1.glb",
   background: "backgrounds/landscape1.png",
@@ -282,15 +281,8 @@ function createEnvironment(
     let needsRender = true;
     let settings = sharedSettings.current;
     const actors: SceneActor[] = [];
-    const actorCounts = layout.actors.reduce<PreviewCounts>(
-      (counts, actor) => {
-        counts[actor.team] += 1;
-        return counts;
-      },
-      { ally: 0, enemy: 0 },
-    );
-    let previewCounts: PreviewCounts = { ...actorCounts };
-    let placementWarnings: string[] = [];
+    let placements = projectActorPlacements(layout.actors, settings);
+    let groundingMeasurements: GroundingSample[] = [];
     let groundedPlacement = "";
 
     const findActor = (id: string) => actors.find((actor) => actor.layout.id === id);
@@ -374,53 +366,23 @@ function createEnvironment(
       return height;
     };
 
-    const updateActorVisibility = () => {
-      for (const actor of actors) {
-        const visible = actor.order < previewCounts[actor.layout.team];
-        actor.anchor.setEnabled(visible);
-        actor.shadow.setEnabled(visible && actor.alive);
-      }
-    };
-
     const updateActorPositions = (updateGroundHeight: boolean) => {
-      if (updateGroundHeight) placementWarnings = [];
+      if (updateGroundHeight) groundingMeasurements = [];
       if (actors.length === 0) return;
       if (updateGroundHeight) {
         groundRoot.computeWorldMatrix(true);
         for (const mesh of groundMeshes) mesh.computeWorldMatrix(true);
       }
-      const validationPositions = {
-        ally: getFormationPositions(settings, "ally", actorCounts.ally),
-        enemy: getFormationPositions(settings, "enemy", actorCounts.enemy),
-      };
-      const previewPositions = {
-        ally: getFormationPositions(settings, "ally", previewCounts.ally),
-        enemy: getFormationPositions(settings, "enemy", previewCounts.enemy),
-      };
-
-      // 保存可否は固定編成の全配置枠で検査する。確認人数1のときの表示だけは
-      // 同じルールを1人へ再適用し、可視キャラが隊列の中心へ移るようにする。
       for (const actor of actors) {
-        const position = validationPositions[actor.layout.team][actor.order];
-        if (position === undefined) {
-          throw new Error(`隊列の配置枠が不足しています: ${actor.layout.id}`);
-        }
-        const validationX = position.x * settings.groundScale;
-        const validationZ = position.z * settings.groundScale;
-        const validationY = updateGroundHeight ? getGroundHeight(validationX, validationZ) : undefined;
-        if (updateGroundHeight && validationY === undefined) {
-          placementWarnings.push(`${actor.layout.id}の足元が地面の範囲外です。配置を調整してください。`);
-        }
-
-        const displayPosition =
-          actor.order < previewCounts[actor.layout.team] ? previewPositions[actor.layout.team][actor.order] : position;
-        if (displayPosition === undefined) {
-          throw new Error(`確認人数の配置枠が不足しています: ${actor.layout.id}`);
-        }
-        const worldX = displayPosition.x * settings.groundScale;
-        const worldZ = displayPosition.z * settings.groundScale;
+        const placement = placements.find(({ id }) => id === actor.layout.id) as BattleActorPlacement;
+        const validationY = updateGroundHeight
+          ? getGroundHeight(placement.validationX, placement.validationZ)
+          : undefined;
+        if (updateGroundHeight) groundingMeasurements.push({ id: actor.layout.id, groundY: validationY ?? null });
+        const worldX = placement.x;
+        const worldZ = placement.z;
         const groundY = updateGroundHeight
-          ? displayPosition === position
+          ? worldX === placement.validationX && worldZ === placement.validationZ
             ? validationY
             : getGroundHeight(worldX, worldZ)
           : actor.groundY;
@@ -438,19 +400,24 @@ function createEnvironment(
           actor.shadow.position.y = actor.groundY + SHADOW_OFFSET;
         }
       }
-      updateActorVisibility();
     };
 
     // 通常画面には操作を接続せず、保存済みの初期構図をそのまま使う。
-    const applySettings = (next: BattleSettings, updateGroundHeight = true) => {
+    const applySettings = (
+      next: BattleSettings,
+      updateGroundHeight = true,
+      nextPlacements = projectActorPlacements(layout.actors, next),
+    ) => {
       if (disposed) return;
       const nextPlacement = placementKey(next);
       if (nextPlacement !== cachedPlacement) {
         groundHeightCache.clear();
         cachedPlacement = nextPlacement;
       }
-      const displayPlacementChanged = nextPlacement !== placementKey(settings);
-      const groundingRequired = nextPlacement !== groundedPlacement;
+      const positionsChanged = JSON.stringify(placements) !== JSON.stringify(nextPlacements);
+      placements = nextPlacements;
+      const displayPlacementChanged = nextPlacement !== placementKey(settings) || positionsChanged;
+      const groundingRequired = nextPlacement !== groundedPlacement || positionsChanged;
       settings = next;
       sharedSettings.current = next;
       applyCameraAndBackdrop(next);
@@ -484,9 +451,10 @@ function createEnvironment(
       const [, ...portraits] = loaded;
 
       layout.actors.forEach((actor, index) => {
-        const sampled = initialFrame.find((frame) => frame.id === actor.id)!;
+        const sampled = initialFrame.find((frame) => frame.id === actor.id) as BattleActorFrame;
         const order = actors.filter((candidate) => candidate.layout.team === actor.team).length;
         const anchor = new TransformNode(`${actor.id}-feet`, scene);
+        anchor.setEnabled(sampled.visible);
         const height = actor.height;
         const width = (height * actor.pixels[0]) / actor.pixels[1];
         const plane = CreatePlane(actor.id, { width, height }, scene);
@@ -517,6 +485,7 @@ function createEnvironment(
         shadowMaterial.alpha = 0.25;
         shadowMaterial.backFaceCulling = false;
         shadow.material = shadowMaterial;
+        shadow.setEnabled(sampled.visible);
 
         actors.push({
           layout: actor,
@@ -622,28 +591,15 @@ function createEnvironment(
     resizeObserver.observe(canvas);
     const battle: BattleScene = {
       ready,
-      applySettings,
-      previewSettings(next: BattleSettings) {
-        if (disposed) return false;
-        const groundingRequired = placementKey(next) !== groundedPlacement;
-        applySettings(next, false);
-        return groundingRequired;
+      applySettings(next, nextPlacements) {
+        applySettings(next, true, nextPlacements);
       },
-      setPreviewCounts(next: PreviewCounts) {
-        if (disposed) return;
-        if (
-          !Number.isInteger(next.ally) ||
-          next.ally < 1 ||
-          next.ally > actorCounts.ally ||
-          !Number.isInteger(next.enemy) ||
-          next.enemy < 1 ||
-          next.enemy > actorCounts.enemy
-        ) {
-          throw new RangeError("確認人数は1人以上で固定編成の人数以下にしてください");
-        }
-        previewCounts = { ...next };
-        updateActorPositions(true);
-        needsRender = true;
+      previewSettings(next, nextPlacements = projectActorPlacements(layout.actors, next)) {
+        if (disposed) return false;
+        const pending =
+          placementKey(next) !== groundedPlacement || JSON.stringify(placements) !== JSON.stringify(nextPlacements);
+        applySettings(next, false, nextPlacements);
+        return pending;
       },
       /** キャッシュした全戦闘者の画面範囲。味方への演出も実投影を使う。 */
       getCombatantScreenRect(id: string): ScreenRect | undefined {
@@ -703,8 +659,9 @@ function createEnvironment(
             continue;
           actor.paintedFrame = sampled;
           actor.alive = sampled.visible;
+          actor.anchor.setEnabled(sampled.visible);
           actor.plane.setEnabled(sampled.visible);
-          actor.shadow.setEnabled(sampled.visible && actor.order < previewCounts[actor.layout.team]);
+          actor.shadow.setEnabled(sampled.visible);
           actor.plane.visibility = sampled.opacity;
           actor.material.emissiveColor.set(...sampled.emissive);
           if (!sampled.visible) actor.screenRect = undefined;
@@ -762,14 +719,13 @@ function createEnvironment(
           actor.plane.visibility = 1;
           actor.material.emissiveColor = Color3.White();
         }
-        updateActorVisibility();
         engine.resize();
         scene.render();
         updateCombatantScreenPositions();
         needsRender = false;
       },
-      getPlacementWarnings() {
-        return [...placementWarnings];
+      getGroundingMeasurements() {
+        return groundingMeasurements;
       },
       dispose() {
         if (disposed) return;

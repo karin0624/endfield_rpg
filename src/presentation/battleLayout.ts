@@ -7,6 +7,57 @@ export interface FormationPosition {
   readonly x: number;
   readonly z: number;
 }
+export interface BattleEnvironment {
+  readonly ground: string;
+  readonly background: string;
+}
+export interface BattleActorPlacement {
+  readonly id: string;
+  readonly visible: boolean;
+  readonly x: number;
+  readonly z: number;
+  readonly validationX: number;
+  readonly validationZ: number;
+}
+export interface GroundingSample {
+  readonly id: string;
+  readonly groundY: number | null;
+}
+
+/** Preview counts alter appearance only; grounding still checks every authored formation slot. */
+export function projectActorPlacements(
+  actors: readonly Pick<BattleActorLayout, "id" | "team">[],
+  settings: BattleSettings,
+  counts?: Readonly<Record<BattleTeam, number>>,
+): readonly BattleActorPlacement[] {
+  const fullCounts = {
+    ally: actors.filter((actor) => actor.team === "ally").length,
+    enemy: actors.filter((actor) => actor.team === "enemy").length,
+  };
+  const visibleCounts = counts ?? fullCounts;
+  const full = {
+    ally: getFormationPositions(settings, "ally", fullCounts.ally),
+    enemy: getFormationPositions(settings, "enemy", fullCounts.enemy),
+  };
+  const shown = {
+    ally: getFormationPositions(settings, "ally", visibleCounts.ally),
+    enemy: getFormationPositions(settings, "enemy", visibleCounts.enemy),
+  };
+  const order = { ally: 0, enemy: 0 };
+  return actors.map(({ id, team }) => {
+    const index = order[team]++;
+    const visible = index < visibleCounts[team],
+      display = visible ? shown[team][index] : full[team][index];
+    return {
+      id,
+      visible,
+      x: display.x * settings.groundScale,
+      z: display.z * settings.groundScale,
+      validationX: full[team][index].x * settings.groundScale,
+      validationZ: full[team][index].z * settings.groundScale,
+    };
+  });
+}
 
 /** 中心を固定した隊列のXZ位置を返す。人数0は空配列として扱う。 */
 export function calculateFormationPositions(

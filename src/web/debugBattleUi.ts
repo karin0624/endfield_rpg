@@ -1,4 +1,5 @@
 import { initialBattleCombatants } from "../content/initialBattle";
+import type { BattleSettings } from "../presentation/battleSettings";
 import {
   createDebugBattleModel,
   type DebugBattleEvent,
@@ -7,7 +8,6 @@ import {
   reduceDebugBattle,
 } from "../presentation/debugBattleModel";
 import { type BattleScene, createBattleRenderer, initialBattleEnvironment } from "./battleScene";
-import type { BattleSettings } from "./battleSettings";
 import { createBattleView } from "./battleView";
 import { requiredElement } from "./requiredElement";
 

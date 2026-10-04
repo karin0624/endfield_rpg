@@ -1,8 +1,8 @@
+import { parseAdventureSettings } from "../presentation/adventureSettings";
 import type { CampaignEvent, CampaignFocus } from "../presentation/campaignModel";
 import type { CampaignFrame } from "../presentation/campaignProjection";
 import type { TownEvent } from "../presentation/townModel";
 import savedAdventureSettings from "./adventure-settings.json";
-import { parseAdventureSettings } from "./adventureSettings";
 import { createAdventureView } from "./adventureView";
 import { createGrowthChoiceView } from "./growthChoiceView";
 import { createItemShopView } from "./itemShopView";

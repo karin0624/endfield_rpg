@@ -34,9 +34,9 @@
     import { initialBattleCombatants } from "/src/content/initialBattle.ts";
     import { initialDungeon } from "/src/content/initialDungeon.ts";
     import { advanceBattleToNextAllyInput, createBattleState } from "/src/game/battle.ts";
+    import { parseBattleSettings } from "/src/presentation/battleSettings.ts";
     import savedSettings from "/src/web/battle-settings.json";
     import { createBattleRenderer, initialBattleEnvironment } from "/src/web/battleScene.ts";
-    import { parseBattleSettings } from "/src/web/battleSettings.ts";
     import { mountBattleUi } from "/src/web/battleUi.ts";
     import { groundCullingViews } from "./ground-culling-views.ts";
     import "/src/web/style.css";

@@ -1,37 +1,19 @@
-import type { createBattleScene } from "./battleScene";
 import {
-  type BattleSettings,
-  draftStorageKey,
-  parseBattleSettings,
-  type SettingKey,
-  settingsFields,
-} from "./battleSettings";
+  type BattleEditorEvent,
+  type BattleEditorFocus,
+  createBattleEditorModel,
+  projectBattleEditor,
+  reduceBattleEditor,
+} from "../presentation/battleEditorModel";
+import { type BattleSettings, draftStorageKey, type SettingKey, settingsFields } from "../presentation/battleSettings";
+import type { createBattleScene } from "./battleScene";
 import { requiredElement } from "./requiredElement";
 
-export function mountBattleEditor(
+export function createBattleEditorView(
   app: HTMLDivElement,
-  battle: ReturnType<typeof createBattleScene>,
-  initial: BattleSettings,
+  emit: (event: BattleEditorEvent) => boolean,
+  finishGrounding: () => void = () => {},
 ) {
-  let saved = { ...initial };
-  let current = { ...initial };
-  let storageAvailable = true;
-  let initialMessage = "調整はプレビューに即時反映されます。標準として保存すると通常表示にも反映されます。";
-  try {
-    const draft = localStorage.getItem(draftStorageKey);
-    if (draft) {
-      try {
-        current = parseBattleSettings(JSON.parse(draft));
-        initialMessage = "前回の未保存の調整を復元しました。";
-      } catch {
-        localStorage.removeItem(draftStorageKey);
-        initialMessage = "前回の調整を読み取れなかったため、保存済みの標準を表示しています。";
-      }
-    }
-  } catch {
-    storageAvailable = false;
-  }
-
   const groups = [...new Set(settingsFields.map((field) => field.group))];
   const header = document.createElement("header");
   header.className = "editor-header";
@@ -90,210 +72,165 @@ export function mountBattleEditor(
   const exporter = requiredElement<HTMLButtonElement>(panel, "[data-export]");
   const allyCount = requiredElement<HTMLSelectElement>(panel, "[data-preview-ally-count]");
   const enemyCount = requiredElement<HTMLSelectElement>(panel, "[data-preview-enemy-count]");
-  let saving = false;
+  const preview = requiredElement<HTMLButtonElement>(header, "[data-preview]");
+  const handles = new Map<string, HTMLElement>();
+  function register(node: HTMLElement, target: BattleEditorFocus) {
+    handles.set(JSON.stringify(target), node);
+    node.addEventListener("focus", () => emit({ type: "focused", target }), { signal: events.signal });
+    node.addEventListener("blur", () => emit({ type: "blurred", target }), { signal: events.signal });
+  }
+  register(requiredElement<HTMLAnchorElement>(header, "a"), { kind: "normal" });
+  for (const [node, kind] of [
+    [preview, "preview"],
+    [previewBack, "preview-back"],
+    [save, "save"],
+    [revert, "revert"],
+    [exporter, "export"],
+  ] as const) {
+    register(node, { kind });
+    node.addEventListener("click", () => emit({ type: kind }), { signal: events.signal });
+  }
+  for (const [node, team] of [
+    [allyCount, "ally"],
+    [enemyCount, "enemy"],
+  ] as const) {
+    register(node, { kind: team === "ally" ? "ally-count" : "enemy-count" });
+    node.addEventListener("change", () => emit({ type: "count", team, count: Number(node.value) as 1 | 2 }), {
+      signal: events.signal,
+    });
+  }
+  for (const input of inputs) {
+    const key = input.dataset.key as SettingKey;
+    register(input, { kind: "field", key, control: input.type as "number" | "range" });
+    input.addEventListener("input", () => emit({ type: "field", key, raw: input.value }), { signal: events.signal });
+    input.addEventListener("change", finishGrounding, { signal: events.signal });
+  }
+  app.addEventListener(
+    "keydown",
+    (event) => {
+      if (emit({ type: "key", key: event.key, shift: event.shiftKey })) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    },
+    { signal: events.signal },
+  );
+  let appliedFocus: BattleEditorFocus | null = null;
+  return {
+    render(frame: ReturnType<typeof projectBattleEditor>) {
+      for (const input of inputs) {
+        const key = input.dataset.key as SettingKey;
+        const value =
+          input.type === "range" && frame.invalid.includes(key) ? String(frame.current[key]) : frame.raw[key];
+        if (input.value !== value) input.value = value;
+        input.disabled = !frame.inputsEnabled;
+        if (frame.invalid.includes(key)) input.setAttribute("aria-invalid", "true");
+        else input.removeAttribute("aria-invalid");
+      }
+      message.textContent = frame.message;
+      message.classList.toggle("error", frame.error);
+      save.disabled = !frame.canSave;
+      revert.disabled = !frame.canRevert;
+      exporter.disabled = !frame.canExport;
+      allyCount.value = String(frame.counts.ally);
+      enemyCount.value = String(frame.counts.enemy);
+      document.body.classList.toggle("previewing", frame.preview);
+      if (frame.focus !== appliedFocus) {
+        appliedFocus = frame.focus;
+        const node = frame.focus && handles.get(JSON.stringify(frame.focus));
+        if (node && node !== document.activeElement) node.focus();
+      }
+    },
+    dispose() {
+      events.abort();
+      header.remove();
+      panel.remove();
+      previewBack.remove();
+      document.body.classList.remove("previewing");
+    },
+  };
+}
+
+export function mountBattleEditor(
+  app: HTMLDivElement,
+  battle: ReturnType<typeof createBattleScene>,
+  initial: BattleSettings,
+) {
+  let state = createBattleEditorModel(initial);
   let groundingTimer: number | undefined;
-  const setMessage = (text: string, error = false) => {
-    message.textContent = text;
-    message.classList.toggle("error", error);
-  };
-  const placementMessage = () => battle.getPlacementWarnings().join(" ");
-  const setPlacementAwareMessage = (normal: string) => {
-    const warning = placementMessage();
-    if (warning) {
-      setMessage(`保存できません: ${warning}`, true);
-      save.disabled = true;
-      return;
-    }
-    setMessage(normal);
-    save.disabled = false;
-  };
-  const syncInputs = (key?: SettingKey, active?: HTMLInputElement) => {
-    for (const input of inputs) {
-      const name = input.dataset.key as SettingKey;
-      if ((!key || key === name) && input !== active) input.value = String(current[name]);
-      input.removeAttribute("aria-invalid");
-    }
-  };
-  const storeDraft = () => {
-    try {
-      localStorage.setItem(draftStorageKey, JSON.stringify(current));
-    } catch {
-      storageAvailable = false;
-    }
-  };
-  const unsavedMessage = () =>
-    storageAvailable
-      ? "未保存の調整です。このブラウザに一時保存しています。"
-      : "未保存の調整です。一時保存が使えないため、閉じる前に標準として保存してください。";
-  const finishGrounding = () => {
+  const events = new AbortController();
+  const view = createBattleEditorView(app, dispatch, finishGrounding);
+  function finishGrounding() {
     if (groundingTimer !== undefined) window.clearTimeout(groundingTimer);
     groundingTimer = undefined;
-    battle.applySettings(current);
-    setPlacementAwareMessage(unsavedMessage());
-  };
-  const scheduleGrounding = () => {
-    if (groundingTimer !== undefined) window.clearTimeout(groundingTimer);
-    groundingTimer = window.setTimeout(finishGrounding, 150);
-  };
-  syncInputs();
-  battle.applySettings(current);
-  setPlacementAwareMessage(initialMessage);
-
-  const updatePreviewCounts = () => {
-    battle.setPreviewCounts({
-      ally: Number(allyCount.value),
-      enemy: Number(enemyCount.value),
-    });
-  };
-  allyCount.addEventListener("change", updatePreviewCounts, { signal: events.signal });
-  enemyCount.addEventListener("change", updatePreviewCounts, { signal: events.signal });
-
-  panel.addEventListener(
-    "input",
-    (event) => {
-      if (!(event.target instanceof HTMLInputElement) || saving) return;
-      const key = event.target.dataset.key as SettingKey;
-      const candidate = { ...current };
-      for (const input of inputs.filter((input) => input.type === "number")) {
-        candidate[input.dataset.key as SettingKey] = input.valueAsNumber;
-      }
-      candidate[key] = event.target.valueAsNumber;
-      try {
-        current = parseBattleSettings(candidate);
-        syncInputs(key, event.target);
-        const groundingRequired = battle.previewSettings(current);
-        storeDraft();
-        exporter.disabled = false;
-        if (groundingRequired) {
-          save.disabled = true;
-          setMessage("配置を反映しました。接地を確認しています…");
-          scheduleGrounding();
-        } else {
-          setPlacementAwareMessage(unsavedMessage());
-        }
-      } catch (error) {
+    const frame = projectBattleEditor(state);
+    battle.applySettings(frame.current, frame.placements);
+    battle.paintBattleFrame(frame.actors);
+    dispatch({ type: "grounding", pending: false, measurements: battle.getGroundingMeasurements() });
+  }
+  function dispatch(event: BattleEditorEvent): boolean {
+    const previous = state;
+    const changed = reduceBattleEditor(state, event);
+    state = changed.state;
+    if (state !== previous) view.render(projectBattleEditor(state));
+    for (const effect of changed.effects) {
+      if (effect.type === "preview-settings") {
+        const frame = projectBattleEditor(state);
+        const pending = battle.previewSettings(effect.settings, frame.placements);
+        battle.paintBattleFrame(frame.actors);
         if (groundingTimer !== undefined) window.clearTimeout(groundingTimer);
         groundingTimer = undefined;
-        event.target.setAttribute("aria-invalid", "true");
-        save.disabled = true;
-        exporter.disabled = true;
-        setMessage(error instanceof Error ? error.message : "数値を確認してください。", true);
-      }
-    },
-    { signal: events.signal },
-  );
-
-  panel.addEventListener(
-    "change",
-    (event) => {
-      if (!(event.target instanceof HTMLInputElement) || saving || event.target.getAttribute("aria-invalid") === "true")
-        return;
-      if (groundingTimer !== undefined) finishGrounding();
-    },
-    { signal: events.signal },
-  );
-
-  revert.addEventListener(
-    "click",
-    () => {
-      if (groundingTimer !== undefined) window.clearTimeout(groundingTimer);
-      groundingTimer = undefined;
-      current = { ...saved };
-      syncInputs();
-      battle.applySettings(current);
-      try {
-        localStorage.removeItem(draftStorageKey);
-      } catch {
-        storageAvailable = false;
-      }
-      exporter.disabled = false;
-      setPlacementAwareMessage("保存済みの標準に戻しました。");
-    },
-    { signal: events.signal },
-  );
-
-  save.addEventListener(
-    "click",
-    async () => {
-      if (groundingTimer !== undefined) finishGrounding();
-      if (placementMessage()) {
-        setPlacementAwareMessage("配置を調整してから保存してください。");
-        return;
-      }
-      saving = true;
-      save.disabled = true;
-      revert.disabled = true;
-      inputs.forEach((input) => {
-        input.disabled = true;
-      });
-      setMessage("標準として保存しています…");
-      try {
-        const response = await fetch("/__dev/battle-settings", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(current),
-          signal: events.signal,
-        });
-        const result = (await response.json()) as { message: string };
-        if (!response.ok) throw new Error(result.message);
-        saved = { ...current };
+        dispatch({ type: "grounding", pending, measurements: pending ? [] : battle.getGroundingMeasurements() });
+        if (pending) groundingTimer = window.setTimeout(finishGrounding, 150);
+      } else if (effect.type === "write-draft" || effect.type === "delete-draft") {
         try {
-          localStorage.removeItem(draftStorageKey);
+          if (effect.type === "write-draft") localStorage.setItem(draftStorageKey, JSON.stringify(effect.settings));
+          else localStorage.removeItem(draftStorageKey);
         } catch {
-          storageAvailable = false;
+          dispatch({ type: "storage-failed" });
         }
-        setMessage(result.message);
-      } catch (error) {
-        if (!events.signal.aborted) setMessage(error instanceof Error ? error.message : "保存できませんでした。", true);
-      } finally {
-        saving = false;
-        save.disabled = false;
-        revert.disabled = false;
-        inputs.forEach((input) => {
-          input.disabled = false;
-        });
+      } else if (effect.type === "save") {
+        const body = JSON.stringify(effect.settings);
+        void (async () => {
+          try {
+            const response = await fetch("/__dev/battle-settings", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body,
+              signal: events.signal,
+            });
+            const result = (await response.json()) as { message: string };
+            dispatch({ type: response.ok ? "save-success" : "save-failed", message: result.message });
+          } catch (error) {
+            if (!events.signal.aborted)
+              dispatch({
+                type: "save-failed",
+                message: error instanceof Error ? error.message : "保存できませんでした。",
+              });
+          }
+        })();
+      } else if (effect.type === "preview-counts") {
+        finishGrounding();
+      } else if (effect.type === "export") {
+        const url = URL.createObjectURL(new Blob([effect.json], { type: "application/json" }));
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "battle-settings.json";
+        link.click();
+        window.setTimeout(() => URL.revokeObjectURL(url), 1000);
       }
-    },
-    { signal: events.signal },
-  );
-
-  exporter.addEventListener(
-    "click",
-    () => {
-      const url = URL.createObjectURL(
-        new Blob([`${JSON.stringify(current, null, 2)}\n`], { type: "application/json" }),
-      );
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = "battle-settings.json";
-      link.click();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-    },
-    { signal: events.signal },
-  );
-  requiredElement<HTMLButtonElement>(header, "[data-preview]").addEventListener(
-    "click",
-    () => {
-      document.body.classList.add("previewing");
-      previewBack.focus();
-    },
-    { signal: events.signal },
-  );
-  previewBack.addEventListener(
-    "click",
-    () => {
-      document.body.classList.remove("previewing");
-      requiredElement<HTMLButtonElement>(header, "[data-preview]").focus();
-    },
-    { signal: events.signal },
-  );
-
+    }
+    return changed.handled;
+  }
+  try {
+    dispatch({ type: "draft-read", value: localStorage.getItem(draftStorageKey), available: true });
+  } catch {
+    dispatch({ type: "draft-read", value: null, available: false });
+  }
   return () => {
-    if (groundingTimer !== undefined) window.clearTimeout(groundingTimer);
+    state = reduceBattleEditor(state, { type: "closed" }).state;
     events.abort();
-    header.remove();
-    panel.remove();
-    previewBack.remove();
-    document.body.classList.remove("previewing");
+    if (groundingTimer !== undefined) window.clearTimeout(groundingTimer);
+    view.dispose();
   };
 }

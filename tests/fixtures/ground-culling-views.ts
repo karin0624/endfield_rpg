@@ -1,4 +1,4 @@
-import type { BattleSettings } from "../../src/web/battleSettings";
+import type { BattleSettings } from "../../src/presentation/battleSettings";
 
 export const groundCullingViews: Readonly<Record<string, Partial<BattleSettings>>> = {
   default: {},

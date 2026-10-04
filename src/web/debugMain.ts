@@ -1,8 +1,8 @@
+import { parseAdventureSettings } from "../presentation/adventureSettings";
+import { parseBattleSettings } from "../presentation/battleSettings";
 import savedAdventureSettings from "./adventure-settings.json";
-import { parseAdventureSettings } from "./adventureSettings";
 import savedSettings from "./battle-settings.json";
 import type { createBattleScene } from "./battleScene";
-import { parseBattleSettings } from "./battleSettings";
 import "./style.css";
 import "./debug.css";
 

@@ -32,6 +32,10 @@ export interface AdventureModel {
 export function createAdventureModel(game: GameState): AdventureModel {
   return { game, active: true, focus: null, inputContext: "screen" };
 }
+/** The composition preview starts at the guild's actual first conversation, without a session action. */
+export function createAdventureEditorPreview(game: GameState, definition: AdventureDefinition): AdventureModel {
+  return reduceAdventure(createAdventureModel(game), { type: "select", placeId: "guild" }, definition).state;
+}
 /** Native editing/activation and conversation commands have different meanings at the current focus. */
 export function adventureKeyCommand(
   game: GameState,

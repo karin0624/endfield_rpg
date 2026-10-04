@@ -1,7 +1,7 @@
 import { rename, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import type { Plugin } from "vite";
-import { type BattleSettings, parseBattleSettings } from "../src/web/battleSettings.ts";
+import { type BattleSettings, parseBattleSettings } from "../src/presentation/battleSettings.ts";
 
 // npm run dev専用。書き込み先はこの1ファイルに固定し、配布ビルドには含めない。
 export function battleSettingsPlugin(): Plugin {

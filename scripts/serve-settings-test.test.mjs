@@ -9,6 +9,7 @@ it("settings harness writes only its temporary source copy and removes it on shu
   let running;
   try {
     await mkdir(join(project, "src/web"), { recursive: true });
+    await mkdir(join(project, "src/presentation"), { recursive: true });
     await mkdir(join(project, "tests/fixtures"), { recursive: true });
     await mkdir(join(project, "public/assets"), { recursive: true });
     await writeFile(join(project, "index.html"), "<!doctype html><p>isolated</p>");
@@ -16,9 +17,8 @@ it("settings harness writes only its temporary source copy and removes it on shu
     await cp("vite.config.ts", join(project, "vite.config.ts"));
     await symlink(resolve("node_modules"), join(project, "node_modules"), "dir");
     for (const kind of ["battle", "adventure"]) {
-      for (const suffix of ["Settings.ts", "-settings.json"]) {
-        await cp(`src/web/${kind}${suffix}`, join(project, `src/web/${kind}${suffix}`));
-      }
+      await cp(`src/presentation/${kind}Settings.ts`, join(project, `src/presentation/${kind}Settings.ts`));
+      await cp(`src/web/${kind}-settings.json`, join(project, `src/web/${kind}-settings.json`));
     }
     running = await serveSettingsTest(project, 0);
     const origin = running.server.resolvedUrls.local[0].replace(/\/$/, "");

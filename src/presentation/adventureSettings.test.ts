@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import savedSettings from "./adventure-settings.json";
+import savedSettings from "../web/adventure-settings.json";
 import { parseAdventureSettings } from "./adventureSettings";
 
 it("all adventure fields accept inclusive limits and reject missing, nonfinite and out-of-range input", () => {

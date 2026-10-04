@@ -11,8 +11,8 @@ import { actInExpedition, applyPartyStatus, departOnExpedition, type ExpeditionG
 import { chooseGrowthSkill } from "../../src/game/growthRuntime";
 import { createParty, getPartyCombatants } from "../../src/game/party";
 import type { ActiveSkillDefinition, SkillCatalog } from "../../src/game/skills";
+import { parseBattleSettings } from "../../src/presentation/battleSettings";
 import savedSettings from "../../src/web/battle-settings.json";
-import { parseBattleSettings } from "../../src/web/battleSettings";
 import { mountBattleUi } from "../../src/web/battleUi";
 import { mountDungeonUi } from "../../src/web/dungeonUi";
 import { requiredElement } from "../../src/web/requiredElement";

@@ -1,6 +1,6 @@
 import type { BattleCombatantDefinition } from "../game/battle";
+import type { BattleSettings } from "../presentation/battleSettings";
 import type { BattleScene } from "./battleScene";
-import type { BattleSettings } from "./battleSettings";
 
 /** UI consumes projection and presentation, while battle rules remain in the game core. */
 export type BattlePresentation = Pick<

@@ -1,6 +1,7 @@
 import type { AdventureEvent } from "../presentation/adventureModel";
 import type { AdventureFrame } from "../presentation/adventureProjection";
-import { type AdventureSettings, applyAdventureSettings } from "./adventureSettings";
+import type { AdventureSettings } from "../presentation/adventureSettings";
+import { applyAdventureSettings } from "./adventureSettings";
 import { createPartyView } from "./partyView";
 import { requiredElement } from "./requiredElement";
 

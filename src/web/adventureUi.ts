@@ -1,10 +1,15 @@
 import { initialAdventure } from "../content/initialAdventure";
 import { initialGameOptions } from "../content/initialGameOptions";
 import { createInitialGameState } from "../game/createInitialGameState";
-import { type AdventureEvent, createAdventureModel, reduceAdventure } from "../presentation/adventureModel";
+import {
+  type AdventureEvent,
+  createAdventureEditorPreview,
+  createAdventureModel,
+  reduceAdventure,
+} from "../presentation/adventureModel";
 import { projectAdventure } from "../presentation/adventureProjection";
+import { type AdventureSettings, parseAdventureSettings } from "../presentation/adventureSettings";
 import savedAdventureSettings from "./adventure-settings.json";
-import { type AdventureSettings, parseAdventureSettings } from "./adventureSettings";
 import { createAdventureView } from "./adventureView";
 
 /** A standalone conversation preview uses the conversation core, without session time, XP, or recovery. */
@@ -13,7 +18,10 @@ export function mountAdventureUi(
   initialSettings = parseAdventureSettings(savedAdventureSettings),
   editorPreview = false,
 ) {
-  let state = createAdventureModel(createInitialGameState(initialGameOptions));
+  const initialGame = createInitialGameState(initialGameOptions);
+  let state = editorPreview
+    ? createAdventureEditorPreview(initialGame, initialAdventure)
+    : createAdventureModel(initialGame);
   const view = createAdventureView(
     root,
     { party: false, home: false, debug: false, editor: false },
