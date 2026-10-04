@@ -2,12 +2,10 @@
 set -eu
 
 case "${1:-}" in
-  e2e) inside_script=test:e2e:inside ;;
-  ui) inside_script=test:ui:inside ;;
+  browser) inside_script=test:browser:inside ;;
   editor) inside_script=test:editor:inside ;;
-  coverage) inside_script=test:coverage:inside ;;
-  long) inside_script=test:long:inside ;;
-  *) echo "Usage: $0 {e2e|ui|editor|coverage|long} [Playwright options]" >&2; exit 2 ;;
+  all) inside_script=test:all:inside ;;
+  *) echo "Usage: $0 {browser|editor|all} [Playwright options]" >&2; exit 2 ;;
 esac
 shift
 

@@ -1,12 +1,4 @@
-import type { CharacterDefinition, PartyState } from "../game/party";
-import {
-  type CharacterDetailsEvent,
-  type CharacterDetailsInteraction,
-  type CharacterDetailsModel,
-  createCharacterDetailsModel,
-  reduceCharacterDetails,
-} from "../presentation/characterDetails";
-import type { CharacterDetailsContext } from "../presentation/characterDetailsText";
+import type { CharacterDetailsInteraction, CharacterDetailsModel } from "../presentation/characterDetails";
 import { requiredElement } from "./requiredElement";
 import "./party.css";
 
@@ -36,6 +28,9 @@ export function createCharacterDetailsView(
   const unavailable = requiredElement<HTMLElement>(dialog, "[data-details-unavailable]");
   const back = requiredElement<HTMLButtonElement>(dialog, "[data-details-back]");
   const information = requiredElement<HTMLElement>(dialog, ".character-details-info");
+  const body = requiredElement<HTMLElement>(dialog, ".character-details-body");
+  // The unchanged responsive CSS scrolls the body on narrow screens and the information pane on desktop.
+  const scrollOwner = () => (getComputedStyle(information).overflowY === "visible" ? body : information);
   const events = new AbortController();
   let paintedGeneration = -1;
   let appliedFocus: CharacterDetailsModel["focus"] = null;
@@ -45,9 +40,14 @@ export function createCharacterDetailsView(
   information.addEventListener("focus", () => send({ type: "focused", target: { kind: "information" } }), {
     signal: events.signal,
   });
-  information.addEventListener("scroll", () => send({ type: "scrolled", scrollTop: information.scrollTop }), {
-    signal: events.signal,
-  });
+  for (const node of [information, body])
+    node.addEventListener(
+      "scroll",
+      () => {
+        if (node === scrollOwner()) send({ type: "scrolled", scrollTop: node.scrollTop });
+      },
+      { signal: events.signal },
+    );
   dialog.addEventListener(
     "cancel",
     (event) => {
@@ -137,7 +137,7 @@ export function createCharacterDetailsView(
       if (frame?.portraitFailed) portrait.textContent = "画像なし";
       if (frame && !dialog.open) dialog.showModal();
       if (!frame && dialog.open) dialog.close();
-      information.scrollTop = state.scrollTop;
+      scrollOwner().scrollTop = state.scrollTop;
       if (state.focus !== appliedFocus) {
         appliedFocus = state.focus;
         if (state.focus?.kind === "back") back.focus();
@@ -149,34 +149,6 @@ export function createCharacterDetailsView(
       events.abort();
       dialog.close();
       dialog.remove();
-    },
-  };
-}
-
-export function mountCharacterDetailsUi(
-  root: HTMLElement,
-  characters: readonly CharacterDefinition[],
-  getParty: () => PartyState,
-  getContext?: () => CharacterDetailsContext,
-) {
-  let model = createCharacterDetailsModel();
-  // These are browser resources implementing meaning targets, not the dialog's state.
-  const openers = new Map<string, HTMLButtonElement>();
-  const view = createCharacterDetailsView(root, dispatch, (id) => openers.get(id)?.focus({ preventScroll: true }));
-  function dispatch(event: CharacterDetailsEvent) {
-    const next = reduceCharacterDetails(model, event);
-    model = next.state;
-    view.render(model);
-    return next.handled;
-  }
-  return {
-    open(id: string, opener: HTMLButtonElement) {
-      openers.set(id, opener);
-      dispatch({ type: "open", characterId: id, input: { characters, party: getParty(), context: getContext?.() } });
-    },
-    dispose() {
-      dispatch({ type: "disposed" });
-      view.dispose();
     },
   };
 }

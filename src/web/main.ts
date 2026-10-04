@@ -17,12 +17,25 @@ if (
   await import("./debugMain");
 } else {
   document.body.dataset.mode = "game";
-  const { mountCampaign } = await import("./campaignUi");
-  const app = document.querySelector<HTMLDivElement>("#app");
-  if (!app) throw new Error("#app が見つかりません");
-  const dispose = mountCampaign(app);
-  window.addEventListener("pagehide", (event) => {
-    if (!event.persisted) dispose();
-  });
+  const events = new AbortController();
+  let close: (() => void) | undefined;
+  const dispose = () => {
+    events.abort();
+    close?.();
+    close = undefined;
+  };
+  window.addEventListener(
+    "pagehide",
+    (event) => {
+      if (!event.persisted) dispose();
+    },
+    { signal: events.signal },
+  );
   if (import.meta.hot) import.meta.hot.dispose(dispose);
+  const { mountCampaign } = await import("./campaignUi");
+  if (!events.signal.aborted) {
+    const app = document.querySelector<HTMLDivElement>("#app");
+    if (!app) throw new Error("#app が見つかりません");
+    close = mountCampaign(app);
+  }
 }

@@ -24,8 +24,7 @@
     "vitest.config.ts",
     "playwright.config.ts",
     "tests",
-    "playwright.evidence.config.ts",
     "playwright.editor.config.ts",
-    "playwright.long.config.ts"
+    "playwright.all.config.ts"
   ]
 }

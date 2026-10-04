@@ -19,7 +19,7 @@
 | [specs/visuals.md](specs/visuals.md) | 戦闘画面の配置・構図設定・描画 |
 | [docs/design-guidelines.md](docs/design-guidelines.md) | UIの配色、部品、操作状態、マーカーの設計指針 |
 | [docs/ui-asset-production.md](docs/ui-asset-production.md) | UI完成画像の承認・再承認・pixel diff・PR審査と画像制作の手順 |
-| [docs/testing.md](docs/testing.md) | Nodeテスト、ブラウザE2E、VRTの責務と実行環境 |
+| [docs/testing.md](docs/testing.md) | 純粋モデル、直接VRT、Native資源検証の責務と実行環境 |
 | [docs/documentation.md](docs/documentation.md) | 文書の役割、仕様とADRの書き分け、更新規則 |
 | [docs/adr/](docs/adr/) | 採用した判断とその経緯 |
 | [docs/visual-records/](docs/visual-records/) | 過去の画面記録 |
@@ -52,26 +52,25 @@ npm ci
 | `npm run dev` | Viteの開発サーバーを起動する |
 | `npm run lint` | Biomeで整形・import順・推奨ルールと追加ルールを確認する |
 | `npm run format` | Biomeで整形・import順・安全なlint修正を適用する |
-| `npm run check` | Biome、TypeScriptの型チェック、Node環境のVitestを1回実行する |
-| `npm run build:debug` | 明示デバッグ版を`dist-debug/`へ生成する。通常配布には使わない |
-| `npm run build` | 型チェック後に配布用ファイルを`dist/`へ生成する |
-| `npm run test:e2e` | 固定コンテナで全ブラウザprojectの描画・接続・実入力・VRTを確認し、同じ実行のproject別coverageを生成する |
-| `npm run test:ui` | 固定コンテナで本番UI・実コアの戦闘操作と複数画面寸法を確認する。配布ビルドは不要で、描画不要の接続は代替し、実素材の演出ケースは実描画する |
-| `npm run test:editor` | 開発エディターの詳細操作・VRT・HMRを必要時に明示実行する。通常PR CIには含めない |
-| `npm run test:coverage` | `test:e2e`と同じ全件実行・project別coverage生成（別名） |
-| `npm run test:long` | 長い通常campaign経路と10状態VRTを明示実行する。通常PR CIには含めない |
+| `npm run check` | Biome・型・素材検査・通常minified build・全VitestとV8 coverage・発見／実行照合 |
+| `npm run build` | 通常配布を`dist/`へ生成する |
+| `npm run build:debug` | 専用debug入口を`dist-debug/`へ生成する |
+| `npm run build:views` | 直接状態fixtureを同じ標準minifier・非root baseで`dist-views/`へ生成する |
+| `npm run test:browser` | checkと必要buildに続けて、直接VRT・Native WebGL資源検証と同じ実行のcoverageを確認する |
+| `npm run test:editor` | 開発者用の直接構図VRT・Native HMRを必要時に全実行する |
+| `npm run test:all` | check・必要build・既定とeditorの全ブラウザprojectを一回の直列実行で確認する |
 
 `lint`と`check`はwatchモードを使わず、結果を終了コードで返す。Biomeの設定は[`biome.json`](biome.json)。`npm run format`はリポジトリ全体を書き換えるため、変更ファイルだけ整えるときは`npx biome check --write path/to/file`を使う。Codexは[`AGENTS.md`](AGENTS.md)の指示に従い、コード変更後に`npm run check`を実行する。ゲーム本体のテストにはブラウザ、DOM、Babylon.js、WebGLを必要としない。
 
 ブラウザテストは以下のコマンドから固定したPlaywrightコンテナで実行する。基準画像の生成とCIの比較は同じ環境を使う。Playwrightを直接起動すると、コンテナ外ではエラーになる。
 
 ```sh
-npm run test:e2e
+npm run test:browser
 ```
 
-基準画像を意図的に更新するときだけ`npm run test:e2e -- --update-snapshots`を実行し、生成画像を確認してコミットする。`test:e2e`は通常配布画面を4173、専用デバッグ配布を4175、UIのfixtureを4174で起動する。`test:ui`と`test:editor`は一時コピーをポート4174で起動し、本来の設定ファイルを上書きしない。失敗時のスクリーンショットとトレースは`test-results/`に残る。通常の`check`ではブラウザを起動しない。詳しい責務は[テスト設計](docs/testing.md)を参照する。
+基準画像の比較環境を固定し、失敗時の画像・traceと実JSONは`test-results/`へ保存する。通常配布4173、debug4175、標準minifiedの直接fixture4174を使用する。任意state・phaseを直接描き、ゲームjourneyや実時間待機をテストへ残さない。ゲーム操作・focus・dialog・保存等の結果は実コアをつないだ純粋モデルで確認し、ブラウザは実外観と直接WebGL資源だけを担当する。詳しくは[テスト設計](docs/testing.md)を参照する。
 
-開発エディター・標準構図JSON・HMRを変更したときは`npm run test:editor`で`tests/editor/`の全件を確認する。通常検証は代表値の保存→通常読込とNodeの解析・実HTTP保存契約を残し、ユーザー向けの実描画・VRT・資源解放は継続する。構図設定の基準画像更新には`npm run test:editor -- --update-snapshots`を使う。CIのコンテナジョブはDockerを入れ子で起動せず、コンテナ内専用の`npm run test:e2e:inside`を実行する。
+開発エディター・標準構図・HMR変更時は`npm run test:editor`も必要になる。この改修では`test:all`で両scopeを同じ必要build／ブラウザ実行へまとめられる。基準画像を意図的に変更するときだけ対応scopeの`--update-snapshots`を使用し、承認と画像レビューを経る。今回の責務分離で基準bytes・許容差を更新しない。CIは検証済みの通常配布artifactを再利用し、別入口のdebug／viewだけを追加buildして`scripts/run-playwright-quality.sh browser`を実行する。
 
 クラウド環境で`NODE_EXTRA_CA_CERTS`が既存の`/usr/local/share/ca-certificates/environment-proxy-ca.crt`を指し、そのファイルを読み取れる場合、ブラウザテストの起動スクリプトが証明書をコンテナへ読み取り専用で渡す。コンテナ内のNode.jsだけに同じCAを追加し、TLS検証は有効のままにする。OSの信頼設定は変更せず、証明書はリポジトリに保存しない。この条件に当てはまらないローカル環境とGitHub Actionsの実行方法は変わらない。
 
@@ -84,7 +83,7 @@ GLBはGit LFS、現在の数MiBのPNG・文書・コードは通常のGitで管�
 | `src/game/` | 状態とゲームルール。ブラウザ固有機能から独立させる |
 | `src/presentation/` | 本編・街・会話・編成・人物詳細・成長・探索・戦闘・開発設定の画面状態、意味イベント、純粋な表示投影 |
 | `src/content/` | ゲーム本体へ渡す型付きの定義データ |
-| `src/web/` | ブラウザ表示と入力。`src/game/`と同じコア関数を使う |
+| `src/web/` | 意味イベントへの薄いNative接続、確定frameの描画、測定・実I/O・GPU資源の寿命 |
 | `public/assets/` | ブラウザが使うGLB・背景・透過立ち絵・敵素材・ルートノード画像 |
 | `art-src/` | 元素材と素材メモ。配布物には含めない |
 
@@ -94,7 +93,7 @@ GLBはGit LFS、現在の数MiBのPNG・文書・コードは通常のGitで管�
 
 街探索完了とダンジョン全体は各半日。ダンジョン内部では生活時計と療養を進めず、帰還時に生活時計だけを進める。帰還は全員の一時成長を初期化してから出撃者のHPを症状補正後の最大値へ戻す。症状を持ち越し、控えのHPは成長消失後の上限へ収めるだけで回復しない。肉体疲労・朦朧は連続数値を保持し、街探索ごとに一定量回復する。軽重は表示区分で、重度後も個別上限まで悪化する。戦闘不能の仲間はHP満タンでも戦闘へ参加せず、街探索6回で復帰する。表示は回復結果、現在HP、症状、残り街探索回数、日数と昼夜を示す。
 
-ゲーム用乱数・精神疲労の数値・回復の重複抑止を含む論理状態を保存する。リロードではタイトルへ戻り、「続きから」で保存時点のホームへ戻る。読込で時間・回復・加入を再実行せず、現実時間による回復もない。保存は現行v5のみを扱い、旧形式の変換・自動削除は行わない。同じブラウザ・オリジンのホームだけで、会話・探索・戦闘途中、複数スロット、クラウド同期は扱わない。
+ゲーム用乱数・精神疲労の数値・街回復回数と療養残量を含む論理状態を保存する。リロードではタイトルへ戻り、「続きから」で保存時点のホームへ戻る。読込で時間・回復・加入を再実行せず、現実時間による回復もない。保存は現行v5のみを扱い、旧形式の変換・自動削除は行わない。同じブラウザ・オリジンのホームだけで、会話・探索・戦闘途中、複数スロット、クラウド同期は扱わない。
 
 通常探索の戦闘では、試用の初期攻撃・回復アクティブを選択して使える。対象スキルは使用前の精神疲労から連続倍率を計算して効果を適用し、その後に疲労を加算し、使用後疲労に応じて使用者へ肉体疲労・朦朧を追加発症させる。付与量は今回のスキル負荷から決め、内部上限の候補だけを除外する。疲労は次戦・帰還・保存読込・再出撃へ持ち越し、既存の街探索完了で数値が回復する。スキル選択には予測効果・疲労増加量、街の結果とキャラ詳細には現在の疲労を表示する。初期技構成・効果量・倍率曲線・回復量は試用値で、詳細は[状態異常仕様](specs/status.md)と[スキル仕様](specs/skills.md)を参照する。
 
@@ -121,7 +120,7 @@ GLBはGit LFS、現在の数MiBのPNG・文書・コードは通常のGitで管�
 
 採用構図は`ground1.glb`と`landscape1.png`専用の暫定標準。地面はGit LFSの実体が必要で、コードだけでは描画できない。素材の出典・利用条件は[素材メモ](art-src/README.md)に分ける。別の地面・遠景を追加する場合は別の構図設定を用意する。
 
-仲間・PTは`src/game/party.ts`、生活ループは`src/game/expedition.ts`、保存検証は`src/game/save.ts`、保存I/Oは`src/web/saveSlot.ts`が担当する。街・会話、ルート、戦闘の表示と入力は`src/web/`から同じコアを呼ぶ。
+仲間・PTは`src/game/party.ts`、生活ループは`src/game/expedition.ts`、保存検証は`src/game/save.ts`、保存I/Oは`src/web/saveSlot.ts`が担当する。街・会話・ルート・戦闘の判断は`src/presentation/`が同じコアへ意味入力を同期適用し、`src/web/`は結果を描く。
 
 ## 会話画面の配置を決める
 

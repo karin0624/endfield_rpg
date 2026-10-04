@@ -3,8 +3,9 @@ import { initialAdventure } from "../../src/content/initialAdventure";
 import { initialDungeon } from "../../src/content/initialDungeon";
 import { initialGameOptions } from "../../src/content/initialGameOptions";
 import { createInitialGameState } from "../../src/game/createInitialGameState";
-import type { CharacterDefinition, PartySlots, PartyState } from "../../src/game/party";
+import { type CharacterDefinition, characterById, type PartySlots, type PartyState } from "../../src/game/party";
 import { effectiveMaxHp, healthyStatus } from "../../src/game/status";
+import { reduceCharacterDetails } from "../../src/presentation/characterDetails";
 import { createPartyModel, type PartyModel } from "../../src/presentation/partyModel";
 import { projectParty } from "../../src/presentation/partyProjection";
 import { createPartyView } from "../../src/web/partyView";
@@ -26,22 +27,57 @@ export function mountPartyFixture(root: HTMLElement, preset: "approved" | "candi
       attackPower: 8,
     })),
   ];
+  if (params.has("long"))
+    definitions[definitions.length - 1] = {
+      ...definitions[definitions.length - 1],
+      name: "長い名前の仲間（折り返しと欠けがないことを確認する表示条件）",
+    };
+  if (params.has("large-type"))
+    definitions[0] = {
+      ...definitions[0],
+      maxHp: Number.MAX_SAFE_INTEGER,
+      name: "長い名前の仲間（精神疲労・戦闘不能・複雑な日本語を確認）",
+    };
+  if (mode === "details-long") {
+    definitions.splice(
+      0,
+      definitions.length,
+      {
+        ...characterById(characters, "player"),
+        maxHp: 200,
+        name: "ロッシ（長い名前の折返しと読みやすさを確認する表示条件）",
+      },
+      { id: "no-portrait", name: "画像未提供の仲間（表示条件テスト）", maxHp: 200, speed: 100, attackPower: 8 },
+    );
+  }
   if (mode === "hp-levels")
     definitions.push(
       { id: "empty-hp", name: "HPが空の仲間", maxHp: 20, speed: 100, attackPower: 8 },
       { id: "symptom-hp", name: "最大HP低下中の仲間", maxHp: 20, speed: 100, attackPower: 8 },
     );
   const members = definitions.map((character, index) => {
-    const fatigue = approved
-      ? mode === "symptoms" && index === 0
-        ? 50
-        : character.id === "symptom-hp"
-          ? 50
-          : 0
-      : index === count - 1
+    const fatigue =
+      mode === "details-long"
         ? 25
-        : 0;
-    const haze = approved ? (mode === "symptoms" && index === 0 ? 75 : 0) : index === count - 1 ? 25 : 0;
+        : approved
+          ? mode === "symptoms" && index === 0
+            ? 50
+            : character.id === "symptom-hp"
+              ? 50
+              : 0
+          : index === count - 1
+            ? 25
+            : 0;
+    const haze =
+      mode === "details-long"
+        ? 25
+        : approved
+          ? mode === "symptoms" && index === 0
+            ? 75
+            : 0
+          : index === count - 1
+            ? 25
+            : 0;
     const status = { ...healthyStatus(), physicalFatigue: fatigue, haze };
     const hp: Record<string, number> = { player: 20, gilberta: 10, "empty-hp": 0, "symptom-hp": 6.5 };
     return {
@@ -61,20 +97,47 @@ export function mountPartyFixture(root: HTMLElement, preset: "approved" | "candi
     {
       game: { adventure: createInitialGameState(initialGameOptions), party, dungeon: null },
       characters: definitions,
-      calendarLabel: "1日目 · 昼",
+      calendarLabel: mode === "details-long" ? "表示条件テスト" : "1日目 · 昼",
       departure: { characters: definitions, route: initialDungeon, adventure: initialAdventure },
     },
     "destinations",
   );
-  const draft: PartySlots =
-    params.get("candidate") === "unselected" ? [null, definitions[1]?.id ?? null, null, null] : slots;
-  const snapshot: PartyModel = {
+  const draft: PartySlots = params.has("replaced")
+    ? [slots[0], definitions[definitions.length - 1].id, slots[2], slots[3]]
+    : params.get("candidate") === "unselected"
+      ? [null, definitions[1]?.id ?? null, null, null]
+      : slots;
+  const detailId = params.has("replaced") || params.has("long") ? definitions[definitions.length - 1].id : null;
+  let snapshot: PartyModel = {
     ...base,
-    focus: null,
+    focus: detailId ? { kind: "detail", characterId: detailId } : null,
     panel: params.has("selection")
       ? { kind: "selection", draft, openerSlot: 0, scrollTop: 0, rejection: null }
       : { kind: "formation" },
   };
+  if (mode === "details-long")
+    snapshot = {
+      ...snapshot,
+      details: reduceCharacterDetails(snapshot.details, {
+        type: "open",
+        characterId: "player",
+        input: { characters: definitions, party },
+      }).state,
+    };
   // Native hover/pressed/focus modality can prepare a picture, but cannot alter this supplied snapshot.
-  createPartyView(root, () => false).render(projectParty(snapshot));
+  const view = createPartyView(root, () => false);
+  view.render(
+    projectParty(
+      params.has("reference-opener") ? { ...snapshot, panel: { kind: "formation" }, focus: null } : snapshot,
+    ),
+  );
+  Object.assign(window, {
+    paintPartySelection() {
+      view.render(projectParty(snapshot));
+    },
+    paintPartyScroll(scrollTop: number) {
+      if (snapshot.panel.kind === "selection") snapshot = { ...snapshot, panel: { ...snapshot.panel, scrollTop } };
+      view.render(projectParty(snapshot));
+    },
+  });
 }

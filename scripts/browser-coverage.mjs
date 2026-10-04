@@ -3,12 +3,11 @@ import { basename, dirname, resolve } from "node:path";
 import { CoverageReport } from "monocart-coverage-reports";
 import { transformWithOxc } from "vite";
 
-export const coverageProjects = ["built", "debug", "ui", "settings"];
 const ownSource = (path) =>
   path.startsWith("src/") && path.endsWith(".ts") && !path.endsWith(".test.ts") && !path.endsWith(".d.ts");
 
-export function browserCoverage(project) {
-  if (!coverageProjects.includes(project)) throw new Error(`Unknown coverage project: ${project}`);
+export function browserCoverage(project, config) {
+  if (!config.projects.some((item) => item.name === project)) throw new Error(`Unknown coverage project: ${project}`);
   return new CoverageReport({
     name: `Browser execution: ${project}`,
     outputDir: `coverage/browser/${project}`,
@@ -38,9 +37,9 @@ export async function setupBrowserCoverage() {
   await rm("coverage/browser", { recursive: true, force: true });
 }
 
-export async function finishBrowserCoverage() {
-  for (const project of coverageProjects) {
-    const report = browserCoverage(project);
+export async function finishBrowserCoverage(config) {
+  for (const { name: project } of config.projects) {
+    const report = browserCoverage(project, config);
     if (!report.hasCache()) throw new Error(`No executed browser coverage for ${project}`);
     await report.generate();
     const summary = JSON.parse(await readFile(`coverage/browser/${project}/coverage-summary.json`, "utf8"));

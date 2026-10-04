@@ -42,23 +42,13 @@ const GROUND_RAY_LENGTH = 300;
 
 interface SceneActor {
   readonly layout: BattleActorLayout;
-  readonly order: number;
   readonly anchor: TransformNode;
   readonly plane: Mesh;
   readonly shadow: Mesh;
   readonly material: StandardMaterial;
   readonly texture: Texture;
   readonly shadowMaterial: StandardMaterial;
-  readonly basePlaneX: number;
-  readonly basePlaneY: number;
-  alive: boolean;
   paintedFrame?: BattleActorFrame;
-  effect?: {
-    readonly type: "attack" | "hit" | "defeat";
-    readonly startedAt: number;
-    readonly durationMs: number;
-    readonly onComplete?: () => void;
-  };
   screenRect?: ScreenRect;
   groundY: number | undefined;
 }
@@ -78,19 +68,10 @@ export interface BattleScene {
   applySettings(next: BattleSettings, placements?: readonly BattleActorPlacement[]): void;
   previewSettings(next: BattleSettings, placements?: readonly BattleActorPlacement[]): boolean;
   getCombatantScreenRect(id: string): ScreenRect | undefined;
-  getFrontmostEnemyId(candidateIds: readonly string[]): string | undefined;
   getCombatantDepths(): readonly { readonly id: string; readonly depth: number }[];
   refreshCombatantScreenPositions(): void;
   /** Apply a confirmed display sample and paint it; no rules or effect clocks are run here. */
   paintBattleFrame(frame: readonly BattleActorFrame[]): void;
-  playCombatantEffect(
-    id: string,
-    type: "attack" | "hit" | "defeat",
-    animate?: boolean,
-    onComplete?: () => void,
-    durationMs?: number,
-  ): void;
-  resetCombatantPresentation(): void;
   getGroundingMeasurements(): readonly GroundingSample[];
   dispose(): void;
 }
@@ -107,6 +88,8 @@ export function createBattleRenderer(canvas: HTMLCanvasElement, initialSettings:
   // 高DPIの端末でも地面の描画負荷を際限なく増やさない。
   engine.setHardwareScalingLevel(1 / Math.min(window.devicePixelRatio, 1.5));
   const scene = new Scene(engine);
+  // glTF PBR materials share a scene-owned BRDF texture whose RGBD decode is asynchronous.
+  scene.addIsReadyCheck({ isReady: () => !scene.environmentBRDFTexture || scene.environmentBRDFTexture.isReady() });
   scene.useRightHandedSystem = true;
   scene.clearColor = new Color4(0.19, 0.29, 0.38, 1);
   const camera = new FreeCamera("battle-camera", Vector3.Zero(), scene);
@@ -146,8 +129,14 @@ export function createBattleRenderer(canvas: HTMLCanvasElement, initialSettings:
       disposed = true;
       environment?.resources.dispose();
       environment = undefined;
-      scene.dispose();
-      engine.dispose();
+      const release = () => {
+        scene.dispose();
+        engine.dispose();
+      };
+      // Close input and rendering now; already-started imports and BRDF decode still belong to this engine.
+      // This readiness boundary belongs only to final renderer disposal, not to the next battle's ready().
+      if (scene.isReady(false)) release();
+      else void scene.whenReadyAsync().then(release);
     },
   };
 }
@@ -212,54 +201,53 @@ function createEnvironment(
   };
 
   const loadGround = async () => {
-    if (!hasGroundCullingProfile(definition)) return LoadAssetContainerAsync(assetUrl(definition.ground), scene);
     // Verify the same bytes imported by Babylon; do not issue another model request.
     const url = new URL(assetUrl(definition.ground), location.href);
     const response = await fetch(url);
     if (!response.ok) throw new Error(`モデルを読み込めません: ${definition.ground} (${response.status})`);
     const bytes = await response.arrayBuffer();
     if (environmentDisposed || scene.isDisposed) return undefined;
-    const fingerprint = globalThis.crypto?.subtle
-      ?.digest("SHA-256", bytes)
-      .then((digest) => Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join(""))
-      .catch(() => undefined);
-    const [assets, digest] = await Promise.all([
-      LoadAssetContainerAsync(new Uint8Array(bytes), scene, {
-        rootUrl: new URL(".", url).href,
-        pluginExtension: ".glb",
-        name: "ground1.glb",
-      }),
-      fingerprint,
-    ]);
+    const fingerprint = hasGroundCullingProfile(definition)
+      ? globalThis.crypto?.subtle
+          ?.digest("SHA-256", bytes)
+          .then((digest) => Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join(""))
+          .catch(() => undefined)
+      : undefined;
+    // LoadAssetContainerAsync registers its own pending data with the scene until import completes.
+    const preparation = LoadAssetContainerAsync(new Uint8Array(bytes), scene, {
+      rootUrl: new URL(".", url).href,
+      pluginExtension: ".glb",
+      name: "ground1.glb",
+    }).then((assets) => {
+      // Acquire native handles before waiting for independent identity metadata.
+      if (environmentDisposed) {
+        assets.dispose();
+        return undefined;
+      }
+      groundAssets = assets;
+      return assets;
+    });
+    const [assets, digest] = await Promise.all([preparation, fingerprint]);
     groundFingerprint = digest;
     return assets;
   };
 
   const loadEnvironment = () => {
     environmentReady ??= (async () => {
-      const preparation = [
-        loadGround().then((assets) => {
-          if (!assets) return;
-          if (environmentDisposed) {
-            assets.dispose();
-            return;
-          }
-          groundAssets = assets;
-          assets.addAllToScene();
-          for (const material of assets.materials) groundMaterialFaces.set(material, material.backFaceCulling);
-          for (const mesh of assets.meshes) {
-            if (!mesh.parent) mesh.parent = groundRoot;
-            mesh.isPickable = true;
-            groundMeshes.push(mesh);
-          }
-        }),
-        loadTexture(definition.background),
-      ] as const;
+      const preparation = [loadGround(), loadTexture(definition.background)] as const;
       // A failed image must not report completion while a model import can still allocate GPU resources.
       const results = await Promise.allSettled(preparation);
       for (const result of results) if (result.status === "rejected") throw result.reason;
       const backgroundResult = results[1];
       if (backgroundResult.status !== "fulfilled" || environmentDisposed) return;
+      // Own prepared materials before attaching meshes; failed environments never enter the rendered scene.
+      groundAssets?.addAllToScene();
+      for (const material of groundAssets?.materials ?? []) groundMaterialFaces.set(material, material.backFaceCulling);
+      for (const mesh of groundAssets?.meshes ?? []) {
+        if (!mesh.parent) mesh.parent = groundRoot;
+        mesh.isPickable = true;
+        groundMeshes.push(mesh);
+      }
       const background = backgroundResult.value;
       backdrop = CreatePlane(
         "backdrop",
@@ -452,7 +440,6 @@ function createEnvironment(
 
       layout.actors.forEach((actor, index) => {
         const sampled = initialFrame.find((frame) => frame.id === actor.id) as BattleActorFrame;
-        const order = actors.filter((candidate) => candidate.layout.team === actor.team).length;
         const anchor = new TransformNode(`${actor.id}-feet`, scene);
         anchor.setEnabled(sampled.visible);
         const height = actor.height;
@@ -489,16 +476,12 @@ function createEnvironment(
 
         actors.push({
           layout: actor,
-          order,
           anchor,
           plane,
           shadow,
           material: portraitMaterial,
           texture: portrait,
           shadowMaterial,
-          basePlaneX: plane.position.x,
-          basePlaneY: plane.position.y,
-          alive: sampled.visible,
           paintedFrame: sampled,
           groundY: undefined,
         });
@@ -536,45 +519,10 @@ function createEnvironment(
     })();
 
     function renderBattle() {
-      if (disposed) return;
-      const now = performance.now();
-      let hasActiveEffects = false;
-      const completedCallbacks: (() => void)[] = [];
-      for (const actor of actors) {
-        const effect = actor.effect;
-        if (effect === undefined) continue;
-        const progress = Math.min(1, (now - effect.startedAt) / effect.durationMs);
-        const pulse = Math.sin(Math.PI * progress);
-        if (effect.type === "attack") {
-          actor.material.emissiveColor = Color3.Lerp(Color3.White(), new Color3(1, 0.72, 0.28), pulse * 0.5);
-        } else if (effect.type === "hit") {
-          actor.material.emissiveColor = Color3.Lerp(Color3.White(), new Color3(1, 0.42, 0.32), pulse * 0.8);
-        } else {
-          actor.plane.visibility = 1 - progress;
-        }
-        if (progress >= 1) {
-          actor.effect = undefined;
-          actor.plane.position.x = actor.basePlaneX;
-          actor.plane.position.y = actor.basePlaneY;
-          actor.plane.scaling.set(1, 1, 1);
-          actor.plane.visibility = actor.alive ? 1 : 0;
-          actor.material.emissiveColor = Color3.White();
-          if (effect.type === "defeat") {
-            actor.plane.setEnabled(false);
-            actor.shadow.setEnabled(false);
-            actor.screenRect = undefined;
-          }
-          if (effect.onComplete !== undefined) completedCallbacks.push(effect.onComplete);
-          needsRender = true;
-        } else {
-          hasActiveEffects = true;
-        }
-      }
-      if (!needsRender && !hasActiveEffects) return;
+      if (disposed || !needsRender) return;
       scene.render();
       updateCombatantScreenPositions();
       needsRender = false;
-      for (const callback of completedCallbacks) callback();
     }
 
     const resizeEngine = () => {
@@ -607,25 +555,6 @@ function createEnvironment(
         if (actor === undefined) return undefined;
         return actor.screenRect;
       },
-      /** カメラの前方へ最も近い敵を、現在の3D配置から選ぶ。 */
-      getFrontmostEnemyId(candidateIds: readonly string[]): string | undefined {
-        if (disposed || candidateIds.length === 0) return undefined;
-        camera.computeWorldMatrix();
-        const cameraRay = camera.getForwardRay();
-        let frontmostId: string | undefined;
-        let frontmostDepth = Number.POSITIVE_INFINITY;
-        for (const id of candidateIds) {
-          const actor = findActor(id);
-          if (actor === undefined || actor.layout.team !== "enemy") continue;
-          actor.anchor.computeWorldMatrix(true);
-          const depth = Vector3.Dot(actor.anchor.getAbsolutePosition().subtract(cameraRay.origin), cameraRay.direction);
-          if (depth >= 0 && depth < frontmostDepth) {
-            frontmostId = id;
-            frontmostDepth = depth;
-          }
-        }
-        return frontmostId;
-      },
       getCombatantDepths() {
         camera.computeWorldMatrix();
         const ray = camera.getForwardRay();
@@ -649,7 +578,6 @@ function createEnvironment(
         for (const sampled of frame) {
           const actor = findActor(sampled.id);
           if (!actor) continue;
-          actor.effect = undefined;
           const previous = actor.paintedFrame;
           if (
             previous?.visible === sampled.visible &&
@@ -658,7 +586,6 @@ function createEnvironment(
           )
             continue;
           actor.paintedFrame = sampled;
-          actor.alive = sampled.visible;
           actor.anchor.setEnabled(sampled.visible);
           actor.plane.setEnabled(sampled.visible);
           actor.shadow.setEnabled(sampled.visible);
@@ -668,58 +595,6 @@ function createEnvironment(
           needsRender = true;
         }
         if (!needsRender) return;
-        scene.render();
-        updateCombatantScreenPositions();
-        needsRender = false;
-      },
-      playCombatantEffect(
-        id: string,
-        type: "attack" | "hit" | "defeat",
-        animate = true,
-        onComplete?: () => void,
-        durationMs = 240,
-      ) {
-        const actor = findActor(id);
-        if (actor === undefined) return;
-        if (type === "defeat") {
-          actor.alive = false;
-          actor.plane.isPickable = false;
-        }
-        if (!animate) {
-          actor.effect = undefined;
-          actor.plane.position.x = actor.basePlaneX;
-          actor.plane.position.y = actor.basePlaneY;
-          actor.plane.scaling.set(1, 1, 1);
-          actor.plane.visibility = actor.alive ? 1 : 0;
-          actor.material.emissiveColor = Color3.White();
-          if (type === "defeat") {
-            actor.plane.setEnabled(false);
-            actor.shadow.setEnabled(false);
-            actor.screenRect = undefined;
-          }
-          needsRender = true;
-          onComplete?.();
-          return;
-        }
-        actor.effect = { type, startedAt: performance.now(), onComplete, durationMs };
-        needsRender = true;
-      },
-      resetCombatantPresentation() {
-        if (disposed) return;
-        for (const actor of actors) {
-          actor.alive = true;
-          actor.paintedFrame = undefined;
-          actor.effect = undefined;
-          actor.plane.setEnabled(true);
-          actor.shadow.setEnabled(true);
-          actor.plane.isPickable = false;
-          actor.plane.position.x = actor.basePlaneX;
-          actor.plane.position.y = actor.basePlaneY;
-          actor.plane.scaling.set(1, 1, 1);
-          actor.plane.visibility = 1;
-          actor.material.emissiveColor = Color3.White();
-        }
-        engine.resize();
         scene.render();
         updateCombatantScreenPositions();
         needsRender = false;
@@ -737,7 +612,6 @@ function createEnvironment(
         resizeObserver.disconnect();
         engine.stopRenderLoop(renderBattle);
         for (const actor of actors) {
-          actor.effect = undefined;
           actor.anchor.dispose();
           actor.shadow.dispose();
           actor.material.dispose(false, false);

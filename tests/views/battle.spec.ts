@@ -1,4 +1,9 @@
-import { expect, test } from "../e2e/coverage";
+import { approvedPicture } from "../browser/pictures";
+
+const golden = (name: string) =>
+  approvedPicture(["e2e", "ui", "battle-ui.spec.ts-snapshots", name.replace(/\.png$/, `-ui-${process.platform}.png`)]);
+
+import { expect, test } from "../browser/coverage";
 import { readyPicture } from "./appearance";
 
 for (const [effect, pictures] of [
@@ -22,7 +27,7 @@ for (const [effect, pictures] of [
         throw new Error("The FX stage needs a finite visible rectangle");
       const x = Math.floor(clip.x + 0.001),
         y = Math.floor(clip.y + 0.001);
-      await expect.soft(page).toHaveScreenshot(`battle-fx-${picture}.png`, {
+      await expect.soft(page).toHaveScreenshot(golden(`battle-fx-${picture}.png`), {
         clip: {
           x,
           y,

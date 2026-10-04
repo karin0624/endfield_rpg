@@ -13,6 +13,7 @@ import { useBattleRecoveryItem } from "../game/itemUse";
 import { createParty, getPartyCombatants, setPartySlot } from "../game/party";
 import type { SkillCatalog } from "../game/skills";
 import { healthyStatus } from "../game/status";
+import { createBattleLayout } from "./battleLayout";
 import { type BattleInput, confirmBattleAction, createBattleModel, reduceBattleModel } from "./battleModel";
 import { projectBattleView } from "./battleViewProjection";
 
@@ -97,6 +98,29 @@ describe("確定した戦闘結果からの画面投影", () => {
       const battle = advanceBattleToNextAllyInput(
         createBattleState([...getPartyCombatants(party, definitions, catalog), ...enemies]),
       ).state;
+      const appearance = createBattleLayout(getPartyCombatants(party, definitions, catalog));
+      expect(appearance.actors.map(({ id, team, image, pixels, foot }) => ({ id, team, image, pixels, foot }))).toEqual(
+        [
+          {
+            id: "player",
+            team: "ally",
+            image: "characters/rossi/front-left.png",
+            pixels: [1024, 1536],
+            foot: [512, 1508],
+          },
+          {
+            id: "gilberta",
+            team: "ally",
+            image: "characters/gilberta/front-left.png",
+            pixels: [1024, 1536],
+            foot: [512, 1508],
+          },
+          { id: "third", team: "ally", image: "enemies/slime-blue.png", pixels: [49, 34], foot: [24.5, 34] },
+          ...(count === 4
+            ? [{ id: "blocked", team: "ally", image: "enemies/slime-blue.png", pixels: [49, 34], foot: [24.5, 34] }]
+            : []),
+        ],
+      );
       const value: BattleInput = {
         battle,
         basicAttack: false,

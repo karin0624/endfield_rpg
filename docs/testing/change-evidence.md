@@ -8,7 +8,7 @@
 
 入力は現在状態へ順に同期適用する。閉じた画面で未定義の操作は受け付けず、開き直した画面の操作は再び受け付ける。`event.detail`、時間窓、直前入力の履歴、汎用ID台帳で一般入力を抑止しない。ゲーム内の時間と演出の再生時刻、外部資源の所有対象識別は入力の重複抑止と分ける。
 
-編成と人物詳細を先行移行した。`partyModel`は現在の実`ExpeditionGame`へ編成確定・出発のコア遷移を同期適用する。未確定の選択番号・modal・focus復帰・scroll位置は別の画面状態に保持し、DOMを正本にしない。`partyUi`は意味イベントと確定結果の通知を接続し、`partyView`は表示投影を描く。候補の正当なtoggle二回、欠番の確定、詳細の読取り、再表示後の再入力、成長・帰還後の現在値はheadless結合テストへ移した。
+編成と人物詳細を先行移行した。`partyModel`は現在の実`ExpeditionGame`へ編成確定・出発のコア遷移を同期適用する。未確定の選択番号・modal・focus復帰・scroll位置は別の画面状態に保持し、DOMを正本にしない。Nativeの`partyView`は意味イベントを通知し、確定した表示投影を描く。候補の正当なtoggle二回、欠番の確定、詳細の読取り、再表示後の再入力、成長・帰還後の現在値はheadless結合テストへ移した。
 
 この区切りでは全headlessの発見・実行708件が成功し、編成・詳細の23件について新presentationのnative V8計測も確認した。直接snapshotを描く4ケースで既存11画像のVRTが一致した。初回の候補focus ring差分は、撮影前のnative入力modalityを元の条件へ合わせて解消した。製品CSS・素材・既存基準画像・許容差は変更していない。件数はこの時点の観測事実であり不変要件ではない。
 
@@ -26,9 +26,39 @@
 
 この区切りの`npm run check`は63ファイル・793ケースの全実行とgame・presentationの既存V8 gateが成功した。構図3画像と会話2画像は同じ標準minifiedの直接fixtureから描く2ケースで既存基準に一致した。本編・debugの実親モデルで、敗北帰還、保存再開、5回療養後の再保存・読込、6回目の復帰と再出発も独立したHP・回復残数・生活時刻・RNGで確認した。設定スキーマ移動前の検証用コピー先による失敗は修正し、失敗ログを別に保全した。これらは全ブラウザ構成の最終成功や5分以内の証明ではない。
 
-renderer資源・旧controllerとブラウザsuiteの整理、狭幅・詳細の旧撮影画像との比較、全体の最終検証と直列時間計測は未完了。旧撮影画像は承認済みVRT基準ではなく比較資料として保持する。全体完了や5分以内の達成は主張しない。品質を保った全ローカル検証が5分以内、または同品質で5分以内にできない明確な根拠が成立するまでPR作成は禁止し、成立後も公開再開はユーザー確認に従う。
+Native資源検証はrendererへ直接create／switch／disposeを行い、warm三往復の資源数と地面HTTP一回、保留した実素材の旧owner完了、DPR／描画倍率、素材失敗、pagehide、必要時HMRを確認する形へ移した。ゲーム操作journeyは通さない。旧controller、旧timer演出、Nativeの対象選択判断、使われなくなったfixture／操作ハーネスを除去し、純粋モデル・projection・直接viewへ一本化した。
 
-## 既存保証と追加の責務
+背景404の以前の4ケース成功は限定した部分結果だった。後続の第五実行で再発し、実allocation診断でScene／Engine破棄後のProgram・Texture生成を確認した。glTFのCOMPLETE待ちやmaterial compileだけを原因・解決と断定せず、実RGBD shader準備を保留して正常素材の読込途中退出も再現した。最終renderer closeは入力／RAFを即座に終了し、標準Scene pendingとScene所有BRDF readinessが終了してから実Scene／Engineを解放する。既にreadyなら同期解放する。現在BattleSceneのreadyはその場面自身の準備だけを待ち、新しい環境を古い保留importで止めない。AssetContainerの所有はimport完了時点で取得し、fingerprint metadata待ちへ遅らせない。
+
+第七の部分実行では、論理退出後に実GPU生成が完了し、その後deleteされ全資源0になることと背景404の解放を確認した。第八は20中19成功で、独立構図のdefault比較だけが失敗した。元画像がcanvas上のDOM overlayも含む条件と、default更新後の次BattleScene／HUDのfresh初期化を直接fixtureへ保った。第九は全headless793成功とNative／構図の2ケース成功だったが、build中のground fixture変更により一つのmap sourceが現行と異なった。実build sourceと不一致を保全し、この2ケースを現行fixtureの成功と扱わない。
+
+実行構成は既定`views`／`renderer`と必要時editorの直接VRT／Native HMRへ整理した。通常buildをcheck内で一度作り、現在の実HTTP／配布FS検証と初期タイトルVRTで共用する。debugと任意state fixtureは異なる実入口として標準minifierで各一度buildする。CIはverifyの通常artifactとintegration SHAをbrowserへ渡し、先行通常build・coverage専用再build・録画journeyの重複起動を行わない。実configから必須project／coverage集合を導き、全git spec・無filter discovery・今回JSONを照合する。未知の品質specディレクトリも未発見なら拒否する。
+
+この清掃時点の型検査と実CLI／Storage部分検証は3ファイル12ケース成功だった。各実画像比較へ渡した旧baseline pathを標準snapshotPathで記録し、最終成功JSONから54のunique path使用を照合する。保持bytesだけを実行済みの証拠にしない。
+
+狭幅・詳細等の旧撮影資料30枚を、同じ実コアの確定snapshotとNative表示条件から直接取得した最終比較は30枚取得／失敗0、21枚が完全一致だった。撮影処理はpreview・browser起動と終了を含め48.365秒で、先行build・Docker起動や原因調査の失敗反復は別の費用である。狭幅詳細では、変更していないCSSの実scroll ownerが本文全体になるのに情報欄だけへscroll位置を適用していた接続を修正した。分岐の16px差はNative modal終了のopener focus復元によるoverflow scrollを同じviewへ直接描いて再現し、背景・状態を変えず解消した。
+
+残る9枚は背景fixtureボタン端の14pxが2枚、長名の確定ボタン飾り端152〜223pxが4枚、低い画面の画像端11px、dialog角13px、購入ボタンのhover遷移中の色10,661pxである。旧資料にはNativeのsubpixel矩形・撮影時刻等がなく、完全一致は未確認とする。旧購入色は変更していないCSSの通常色とhover色の中間で、静止した両端へ合わせても一致しない。製品CSS・位置・確定状態・基準画像・許容差を残差へ合わせていない。これらの参考画像を新たな承認済みgoldenにしない。
+
+現行fixtureの全54基準使用と、全体source固定のheadless／VRT／Native／coverage・直列時間計測はまだ未確認。全体完了や5分達成は主張しない。品質を保った全ローカル検証が5分以内、または同品質で5分以内にできない明確な根拠が成立するまでPR禁止で、成立後も公開再開はユーザー確認に従う。
+
+## 現在の保証対応
+
+| 公開結果 | 主な検証 |
+| --- | --- |
+| 編成draft・欠番・二回toggle・詳細・focus・再入力 | `partyModel.test.ts`、`characterDetails.test.ts`、純粋projectionと直接party VRT |
+| 本編／debugの進行・帰還・保存再開・六回療養 | 親子の実コア結合、`campaignJourney.test.ts`、`campaignRecovery.test.ts`。途中のHP・乱数注入なし |
+| 各着弾・回復→発症→敵hit・多段・全体・成長・取消・速度 | 実コア結果とplayback／battle／dungeonモデルの独立HP・残数・時刻・乱数、直接FX／route VRT |
+| 設定raw・全invalid・draft障害・保存待ち／失敗／再試行 | `editorModel.test.ts`、実HTTPの固定書込先／旧bytes、必要時直接editor画像 |
+| 通常配布・素材・Native寿命 | 現行normal artifactの実HTTP／FS、直接初期VRT、実GPU・取得数・DPR・遅着・失敗・pagehide／HMR |
+
+詳細の対応はテストコードと差分で読み、巨大な仕様ID・assertion台帳は作らない。モデル結果をNative幾何の保証、VRTを状態規則の保証へ読み替えない。
+
+## 旧実装の整備・監査記録
+
+以下は [旧head58b32ab](https://github.com/karin0624/endfield_rpg/tree/58b32abffd58fa4a324f2ea099a1dc41acf454db) 以前の経緯で、現在のsuite・API・保証範囲の説明ではない。旧E2E本文は現行の意味モデルと直接VRT／資源検証へ移し、基準PNGだけ元pathへ保持した。version・入力時刻・報酬台帳等の旧内部受理契約は現在状態原則へ置き換えた。判断は[ADR0006](../adr/0006-synchronous-presentation-models.md)を参照する。
+
+### 旧整備時の保証と追加
 
 | 層・技術 | 既存の保証 | 今回補った具体例 |
 | --- | --- | --- |
@@ -42,14 +72,14 @@ renderer資源・旧controllerとブラウザsuiteの整理、狭幅・詳細の
 
 VRTはブラウザの各層で用いる視覚assertionであり、操作・論理規則・I/Oを代替しない。新規基準は現UIの回帰検出用で、ユーザーの完成画像の承認を新たに取得したという意味ではない。共有フォントの仕上げはユーザーが別作業を明示承認した [Issue #99](https://github.com/karin0624/endfield_rpg/issues/99) へ分ける。読めない・操作できない崩れまで免除しない。
 
-## 削除・置換した弱いassertion
+### 旧整備時のassertion置換
 
 - 編成ボタンのRGB/outline値、設定画面のCSS変数だけの比較を、必要状態のVRTと保存後の実会話表示へ置換。ARIA・focus・公開保存形式・仕様化されたWebGL資源数/HTTP取得数は維持した。
 - 成長関数に渡していない値の不変比較、未使用payloadの自己比較、健康なstateをJSONコピーするだけの回復検証を削除。実保存、負傷・症状・時計を伴う公開操作で保証する。
 - 地面倍率だけの重複した負例を、全設定項目の独立した境界入力表へ統合。値域期待は実装定数から再計算しない。
 - 録画専用caseを品質testのskipから切り離し、専用evidence設定へ移動。動画・撮影・overlayの生成を自動テストの成功として数えない。
 
-## 独立レビュー後の修正
+### 旧整備時のレビュー修正
 
 - 品質scriptの引数転送に対し、古い成功JSONを残して`--grep built --reporter=list`と`--list --reporter=list`を実CLIで実行すると、部分実行／未実行が古い結果で成功する経路を再現した。実行前にdiscovery/resultを削除し今回のJSON新規生成を必須にした後、全4project成功経路は通り、後2条件は拒否された。ブラウザを使わない実runnerの回帰としてVitestで実行する。
 - Vitestのstock JSONだけでは個別retryや `test.fails` を判別しきれないため、公開Reporter APIで `options.fails`・retry回数・残存errorを検査する。実CLIで通常成功／retry成功／期待失敗／suite期待失敗の4条件を検証し、後3条件を非ゼロ終了にした。
@@ -63,13 +93,13 @@ VRTはブラウザの各層で用いる視覚assertionであり、操作・論�
 - 品質scriptへのPlaywright引数が末尾の結果検査へ渡る問題を修正した。3モードで`--update-snapshots`等がrunnerへ届き、全件の発見・結果照合は維持されることを確認した。
 - 長い通常campaign通しと10状態VRTを `tests/long/` の明示実行へ移した。テスト本文と基準bytesは保持し、既定CIの短い通常配布・UI・settings・renderer境界は継続する。
 
-## 開発者ツールの用途に応じた検証範囲
+### 旧E2E段階の開発者用途見直し
 
 ユーザーの用途見直しに従い、低頻度の開発者専用エディターは通常検証を代表的なbattle/adventure設定の標準保存・通常起動・エディター再読込へ絞った。このbridgeは保存値の読込を確認し、新構図のpixelsが期待通りであることまで保証しない。全control・詳細編集VRT・draft・Storage例外・保存失敗時UI・画面組合せ、開発server限定HMR、任意の5control構図VRTは `tests/editor/` と `test:editor` で必要時に確認する。既存本文・基準bytes・許容差を保ち、通常結果へskipとして混ぜない。これは常時保証範囲の用途判断であり、全旧保証が通常CIに残る等価移動ではない。
 
 値の解析と両APIの実HTTP保存・旧bytes保持・固定書込先は通常Nodeテストに残す。browser側の不正値／foreign originだけのAPIケースはこの実HTTP契約と重複するため取り除いた。ユーザー向けキャラ詳細はUIへ移し、本編VRT・実投影・通常モーション・資源解放・pagehide・非root配布・素材境界は通常検証を継続する。本編cameraは保存値で固定し、ユーザーのcamera移動操作がないため、任意のculling四隅・内部／編集previewも必要時へ分けた。通常PC／mobileと未検証環境・別bytes・照合不可の材質fallbackは継続する。上記の追加当時の検証記録を、現在の通常suite範囲へ読み替えない。
 
-## リファクタを妨げる期待値の見直し
+### 旧headの期待値監査
 
 ローカルhead `183bf5a` の単体45ファイル・685ケースと、browserのspec・補助fixtureを全文確認した。件数自体を過剰さの根拠にせず、公開仕様と観測結果から採否を判断した。一時保存名を固定した故障注入は公開の保存ディレクトリへの実I/O障害へ、再保存のJSON字句一致は値比較へ置き換えた。flagsは配列をsortして完全比較し、重複・欠落・余分を検出して非仕様の順序だけを解除した。任意の健康省略は有効状態の比較にし、連続量だけの浮動小数点差と出荷catalogの配列位置への依存も除いた。失敗時の旧保存bytes、仕様の順序・RNG・整数境界は維持する。
 
@@ -81,7 +111,7 @@ browserの未使用`data-replaying`や私的なphase属性は、省略ボタン�
 
 製品ソースを変更しない分離コピーでは、保存JSONの宣言順交換、未使用replaying属性の削除、CSSとphase属性の同時renameで旧テストが失敗し、変更後の対応テストが成功した。保存値の反転と拒否入力のRNG破壊更新は変更後も失敗することを確認した。この診断と部分trialを最終全件成功・正式な独立レビューへ読み替えず、最終の`check`・既定全project・editor・longの実行と区別する。
 
-## 破壊・修正前との比較
+### 旧headの破壊・修正前比較
 
 | 対象 | 観測した失敗と復元 |
 | --- | --- |
@@ -95,9 +125,9 @@ browserの未使用`data-replaying`や私的なphase属性は、省略ボタン�
 
 この記録は最終headの全実行を代替しない。PRのCIで最終head＋baseを統合したcommitの`verify`・`browser`とアップロードされた実レポートを確認する。残件はPRに不足・未監査・矛盾を区別して記載し、未実装の将来計画へ逃がさない。権限とレビューの境界は [別表](review-controls.md) に示す。
 
-## 固定監査との照合結果
+### 旧headの固定監査照合
 
-固定監査の各行を現在の仕様、具体的なassertion、担当runnerへ照合した。以下は領域ごとの変更と例外の要約であり、関連するtest名や成功件数だけから全仕様の保証を宣言しない。監査時の古いファイル位置は、現在の `tests/e2e/{built,debug,ui,settings}/` と必要時の `tests/editor/`・`tests/long/` と照合する。
+固定監査の各行を現在の仕様、具体的なassertion、担当runnerへ照合した。以下は領域ごとの変更と例外の要約であり、関連するtest名や成功件数だけから全仕様の保証を宣言しない。監査当時のファイル位置は、当時の `tests/e2e/{built,debug,ui,settings}/` と必要時の `tests/editor/`・`tests/long/` と照合する。
 
 | 固定監査の領域 | 具体的な不足への対応 | 残る区別・限界 |
 | --- | --- | --- |
@@ -128,7 +158,7 @@ browserの未使用`data-replaying`や私的なphase属性は、省略ボタン�
 
 ### 未定義の設計境界
 
-SAVEITEM-03の通常のversion一致・更新・保存は既存／追加テストで検証する。数量・金額の最大安全整数roundtripも公開APIの契約として保証した。versionの枯渇時の最大値・次操作方針は公開仕様にないため、別の設計境界として残す。未定義の極端値から通常契約全体を未テストとしたり、独自の上限・wrap方針を加えたりしない。
+旧SAVEITEM-03のversion一致・更新・保存は当時のテストで検証した。現行ではゲーム意味のないversion入力を除去した。数量・金額の最大安全整数roundtripも公開APIの契約として保証した。versionの枯渇時の最大値・次操作方針は公開仕様にないため、別の設計境界として残す。未定義の極端値から通常契約全体を未テストとしたり、独自の上限・wrap方針を加えたりしない。
 
 ## 標準coverage方式の調査と小規模実証
 
@@ -141,7 +171,7 @@ SAVEITEM-03の通常のversion一致・更新・保存は既存／追加テス�
 
 ## 通常ブラウザ実行とV8 coverageの統合
 
-旧CIは同じ170ケースを通常browserで25.2分、専用解析buildのbrowser-coverageで30.3分実行していた。全件discovery・実行結果・VRTの保証を維持し、通常配布と同じminificationのbuildへhidden sourcemapだけを付加して、一回のbrowser実行から合否とproject別coverageを得る構成に統合した。browser内の先行buildも除き、通常・debugをそれぞれ一度生成する。verifyの通常buildは公開build設定の独立した成功確認として残す。`test:coverage`は`test:e2e`と同じ経路の別名とする。
+旧CIは同じ170ケースを通常browserで25.2分、専用解析buildのbrowser-coverageで30.3分実行していた。全件discovery・実行結果・VRTの保証を維持し、通常配布と同じminificationのbuildへhidden sourcemapだけを付加して、一回のbrowser実行から合否とproject別coverageを得る構成に統合した。browser内の先行buildも除き、通常・debugをそれぞれ一度生成する。当時はverifyの通常buildと`test:coverage`別名を残していた。現在は上記の同一normal artifact再利用へ整理し、旧コマンドを廃止した。
 
 [Viteのhidden map](https://vite.dev/config/build-options.html#build-sourcemap)は外部mapを生成し、実行JSへmap参照コメントを付加しない。Playwrightのnative V8データに、そのchunkの隣接mapをMonocart標準APIの`sourceMap`として渡す。dev fixtureは既存のinline mapを使う。未読込srcの分母、project別report、追加page/contextの拒否、遷移前回収、各case annotationと全件照合は維持する。minified V8からの再mappingによりcounterや率は旧非minify解析buildと一致するとは限らず、旧率の単純比較を合格条件にしない。
 

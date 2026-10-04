@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { checkExecution, playwrightCases, vitestCases } from "./check-test-execution.mjs";
+import { checkExecution, checkPlaywrightProjects, playwrightCases, vitestCases } from "./check-test-execution.mjs";
 
 const collected = [{ file: "src/example.test.ts", key: "example" }];
 const passed = [{ ...collected[0], passed: true }];
@@ -33,6 +33,7 @@ it("rejects skipped, todo and failed Vitest outcomes, preserving describe hierar
 });
 it("rejects Playwright skipped, expected-failure, retry and absent results even when runner considers them expected", () => {
   const report = (test) => ({
+    config: { rootDir: "/repo/tests/views", projects: [{ name: "ui" }] },
     suites: [
       {
         suites: [
@@ -40,7 +41,7 @@ it("rejects Playwright skipped, expected-failure, retry and absent results even 
             specs: [
               {
                 id: "native-id",
-                file: "ui/example.spec.ts",
+                file: "example.spec.ts",
                 tests: [{ projectName: "ui", expectedStatus: "passed", ...test }],
               },
             ],
@@ -49,7 +50,7 @@ it("rejects Playwright skipped, expected-failure, retry and absent results even 
       },
     ],
   });
-  const discovery = playwrightCases(report({ results: [] }));
+  const discovery = playwrightCases(report({ results: [] }), false, "/repo");
   for (const test of [
     { results: [] },
     { results: [{ status: "skipped", retry: 0 }], expectedStatus: "skipped" },
@@ -62,15 +63,15 @@ it("rejects Playwright skipped, expected-failure, retry and absent results even 
     },
   ])
     expect(
-      checkExecution(["tests/e2e/ui/example.spec.ts"], discovery, playwrightCases(report(test))).some((error) =>
-        error.startsWith("Not passed"),
+      checkExecution(["tests/views/example.spec.ts"], discovery, playwrightCases(report(test), false, "/repo")).some(
+        (error) => error.startsWith("Not passed"),
       ),
     ).toBe(true);
   expect(
     checkExecution(
-      ["tests/e2e/ui/example.spec.ts"],
+      ["tests/views/example.spec.ts"],
       discovery,
-      playwrightCases(report({ results: [{ status: "passed", retry: 0 }] })),
+      playwrightCases(report({ results: [{ status: "passed", retry: 0 }] }), false, "/repo"),
     ),
   ).toEqual([]);
 });
@@ -94,8 +95,9 @@ it("rejects passed Vitest JSON cases retaining errors from an earlier attempt", 
   expect(vitestCases(report, false, "/repo")[0].passed).toBe(false);
 });
 
-it("tracks case-level browser collection and the explicitly-run suite roots", () => {
+it("tracks case-level browser collection and resolves files from native report rootDir", () => {
   const report = (annotations) => ({
+    config: { rootDir: "/repo/tests/editor/views", projects: [{ name: "developer-images" }] },
     suites: [
       {
         specs: [
@@ -120,6 +122,36 @@ it("tracks case-level browser collection and the explicitly-run suite roots", ()
     playwrightCases(report([{ type: "browser-coverage", description: "documents=1,mappedEntries=1" }]))[0]
       .coverageRecorded,
   ).toBe(true);
-  expect(playwrightCases(report([]), false, "tests/long")[0].file).toBe("tests/long/campaign.spec.ts");
-  expect(playwrightCases(report([]), false, "tests/editor")[0].file).toBe("tests/editor/campaign.spec.ts");
+  expect(playwrightCases(report([]), false, "/repo")[0].file).toBe("tests/editor/views/campaign.spec.ts");
+});
+
+it("derives every required project from native discovery and rejects empty or different configurations", () => {
+  const discovery = {
+    config: { rootDir: "/repo/tests", projects: [{ name: "pictures" }, { name: "native-gpu" }] },
+    suites: [],
+  };
+  const result = {
+    ...discovery,
+    suites: [
+      {
+        specs: [
+          {
+            id: "picture",
+            file: "views/picture.spec.ts",
+            tests: [{ projectName: "pictures", expectedStatus: "passed", results: [{ status: "passed", retry: 0 }] }],
+          },
+        ],
+      },
+    ],
+  };
+  expect(checkPlaywrightProjects(discovery, result)).toEqual(["Missing required project: native-gpu"]);
+  expect(
+    checkPlaywrightProjects(discovery, { ...result, config: { ...result.config, projects: [{ name: "pictures" }] } }),
+  ).toContain("Executed project configuration differs from discovery");
+  expect(
+    checkPlaywrightProjects(
+      { ...discovery, config: { ...discovery.config, projects: [] } },
+      { ...result, config: { ...result.config, projects: [] } },
+    ),
+  ).toContain("Empty project configuration");
 });
