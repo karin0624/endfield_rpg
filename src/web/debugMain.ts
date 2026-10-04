@@ -11,7 +11,6 @@ import {
   actInExpedition,
   actInTown,
   beginTownExploration,
-  confirmExpeditionParty,
   departOnExpedition,
   type ExpeditionGame,
   type GameActionCompletion,
@@ -162,26 +161,23 @@ if (!battleMode) {
                 : { accepted: false, state: game.adventure, reason: "conversation-progress-invalid" };
             },
             party: {
-              characters: grownCharacters(game, skillRules),
-              getDetailsContext: () => ({
+              returnTo: "town",
+              getInput: () => ({
+                game,
                 characters: grownCharacters(game, skillRules),
-                baseCharacters: characters,
-                growth: game.growth,
-                rules: skillRules,
+                calendarLabel: calendarLabel(game.clock),
+                detailsContext: {
+                  characters: grownCharacters(game, skillRules),
+                  baseCharacters: characters,
+                  growth: game.growth,
+                  rules: skillRules,
+                },
+                departure: { characters, route: initialDungeon, adventure: initialAdventure, skills: skillRules },
               }),
-              getParty: () => game.party,
-              getCalendarLabel: () => calendarLabel(game.clock),
-              confirm: (slots) => {
-                const result = confirmExpeditionParty(game, slots);
-                game = result.state;
-                return result;
+              changed: (next) => {
+                game = next;
               },
-              depart: () => {
-                const result = departOnExpedition(game, characters, initialDungeon, initialAdventure, skillRules);
-                game = result.state;
-                if (result.accepted) showDungeon();
-                return result;
-              },
+              navigate: () => showDungeon(),
             },
           },
     );

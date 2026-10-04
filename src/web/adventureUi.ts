@@ -144,7 +144,7 @@ export function mountAdventureUi(
   const partyEditor = requiredElement<HTMLElement>(root, "[data-party-editor]");
   const partyEntry = root.querySelector<HTMLAnchorElement>(".dungeon-entry");
   function setPartyOpen(open: boolean) {
-    if (open) disposeParty?.refresh();
+    if (open) disposeParty?.show();
     screen.classList.toggle("party-editing", open);
     partyEditor.hidden = !open;
     if (open) townView.removeAttribute("aria-labelledby");
@@ -152,7 +152,15 @@ export function mountAdventureUi(
     if (open) partyEditor.querySelector<HTMLButtonElement>("[data-party-back]")?.focus();
     else partyEntry?.focus();
   }
-  const disposeParty = options?.party ? mountPartyUi(partyEditor, options.party, () => setPartyOpen(false)) : undefined;
+  const disposeParty = options?.party
+    ? mountPartyUi(partyEditor, {
+        ...options.party,
+        navigate: (destination) => {
+          if (destination === "town") setPartyOpen(false);
+          else options.party?.navigate(destination);
+        },
+      })
+    : undefined;
   partyEditor.hidden = true;
   partyEntry?.addEventListener(
     "click",

@@ -1,17 +1,20 @@
-import { loadSymptomDefinition } from "../content/loadSymptomDefinition";
-import { type CharacterDefinition, characterById, type PartyState } from "../game/party";
-import { canParticipate, effectiveHitRate, effectiveMaxHp, healthyStatus } from "../game/status";
-import { type CharacterDetailsContext, characterLearning, learnedSkillText } from "./characterDetailsText";
-import "./party.css";
-import { characterPortraitUrl } from "./characterPortrait";
+import type { CharacterDefinition, PartyState } from "../game/party";
+import {
+  type CharacterDetailsEvent,
+  type CharacterDetailsInteraction,
+  type CharacterDetailsModel,
+  createCharacterDetailsModel,
+  reduceCharacterDetails,
+} from "../presentation/characterDetails";
+import type { CharacterDetailsContext } from "./characterDetailsText";
 import { requiredElement } from "./requiredElement";
-import { formatAmount, loadSymptomText, mentalFatigueText, symptomLabel } from "./sessionFeedback";
+import "./party.css";
 
-export function mountCharacterDetailsUi(
+/** Paint the supplied model. Native elements and applied-focus bookkeeping stay in the view. */
+export function createCharacterDetailsView(
   root: HTMLElement,
-  characters: readonly CharacterDefinition[],
-  getParty: () => PartyState,
-  getContext?: () => CharacterDetailsContext,
+  send: (event: CharacterDetailsInteraction) => boolean,
+  focusOpener: (characterId: string) => void,
 ) {
   const dialog = document.createElement("dialog");
   dialog.className = "character-details ui-dialog";
@@ -32,144 +35,145 @@ export function mountCharacterDetailsUi(
   const symptoms = requiredElement<HTMLElement>(dialog, "[data-details-symptoms]");
   const unavailable = requiredElement<HTMLElement>(dialog, "[data-details-unavailable]");
   const back = requiredElement<HTMLButtonElement>(dialog, "[data-details-back]");
+  const information = requiredElement<HTMLElement>(dialog, ".character-details-info");
   const events = new AbortController();
-  let source: HTMLButtonElement | undefined;
+  let paintedGeneration = -1;
+  let appliedFocus: CharacterDetailsModel["focus"] = null;
 
-  function close() {
-    if (!dialog.open) return;
-    dialog.close();
-    if (source?.isConnected) source.focus({ preventScroll: true });
-    source = undefined;
-  }
-  back.addEventListener("click", close, { signal: events.signal });
+  back.addEventListener("click", () => send({ type: "close" }), { signal: events.signal });
+  back.addEventListener("focus", () => send({ type: "focused", target: { kind: "back" } }), { signal: events.signal });
+  information.addEventListener("focus", () => send({ type: "focused", target: { kind: "information" } }), {
+    signal: events.signal,
+  });
+  information.addEventListener("scroll", () => send({ type: "scrolled", scrollTop: information.scrollTop }), {
+    signal: events.signal,
+  });
   dialog.addEventListener(
     "cancel",
     (event) => {
       event.preventDefault();
-      close();
+      send({ type: "close" });
+    },
+    { signal: events.signal },
+  );
+  dialog.addEventListener(
+    "keydown",
+    (event) => {
+      if (send({ type: "key", key: event.key, shift: event.shiftKey })) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
     },
     { signal: events.signal },
   );
 
   return {
-    open(id: string, opener: HTMLButtonElement) {
-      if (dialog.open) return;
-      const member = getParty().members.find((candidate) => candidate.id === id);
-      if (!member) return;
-      const context = getContext?.();
-      const character = characterById(context?.characters ?? characters, id);
-      const base = context?.baseCharacters.find((entry) => entry.id === id);
-      const learning = context ? characterLearning(id, context) : undefined;
-      const status = member.status ?? healthyStatus();
-      name.textContent = character.name;
-      portrait.replaceChildren();
-      const url = characterPortraitUrl(id);
-      if (url) {
-        const image = document.createElement("img");
-        image.className = "character-details-image";
-        image.src = url;
-        image.alt = character.name;
-        image.addEventListener(
-          "error",
-          () => {
-            if (image.parentElement === portrait) portrait.textContent = "画像なし";
-          },
-          { once: true },
-        );
-        portrait.append(image);
-      }
-      portrait.hidden = !url;
-      const maxHp = effectiveMaxHp(character.maxHp, status);
-      const baseHit = effectiveHitRate(character.hitRate, healthyStatus());
-      const hit = effectiveHitRate(character.hitRate, status);
-      const percent = (value: number) => `${Number((value * 100).toFixed(2))}%`;
-      stats.replaceChildren();
-      for (const [label, value, reason] of [
-        [
-          "HP",
-          `${formatAmount(member.hp)} / ${formatAmount(maxHp)}`,
-          maxHp !== character.maxHp
-            ? [
-                base ? `基礎最大HP ${formatAmount(base.maxHp)}` : "",
-                `症状前最大HP ${formatAmount(character.maxHp)}${context?.growth ? "（成長・パッシブ込み）" : ""}`,
-                "肉体疲労による低下",
-              ]
-                .filter(Boolean)
-                .join(" · ")
-            : "",
-        ],
-        [
-          "攻撃力",
-          String(character.attackPower),
-          base && base.attackPower !== character.attackPower
-            ? `基礎 ${base.attackPower} · 成長・パッシブ込み（通常攻撃限定補正を除く）`
-            : "",
-        ],
-        ["速度", String(character.speed), ""],
-        ["命中率", percent(hit), hit !== baseHit ? `基礎 ${percent(baseHit)} · 朦朧による低下` : ""],
-        ["レベル", learning?.level === undefined ? "未接続" : String(learning.level), ""],
-        ["精神疲労", mentalFatigueText(member.mentalFatigue ?? 0), ""],
-        ...(["physicalFatigue", "haze"] as const).map((kind) => [
-          kind === "physicalFatigue" ? "肉体疲労" : "朦朧",
-          loadSymptomText(kind, status[kind]),
-          `上限 ${loadSymptomDefinition.symptoms[kind].cap} · 街探索1回につき ${loadSymptomDefinition.symptoms[kind].townRecovery} 回復`,
-        ]),
-      ]) {
-        const row = document.createElement("div");
-        const term = document.createElement("dt");
-        term.textContent = label;
-        const description = document.createElement("dd");
-        const number = document.createElement("span");
-        number.textContent = value;
-        description.append(number);
-        row.append(term, description);
-        if (reason) {
-          const note = document.createElement("p");
-          note.textContent = reason;
-          description.append(note);
+    render(state: CharacterDetailsModel) {
+      const frame = state.dialog;
+      if (frame && paintedGeneration !== state.generation) {
+        paintedGeneration = state.generation;
+        name.textContent = frame.name;
+        portrait.replaceChildren();
+        const url = frame.portrait ? `${import.meta.env.BASE_URL}assets/${frame.portrait}` : undefined;
+        if (url) {
+          const image = document.createElement("img");
+          image.className = "character-details-image";
+          image.src = url;
+          image.alt = frame.name;
+          const generation = state.generation;
+          image.addEventListener("error", () => send({ type: "portrait-failed", generation }), { once: true });
+          portrait.append(image);
         }
-        stats.append(row);
-      }
-      const skills = requiredElement<HTMLElement>(dialog, "[data-details-skills]");
-      skills.replaceChildren();
-      const title = document.createElement("h3");
-      title.textContent = "習得スキル";
-      skills.append(title);
-      if (!context || learning?.learned === undefined || learning.learned.length === 0) {
-        const empty = document.createElement("p");
-        empty.textContent = learning?.learned === undefined ? "習得情報は未接続です。" : "習得スキルなし";
-        skills.append(empty);
-      } else {
-        for (const learned of learning.learned) {
-          const text = learnedSkillText(context.rules.catalog, learned);
-          const section = document.createElement("section");
-          section.className = "character-details-skill";
-          const heading = document.createElement("h4");
-          heading.textContent = text.name;
-          section.append(heading);
-          for (const line of [text.kind, ...text.notes]) {
-            const paragraph = document.createElement("p");
-            paragraph.textContent = line;
-            section.append(paragraph);
+        portrait.hidden = !url;
+        stats.replaceChildren();
+        for (const [label, value, reason] of frame.stats) {
+          const row = document.createElement("div");
+          const term = document.createElement("dt");
+          term.textContent = label;
+          const description = document.createElement("dd");
+          const number = document.createElement("span");
+          number.textContent = value;
+          description.append(number);
+          row.append(term, description);
+          if (reason) {
+            const note = document.createElement("p");
+            note.textContent = reason;
+            description.append(note);
           }
-          skills.append(section);
+          stats.append(row);
         }
+        const skills = requiredElement<HTMLElement>(dialog, "[data-details-skills]");
+        skills.replaceChildren();
+        const title = document.createElement("h3");
+        title.textContent = "習得スキル";
+        skills.append(title);
+        if (frame.skills.length === 0) {
+          const empty = document.createElement("p");
+          empty.textContent = frame.emptySkills;
+          skills.append(empty);
+        } else {
+          for (const text of frame.skills) {
+            const section = document.createElement("section");
+            section.className = "character-details-skill";
+            const heading = document.createElement("h4");
+            heading.textContent = text.name;
+            section.append(heading);
+            for (const line of [text.kind, ...text.notes]) {
+              const paragraph = document.createElement("p");
+              paragraph.textContent = line;
+              section.append(paragraph);
+            }
+            skills.append(section);
+          }
+        }
+        symptoms.textContent = frame.symptoms;
+        symptoms.hidden = !frame.symptoms;
+        unavailable.textContent = frame.unavailable;
+        unavailable.hidden = !frame.unavailable;
       }
-      symptoms.textContent = symptomLabel(status);
-      symptoms.hidden = !symptoms.textContent;
-      unavailable.textContent = canParticipate(member.hp, status)
-        ? ""
-        : "戦闘に参加できません。街探索で回復を進められます。";
-      unavailable.hidden = !unavailable.textContent;
-      source = opener;
-      dialog.showModal();
-      back.focus();
+      if (frame?.portraitFailed) portrait.textContent = "画像なし";
+      if (frame && !dialog.open) dialog.showModal();
+      if (!frame && dialog.open) dialog.close();
+      information.scrollTop = state.scrollTop;
+      if (state.focus !== appliedFocus) {
+        appliedFocus = state.focus;
+        if (state.focus?.kind === "back") back.focus();
+        if (state.focus?.kind === "information") information.focus();
+        if (state.focus?.kind === "opener") focusOpener(state.focus.characterId);
+      }
     },
     dispose() {
       events.abort();
-      if (dialog.open) dialog.close();
-      source = undefined;
+      dialog.close();
       dialog.remove();
+    },
+  };
+}
+
+export function mountCharacterDetailsUi(
+  root: HTMLElement,
+  characters: readonly CharacterDefinition[],
+  getParty: () => PartyState,
+  getContext?: () => CharacterDetailsContext,
+) {
+  let model = createCharacterDetailsModel();
+  // These are browser resources implementing meaning targets, not the dialog's state.
+  const openers = new Map<string, HTMLButtonElement>();
+  const view = createCharacterDetailsView(root, dispatch, (id) => openers.get(id)?.focus({ preventScroll: true }));
+  function dispatch(event: CharacterDetailsEvent) {
+    const next = reduceCharacterDetails(model, event);
+    model = next.state;
+    view.render(model);
+    return next.handled;
+  }
+  return {
+    open(id: string, opener: HTMLButtonElement) {
+      openers.set(id, opener);
+      dispatch({ type: "open", characterId: id, input: { characters, party: getParty(), context: getContext?.() } });
+    },
+    dispose() {
+      dispatch({ type: "disposed" });
+      view.dispose();
     },
   };
 }

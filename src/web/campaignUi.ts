@@ -18,8 +18,6 @@ import {
   actInExpedition,
   actInTown,
   beginTownExploration,
-  confirmExpeditionParty,
-  departOnExpedition,
   type ExpeditionGame,
   type GameActionCompletion,
   leaveExpedition,
@@ -332,42 +330,38 @@ export function mountCampaign(root: HTMLDivElement): () => void {
     const panel = document.createElement("section");
     panel.className = "party-editor";
     requiredElement<HTMLElement>(root, ".campaign-content").replaceChildren(panel);
-    disposeView = mountPartyUi(
-      panel,
-      {
-        context,
+    disposeView = mountPartyUi(panel, {
+      returnTo: context === "departure" ? "destinations" : "home",
+      getInput: () => ({
+        game,
         characters: grownCharacters(game, rules),
-        getDetailsContext: () => ({
+        calendarLabel: calendarLabel(game.clock),
+        detailsContext: {
           characters: grownCharacters(game, rules),
           baseCharacters: characters,
           growth: game.growth,
           rules,
-        }),
-        getParty: () => game.party,
-        getCalendarLabel: () => calendarLabel(game.clock),
-        confirm: (slots) => {
-          const result = confirmExpeditionParty(game, slots);
-          game = result.state;
-          return result;
         },
-        depart: () => {
-          const result = departOnExpedition(game, characters, initialDungeon, initialAdventure, rules, itemSelection());
-          if (result.accepted) {
-            game = result.state;
-            carryQuantity = 0;
-            completion = undefined;
-            showDungeon();
-          }
-          return result;
-        },
+        departure:
+          context === "departure"
+            ? { characters, route: initialDungeon, adventure: initialAdventure, skills: rules, items: itemSelection() }
+            : undefined,
+      }),
+      changed: (next) => {
+        game = next;
       },
-      () => {
-        if (context === "departure") showDestinations();
+      navigate: (destination) => {
+        if (destination === "dungeon") {
+          carryQuantity = 0;
+          completion = undefined;
+          showDungeon();
+          return;
+        }
+        if (destination === "destinations") showDestinations();
         else showHome();
         root.querySelectorAll<HTMLButtonElement>(".campaign-command")[1]?.focus();
       },
-    ).dispose;
-    requiredElement<HTMLElement>(panel, "[data-party-back]").focus();
+    }).dispose;
   }
   function showTown() {
     clear();

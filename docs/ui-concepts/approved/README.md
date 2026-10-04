@@ -64,14 +64,14 @@
 
 ## 再現fixtureと実画像比較
 
-`tests/fixtures/party-approved.html`を本番の`mountPartyUi`へ接続する。実装初版はcommit `5b3a2dd`。Playwrightの`party-ui.spec.ts`にある「承認画像の4状態」で、1672×941 CSS px、DPR1、reduced-motion、画像decode・同梱フォントの準備完了後に撮影する。
+`tests/fixtures/party-approved.html`は明示的な編成snapshotを`projectParty`へ渡し、本番の`createPartyView`で直接描く。状態へ到達するゲーム操作は実行しない。実装初版はcommit `5b3a2dd`。Playwrightの`party-ui.spec.ts`にある「承認画像に対応する4状態」で、1672×941 CSS px、DPR1、reduced-motion、画像decode・同梱フォントの準備完了後に撮影する。
 
 | 状態 | URL query／操作 | 固定条件 |
 | --- | --- | --- |
 | 通常出発 | `?mode=normal` | ロッシ、ギルベルタ、空き、空き。両名20/20、症状なし |
-| 通常選択 | `?mode=normal`、枠1をクリック | 上記と同じ。選択番号1・2、scroll先頭、hoverなし |
+| 通常選択 | `?mode=normal&selection=1` | 上記と同じ。選択番号1・2、scroll先頭、hoverなし |
 | 全員HP0 | `?mode=disabled` | 両名0/20、バー空、出発disabled |
-| 症状あり選択 | `?mode=symptoms`、枠1をクリック | ロッシ肉体疲労50／朦朧75、コア適用後13/13、肉体疲労・中度／朦朧・重度。ギルベルタ20/20 |
+| 症状あり選択 | `?mode=symptoms&selection=1` | ロッシ肉体疲労50／朦朧75、HP13/13、肉体疲労・中度／朦朧・重度。ギルベルタ20/20 |
 
 時計は1日目・昼で固定し可視表示しない。本編のギルベルタ最大HP18は変えず、この独立fixtureだけ画像と同じ最大HP20とする。カードの仮編集中は選択順・欠番を保持し、確定とEscだけで番号順に詰める。
 

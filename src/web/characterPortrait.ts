@@ -1,10 +1,6 @@
-const portraits: Readonly<Record<string, string>> = {
-  player: "characters/rossi/expressions/neutral.png",
-  gilberta: "characters/gilberta/expressions/neutral.png",
-};
+import { characterPortraitPath } from "../presentation/characterPortrait";
 
-export function characterPortraitUrl(id: string, face = false): string | undefined {
-  const portrait = portraits[id];
-  const path = face ? portrait?.replace("expressions/neutral.png", "face.png") : portrait;
+export function characterPortraitUrl(id: string): string | undefined {
+  const path = characterPortraitPath(id);
   return path ? `${import.meta.env.BASE_URL}assets/${path}` : undefined;
 }

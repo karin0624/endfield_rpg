@@ -6,55 +6,8 @@
   <div class="adventure-screen party-editing"><div class="town-view"><section class="party-editor" id="fixture" aria-label="出撃編成"></section></div></div>
   <button type="button" id="snapshot">状態を確認</button><output hidden id="state"></output><output hidden id="edits"></output><output hidden id="departures">0</output>
   <script type="module">
-    import { characters } from "/src/content/characters.ts";
-    import { initialGameOptions } from "/src/content/initialGameOptions.ts";
-    import { createInitialGameState } from "/src/game/createInitialGameState.ts";
-    import { applyPartyStatus, confirmExpeditionParty, editExpeditionParty } from "/src/game/expedition.ts";
-    import { createParty } from "/src/game/party.ts";
-    import { deserializeGame, serializeGame } from "/src/game/save.ts";
-    import { mountPartyUi } from "/src/web/partyUi.ts";
-    import "/src/web/style.css";
+    import { mountPartyFixture } from "./party-view.ts";
 
-    const params = new URLSearchParams(location.search);
-    const count = params.get("count") === "2" ? 2 : params.get("count") === "12" ? 12 : 24;
-    const definitions = [...characters, ...Array.from({ length: count - characters.length }, (_, index) => ({
-      id: `fixture-${index + 3}`, name: `仲間 ${index + 3}`, maxHp: 200, speed: 100, attackPower: 8,
-    }))];
-    if (params.has("long")) definitions[definitions.length - 1].name = "長い名前の仲間（折り返しと欠けがないことを確認する表示条件）";
-    if (params.has("large-type")) {
-      const player = definitions.findIndex(({ id }) => id === "player");
-      definitions[player] = { ...definitions[player], maxHp: Number.MAX_SAFE_INTEGER, name: "長い名前の仲間（精神疲労・戦闘不能・複雑な日本語を確認）" };
-    }
-    const stressIndices = params.has("stress") ? [0, 4, 5] : [];
-    for (const index of stressIndices) definitions[index].name = `長い名前の仲間${index + 1}（折り返しと欠けがないことを確認する表示条件）`;
-    let game = { adventure: createInitialGameState(initialGameOptions), party: createParty(definitions, definitions.map(({ id }) => id)), dungeon: null };
-    for (let slot = 1; slot < Math.min(4, count); slot++) game = editExpeditionParty(game, slot, definitions[slot].id).state;
-    game = applyPartyStatus(game, definitions[definitions.length - 1].id, { kind: "physicalFatigue", amount: 25 }, definitions);
-    game = applyPartyStatus(game, definitions[definitions.length - 1].id, { kind: "haze", amount: 25 }, definitions);
-    for (const index of stressIndices) {
-      game = applyPartyStatus(game, definitions[index].id, { kind: "physicalFatigue", amount: 50 }, definitions);
-      game = applyPartyStatus(game, definitions[index].id, { kind: "haze", amount: 75 }, definitions);
-    }
-    if (stressIndices.length) game = { ...game, party: { ...game.party, members: game.party.members.map((member, index) => stressIndices.includes(index) ? { ...member, mentalFatigue: 50 } : member) } };
-    if (params.has("mental-low")) game = { ...game, party: { ...game.party, members: game.party.members.map((member, index) => index === 0 ? { ...member, mentalFatigue: 12 } : member) } };
-    if (params.has("large-type") || params.has("mental-low")) {
-      const saveDefinitions = { characters: definitions, placeIds: [game.adventure.currentPlaceId] };
-      const saved = serializeGame(game, saveDefinitions);
-      if (!saved.accepted) throw new Error("Invalid initial large-type display fixture");
-      const restored = deserializeGame(saved.data, saveDefinitions);
-      if (!restored.accepted) throw new Error("Large-type fixture cannot be restored");
-      game = restored.state;
-    }
-    let edits = 0;
-    let departures = 0;
-    const capture = () => { document.querySelector("#state").textContent = JSON.stringify(game); document.querySelector("#edits").textContent = String(edits); };
-    document.querySelector("#snapshot").onclick = capture;
-    mountPartyUi(document.querySelector("#fixture"), {
-      context: params.has("edit") ? "edit" : "departure",
-      characters: definitions, getParty: () => game.party, getCalendarLabel: () => "1日目 · 昼",
-      confirm: (slots) => { edits++; const result = confirmExpeditionParty(game, slots); game = result.state; capture(); return result; },
-      depart: () => { document.querySelector("#departures").textContent = String(++departures); return { accepted: false, state: game, reason: "action-in-progress" }; },
-    }, () => {});
-    capture();
+    mountPartyFixture(document.querySelector("#fixture"), "candidates");
   </script>
 </html>

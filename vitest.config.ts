@@ -15,6 +15,7 @@ export default defineConfig({
       reportOnFailure: true,
       thresholds: {
         "src/game/**/*.ts": { lines: 97, statements: 95, functions: 100, branches: 93 },
+        "src/presentation/**/*.ts": { lines: 97, statements: 95, functions: 100, branches: 93 },
       },
     },
   },
