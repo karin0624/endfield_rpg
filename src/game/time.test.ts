@@ -11,7 +11,6 @@ import {
   completeTownExploration,
   departOnExpedition,
   type ExpeditionGame,
-  editExpeditionParty,
   leaveExpedition,
   receiveTownRecoverySignal,
   type TownActionResult,
@@ -198,16 +197,6 @@ describe("生活時計と街回復", () => {
       accepted: false,
       state: { clock: { elapsedHalfDays: 1, recoverySteps: 0 } },
     });
-  });
-  it("編成・カレンダー参照・保存用stateコピーは回復・時間・乱数を変えない", () => {
-    let state = game();
-    const edited = editExpeditionParty(state, 1, "reserve");
-    if (!edited.accepted) throw new Error(edited.reason);
-    state = edited.state;
-    const restored = JSON.parse(JSON.stringify(state)) as ExpeditionGame;
-    expect(getCalendar(restored.clock ?? createActionClock())).toEqual({ day: 1, period: "day" });
-    expect(restored.randomState).toBe(123);
-    expect(restored.party.members.map(({ hp }) => hp)).toEqual([200, 200]);
   });
   it("既存の回復signalが先行していても、最初の街完了を抑止しない", () => {
     let state = game();

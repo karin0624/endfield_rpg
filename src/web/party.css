@@ -702,7 +702,7 @@
     font-size: 1.125rem;
   }
   .formation-screen .party-candidate-info {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     margin: 6px 2px;
   }
   .formation-screen .party-detail {
@@ -778,6 +778,10 @@
   .formation-screen .party-selection .party-heading {
     top: auto;
   }
+  .formation-screen .party-slot-name::after {
+    left: 0;
+    right: 0;
+  }
   .formation-screen .party-heading::before {
     display: none;
   }
@@ -795,5 +799,38 @@
   }
   .ui-dialog .character-details-portrait {
     height: 100%;
+  }
+}
+
+/* Keep the established desktop coordinates, but let tall slot content push
+   the departure controls down instead of painting underneath them. */
+@media (min-width: 901px) and (min-height: 651px) {
+  .formation-screen.party-editor {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+    background-attachment: fixed;
+  }
+  .formation-screen > .party-heading {
+    top: calc(5.1dvh - 5px);
+  }
+  .formation-screen > .party-workspace {
+    position: relative;
+    top: auto;
+    bottom: auto;
+    margin-top: 28.1dvh;
+    flex-shrink: 0;
+  }
+  .formation-screen > .party-workspace .party-slots {
+    height: auto;
+  }
+  .formation-screen > .party-footer {
+    position: relative;
+    right: auto;
+    bottom: auto;
+    width: 94.5%;
+    margin-top: auto;
+    margin-bottom: 5.42dvh;
+    flex-shrink: 0;
   }
 }

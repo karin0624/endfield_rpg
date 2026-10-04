@@ -81,7 +81,7 @@ describe("消耗品のHP回復", () => {
   it.each([
     { ...ally, hp: 0 },
     { ...ally, hp: 20, status: { ...healthyStatus(), incapacityRecoverySteps: 6 } },
-  ])("HP0またはHPが残る戦闘不能を回復・蘇生せず、個数も減らさない", (target) => {
+  ])("HP0またはHPが残る戦闘不能を回復・蘇生せず、個数も減らさない [%#]", (target) => {
     const result = useBattleRecoveryItem(items(), battle(target), { ...input, targetId: "target" }, catalog);
     expect(result.accepted).toBe(false);
     expect(result.items.exploration?.bag[0].quantity).toBe(2);
@@ -171,4 +171,114 @@ describe("消耗品のHP回復", () => {
     expect(result.accepted).toBe(true);
     expect(result.battle.combatants.find((c) => c.id === "ally")?.hp).toBe(8);
   });
+});
+
+describe("回復物品の入力境界と通知", () => {
+  it("回復通知は実回復量・使用者・別の対象を識別し、分岐には使用者を付けない", () => {
+    const result = useBattleRecoveryItem(
+      items(),
+      battle({ ...ally, hp: 17 }),
+      { ...input, targetId: "target" },
+      catalog,
+    );
+    expect(result.accepted).toBe(true);
+    if (result.accepted)
+      expect(result.event).toEqual({
+        type: "item-recovery",
+        itemId: hp,
+        actorId: "ally",
+        targetId: "target",
+        amount: 3,
+      });
+    const branch = useBranchRecoveryItem(
+      items(),
+      dungeon(),
+      { ...input, expectedNodeId: "entrance" },
+      catalog,
+      initialDungeon,
+    );
+    expect(branch.accepted).toBe(true);
+    if (branch.accepted)
+      expect(branch.event).toEqual({ type: "item-recovery", itemId: hp, targetId: "ally", amount: 8 });
+    for (const hpRecovery of [0, -1, Number.NaN, Infinity, -Infinity])
+      expect(() => previewRecoveryItem(ally, hp, [{ id: hp, kind: "consumable", hpRecovery }])).toThrow();
+  });
+  it("敵手番と終了戦闘では味方を回復せず、行動・乱数・個数を保つ", () => {
+    const enemyTurn = advanceBattleToNextActor(createBattleState([ally, { ...enemy, speed: 200 }], 23));
+    const finished = createBattleState([ally, { ...enemy, hp: 0 }], 23);
+    for (const start of [enemyTurn, finished]) {
+      const stock = items();
+      const before = structuredClone({ battle: start, items: stock });
+      const result = useBattleRecoveryItem(
+        stock,
+        start,
+        { ...input, actorId: start.currentActorId ?? "ally", expectedActionTime: start.logicalTime },
+        catalog,
+      );
+      expect(result.accepted).toBe(false);
+      expect({ battle: result.battle, items: result.items }).toEqual(before);
+    }
+  });
+  it("別探索・別経路・別ノード・会話中の分岐使用を原子的に拒否する", () => {
+    const start = dungeon();
+    const entered = enterNextDungeonNode(start, "conversation-b", initialDungeon, initialAdventure);
+    if (!entered.accepted) throw new Error(entered.reason);
+    const cases = [
+      { state: start, command: { ...input, explorationId: 8, expectedNodeId: "entrance" }, route: initialDungeon },
+      { state: start, command: { ...input, expectedNodeId: "battle-a" }, route: initialDungeon },
+      {
+        state: start,
+        command: { ...input, expectedNodeId: "entrance" },
+        route: { ...initialDungeon, id: "other-route" },
+      },
+      { state: entered.state, command: { ...input, expectedNodeId: "conversation-b" }, route: initialDungeon },
+    ];
+    for (const { state, command, route } of cases) {
+      const stock = items();
+      const before = structuredClone({ dungeon: state, items: stock });
+      const result = useBranchRecoveryItem(stock, state, command, catalog, route);
+      expect(result.accepted).toBe(false);
+      expect({ dungeon: result.dungeon, items: result.items }).toEqual(before);
+    }
+  });
+  it("分岐回復は同行者・非空フラグ・症状を保持する", () => {
+    const start = {
+      ...createDungeonState(
+        initialDungeon,
+        initialAdventure,
+        [ally, { ...ally, id: "second", hp: 3, status: { ...healthyStatus(), haze: 20 } }],
+        ["found-path"],
+        23,
+      ),
+      expeditionActionId: 7,
+    };
+    const snapshot = structuredClone(start);
+    const result = useBranchRecoveryItem(
+      items(),
+      start,
+      { ...input, expectedNodeId: "entrance" },
+      catalog,
+      initialDungeon,
+    );
+    expect(result.accepted).toBe(true);
+    expect(result.dungeon).toEqual({ ...snapshot, party: [{ ...snapshot.party[0], hp: 13 }, snapshot.party[1]] });
+    expect(result.items.version).toBe(2);
+    expect(result.items.exploration?.bag).toEqual([{ itemId: hp, quantity: 1, origin: "carried" }]);
+    expect(start).toEqual(snapshot);
+  });
+});
+
+it("戦闘不能の味方を手番として指定しても残る味方の手番と在庫を保つ", () => {
+  const start = advanceBattleToNextActor(
+    createBattleState(
+      [{ ...ally, status: { ...healthyStatus(), incapacityRecoverySteps: 6 } }, { ...ally, id: "eligible" }, enemy],
+      23,
+    ),
+  );
+  const stock = items();
+  const before = structuredClone({ battle: start, items: stock });
+  expect(start.currentActorId).toBe("eligible");
+  const result = useBattleRecoveryItem(stock, start, { ...input, targetId: "eligible" }, catalog);
+  expect(result.accepted).toBe(false);
+  expect({ battle: result.battle, items: result.items }).toEqual(before);
 });

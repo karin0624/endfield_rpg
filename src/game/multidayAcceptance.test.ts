@@ -87,7 +87,7 @@ describe("Issue46: 公開操作による複数日受入", () => {
       expect(game.growth?.choice).toBeNull();
     }
     function roundTrip() {
-      operations.push("v4 round-trip twice");
+      operations.push("v5 round-trip twice");
       for (let i = 0; i < 2; i++) {
         const written = serializeGame(game, save);
         if (!written.accepted) throw new Error(written.reason);
@@ -316,7 +316,7 @@ it.each([3, 1500])("現行保存を繰返し読んでもseed%sの命中と安定
         {
           seed,
           definitions: { ...fixture, characters, growth, save },
-          operations: ["v4 save/read", "depart", "enter fight", "player attacks enemy"],
+          operations: ["v5 save/read", "depart", "enter fight", "player attacks enemy"],
           state: lastState,
         },
         null,

@@ -224,6 +224,8 @@ export function mountBattleUi(
   if (options.skillRules) battleUi.dataset.skillBattle = "true";
   const timeline = requiredElement<HTMLOListElement>(hud, "[data-timeline]");
   const party = requiredElement<HTMLElement>(hud, "[data-party]");
+  let partyAnchor: { width: number; font: string; height: number } | undefined;
+  let resizeObserver: ResizeObserver | undefined;
   const skillsButton = requiredElement<HTMLButtonElement>(hud, "[data-skills]");
   const skillPanel = requiredElement<HTMLElement>(hud, "[data-skill-panel]");
   const skillList = requiredElement<HTMLElement>(hud, "[data-skill-list]");
@@ -475,6 +477,49 @@ export function mountBattleUi(
       allyFragment.append(card);
     }
     party.replaceChildren(allyFragment);
+    anchorPartyStatus();
+    observeLayout();
+  }
+
+  function anchorPartyStatus() {
+    if (!options.skillRules) return;
+    const cards = [...party.querySelectorAll<HTMLElement>(".ally-card")];
+    const style = getComputedStyle(party);
+    if (style.position !== "absolute") {
+      partyAnchor = undefined;
+      party.style.removeProperty("height");
+      party.style.removeProperty("align-items");
+      for (const card of cards) card.style.removeProperty("min-height");
+      battleUi.removeAttribute("data-party-overflow");
+      return;
+    }
+    const width = party.getBoundingClientRect().width;
+    if (!partyAnchor || partyAnchor.width !== width || partyAnchor.font !== style.fontSize) {
+      party.style.removeProperty("height");
+      party.style.removeProperty("align-items");
+      for (const card of cards) card.style.removeProperty("min-height");
+      const height = party.getBoundingClientRect().height;
+      if (height <= 0) return;
+      partyAnchor = { width, font: style.fontSize, height };
+    }
+    // Keep the established top edge; additional disclosures grow downward instead of lifting HP.
+    party.style.height = `${partyAnchor.height}px`;
+    party.style.alignItems = "flex-start";
+    for (const card of cards) card.style.minHeight = `${partyAnchor.height}px`;
+    const bottom = board.getBoundingClientRect().bottom;
+    battleUi.toggleAttribute(
+      "data-party-overflow",
+      cards.some((card) => card.getBoundingClientRect().bottom > bottom),
+    );
+  }
+
+  function observeLayout() {
+    if (!resizeObserver) return;
+    resizeObserver.disconnect();
+    resizeObserver.observe(stage);
+    for (const nameplate of enemyNameplates.values()) resizeObserver.observe(nameplate);
+    resizeObserver.observe(targetIndicator);
+    for (const details of party.querySelectorAll(".ally-details")) resizeObserver.observe(details);
   }
 
   function renderEnemyNameplates() {
@@ -867,6 +912,8 @@ export function mountBattleUi(
     skillsButton.focus();
   }
 
+  for (const control of [attackButton, skillsButton, useSkillButton, cancelSkillButton, rematchButton])
+    control.dataset.singleActivation = "";
   skillsButton.addEventListener(
     "click",
     () => {
@@ -986,16 +1033,15 @@ export function mountBattleUi(
   updateTargetHitAreas();
   // Projection and intrinsic text dimensions can settle in different layout passes.
   // Position changes do not resize these boxes; coalesce projection and DOM placement into one frame.
-  const resizeObserver = new ResizeObserver(() => {
+  resizeObserver = new ResizeObserver(() => {
     if (disposed || overlayFrame !== undefined) return;
     overlayFrame = window.requestAnimationFrame(() => {
       overlayFrame = undefined;
+      anchorPartyStatus();
       updateTargetHitAreas();
     });
   });
-  resizeObserver.observe(stage);
-  for (const nameplate of enemyNameplates.values()) resizeObserver.observe(nameplate);
-  resizeObserver.observe(targetIndicator);
+  observeLayout();
 
   return () => {
     disposed = true;

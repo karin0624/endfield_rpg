@@ -1,6 +1,6 @@
 # 共通UIの適用一覧
 
-設計値の正本は[デザインガイドライン](../specs/design-guidelines.md)、共通実装は[`ui.css`](../src/web/ui.css)。本書は共通部品の接続・適用状況を管理する。「適用」は完成画像への一致やユーザー承認を意味しない。UI変更の採否は[承認とpixel diffの必須ゲート](ui-asset-production.md#ui開発の必須ゲート)で別途確認する。画面を適用したPRでこの表と実画面証跡を更新する。
+設計値の正本は[デザインガイドライン](design-guidelines.md)、共通実装は[`ui.css`](../src/web/ui.css)。本書は共通部品の接続・適用状況を管理する。「適用」は完成画像への一致やユーザー承認を意味しない。UI変更の採否は[承認とpixel diffの必須ゲート](ui-asset-production.md#ui開発の必須ゲート)で別途確認する。画面を適用したPRでこの表と実画面証跡を更新する。
 
 | 画面 | 共通部品 | 状況・残る範囲 |
 | --- | --- | --- |
@@ -25,7 +25,7 @@
 
 ## 実画面の確認
 
-`tests/e2e/party-ui.spec.ts`は固定版fixtureで承認4状態を1672×941で撮影する。`scripts/compare-party-ui.py`は50%overlay・無マスクraw diff・領域診断・数値を生成し、CIの`party-approval-comparison`に保存する。唯一の許可領域は右上の文書注記「検討用・未実装」。背景や人物・文字を許可maskに含めない。画素差を意味ある意図しない差、説明済みの素材微差、全画面共通タイポグラフィ等の後続課題に分け、差分ゼロを合否条件にしない。2候補、12/24候補、長名、症状、画像未提供、320/390/900/901/1024/1150/1151px、1920×500、Tab/Space/Enter/Esc、詳細復帰と連打を確認する。マウス保持とSpace押下中の主操作色、白いキーボードfocus、disabledを実画面とcomputed styleで確認し、CIの`campaign-flow-previews`へ保存する。通常版の持込み経路では詳細・候補・出発準備のEscapeと戻るクリックで二重遷移せず、持込み個数・保管数・時刻を保持することを確認する。
+`tests/e2e/ui/party-ui.spec.ts`は固定版fixtureで承認4状態を1672×941で撮影する。`scripts/compare-party-ui.py`は50%overlay・無マスクraw diff・領域診断・数値を生成し、CIの`party-approval-comparison`に保存する。唯一の許可領域は右上の文書注記「検討用・未実装」。背景や人物・文字を許可maskに含めない。画素差を意味ある意図しない差、説明済みの素材微差、全画面共通タイポグラフィ等の後続課題に分け、差分ゼロを合否条件にしない。2候補、12/24候補、長名、症状、画像未提供、320/390/900/901/1024/1150/1151px、1920×500、Tab/Space/Enter/Esc、詳細復帰と連打を確認する。マウス保持とSpace押下中の主操作、キーボードfocus、disabledを状態ごとのVRTとfocus/ARIAのassertionで確認し、CIの`campaign-flow-previews`へ保存する。通常版の持込み経路では詳細・候補・出発準備のEscapeと戻るクリックで二重遷移せず、持込み個数・保管数・時刻を保持することを確認する。
 
 実画面の記録は[編成の画面記録](visual-records/formation/README.md)。概念図の生成成功と、実画面の表示・操作成功は別の証拠として扱う。画像の出典と原画・採用版の関係は[素材メモ](../art-src/README.md)を参照する。
 

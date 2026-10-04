@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { mentalFatigueDefinition as tuning } from "../content/mentalFatigueDefinition";
-import { mentalFatigueLabel, mentalFatigueMultiplier, recoverMentalFatigue } from "./mentalFatigue";
+import {
+  mentalFatigueLabel,
+  mentalFatigueMultiplier,
+  recoverMentalFatigue,
+  validateMentalFatigueDefinition,
+} from "./mentalFatigue";
 
 describe("連続した精神疲労の試用曲線", () => {
   it.each([
@@ -24,4 +29,37 @@ describe("連続した精神疲労の試用曲線", () => {
     expect(() => mentalFatigueMultiplier(value, tuning)).toThrow();
     expect(() => recoverMentalFatigue(value, tuning)).toThrow();
   });
+});
+
+it.each([
+  [24.9999, "なし", 0.800000640000512],
+  [25, "軽度", 0.8],
+  [25.0001, "軽度", 0.799999360000512],
+  [49.9999, "軽度", 0.6666671111114074],
+  [50, "中度", 2 / 3],
+  [50.0001, "中度", 0.6666662222225186],
+  [74.9999, "中度", 0.5714288979593704],
+  [75, "重度", 4 / 7],
+  [75.0001, "重度", 0.5714282448981458],
+] as const)("精神疲労%sの表示境界は量を丸めない", (value, label, multiplier) => {
+  expect(mentalFatigueLabel(value, tuning)).toBe(label);
+  expect(mentalFatigueMultiplier(value, tuning)).toBeCloseTo(multiplier, 12);
+});
+it("精神疲労の正有限な係数と昇順閾値だけを受理する", () => {
+  for (const value of [0, -1, Number.NaN, Infinity, -Infinity]) {
+    for (const field of ["scale", "townRecovery"] as const)
+      expect(() => validateMentalFatigueDefinition({ ...tuning, [field]: value })).toThrow();
+    for (const index of [0, 1, 2]) {
+      const thresholds: [number, number, number] = [25, 50, 75];
+      thresholds[index] = value;
+      expect(() => validateMentalFatigueDefinition({ ...tuning, labelThresholds: thresholds })).toThrow();
+    }
+  }
+  for (const labelThresholds of [
+    [25, 25, 75],
+    [25, 75, 75],
+    [50, 25, 75],
+    [25, 75, 50],
+  ] as const)
+    expect(() => validateMentalFatigueDefinition({ ...tuning, labelThresholds })).toThrow();
 });

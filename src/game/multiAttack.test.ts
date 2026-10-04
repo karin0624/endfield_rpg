@@ -78,6 +78,17 @@ function member(state: BattleState, id: string) {
 }
 
 describe("多段・複数対象の公開runtime", () => {
+  it.each([
+    [0.5 - 1 / 0x100000000, false, 100],
+    [0.5, false, 100],
+    [0.5 + 1 / 0x100000000, true, 80],
+  ])("スキル命中率%sも乱数0.5を含まない厳密な境界を使う", (hitRate, hit, hp) => {
+    const skill = { ...attack, mentalFatigueIncrease: 0, effect: { ...attack.effect, hitCount: 1 } };
+    const result = accepted(use(start(2782269413, { hitRate, mentalFatigue: 0 }), skill));
+    expect(result.events[0]).toMatchObject({ type: "skill", hit, amount: hit ? 20 : 0 });
+    expect(member(result.state, "z").hp).toBe(hp);
+    expect(result.state.randomState).toBe(2147483648);
+  });
   it.each(["single-enemy", "all-enemies"] as const)(
     "%sは使用前能力・疲労で全効果を解決してから一度発症する",
     (target) => {
@@ -200,26 +211,30 @@ describe("多段・複数対象の公開runtime", () => {
   it("不正対象・死体・対象形式・未習得・古い入力・再送は副作用なし", () => {
     const state = start();
     const all = { ...attack, target: "all-enemies" as const };
-    for (const result of [
-      use(state, attack, "dead"),
-      use(state, attack, "user"),
-      use(state, attack, "missing"),
-      use(state, attack, null),
-      use(state, all, "z"),
-      use(state, all, "dead"),
-      use(state, all, "missing"),
-      use(state, { ...attack, id: "unknown" }),
-      use(state, attack, "z", -1),
+    for (const invoke of [
+      () => use(state, attack, "dead"),
+      () => use(state, attack, "user"),
+      () => use(state, attack, "missing"),
+      () => use(state, attack, null),
+      () => use(state, all, "z"),
+      () => use(state, all, "dead"),
+      () => use(state, all, "missing"),
+      () => use(state, { ...attack, id: "unknown" }),
+      () => use(state, attack, "z", -1),
     ]) {
-      expect(result).toMatchObject({ accepted: false, state, events: [] });
+      const before = structuredClone(state);
+      expect(invoke()).toMatchObject({ accepted: false, state: before, events: [] });
+      expect(state).toEqual(before);
     }
     const result = accepted(use(state));
+    const beforeReplay = structuredClone(result.state);
     expect(use(result.state, attack, "z", state.logicalTime)).toMatchObject({
       accepted: false,
       reason: "action-not-current",
-      state: result.state,
+      state: beforeReplay,
       events: [],
     });
+    expect(result.state).toEqual(beforeReplay);
   });
   it.each([0, -1, 1.5, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1])(
     "不正な回数%sと未承認の全体回復を拒否する",

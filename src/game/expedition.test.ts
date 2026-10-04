@@ -325,3 +325,10 @@ describe("仲間と出撃編成", () => {
     expect(leaveExpedition(returned.state, actionId).accepted).toBe(false);
   });
 });
+
+it("会話進行中の帰還は会話・HP・時計を変更せず拒否する", () => {
+  const state = act(depart(newGame()), { type: "enter", nodeId: "conversation-b" });
+  const before = structuredClone(state);
+  expect(leaveExpedition(state)).toMatchObject({ accepted: false, reason: "not-on-route", state: before });
+  expect(state).toEqual(before);
+});

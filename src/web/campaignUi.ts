@@ -65,7 +65,8 @@ export function mountCampaign(root: HTMLDivElement): () => void {
   root.addEventListener(
     "click",
     (event) => {
-      if (event.detail > 1) {
+      // Only navigation/save commands are single-activation operations; ordinary inputs keep every click.
+      if (event.detail > 1 && event.target instanceof Element && event.target.closest("[data-single-activation]")) {
         event.preventDefault();
         event.stopImmediatePropagation();
       }
@@ -82,6 +83,7 @@ export function mountCampaign(root: HTMLDivElement): () => void {
   function button(label: string, action: () => void, primary = false): HTMLButtonElement {
     const element = document.createElement("button");
     element.type = "button";
+    element.dataset.singleActivation = "";
     element.textContent = label;
     element.className = primary ? "campaign-command is-primary" : "campaign-command";
     element.addEventListener(

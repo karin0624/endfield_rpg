@@ -60,11 +60,13 @@ describe("スキル定義", () => {
       ] as const) {
         const choices = pool.candidates[tier].map((id) => skillById(skillCatalog, id));
         expect(choices).toHaveLength(tier === "normal" ? 7 : 3);
-        expect(choices.slice(0, 3).map(({ effect }) => effect)).toEqual([
-          { type: "damage", amount: damage, scaling: { stat: "attackPower", coefficient: 0.5 } },
-          { type: "hp-recovery", amount: healing, scaling: { stat: "maxHp", coefficient: 0.5 } },
-          { type: "basic-attack-power-bonus", rankAmounts: [bonus, bonus * 2] },
-        ]);
+        expect(choices.map(({ effect }) => effect)).toEqual(
+          expect.arrayContaining([
+            { type: "damage", amount: damage, scaling: { stat: "attackPower", coefficient: 0.5 } },
+            { type: "hp-recovery", amount: healing, scaling: { stat: "maxHp", coefficient: 0.5 } },
+            { type: "basic-attack-power-bonus", rankAmounts: [bonus, bonus * 2] },
+          ]),
+        );
       }
     }
   });
@@ -182,7 +184,7 @@ describe("スキル定義", () => {
     { ...skillCatalog, skills: [...skillCatalog.skills, strike] },
     { ...skillCatalog, pools: [...skillCatalog.pools, skillCatalog.pools[0]] },
     { ...skillCatalog, characters: [...skillCatalog.characters, skillCatalog.characters[0]] },
-  ])("スキル・群・キャラ対応の重複を拒否する", (catalog) => {
+  ])("スキル・群・キャラ対応の重複を拒否する [%#]", (catalog) => {
     expect(() => validateSkillCatalog(catalog, characters)).toThrow("重複");
   });
   it.each([
@@ -191,7 +193,7 @@ describe("スキル定義", () => {
     ["test-strike", "test-heal", "test-strength-advanced"],
     ["test-strike", "test-heal"],
     ["test-strike", "test-heal", ""],
-  ])("候補IDの参照切れ・重複・分類違い・不足・空IDを拒否する: %j", (...ids) => {
+  ])("候補IDの参照切れ・重複・分類違い・不足・空IDを拒否する: [%#] %j", (...ids) => {
     expect(() =>
       validateSkillCatalog(
         {

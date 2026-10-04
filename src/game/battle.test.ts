@@ -39,6 +39,24 @@ function stateWithHeroActing() {
 }
 
 describe("battle", () => {
+  it.each([
+    [0.5 - 1 / 0x100000000, false, 12],
+    [0.5, false, 12],
+    [0.5 + 1 / 0x100000000, true, 4],
+  ])("命中率%sは乱数0.5との厳密な境界で判定する", (hitRate, hit, hp) => {
+    // This seed's first uint32 draw is exactly 2147483648 (0.5).
+    const state = advanceBattleToNextActor(
+      createBattleState(
+        definitions.map((member) => (member.id === "hero" ? { ...member, hitRate } : member)),
+        2782269413,
+      ),
+    );
+    const result = performBasicAttack(state, "hero", "slime");
+    if (!result.accepted) throw new Error(result.reason);
+    expect(result.events[0]?.type).toBe(hit ? "attack" : "miss");
+    expect(result.state.combatants.find((member) => member.id === "slime")?.hp).toBe(hp);
+    expect(result.state.randomState).toBe(2147483648);
+  });
   it("指定した敵だけに攻撃力分の固定ダメージを与え、継続時は次の行動者へ進める", () => {
     const state = stateWithHeroActing();
     const result = performBasicAttack(state, "hero", "slime");

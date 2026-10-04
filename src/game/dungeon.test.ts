@@ -75,17 +75,21 @@ describe("固定ダンジョンの進行", () => {
     const battleStart = enterNextDungeonNode(battleRoute, "battle-a", initialDungeon, initialAdventure);
     expect(battleStart.accepted).toBe(true);
     if (!battleStart.accepted) return;
+    const activeBefore = structuredClone(battleStart.state);
     expect(enterNextDungeonNode(battleStart.state, "boss-c", initialDungeon, initialAdventure)).toMatchObject({
       accepted: false,
       reason: "node-in-progress",
+      state: activeBefore,
     });
     battleRoute = finishBattle(battleStart.state, initialDungeon);
     expect(battleRoute).toMatchObject({ currentNodeId: "battle-a", activeNodeId: null, outcome: "ongoing" });
     expect(battleRoute.resolvedNodeIds).toContain("battle-a");
     expect(getAvailableDungeonNodes(battleRoute, initialDungeon).map(({ id }) => id)).toEqual(["boss-c"]);
+    const resolvedBefore = structuredClone(battleRoute);
     expect(enterNextDungeonNode(battleRoute, "battle-a", initialDungeon, initialAdventure)).toMatchObject({
       accepted: false,
       reason: "node-already-resolved",
+      state: resolvedBefore,
     });
     const bossStart = enterNextDungeonNode(battleRoute, "boss-c", initialDungeon, initialAdventure);
     expect(bossStart.accepted).toBe(true);
@@ -97,6 +101,13 @@ describe("固定ダンジョンの進行", () => {
       outcome: "cleared",
     });
 
+    const clearedBefore = structuredClone(clearedByBattle);
+    expect(enterNextDungeonNode(clearedByBattle, "battle-a", initialDungeon, initialAdventure)).toMatchObject({
+      accepted: false,
+      reason: "dungeon-ended",
+      state: clearedBefore,
+    });
+    expect(getAvailableDungeonNodes(clearedByBattle, initialDungeon)).toEqual([]);
     const initialConversationRoute = createDungeonState(initialDungeon, initialAdventure, demoParty);
     const conversationStart = enterNextDungeonNode(
       initialConversationRoute,
@@ -326,4 +337,25 @@ describe("固定ダンジョンの進行", () => {
     expect(state.outcome).toBe("ongoing");
     expect(getAvailableDungeonNodes(state, initialDungeon).map(({ id }) => id)).toEqual(["boss-c"]);
   });
+});
+
+it("新規探索は入口解決済みで供給PTとフラグを独立して保持する", () => {
+  const members = demoParty.map((member) => ({ ...member, hp: Number(member.hp) }));
+  const flags = ["seen"];
+  const state = createDungeonState(initialDungeon, initialAdventure, members, flags, 42);
+  expect(state).toMatchObject({
+    dungeonId: "roadside-ruins",
+    currentNodeId: "entrance",
+    activeNodeId: null,
+    resolvedNodeIds: ["entrance"],
+    outcome: "ongoing",
+    activity: null,
+    party: members,
+    flags: ["seen"],
+    randomState: 42,
+  });
+  const before = structuredClone(state);
+  members[0].hp = 1;
+  flags.push("later");
+  expect(state).toEqual(before);
 });

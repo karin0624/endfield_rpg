@@ -14,6 +14,7 @@ export function mountBranchSkillUi(
 ): () => void {
   const trigger = document.createElement("button");
   trigger.type = "button";
+  trigger.dataset.singleActivation = "";
   trigger.className = "branch-skill-trigger";
   trigger.textContent = "分岐で回復";
   const dialog = document.createElement("dialog");
@@ -27,6 +28,7 @@ export function mountBranchSkillUi(
   function button(label: string, action: () => void): void {
     const element = document.createElement("button");
     element.type = "button";
+    element.dataset.singleActivation = "";
     element.textContent = label;
     element.onclick = action;
     dialog.append(element);

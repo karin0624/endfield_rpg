@@ -1,0 +1,70 @@
+import { spawnSync } from "node:child_process";
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { delimiter, join, resolve } from "node:path";
+import { expect, it } from "vitest";
+
+it("rejects filtered or list-only native CLI runs instead of reusing a previous successful JSON", () => {
+  const root = mkdtempSync(join(tmpdir(), "endfield-playwright-cli-"));
+  const env = { ...process.env, PATH: `${resolve("node_modules/.bin")}${delimiter}${process.env.PATH}` };
+  const run = (...options) =>
+    spawnSync("sh", [resolve("scripts/run-playwright-quality.sh"), "e2e", ...options], {
+      cwd: root,
+      env,
+      encoding: "utf8",
+    });
+  try {
+    mkdirSync(join(root, "scripts"));
+    mkdirSync(join(root, "test-results"));
+    mkdirSync(join(root, "tests/e2e"), { recursive: true });
+    symlinkSync(resolve("node_modules"), join(root, "node_modules"), "dir");
+    copyFileSync("scripts/check-test-execution.mjs", join(root, "scripts/check-test-execution.mjs"));
+    expect(spawnSync("git", ["init", "--quiet"], { cwd: root }).status).toBe(0);
+    const projects = ["built", "debug", "ui", "settings"];
+    writeFileSync(
+      join(root, "playwright.config.mjs"),
+      `export default ${JSON.stringify({
+        testDir: "tests/e2e",
+        outputDir: "test-results/browser",
+        workers: 1,
+        reporter: [["json", { outputFile: "test-results/playwright.json" }]],
+        projects: projects.map((name) => ({ name, testMatch: `${name}.spec.mjs` })),
+      })};`,
+    );
+    // These runner-policy fixtures need no browser; they exercise the actual installed CLI/reporters.
+    for (const project of projects)
+      writeFileSync(
+        join(root, `tests/e2e/${project}.spec.mjs`),
+        `import {test,expect} from '@playwright/test'; test('${project}',({},info)=>{
+          expect(process.env.COVERAGE_BROWSER).toBe('1');
+          info.annotations.push({type:'browser-coverage',description:'runner-policy fixture'});
+          expect(1+1).toBe(2);
+        });`,
+      );
+    const complete = run();
+    expect(complete.status, complete.stdout + complete.stderr).toBe(0);
+    const report = readFileSync(join(root, "test-results/playwright.json"));
+    const results = [];
+    for (const options of [
+      ["--grep", "built", "--reporter=list"],
+      ["--list", "--reporter=list"],
+    ]) {
+      writeFileSync(join(root, "test-results/playwright.json"), report);
+      const result = run(...options);
+      results.push({ options, status: result.status, output: result.stdout + result.stderr });
+    }
+    expect(
+      results.map((result) => result.status),
+      JSON.stringify(results),
+    ).toEqual([1, 1]);
+    writeFileSync(
+      join(root, "tests/e2e/built.spec.mjs"),
+      "import {test,expect} from '@playwright/test'; test('built',()=>expect(1+1).toBe(2));",
+    );
+    const missingCoverage = run();
+    expect(missingCoverage.status, missingCoverage.stdout + missingCoverage.stderr).toBe(1);
+    expect(missingCoverage.stderr).toContain("Missing per-case browser coverage collection");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+}, 20_000);

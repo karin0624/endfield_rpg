@@ -45,14 +45,14 @@ export function mountPartyUi(root: HTMLElement, options: PartyUiOptions, back: (
   root.innerHTML = `<header class="party-heading"><h2 class="ui-title">${departure ? "出発準備" : "編成"}</h2>
     <p class="sr-only" data-party-calendar></p></header>
     <div class="party-workspace"><div class="party-slots" data-party-slots></div></div>
-    <footer class="party-footer ui-actions"><button class="party-back ui-button ui-back" type="button" data-party-back>戻る</button>
+    <footer class="party-footer ui-actions"><button class="party-back ui-button ui-back" type="button" data-party-back data-single-activation>戻る</button>
     <p class="sr-only" id="party-status" role="status" aria-live="polite" data-party-status></p>
-    <button class="party-depart ui-button ui-primary" type="button" aria-describedby="party-status" data-depart>出発する</button></footer>
+    <button class="party-depart ui-button ui-primary" type="button" aria-describedby="party-status" data-depart data-single-activation>出発する</button></footer>
     <dialog class="party-selection ui-dialog" aria-labelledby="party-selection-title">
     <header class="party-heading"><h2 class="ui-title" id="party-selection-title">仲間を選択</h2></header>
     <div class="party-candidates"><div class="party-candidate-grid" role="group" aria-label="候補一覧"></div></div>
     <footer class="party-footer ui-actions"><p class="sr-only" role="status" aria-live="polite" data-selection-status></p>
-    <button type="button" class="ui-button ui-primary" data-confirm>確定</button></footer></dialog>`;
+    <button type="button" class="ui-button ui-primary" data-confirm data-single-activation>確定</button></footer></dialog>`;
   const slots = requiredElement<HTMLElement>(root, "[data-party-slots]");
   const status = requiredElement<HTMLElement>(root, "[data-party-status]");
   const depart = requiredElement<HTMLButtonElement>(root, "[data-depart]");
@@ -60,6 +60,7 @@ export function mountPartyUi(root: HTMLElement, options: PartyUiOptions, back: (
   const grid = requiredElement<HTMLElement>(root, ".party-candidate-grid");
   const events = new AbortController();
   const details = mountCharacterDetailsUi(root, options.characters, options.getParty, options.getDetailsContext);
+  requiredElement<HTMLElement>(root, "[data-details-back]").dataset.singleActivation = "";
   let draft: PartySlots | null = null;
   let opener: HTMLButtonElement | null = null;
   let committing = false;
@@ -67,7 +68,13 @@ export function mountPartyUi(root: HTMLElement, options: PartyUiOptions, back: (
     root.addEventListener(
       type,
       (event) => {
-        if (event.detail <= 1) return;
+        // Only commit/depart/navigation controls are single-activation operations.
+        if (
+          event.detail <= 1 ||
+          !(event.target instanceof Element) ||
+          !event.target.closest("[data-single-activation]")
+        )
+          return;
         event.preventDefault();
         event.stopImmediatePropagation();
       },
@@ -179,6 +186,7 @@ export function mountPartyUi(root: HTMLElement, options: PartyUiOptions, back: (
       });
       const detail = requiredElement<HTMLButtonElement>(card, ".party-detail");
       detail.setAttribute("aria-label", `${info.name}の詳細`);
+      detail.dataset.singleActivation = "";
       detail.addEventListener("click", () => details.open(member.id, detail));
       grid.append(card);
     }
@@ -213,6 +221,7 @@ export function mountPartyUi(root: HTMLElement, options: PartyUiOptions, back: (
       choice.type = "button";
       choice.className = "party-slot-choice";
       choice.dataset.slot = String(slot);
+      choice.dataset.singleActivation = "";
       choice.setAttribute("aria-label", `枠 ${slot + 1}`);
       choice.innerHTML = '<span class="party-slot-portrait" aria-hidden="true"></span>';
       if (id) {

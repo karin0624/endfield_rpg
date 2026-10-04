@@ -16,5 +16,14 @@
     "noUnusedParameters": true,
     "skipLibCheck": true
   },
-  "include": ["src", "vite.config.ts", "vitest.config.ts", "playwright.config.ts", "tests"]
+  "include": [
+    "src",
+    "scripts",
+    "vite.config.ts",
+    "vitest.config.ts",
+    "playwright.config.ts",
+    "tests",
+    "playwright.evidence.config.ts",
+    "playwright.long.config.ts"
+  ]
 }

@@ -19,9 +19,27 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
+      - name: Record tested integration revision
+        env:
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          mkdir -p coverage
+          git rev-parse HEAD > coverage/revision.txt
+          echo "head=$PR_HEAD" >> coverage/revision.txt
+          echo "base=$PR_BASE" >> coverage/revision.txt
       - run: npm ci
       - run: npm run check
       - run: npm run build
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vitest-results-and-coverage
+          path: |
+            test-results/vitest*.json
+            coverage/unit/
+            coverage/revision.txt
+          if-no-files-found: error
   browser:
     runs-on: ubuntu-latest
     container:
@@ -32,9 +50,37 @@ jobs:
       - uses: actions/checkout@v7
         with:
           lfs: true
+      - name: Trust checked-out workspace for container shell
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - name: Record tested integration revision
+        env:
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          mkdir -p coverage
+          git rev-parse HEAD > coverage/revision.txt
+          echo "head=$PR_HEAD" >> coverage/revision.txt
+          echo "base=$PR_BASE" >> coverage/revision.txt
       - run: npm ci
-      - run: npm run build
-      - run: BATTLE_SEQUENCE_VIDEO=1 PLAYWRIGHT_EDITOR=1 npx playwright test --project ui --grep '代表シーケンス.*実素材'
+      - name: Record unchanged baseline bytes for independent review
+        run: |
+          mkdir -p test-results
+          sha256sum tests/e2e/ui/party-ui.spec.ts-snapshots/approved-symptoms-ui-linux.png \
+            tests/e2e/ui/party-ui.spec.ts-snapshots/approved-disabled-ui-linux.png \
+            tests/e2e/ui/party-ui.spec.ts-snapshots/formation-primary-pressed-1920-ui-linux.png \
+            tests/e2e/settings/settings.spec.ts-snapshots/adventure-saved-dialogue-settings-linux.png \
+            > test-results/baseline-sha256.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fixed-ui-baselines-for-review
+          path: |
+            tests/e2e/ui/party-ui.spec.ts-snapshots/approved-symptoms-ui-linux.png
+            tests/e2e/ui/party-ui.spec.ts-snapshots/approved-disabled-ui-linux.png
+            tests/e2e/ui/party-ui.spec.ts-snapshots/formation-primary-pressed-1920-ui-linux.png
+            tests/e2e/settings/settings.spec.ts-snapshots/adventure-saved-dialogue-settings-linux.png
+            test-results/baseline-sha256.txt
+          if-no-files-found: error
+      - run: npx playwright test --config playwright.evidence.config.ts
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -46,6 +92,19 @@ jobs:
           retention-days: 14
       - run: npm run test:e2e:inside
         if: success() || failure()
+      - name: Check all collected browser cases executed and passed
+        if: success() || failure()
+        run: node scripts/check-test-execution.mjs playwright test-results/playwright-discovery.json test-results/playwright.json coverage
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-results-and-coverage
+          path: |
+            test-results/playwright*.json
+            coverage/browser/
+            coverage/revision.txt
+            playwright-report/
+          if-no-files-found: error
       - name: Compare approved party UI images
         if: success() || failure()
         run: python3 scripts/compare-party-ui.py test-results test-results/approved-comparison
@@ -67,10 +126,11 @@ jobs:
         with:
           name: campaign-flow-previews
           path: |
-            test-results/campaign-*/campaign-*.png
-            test-results/party-ui-*/formation-*.png
-            test-results/party-ui-*/party-*.png
-            test-results/party-ui-*/approved-*.png
+            test-results/**/campaign-*.png
+            test-results/**/formation-*.png
+            test-results/**/party-*.png
+            test-results/**/approved-*.png
+            test-results/**/hp-onset-*.png
             test-results/**/*-readiness.json
           if-no-files-found: error
           retention-days: 14

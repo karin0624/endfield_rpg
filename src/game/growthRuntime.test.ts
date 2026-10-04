@@ -14,6 +14,7 @@ import {
   actInTown,
   applyPartyStatus,
   beginTownExploration,
+  confirmExpeditionParty,
   departOnExpedition,
   type ExpeditionGame,
   editExpeditionParty,
@@ -265,6 +266,40 @@ type MutableSaveFixture = {
 };
 
 describe("成長保存の入力検証", () => {
+  it.each([
+    ["無効なセッションID", "explorationId", "growth:0"],
+    ["未解決候補", "choice", { characterId: "player", level: 2, candidateIds: ["test-power"] }],
+    ["ゲーム乱数との不一致", "randomState", 42],
+    ["名簿の欠落", "growth.characters", []],
+    ["習得名簿の欠落", "characters", []],
+    ["重複受領記録", "growth.appliedRewardIds", ["town", "town"]],
+    ["空の受領記録", "growth.appliedRewardIds", [" "]],
+    ["未知の成長対象", "growth.characters.0.characterId", "missing"],
+    ["定義外レベル", "growth.characters.0.level", 6],
+    ["初期未満レベル", "growth.characters.0.level", 0],
+    ["端数レベル", "growth.characters.0.level", 1.5],
+    ["負の余剰XP", "growth.characters.0.experience", -1],
+    ["小数の余剰XP", "growth.characters.0.experience", 5.5],
+    ["攻撃補正の水増し", "growth.characters.0.bonus.attackPower", 1],
+    ["習得対象の不一致", "characters.0.characterId", "missing"],
+    ["初期技欠落", "characters.0.learned", []],
+    ["初期技を探索取得へ改竄", "characters.0.learned.0.origin", "expedition"],
+    ["初期技を選択取得へ改竄", "characters.0.learned.0.acquisition", "choice"],
+    ["未知の習得技", "characters.0.learned.0.skillId", "missing"],
+    ["技種別の矛盾", "characters.0.learned.0.type", "passive"],
+  ])("%sを保存読込で拒否する", (_label, path, replacement) => {
+    const saved = serializeGame(town(initial()), saveDefinitions);
+    if (!saved.accepted) throw new Error(saved.reason);
+    const payload = JSON.parse(saved.data);
+    const fields = String(path).split(".");
+    let target = payload.growth;
+    for (const field of fields.slice(0, -1)) target = target[field];
+    target[fields.at(-1) ?? ""] = replacement;
+    expect(deserializeGame(JSON.stringify(payload), saveDefinitions)).toEqual({
+      accepted: false,
+      reason: "invalid-data",
+    });
+  });
   it("不正な乱数・余剰・補正・習得ランク・残存権利を例外なく拒否する", () => {
     const saved = serializeGame(town(initial()), saveDefinitions);
     if (!saved.accepted) throw new Error(saved.reason);
@@ -313,12 +348,11 @@ describe("成長保存の入力検証", () => {
     delete payload.growth;
     const original = JSON.stringify(payload);
     expect(deserializeGame(original, saveDefinitions)).toEqual({ accepted: false, reason: "unsupported-version" });
-    expect(JSON.stringify(payload)).toBe(original);
   });
 });
 
 describe("生存条件とパッシブ効果", () => {
-  it("生存出撃メンバーへ同額を渡し控えには渡さない", () => {
+  it("生存出撃メンバー2人へ同額25XPを渡す", () => {
     let game = accept(editExpeditionParty(initial(["player", "gilberta"]), 1, "gilberta"));
     game = depart(game);
     game = act(game, { type: "enter", nodeId: "battle-a" });
@@ -451,4 +485,224 @@ it("分岐回復は必須選択を省略せず、時計・成長・控えを保�
   });
   game = act(game, command());
   expect(game.party.members[0].mentalFatigue).toBe(14);
+});
+
+it("必須選択中は各公開入力を拒否し候補・HP・バッグ・時計・乱数を保持する", () => {
+  const state = accept(
+    rewardGrowth(initial(), { id: "explicit-level", allocations: [{ characterId: "player", experience: 10 }] }, rules),
+  );
+  const before = structuredClone(state);
+  for (const operation of [
+    () => editExpeditionParty(state, 0, null),
+    () => confirmExpeditionParty(state, [null, null, null, null]),
+    () => departOnExpedition(state, characters, initialDungeon, initialAdventure, rules),
+    () => beginTownExploration(state, "market", initialAdventure),
+    () => leaveExpedition(state, undefined, rules),
+  ]) {
+    expect(operation()).toMatchObject({ accepted: false, reason: "action-in-progress", state: before });
+    expect(state).toEqual(before);
+  }
+  const expedition = accept(
+    rewardGrowth(
+      depart(initial()),
+      { id: "route-level", allocations: [{ characterId: "player", experience: 10 }] },
+      rules,
+    ),
+  );
+  const expeditionBefore = structuredClone(expedition);
+  for (const command of [
+    { type: "attack", actorId: "player", targetId: "slime" },
+    { type: "advance" },
+    { type: "choose", optionId: "mark-on-map" },
+    { type: "enter", nodeId: "battle-a" },
+    {
+      type: "item",
+      actorId: "player",
+      targetId: "player",
+      itemId: "hp-recovery",
+      expectedActionTime: 0,
+      expectedNodeId: "battle-a",
+      expectedVersion: 0,
+      explorationId: 1,
+    },
+  ] as const) {
+    expect(actInExpedition(expedition, command, initialDungeon, initialAdventure, rules)).toMatchObject({
+      state: expeditionBefore,
+      result: { accepted: false, reason: "pending-growth-choice" },
+    });
+    expect(expedition).toEqual(expeditionBefore);
+  }
+  const conversation = accept(beginTownExploration(initial(), "market", initialAdventure));
+  const pending = accept(
+    rewardGrowth(
+      conversation,
+      { id: "pending-event", allocations: [{ characterId: "player", experience: 10 }] },
+      rules,
+    ),
+  );
+  const pendingBefore = structuredClone(pending);
+  expect(
+    actInTown(
+      pending,
+      pending.clock?.pendingAction?.id ?? -1,
+      { type: "advance" },
+      characters,
+      initialAdventure,
+      mentalFatigueDefinition,
+      rules,
+    ),
+  ).toMatchObject({ accepted: false, reason: "action-in-progress", state: pendingBefore });
+  expect(serializeGame(state, saveDefinitions)).toEqual({ accepted: false, reason: "not-in-town" });
+});
+
+it("街の初回5XPは参加可能な加入済みだけで後から加入しても再配分しない", () => {
+  let state = applyPartyStatus(initial(), "player", { kind: "incapacity" }, characters);
+  state = town(state);
+  expect(state.growth?.growth.characters.map(({ level, experience }) => [level, experience])).toEqual([
+    [1, 0],
+    [1, 0],
+  ]);
+  let later = town(initial());
+  expect(later.growth?.growth.characters.map(({ level, experience }) => [level, experience])).toEqual([
+    [1, 5],
+    [1, 0],
+  ]);
+  later = accept(beginTownExploration(later, "find-companion", initialAdventure));
+  const id = later.clock?.pendingAction?.id ?? -1;
+  later = accept(
+    actInTown(later, id, { type: "advance" }, characters, initialAdventure, mentalFatigueDefinition, rules),
+  );
+  later = accept(
+    actInTown(
+      later,
+      id,
+      { type: "choose", optionId: "invite-gilberta" },
+      characters,
+      initialAdventure,
+      mentalFatigueDefinition,
+      rules,
+    ),
+  );
+  expect(later.party.members.map(({ id }) => id)).toEqual(["player", "gilberta"]);
+  expect(later.growth?.growth.characters.map(({ level, experience }) => [level, experience])).toEqual([
+    [1, 5],
+    [1, 0],
+  ]);
+});
+
+it("通常会話の完了は生存出撃者へ15XPを一度だけ渡す", () => {
+  let state = depart(initial(["player", "gilberta"]));
+  state = act(state, { type: "enter", nodeId: "conversation-b" });
+  state = act(state, { type: "advance" });
+  state = act(state, { type: "choose", optionId: "continue-without-marking" });
+  expect(state.growth?.growth.characters.map(({ level, experience }) => [level, experience])).toEqual([
+    [2, 5],
+    [1, 0],
+  ]);
+  const before = structuredClone(state);
+  expect(
+    actInExpedition(
+      state,
+      { type: "choose", optionId: "continue-without-marking" },
+      initialDungeon,
+      initialAdventure,
+      rules,
+    ),
+  ).toMatchObject({ state: before, result: { accepted: false } });
+});
+
+it("保存からの負傷控えは帰還初期化で回復せずHP0だけでは出撃できない", () => {
+  const written = serializeGame(initial(["player", "gilberta"]), saveDefinitions);
+  if (!written.accepted) throw new Error(written.reason);
+  const payload = JSON.parse(written.data);
+  payload.party.members[1].hp = 1;
+  const loaded = deserializeGame(JSON.stringify(payload), saveDefinitions);
+  if (!loaded.accepted) throw new Error(loaded.reason);
+  let state = resolve(
+    accept(
+      rewardGrowth(loaded.state, { id: "reserve", allocations: [{ characterId: "gilberta", experience: 10 }] }, rules),
+    ),
+  );
+  state = accept(leaveExpedition(depart(state), undefined, rules));
+  expect(state.party.members[1].hp).toBe(5);
+  expect(state.growth?.growth.characters[1]).toMatchObject({
+    level: 1,
+    experience: 0,
+    bonus: { maxHp: 0, attackPower: 0 },
+  });
+  payload.party.members[0].hp = 0;
+  const fallen = deserializeGame(JSON.stringify(payload), saveDefinitions);
+  if (!fallen.accepted) throw new Error(fallen.reason);
+  expect(departOnExpedition(fallen.state, characters, initialDungeon, initialAdventure, rules)).toMatchObject({
+    accepted: false,
+    reason: "no-living-member",
+  });
+});
+
+it("保存の保証技・初期技・取得経路・分類権利とランク上限の改竄を拒否する", () => {
+  const catalog = {
+    ...skillCatalog,
+    characters: skillCatalog.characters.map((profile) => ({
+      ...profile,
+      guaranteedUnlocks: [
+        { skillId: "test-strike-advanced", level: 2 },
+        { skillId: "test-strike-ultimate", level: 5 },
+      ],
+    })),
+  };
+  const customRules = { ...rules, catalog };
+  const definitions = { ...saveDefinitions, skills: customRules };
+  let state = accept(
+    rewardGrowth(initial(), { id: "level", allocations: [{ characterId: "player", experience: 10 }] }, customRules),
+  );
+  const choice = state.growth?.choice;
+  const passive = choice?.candidateIds.find(
+    (id) => catalog.skills.find((skill) => skill.id === id)?.type === "passive",
+  );
+  if (!passive) throw new Error("passive candidate missing");
+  state = accept(chooseGrowthSkill(state, { ...selection(state), skillId: passive }, customRules));
+  const written = serializeGame(state, definitions);
+  if (!written.accepted) throw new Error(written.reason);
+  expect(deserializeGame(written.data, definitions).accepted).toBe(true);
+  for (const kind of [
+    "missing initial",
+    "missing guarantee",
+    "future guarantee",
+    "choice origin",
+    "guarantee origin",
+    "guarantee acquisition",
+    "over cap",
+    "missing right",
+    "extra right",
+    "wrong tier",
+  ]) {
+    const payload = JSON.parse(written.data);
+    const learned = payload.growth.characters[0].learned as {
+      skillId: string;
+      type: string;
+      origin: string;
+      acquisition: string;
+      rank?: number;
+    }[];
+    const earned = learned.find((skill) => skill.acquisition === "choice");
+    const guarantee = learned.find((skill) => skill.acquisition === "guaranteed");
+    if (!earned || !guarantee) throw new Error("skills missing");
+    if (kind === "missing initial")
+      payload.growth.characters[0].learned = learned.filter((skill) => skill.skillId !== "test-strike");
+    if (kind === "missing guarantee")
+      payload.growth.characters[0].learned = learned.filter((skill) => skill.skillId !== "test-strike-advanced");
+    if (kind === "future guarantee") learned.push({ ...guarantee, skillId: "test-strike-ultimate" });
+    if (kind === "choice origin") earned.origin = "initial";
+    if (kind === "guarantee origin") guarantee.origin = "initial";
+    if (kind === "guarantee acquisition") guarantee.acquisition = "choice";
+    if (kind === "over cap") earned.rank = 99;
+    if (kind === "missing right")
+      payload.growth.characters[0].learned = learned.filter((skill) => skill.acquisition !== "choice");
+    if (kind === "extra right") earned.rank = 2;
+    if (kind === "wrong tier") earned.skillId = "test-strength-advanced";
+    expect(deserializeGame(JSON.stringify(payload), definitions), kind).toEqual({
+      accepted: false,
+      reason: "invalid-data",
+    });
+  }
 });
