@@ -70,6 +70,12 @@ Playwrightと実Babylon.js/WebGLを使う。実表示の比較にはVRTを使う
 
 描画代替fixtureでは途中のHP・勝敗・RNGを注入して成功とせず、実コアの操作から到達させる。代替rendererの座標は実投影の正しさを保証しない。ARIA、focus、公開保存形式、仕様化された資源／取得数は意味ある観測結果として維持する。
 
+探索・帰還・保存・療養のUI接続は `tests/e2e/ui/debug-session.spec.ts` で実devエントリーと実セッションの配線を使い、描画moduleへの通信だけを既存renderer代替のfixture URLへHTTP redirectする。[Playwrightのroute](https://playwright.dev/docs/api/class-route#route-fulfill)をケースのファイル内に限定し、ゲーム状態・結果・保存処理を置換しない。fixtureの実URLで読み込むことで、代替コードを `src/web/battleScene.ts` のcoverageへ誤帰属させない。通常debug buildの加入→編成→ボス帰還→再訪・保存の代表経路、実素材の投影・通常モーション・VRT・資源解放は実rendererで確認する。
+
+単独controlの構図VRTは条件ごとに実rendererを作り直し、初期設定の受渡しと既定へ戻す更新を両方比較する。ページ・module・HTTP cacheの読込みだけを共用し、初期設定の検証を同rendererへの更新だけで置き換えない。
+
+未保存draftの入力は実エディターの既存fixtureで確認し、draft追加前後の通常表示は実WebGLのcanvasを二回比較する。最後は通常表示のリンクから実エディターを起動し、draftが存在する実エントリーでの復元も確認する。標準保存ケースは保存済み全値の受渡しを確認する。
+
 ## 実行と速度
 
 Node.jsは `.nvmrc` の24系を使う。ブラウザは固定した `mcr.microsoft.com/playwright:v1.63.0-noble` と実LFS素材を使い、基準生成と比較の環境を揃える。ホストからは以下のscriptを使う。CIはコンテナ内の `:inside` を実行する。
@@ -89,6 +95,8 @@ Node.jsは `.nvmrc` の24系を使う。ブラウザは固定した `mcr.microso
 待機は対象の完了条件を再試行付きassertionやイベントで待つ。準備完了と無関係なボタン、固定sleep、操作間のcooldownを同期条件にしない。表示時間はPlaywright Clockで制御し、実ネットワークの保留は解放可能なgateを使う。リサイズは最終ステージ寸法と札／マーカーの位置関係を同時に確認し、途中の寸法を成功にしない。画像不一致をsleep、許容差増加、無審査のbaseline更新で隠さない。
 
 [Playwright Clock](https://playwright.dev/docs/clock)はアプリがtimerやrAFを登録する前に導入する。`runFor`は途中の全timer・rAFを実行する。段階の到達とその状態が保証対象である場合に限り、非同期に連鎖する各段階の期限へ個別に`fastForward`できる。`fastForward`は期限を超えたtimer・rAFを各一回だけ発火し、連続描画の検証を代替しない。一括の大きなjumpでは後続timerの開始が遅れる。補間や連続描画を保証するケースは必要なフレームを実行し、固定段階VRTでは撮影時刻と最後の描画標本を保つ。構図入力の一括操作では編集中の時計を止め、再開後に実接地の完了と既存VRTを確認できる。いずれも、実入力・実ロジック・必要な実描画を通す責務を変えない。[画像比較](https://playwright.dev/docs/test-snapshots)の基準・許容差・固定環境を保ち、撮影資料の生成でVRT成功を代替しない。
+
+段階時刻・途中演出を保証しない成長・帰還・保存などの接続ケースは、既存の演出速度UIで「即時」を明示できる。速度によるHP・時計・疲労・RNG・次入力の不変性は専用ケースで検証し、各着弾・補間・取消・速度変更期限・通常モーション・VRTの検証を即時設定で代替しない。
 
 CIを直列実行して5分未満にすることを目指すが、超過だけをPR却下やtimeoutの理由にしない。品質を先に担保し、低コスト層への移動、重複除去、時計制御、明示実行の範囲を検討する。同じ保証で目標へ収まらない場合は、実測と残る保証をIssueへ示し、次の最適化で相談する。同じ仕様保証を欠く削除やassertionの弱化で時間を合わせない。実測と受入条件は [性能改善Issue #102](https://github.com/karin0624/endfield_rpg/issues/102) へ記録する。診断への引継ぎでは工程別・ケース別の時間とログを保全し、件数や構造の固定ではなく同じ仕様保証を実証できる再編を検討する。
 

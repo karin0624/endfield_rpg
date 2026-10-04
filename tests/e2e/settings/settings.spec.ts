@@ -401,7 +401,9 @@ test("構図の通常表示は未保存draftを使わず、編集へ戻るとdra
   await expect(page.getByRole("button", { name: "通常攻撃", exact: true })).toBeEnabled({ timeout: 60_000 });
   const savedView = await page.locator("canvas").screenshot();
   await collectCoverage(page);
-  await page.getByRole("link", { name: "構図設定", exact: true }).click();
+  // Draft input uses the real editor fixture. The final app -> editor link below
+  // still checks draft restoration through the real entry's editor boot.
+  await page.goto("/tests/fixtures/battle-editor.html");
   await expect(page.getByRole("button", { name: "標準として保存", exact: true })).toBeEnabled({ timeout: 60_000 });
   await fieldInput(page, "cameraY").fill("12");
   await collectCoverage(page);

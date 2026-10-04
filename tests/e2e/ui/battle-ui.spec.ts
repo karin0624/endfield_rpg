@@ -108,6 +108,7 @@ test("成長確定のdouble-clickで同じ位置の次の選択権まで消費�
   await page.goto("/tests/fixtures/battle-ui.html?growth=1");
   await page.getByRole("button", { name: "戦闘、選択可能" }).click();
   const attack = page.getByRole("button", { name: "通常攻撃" });
+  await page.getByRole("combobox", { name: "演出速度" }).selectOption("0");
   for (let turn = 0; turn < 4; turn++) await attack.click();
   await page.getByRole("button", { name: "戦闘を終えてルートへ戻る" }).click();
   const choice = page.getByRole("region", { name: "レベルアップのスキル選択" });
@@ -126,6 +127,7 @@ test("通常入力の勝利XPから複数3択を完了し次戦へ成長を反�
   await page.getByRole("button", { name: "戦闘、選択可能" }).click();
   const attack = page.getByRole("button", { name: "通常攻撃" });
   await expect(attack).toBeEnabled();
+  await page.getByRole("combobox", { name: "演出速度" }).selectOption("0");
   for (let turn = 0; turn < 4; turn++) await attack.click();
   await page.getByRole("button", { name: "戦闘を終えてルートへ戻る" }).click();
   const choice = page.getByRole("region", { name: "レベルアップのスキル選択" });
@@ -236,6 +238,7 @@ test("多段・全体攻撃の範囲、取消、各発の結果と一度の疲�
   const skills = page.getByRole("button", { name: "スキル", exact: true });
   const preview = page.locator("[data-skill-preview]");
   const result = page.locator("[data-skill-result]");
+  await page.getByRole("combobox", { name: "演出速度" }).selectOption("0");
   for (const name of ["連続攻撃（試験入力）", "全体攻撃（試験入力）"]) {
     await skills.click();
     await page.getByRole("button", { name, exact: true }).click();
@@ -1135,6 +1138,7 @@ test("分岐回復はノードと時計を進めず会話・必須選択・戦�
   await expect(open).toBeVisible();
   await page.getByRole("button", { name: "ボス、選択可能" }).click();
   await expect(page.getByRole("button", { name: "通常攻撃", exact: true })).toBeEnabled();
+  await page.getByRole("combobox", { name: "演出速度" }).selectOption("0");
   await expect(open).toHaveCount(0);
   for (let n = 0; n < 10 && !(await page.getByRole("heading", { name: "戦闘に勝利しました" }).isVisible()); n++) {
     await page.getByRole("button", { name: "通常攻撃", exact: true }).click();

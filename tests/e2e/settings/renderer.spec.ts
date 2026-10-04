@@ -531,9 +531,13 @@ test("退出は予約済みの描画フレームを取り消し後続フレー�
   await expect(page.getByRole("button", { name: "通常攻撃", exact: true })).toHaveCount(0);
 });
 
-for (const view of ["only-ground-scale", "only-formation-x", "only-formation-z", "only-backdrop", "only-camera"]) {
-  test(`独立した構図 ${view} の接地・人物・影・背景を画像比較する`, async ({ page }) => {
-    await page.goto(`/tests/fixtures/battle-lifecycle.html?view=${view}`);
+test("単独設定の初期構図と既定へ戻す更新の接地・人物・影・背景を画像比較する", async ({ page }) => {
+  await page.goto("/tests/fixtures/battle-lifecycle.html");
+  for (const view of ["only-ground-scale", "only-formation-x", "only-formation-z", "only-backdrop", "only-camera"]) {
+    // Each condition still constructs a fresh real renderer from its own settings.
+    // Only the page, modules and HTTP cache are shared; constructor wiring is tested too.
+    await page.getByLabel("検証構図").selectOption(view);
+    await page.locator("#apply-view").click();
     await page.locator("#full").click();
     await expect(page.getByLabel("表示状態")).toHaveText("4人の表示完了", { timeout: 60_000 });
     await expect(page.locator("canvas")).toHaveScreenshot(`independent-${view}.png`, {
@@ -551,5 +555,7 @@ for (const view of ["only-ground-scale", "only-formation-x", "only-formation-z",
       maxDiffPixels: 0,
       stylePath: "tests/fixtures/ground-culling-screenshot.css",
     });
-  });
-}
+    await page.locator("#dispose").click();
+    await expect(page.getByLabel("表示状態")).toHaveText("破棄済み");
+  }
+});
