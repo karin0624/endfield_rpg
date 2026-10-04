@@ -38,26 +38,6 @@ for (const [name, width, height] of [
   });
 }
 
-for (const view of ["left-down", "left-up", "right-down", "right-up"]) {
-  test(`検証範囲の${view}でも地形と人物を保持する`, async ({ page }) => {
-    await show(page, view);
-    await expectGround(page, `ground-${view}.png`);
-  });
-}
-
-test("地形内部の適用と未検証構図のプレビューは元材質を保ち、既定構図へ戻せる", async ({ page }) => {
-  await show(page);
-  await page.getByLabel("検証構図").selectOption("internal");
-  await page.locator("#apply-view").click();
-  await expectGround(page, "ground-internal-original.png");
-  await page.getByLabel("検証構図").selectOption("edited");
-  await page.locator("#preview-view").click();
-  await expectGround(page, "ground-edited-original.png");
-  await page.getByLabel("検証構図").selectOption("default");
-  await page.locator("#apply-view").click();
-  await expectGround(page, "ground-default-pc.png");
-});
-
 // Alter only inert GLB metadata in the HTTP response. The checked-in asset and
 // geometry/material chunks stay intact; the known path now contains other bytes.
 function unverifiedGround(): Buffer {

@@ -50,7 +50,7 @@
   },
   "overrides": [
     {
-      "includes": ["tests/e2e/**/*.spec.ts", "tests/long/**/*.spec.ts"],
+      "includes": ["tests/e2e/**/*.spec.ts", "tests/long/**/*.spec.ts", "tests/editor/**/*.spec.ts"],
       "linter": {
         "rules": {
           "style": {

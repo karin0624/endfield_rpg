@@ -56,8 +56,8 @@ npm ci
 | `npm run build:debug` | 明示デバッグ版を`dist-debug/`へ生成する。通常配布には使わない |
 | `npm run build` | 型チェック後に配布用ファイルを`dist/`へ生成する |
 | `npm run test:e2e` | 固定コンテナで全ブラウザprojectの描画・接続・実入力・VRTを確認し、同じ実行のproject別coverageを生成する |
-| `npm run test:ui` | 固定コンテナで本番UI・実コアの戦闘操作と複数画面寸法を確認する。地形を描画せず、配布ビルドを必要としない |
-| `npm run test:editor` | 固定コンテナで構図設定のVRT・保存操作・描画資源を単独で確認する |
+| `npm run test:ui` | 固定コンテナで本番UI・実コアの戦闘操作と複数画面寸法を確認する。配布ビルドは不要で、描画不要の接続は代替し、実素材の演出ケースは実描画する |
+| `npm run test:editor` | 開発エディターの詳細操作・VRT・HMRを必要時に明示実行する。通常PR CIには含めない |
 | `npm run test:coverage` | `test:e2e`と同じ全件実行・project別coverage生成（別名） |
 | `npm run test:long` | 長い通常campaign経路と10状態VRTを明示実行する。通常PR CIには含めない |
 
@@ -71,7 +71,7 @@ npm run test:e2e
 
 基準画像を意図的に更新するときだけ`npm run test:e2e -- --update-snapshots`を実行し、生成画像を確認してコミットする。`test:e2e`は通常配布画面を4173、専用デバッグ配布を4175、UIのfixtureを4174で起動する。`test:ui`と`test:editor`は一時コピーをポート4174で起動し、本来の設定ファイルを上書きしない。失敗時のスクリーンショットとトレースは`test-results/`に残る。通常の`check`ではブラウザを起動しない。詳しい責務は[テスト設計](docs/testing.md)を参照する。
 
-構図設定を確認するときは`npm run test:editor`を実行する。構図設定の基準画像更新には`npm run test:editor -- --update-snapshots`を使う。CIのコンテナジョブはDockerを入れ子で起動せず、コンテナ内専用の`npm run test:e2e:inside`を実行する。
+開発エディター・標準構図JSON・HMRを変更したときは`npm run test:editor`で`tests/editor/`の全件を確認する。通常検証は代表値の保存→通常読込とNodeの解析・実HTTP保存契約を残し、ユーザー向けの実描画・VRT・資源解放は継続する。構図設定の基準画像更新には`npm run test:editor -- --update-snapshots`を使う。CIのコンテナジョブはDockerを入れ子で起動せず、コンテナ内専用の`npm run test:e2e:inside`を実行する。
 
 クラウド環境で`NODE_EXTRA_CA_CERTS`が既存の`/usr/local/share/ca-certificates/environment-proxy-ca.crt`を指し、そのファイルを読み取れる場合、ブラウザテストの起動スクリプトが証明書をコンテナへ読み取り専用で渡す。コンテナ内のNode.jsだけに同じCAを追加し、TLS検証は有効のままにする。OSの信頼設定は変更せず、証明書はリポジトリに保存しない。この条件に当てはまらないローカル環境とGitHub Actionsの実行方法は変わらない。
 

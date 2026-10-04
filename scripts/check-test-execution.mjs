@@ -79,9 +79,11 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
     !["vitest", "playwright"].includes(runner) ||
     !discoveryPath ||
     !resultPath ||
-    (mode && !["coverage", "long"].includes(mode))
+    (mode && !["coverage", "long", "editor"].includes(mode))
   ) {
-    throw new Error("Usage: check-test-execution.mjs {vitest|playwright} discovery.json result.json [coverage|long]");
+    throw new Error(
+      "Usage: check-test-execution.mjs {vitest|playwright} discovery.json result.json [coverage|long|editor]",
+    );
   }
   const read = (path) => JSON.parse(readFileSync(path, "utf8"));
   const inventory = execFileSync("git", ["ls-files", "-z", "--cached", "--others", "--exclude-standard"], {
@@ -97,19 +99,32 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
           (runner === "vitest" ||
             (mode === "long"
               ? file.startsWith("tests/long/")
-              : !file.startsWith("tests/long/") && !file.startsWith("tests/evidence/"))),
+              : mode === "editor"
+                ? file.startsWith("tests/editor/")
+                : !file.startsWith("tests/long/") &&
+                  !file.startsWith("tests/editor/") &&
+                  !file.startsWith("tests/evidence/"))),
       ),
     ),
   ];
   const convert =
     runner === "vitest"
       ? vitestCases
-      : (report) => playwrightCases(report, false, mode === "long" ? "tests/long" : "tests/e2e");
+      : (report) =>
+          playwrightCases(
+            report,
+            false,
+            mode === "long" ? "tests/long" : mode === "editor" ? "tests/editor" : "tests/e2e",
+          );
   const discovery = read(discoveryPath);
   const result = read(resultPath);
   const errors = checkExecution(files, convert(discovery, true), convert(result));
   if (runner === "playwright") {
-    for (const project of mode === "long" ? ["built"] : ["built", "debug", "ui", "settings"]) {
+    for (const project of mode === "long"
+      ? ["built"]
+      : mode === "editor"
+        ? ["settings"]
+        : ["built", "debug", "ui", "settings"]) {
       if (!playwrightCases(result).some((item) => JSON.parse(item.key)[0] === project))
         errors.push(`Missing required project: ${project}`);
     }

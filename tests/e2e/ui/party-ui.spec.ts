@@ -704,3 +704,32 @@ test("編成候補の名前とHPは範囲選択とコピーを維持して確定
   await page.getByRole("button", { name: "確定", exact: true }).click();
   await expect(page.getByRole("heading", { name: "出発準備", exact: true })).toBeVisible();
 });
+
+test("詳細は長い名前と複数症状を狭幅で読め、画像未提供でも能力を表示する", async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 320, height: 844 });
+  await collectCoverage(page);
+  await page.goto("/tests/fixtures/party-details.html");
+  await page.getByRole("button", { name: "枠 1", exact: true }).click();
+  const opener = page.getByRole("button", { name: /^ロッシ.*の詳細$/ });
+  await opener.click();
+  const details = page.locator(".character-details");
+  await expect(details.getByRole("heading", { name: /ロッシ（長い名前/ })).toBeInViewport();
+  await expect(details.getByRole("button", { name: "編成へ戻る" })).toBeInViewport();
+  await details.getByText(/肉体疲労・軽度/).scrollIntoViewIfNeeded();
+  await expect(details.getByText(/肉体疲労・軽度/)).toBeInViewport();
+  await expect(details.getByRole("button", { name: "編成へ戻る" })).toBeInViewport();
+  await expect(details.getByText(/朦朧・軽度/)).toBeVisible();
+  const bounds = await details.boundingBox();
+  if (!bounds) throw new Error("詳細が表示されていません");
+  expect(bounds.x).toBeGreaterThanOrEqual(0);
+  expect(bounds.x + bounds.width).toBeLessThanOrEqual(320);
+  await page.screenshot({ path: testInfo.outputPath("details-long-320.png") });
+  await page.keyboard.press("Escape");
+  await expect(opener).toBeFocused();
+  await page.getByRole("button", { name: /^画像未提供.*の詳細$/ }).click();
+  await expect(details.getByRole("heading", { name: /画像未提供の仲間/ })).toBeVisible();
+  await expect(details.getByRole("img")).toHaveCount(0);
+  await expect(details).toContainText("160 / 160");
+  await expect(details).toContainText("92.31%");
+  await page.keyboard.press("Escape");
+});

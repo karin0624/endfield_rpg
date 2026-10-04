@@ -7,8 +7,8 @@ import { expect, it } from "vitest";
 it("rejects filtered or list-only native CLI runs instead of reusing a previous successful JSON", () => {
   const root = mkdtempSync(join(tmpdir(), "endfield-playwright-cli-"));
   const env = { ...process.env, PATH: `${resolve("node_modules/.bin")}${delimiter}${process.env.PATH}` };
-  const run = (...options) =>
-    spawnSync("sh", [resolve("scripts/run-playwright-quality.sh"), "e2e", ...options], {
+  const run = (mode = "e2e", ...options) =>
+    spawnSync("sh", [resolve("scripts/run-playwright-quality.sh"), mode, ...options], {
       cwd: root,
       env,
       encoding: "utf8",
@@ -17,6 +17,7 @@ it("rejects filtered or list-only native CLI runs instead of reusing a previous 
     mkdirSync(join(root, "scripts"));
     mkdirSync(join(root, "test-results"));
     mkdirSync(join(root, "tests/e2e"), { recursive: true });
+    mkdirSync(join(root, "tests/editor"), { recursive: true });
     symlinkSync(resolve("node_modules"), join(root, "node_modules"), "dir");
     copyFileSync("scripts/check-test-execution.mjs", join(root, "scripts/check-test-execution.mjs"));
     expect(spawnSync("git", ["init", "--quiet"], { cwd: root }).status).toBe(0);
@@ -41,6 +42,22 @@ it("rejects filtered or list-only native CLI runs instead of reusing a previous 
           expect(1+1).toBe(2);
         });`,
       );
+    writeFileSync(
+      join(root, "playwright.editor.config.ts"),
+      `export default ${JSON.stringify({
+        testDir: "tests/editor",
+        outputDir: "test-results/editor",
+        workers: 1,
+        reporter: [["json", { outputFile: "test-results/playwright-editor.json" }]],
+        projects: [{ name: "settings", testMatch: "smoke.spec.mjs" }],
+      })};`,
+    );
+    writeFileSync(
+      join(root, "tests/editor/smoke.spec.mjs"),
+      `import {test,expect} from '@playwright/test';
+       for (const name of ['editor-first','editor-second'])
+         test(name,()=>expect(process.env.COVERAGE_BROWSER).toBeUndefined());`,
+    );
     const complete = run();
     expect(complete.status, complete.stdout + complete.stderr).toBe(0);
     const report = readFileSync(join(root, "test-results/playwright.json"));
@@ -50,7 +67,7 @@ it("rejects filtered or list-only native CLI runs instead of reusing a previous 
       ["--list", "--reporter=list"],
     ]) {
       writeFileSync(join(root, "test-results/playwright.json"), report);
-      const result = run(...options);
+      const result = run("e2e", ...options);
       results.push({ options, status: result.status, output: result.stdout + result.stderr });
     }
     expect(
@@ -64,7 +81,19 @@ it("rejects filtered or list-only native CLI runs instead of reusing a previous 
     const missingCoverage = run();
     expect(missingCoverage.status, missingCoverage.stdout + missingCoverage.stderr).toBe(1);
     expect(missingCoverage.stderr).toContain("Missing per-case browser coverage collection");
+    const editor = run("editor");
+    expect(editor.status, editor.stdout + editor.stderr).toBe(0);
+    const partialEditor = run("editor", "--grep", "editor-first");
+    expect(partialEditor.status, partialEditor.stdout + partialEditor.stderr).toBe(1);
+    expect(partialEditor.stderr).toContain("Missing execution result");
+    writeFileSync(
+      join(root, "tests/editor/omitted.spec.mjs"),
+      "import {test,expect} from '@playwright/test'; test('omitted',()=>expect(true).toBe(true));",
+    );
+    const omittedEditor = run("editor");
+    expect(omittedEditor.status, omittedEditor.stdout + omittedEditor.stderr).toBe(1);
+    expect(omittedEditor.stderr).toContain("Undiscovered or empty test file: tests/editor/omitted.spec.mjs");
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
-}, 20_000);
+}, 30_000);

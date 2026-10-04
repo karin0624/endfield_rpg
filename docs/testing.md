@@ -2,13 +2,17 @@
 
 ## 基本方針
 
-実装済みの仕様はすべてテストする。仕様の正本は `specs/`、公開の入力・前提・独立した期待結果はテストコードに置く。仕様やassertionを巨大な別台帳へ転記しない。目視確認は開発中のデバッグ・デザインレビューであり、テストではない。撮影・録画・overlayの生成も、自動VRTの成功とは区別する。
+実装済みの仕様は用途・使用頻度・失敗時の影響に応じてテストする。ユーザー向け機能と、低頻度の開発者専用ツールで毎回必要な品質保証を分ける。仕様の正本は `specs/`、公開の入力・前提・独立した期待結果はテストコードに置く。仕様やassertionを巨大な別台帳へ転記しない。目視確認は開発中のデバッグ・デザインレビューであり、テストではない。撮影・録画・overlayの生成も、自動VRTの成功とは区別する。
 
 `docs/design-guidelines.md` は設計指針であり、`specs/`への配置だけで実装仕様・必須テスト・マージ条件に昇格させない。外観回帰の期待結果は承認された画面仕様とVRT基準に基づく。
 
 型検査、coverage率、似た名前のテスト、成功件数だけでは仕様の充足を証明できない。受入条件に対して、何を入力し、どの結果をどこでassertするかをレビューする。未対応・未監査・仕様矛盾・将来未実装を区別し、実装に合わせて期待を狭めたり、テストの不足を目視で埋め合わせたりしない。
 
 「品質を維持する」とは、実装仕様がテストで担保されていることを維持することであり、assertion・ケースの件数や構造の不変を要件としない。同じ仕様保証を実証できる統合・移動・書換え・削除は認める。保証の対応と検証結果は具体的なテストコードと変更の証拠で説明し、巨大な手書き台帳は作らない。
+
+開発者専用の構図・会話エディターは、通常検証では代表値の標準保存→通常読込を各一本確認する。値の解析と、保存失敗でも旧ファイルを壊さず固定先だけへ書く実HTTP契約は既存Nodeテストで継続する。詳細control・draft・例外UI・画面組合せ・任意設定VRT・HMRは `test:editor` の必要時検証へ分ける。これは用途による常時保証範囲の見直しであり、全旧保証が通常CIに残る等価移動とは扱わない。本編の入力・VRT・実投影・通常モーション・資源解放は継続する。
+
+本編の戦闘cameraは保存設定で固定し、ユーザーのcamera移動操作を持たない。任意の四隅・内部視点・編集previewのVRTは必要時suiteに含める。通常のPC／mobile構図と、未検証環境・別bytes・素材照合不可の元材質fallbackは通常検証に残す。
 
 同じ保証は、必要な境界を通る最も低コストの層で担う。規則の全組合せをブラウザへ複製しない。VRTはブラウザテストに置く**視覚assertion**であり、操作やゲーム状態を一括で保証する独立層ではない。
 
@@ -63,18 +67,18 @@ Playwrightと実Babylon.js/WebGLを使う。実表示の比較にはVRTを使う
 | ロジックの結合と内部状態 | 保存APIに409の並行処理、413の上限入力、500の書込み失敗を実HTTPで渡し、応答と旧保存bytes保持をassert。mock呼出回数だけで保存成功としない |
 | 入力から画面・状態への接続 | campaignの親capture／bubbleを通す候補の押し直しで、各入力直後の選択状態をassert。dialogを閉じた後のfocus、ARIA、保存結果も実入力から確認 |
 | 入力から画面・状態への接続 | Playwright Clockで表示時刻を制御し、各着弾のHPと、速度・省略・退出後の実論理状態／RNGをassert |
-| 入力から画面・状態への接続 | 構図全controlの同期・draft・保存の待機／失敗／再試行・JSON出力は実エディターと描画代替を接続。保存後の通常表示・実地面の範囲外拒否・構図VRTは実WebGLで確認 |
-| 入力・実表示 | 編成の選択／解除、押下／focus／disabled、狭幅、保存後の実会話をVRT比較。RGB／outline／CSS変数だけの比較を見た目の保証にしない |
-| 実描画と資源 | 実投影・素材・DPR・非rootのasset URL・cullingを確認。退出・pagehide・HMRでの資源解放、仕様化されたWebGL資源数／HTTP取得回数をassert |
+| 入力から画面・状態への接続 | 開発エディターは代表値の保存・通常読込を通常検証に残す。全control・draft・失敗UI・JSON出力・編集VRTは必要時の `test:editor` で確認 |
+| 入力・実表示 | 編成の選択／解除、押下／focus／disabled、狭幅をVRT比較。RGB／outline／CSS変数だけの比較を見た目の保証にしない。開発エディター保存後の実会話VRTは必要時suiteで確認 |
+| 実描画と資源 | 実投影・素材・DPR・非rootのasset URL・culling、退出・pagehideの資源解放、仕様化されたWebGL資源数／HTTP取得回数をassert。開発server限定のHMRは必要時suiteで確認 |
 | 通常配布 | 通常buildの起動・入力・保存導線と、デバッグ機能・開発API・fixtureの混入禁止を確認 |
 
 描画代替fixtureでは途中のHP・勝敗・RNGを注入して成功とせず、実コアの操作から到達させる。代替rendererの座標は実投影の正しさを保証しない。ARIA、focus、公開保存形式、仕様化された資源／取得数は意味ある観測結果として維持する。
 
 探索・帰還・保存・療養のUI接続は `tests/e2e/ui/debug-session.spec.ts` で実devエントリーと実セッションの配線を使い、描画moduleへの通信だけを既存renderer代替のfixture URLへHTTP redirectする。[Playwrightのroute](https://playwright.dev/docs/api/class-route#route-fulfill)をケースのファイル内に限定し、ゲーム状態・結果・保存処理を置換しない。fixtureの実URLで読み込むことで、代替コードを `src/web/battleScene.ts` のcoverageへ誤帰属させない。通常debug buildの加入→編成→ボス帰還→再訪・保存の代表経路、実素材の投影・通常モーション・VRT・資源解放は実rendererで確認する。
 
-単独controlの構図VRTは条件ごとに実rendererを作り直し、初期設定の受渡しと既定へ戻す更新を両方比較する。ページ・module・HTTP cacheの読込みだけを共用し、初期設定の検証を同rendererへの更新だけで置き換えない。
+必要時の単独control構図VRTは条件ごとに実rendererを作り直し、初期設定の受渡しと既定へ戻す更新を両方比較する。ページ・module・HTTP cacheの読込みだけを共用し、初期設定の検証を同rendererへの更新だけで置き換えない。
 
-未保存draftの入力は実エディターの既存fixtureで確認し、draft追加前後の通常表示は実WebGLのcanvasを二回比較する。最後は通常表示のリンクから実エディターを起動し、draftが存在する実エントリーでの復元も確認する。標準保存ケースは保存済み全値の受渡しを確認する。
+必要時のdraft検証は実エディターの既存fixtureで入力し、draft追加前後の通常表示は実WebGLのcanvasを二回比較する。最後は通常表示のリンクから実エディターを起動し、draftが存在する実エントリーでの復元も確認する。
 
 ## 実行と速度
 
@@ -84,13 +88,14 @@ Node.jsは `.nvmrc` の24系を使う。ブラウザは固定した `mcr.microso
 | --- | --- |
 | `npm run check` | Biome・型・Vitest・V8 coverage・発見／実行結果照合。ブラウザなし |
 | `npm run test:e2e` | 既定の `built`・`debug`・`ui`・`settings` 全projectを一回実行し、合否・VRT・native V8 coverageを確認 |
-| `npm run test:ui` / `npm run test:editor` | 変更箇所の短い確認。全projectの最終チェックは代替しない |
+| `npm run test:ui` | UI変更箇所の短い確認。全projectの最終チェックは代替しない |
+| `npm run test:editor` | 開発エディター・任意構図・HMRの詳細を必要時に明示実行。通常PR CIには含めない |
 | `npm run test:coverage` | `test:e2e`と同じ全件実行・coverage生成の別名。CIでは二重実行しない |
 | `npm run test:long` | 明示実行する長い通常campaign経路と10状態VRT |
 
-長いタイトル→導入→街→編成→戦闘→帰還→保存再開と10状態VRTは `tests/long/campaign.spec.ts` に内容と基準bytesを保持し、明示実行する。再編する場合もこの仕様保証を維持する。短い通常配布・入力・VRT境界、renderer/HMR/settingsは既定CIに残す。
+長いタイトル→導入→街→編成→戦闘→帰還→保存再開と10状態VRTは `tests/long/campaign.spec.ts` に内容と基準bytesを保持し、明示実行する。開発エディター・標準構図JSON・HMRを変更したときは `tests/editor/` の詳細suiteも実行する。両suiteは専用configで全件を発見・照合し、skipや未実行として通常結果へ混ぜない。短い通常配布・入力・VRT・renderer境界と代表設定の保存・読込は既定CIに残す。
 
-本番の通常buildは4173、専用debug buildは4175、一時ソースコピーのfixture／エディターは4174で起動する。エディターの保存テストは本来の標準設定を上書きしない。`built`等のproject名はテストの所属を表し、取得元buildを厳密に限定するものではない。例えば通常配布テストも保存key隔離のためdebug originへ移動し、`settings`には独立buildやHMRもある。
+本番の通常buildは4173、専用debug buildは4175、一時ソースコピーのfixture／エディターは4174で起動する。エディターの保存テストは本来の標準設定を上書きしない。`built`等のproject名はテストの所属を表し、取得元buildを厳密に限定するものではない。例えば通常配布テストも保存key隔離のためdebug originへ移動し、通常の`settings`には独立buildもある。HMRは必要時のeditor suiteで確認する。
 
 待機は対象の完了条件を再試行付きassertionやイベントで待つ。準備完了と無関係なボタン、固定sleep、操作間のcooldownを同期条件にしない。表示時間はPlaywright Clockで制御し、実ネットワークの保留は解放可能なgateを使う。リサイズは最終ステージ寸法と札／マーカーの位置関係を同時に確認し、途中の寸法を成功にしない。画像不一致をsleep、許容差増加、無審査のbaseline更新で隠さない。
 
@@ -116,7 +121,7 @@ Vitest 5の標準 `@vitest/coverage-v8` で `src/**/*.ts` と `scripts/*.{ts,mjs
 
 ブラウザの分岐指標は生成JSから元TSへ対応づけられた範囲を表し、元TSの全分岐分母を保証しない。[Monocart 2.13の変換処理](https://github.com/cenfun/monocart-coverage-reports/blob/v2.13.0/lib/converter/converter.js#L620-L672)はmapping不能な分岐群を除く。`all`は未収集ファイルを追加するが、読込済みTSのtree shakingで削除された部分や未mapping分岐を補完しない。今回の69src集合の一致はsource欠落の確認であり、全分岐維持の証明ではない。
 
-CIはgit上の品質テストファイル、runnerの `--list`、実JSON結果を照合し、空／未発見ファイル、重複名、未実行、skip/todo/only、失敗・retry・期待失敗を拒否する。Vitestの標準Reporter APIで個別retryと期待失敗も確認する。全件ブラウザ実行は共有fixtureを必須にし、追加context/pageや遷移前回収漏れ、map欠落・不正、ケースごとの収集欠落を拒否する。手書きの仕様ID・テストID台帳や独自runnerは増やさない。
+CIは通常suiteのgit上の品質テストファイル、runnerの `--list`、実JSON結果を照合し、空／未発見ファイル、重複名、未実行、skip/todo/only、失敗・retry・期待失敗を拒否する。`long`・`editor` は各ディレクトリを専用modeで同じ実行照合へ渡す。Vitestの標準Reporter APIで個別retryと期待失敗も確認する。全件ブラウザ実行は共有fixtureを必須にし、追加context/pageや遷移前回収漏れ、map欠落・不正、ケースごとの収集欠落を拒否する。手書きの仕様ID・テストID台帳や独自runnerは増やさない。
 
 自動検査は登録漏れや未実行を検出するが、assertionの意味や自然言語仕様の完全性は証明しない。PRでは次を確認する。
 

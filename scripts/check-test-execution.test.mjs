@@ -94,7 +94,7 @@ it("rejects passed Vitest JSON cases retaining errors from an earlier attempt", 
   expect(vitestCases(report, false, "/repo")[0].passed).toBe(false);
 });
 
-it("tracks case-level browser collection and the explicitly-run long suite root", () => {
+it("tracks case-level browser collection and the explicitly-run suite roots", () => {
   const report = (annotations) => ({
     suites: [
       {
@@ -121,4 +121,5 @@ it("tracks case-level browser collection and the explicitly-run long suite root"
       .coverageRecorded,
   ).toBe(true);
   expect(playwrightCases(report([]), false, "tests/long")[0].file).toBe("tests/long/campaign.spec.ts");
+  expect(playwrightCases(report([]), false, "tests/editor")[0].file).toBe("tests/editor/campaign.spec.ts");
 });
