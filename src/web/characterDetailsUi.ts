@@ -6,7 +6,7 @@ import {
   createCharacterDetailsModel,
   reduceCharacterDetails,
 } from "../presentation/characterDetails";
-import type { CharacterDetailsContext } from "./characterDetailsText";
+import type { CharacterDetailsContext } from "../presentation/characterDetailsText";
 import { requiredElement } from "./requiredElement";
 import "./party.css";
 
@@ -81,7 +81,10 @@ export function createCharacterDetailsView(
           image.src = url;
           image.alt = frame.name;
           const generation = state.generation;
-          image.addEventListener("error", () => send({ type: "portrait-failed", generation }), { once: true });
+          image.addEventListener("error", () => send({ type: "portrait-failed", generation }), {
+            once: true,
+            signal: events.signal,
+          });
           portrait.append(image);
         }
         portrait.hidden = !url;

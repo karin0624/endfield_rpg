@@ -651,7 +651,6 @@ test("市場の複数購入では療養を進めず、終了時にだけ非ゼ�
     randomState: 1,
     inventory: createInventory(),
     clock: { elapsedHalfDays: 2, recoverySteps: 1, nextActionId: 3, pendingAction: null },
-    lastTownRecoverySignal: 0,
   };
   game = applyPartyStatus(game, "player", { kind: "physicalFatigue", amount: 30 }, characters);
   game = applyPartyStatus(game, "gilberta", { kind: "incapacity" }, characters);

@@ -74,13 +74,7 @@ function recruitAdded(content: ContentDefinitions): ExpeditionGame {
   };
   const start = beginTownExploration(game, "new-place", content.adventure);
   if (!start.accepted) throw new Error(start.reason);
-  const end = actInTown(
-    start.state,
-    start.state.clock?.pendingAction?.id ?? -1,
-    { type: "advance" },
-    content.characters,
-    content.adventure,
-  );
+  const end = actInTown(start.state, { type: "advance" }, content.characters, content.adventure);
   if (!end.accepted) throw new Error(end.reason);
   return end.state;
 }

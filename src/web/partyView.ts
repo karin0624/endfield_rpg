@@ -77,6 +77,7 @@ export function createPartyView(root: HTMLElement, send: (event: PartyEvent) => 
     image.alt = "";
     image.addEventListener("error", () => send({ type: "portrait-failed", characterId: id, generation }), {
       once: true,
+      signal: events.signal,
     });
     target.append(image);
   }

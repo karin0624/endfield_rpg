@@ -1,7 +1,7 @@
 import { mentalFatigueDefinition } from "../content/mentalFatigueDefinition";
 import { mentalFatigueLabel, mentalFatigueMultiplier } from "../game/mentalFatigue";
 import type { CharacterStatus } from "../game/status";
-import { formatAmount, symptomDescriptions } from "./sessionFeedback";
+import { formatAmount, symptomDescriptions } from "../presentation/statusText";
 
 /** Native disclosures keep symptom meaning available to touch and keyboard users. */
 export function renderSymptomIcons(root: HTMLElement, status: CharacterStatus, mentalFatigue: number): void {

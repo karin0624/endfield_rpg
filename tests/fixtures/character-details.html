@@ -35,8 +35,7 @@
       if (!reward.accepted) throw new Error(reward.reason);
       game = reward.state;
       for (const skillId of ["test-strength", "test-vitality", "test-vitality"]) {
-        const choice = game.growth.choice;
-        const result = chooseGrowthSkill(game, { explorationId: game.growth.explorationId, characterId: "player", level: choice.level, skillId }, rules);
+        const result = chooseGrowthSkill(game, skillId, rules);
         if (!result.accepted) throw new Error(result.reason);
         game = result.state;
       }

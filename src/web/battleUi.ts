@@ -13,11 +13,11 @@ import type { ItemRecoveryEvent } from "../game/items";
 import { mentalFatigueMultiplier } from "../game/mentalFatigue";
 import { activeSkillBaseAmount, mentalFatigueAffectedQuantity, skillById } from "../game/skills";
 import { canParticipate, effectiveMaxHp } from "../game/status";
+import { formatAmount, loadSymptomText, mentalFatigueText, symptomNames } from "../presentation/statusText";
 import type { BattlePresentation } from "./battlePresentation";
 import { createBattleSequence } from "./battleSequence";
 import { mountRecoveryItemUi } from "./itemRecoveryUi";
 import { requiredElement } from "./requiredElement";
-import { formatAmount, loadSymptomText, mentalFatigueText, symptomNames } from "./sessionFeedback";
 import { renderSymptomIcons } from "./symptomIcons";
 
 const EVENT_TOAST_DURATION_MS = 300;

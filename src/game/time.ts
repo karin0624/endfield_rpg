@@ -25,11 +25,12 @@ export interface ActionCompletion extends TimedAction {
   readonly calendarHalfDays: number;
   readonly recoverySteps: number;
 }
-export function completeTimedAction(
-  clock: ActionClock,
-  action: TimedAction,
-): { readonly clock: ActionClock; readonly completion?: ActionCompletion } {
-  if (clock.pendingAction?.id !== action.id || clock.pendingAction.kind !== action.kind) return { clock };
+export function completeTimedAction(clock: ActionClock): {
+  readonly clock: ActionClock;
+  readonly completion?: ActionCompletion;
+} {
+  const action = clock.pendingAction;
+  if (action === null) return { clock };
   const recoverySteps = action.kind === "town-exploration" ? 1 : 0;
   return {
     clock: {

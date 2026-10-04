@@ -1,9 +1,9 @@
 import { loadSymptomDefinition } from "../content/loadSymptomDefinition";
 import { type CharacterDefinition, characterById, type PartyState } from "../game/party";
 import { canParticipate, effectiveHitRate, effectiveMaxHp, healthyStatus } from "../game/status";
-import { type CharacterDetailsContext, characterLearning, learnedSkillText } from "../web/characterDetailsText";
-import { formatAmount, loadSymptomText, mentalFatigueText, symptomLabel } from "../web/sessionFeedback";
+import { type CharacterDetailsContext, characterLearning, learnedSkillText } from "./characterDetailsText";
 import { characterPortraitPath } from "./characterPortrait";
+import { formatAmount, loadSymptomText, mentalFatigueText, symptomLabel } from "./statusText";
 
 export interface CharacterDetailsInput {
   readonly characters: readonly CharacterDefinition[];

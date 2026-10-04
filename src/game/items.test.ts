@@ -165,30 +165,22 @@ describe("物品の保管・探索・帰還", () => {
 });
 describe("注入価格による街探索中の購入", () => {
   const offer = recoveryItemOffer;
-  const input = { expectedVersion: 1, explorationId: 7, transactionId: "1", quantity: 2 };
-  it("金額・バッグを一度に更新し、連打と復元後の同じ取引を拒否する", () => {
-    const bought = purchaseItem(depart("town"), itemSettings.initialBalance, offer, input, catalog);
+  const quantity = 2;
+  it("金額・バッグを一度に更新し、次の購入を現在の残高で判断する", () => {
+    const bought = purchaseItem(depart("town"), itemSettings.initialBalance, offer, quantity, catalog);
     expect(bought.accepted).toBe(true);
     expect(bought.balance).toBe(10);
     expect(bagItemQuantity(bought.items, hp)).toBe(5);
     expect(bought.items.exploration?.bag).toContainEqual({ itemId: hp, quantity: 2, origin: "acquired" });
-    expect(purchaseItem(bought.items, bought.balance, bought.offer, input, catalog).accepted).toBe(false);
-    expect(
-      purchaseItem(
-        JSON.parse(JSON.stringify(bought.items)),
-        10,
-        bought.offer,
-        { ...input, expectedVersion: 2, quantity: 1 },
-        catalog,
-      ).accepted,
-    ).toBe(false);
+    expect(purchaseItem(bought.items, bought.balance, bought.offer, quantity, catalog).accepted).toBe(false);
+    expect(purchaseItem(JSON.parse(JSON.stringify(bought.items)), 10, bought.offer, 1, catalog).accepted).toBe(true);
     expect(bought.items.exploration?.id).toBe(7);
   });
   it("不足金額・個数・場所の不適合を拒否する", () => {
-    expect(purchaseItem(depart("town"), 19, offer, input, catalog).accepted).toBe(false);
-    expect(purchaseItem(depart("town"), 30, offer, { ...input, quantity: -1 }, catalog).accepted).toBe(false);
-    expect(purchaseItem(depart(), 30, offer, input, catalog).accepted).toBe(false);
-    expect(purchaseItem(home(), 30, offer, input, catalog).accepted).toBe(false);
+    expect(purchaseItem(depart("town"), 19, offer, quantity, catalog).accepted).toBe(false);
+    expect(purchaseItem(depart("town"), 30, offer, -1, catalog).accepted).toBe(false);
+    expect(purchaseItem(depart(), 30, offer, quantity, catalog).accepted).toBe(false);
+    expect(purchaseItem(home(), 30, offer, quantity, catalog).accepted).toBe(false);
   });
 });
 
@@ -233,13 +225,7 @@ describe("承認済み保持抽選と購入上限なし", () => {
     expect(independentItemRetention(1)(bag, 1, "defeat").quantities).toEqual([1]);
   });
   it("所持金が足りれば3個を超える購入を受理する", () => {
-    const result = purchaseItem(
-      depart("town"),
-      100,
-      recoveryItemOffer,
-      { expectedVersion: 1, explorationId: 7, transactionId: "large", quantity: 10 },
-      catalog,
-    );
+    const result = purchaseItem(depart("town"), 100, recoveryItemOffer, 10, catalog);
     expect(result.accepted).toBe(true);
     expect(result.balance).toBe(0);
     expect(bagItemQuantity(result.items, hp)).toBe(13);
@@ -414,39 +400,38 @@ describe("物品APIの境界と原子的更新", () => {
     for (const probability of [-0.01, 1.01, Number.NaN, Infinity, -Infinity])
       expect(() => independentItemRetention(probability)).toThrow();
   });
-  it("購入拒否は残高・版・受領IDを保ち、無料購入と通常報酬IDを区別する", () => {
+  it("購入拒否は残高・所持・報酬を保ち、無料の再購入は現在の状態で受理する", () => {
     const state = depart("town");
     const before = structuredClone(state);
-    const base = { expectedVersion: 1, explorationId: 7, transactionId: "same", quantity: 1 };
-    for (const change of [
-      { explorationId: 8 },
-      { expectedVersion: 0 },
-      ...[0, -1, 0.5, Number.NaN, Number.MAX_SAFE_INTEGER].map((quantity) => ({ quantity })),
-    ]) {
-      const result = purchaseItem(state, 30, recoveryItemOffer, { ...base, ...change }, catalog);
+    for (const quantity of [0, -1, 0.5, Number.NaN, Number.MAX_SAFE_INTEGER]) {
+      const result = purchaseItem(state, 30, recoveryItemOffer, quantity, catalog);
       expect(result).toEqual({ accepted: false, items: before, balance: 30, offer: recoveryItemOffer });
     }
-    expect(purchaseItem(state, 0, recoveryItemOffer, base, catalog)).toEqual({
+    expect(purchaseItem(state, 0, recoveryItemOffer, 1, catalog)).toEqual({
       accepted: false,
       items: before,
       balance: 0,
       offer: recoveryItemOffer,
     });
     for (const value of [-1, 0.5, Number.NaN, Infinity, Number.MAX_SAFE_INTEGER + 1]) {
-      expect(() => purchaseItem(state, value, recoveryItemOffer, base, catalog)).toThrow();
-      expect(() => purchaseItem(state, 30, { ...recoveryItemOffer, unitPrice: value }, base, catalog)).toThrow();
+      expect(() => purchaseItem(state, value, recoveryItemOffer, 1, catalog)).toThrow();
+      expect(() => purchaseItem(state, 30, { ...recoveryItemOffer, unitPrice: value }, 1, catalog)).toThrow();
     }
     const rewarded = accepted(receiveItems(state, 1, "same", [{ itemId: hp, quantity: 1 }], catalog));
     const freeOffer = { ...recoveryItemOffer, unitPrice: 0 };
-    const bought = purchaseItem(rewarded, 0, freeOffer, { ...base, expectedVersion: 2 }, catalog);
+    const bought = purchaseItem(rewarded, 0, freeOffer, 1, catalog);
     expect(bought.accepted).toBe(true);
     expect(bought.balance).toBe(0);
     expect(bought.items.version).toBe(3);
-    expect(bought.items.exploration?.rewardIds).toEqual(["same", "purchase:same"]);
+    expect(bought.items.exploration?.rewardIds).toEqual(["same"]);
     expect(bought.items.exploration?.bag).toContainEqual({ itemId: hp, quantity: 2, origin: "acquired" });
     const boughtBefore = structuredClone(bought.items);
-    const retry = purchaseItem(bought.items, 0, freeOffer, { ...base, expectedVersion: 3 }, catalog);
-    expect(retry).toEqual({ accepted: false, items: boughtBefore, balance: 0, offer: freeOffer });
+    const retry = purchaseItem(bought.items, 0, freeOffer, 1, catalog);
+    expect(retry.accepted).toBe(true);
+    expect(retry.balance).toBe(0);
+    expect(retry.items.exploration?.rewardIds).toEqual(["same"]);
+    expect(retry.items.exploration?.bag).toContainEqual({ itemId: hp, quantity: 3, origin: "acquired" });
+    expect(bought.items).toEqual(boughtBefore);
     expect(state).toEqual(before);
   });
 });

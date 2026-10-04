@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { completeMarketVisit } from "../../tests/helpers/completeMarketVisit";
 import { initialAdventure } from "../content/initialAdventure";
 import { initialDungeon } from "../content/initialDungeon";
 import { initialGameOptions } from "../content/initialGameOptions";
@@ -7,11 +8,12 @@ import { createInitialGameState } from "./createInitialGameState";
 import { createDungeonState, type DungeonDefinition, enterNextDungeonNode, performDungeonBasicAttack } from "./dungeon";
 import {
   actInExpedition,
+  actInTown,
   applyPartyStatus,
+  beginTownExploration,
   departOnExpedition,
   type ExpeditionGame,
   leaveExpedition,
-  receiveTownRecoverySignal,
 } from "./expedition";
 import { createGameRandom, nextGameRandom } from "./gameRandom";
 import { createParty, setPartySlot } from "./party";
@@ -85,18 +87,20 @@ describe("状態異常", () => {
     expect(canParticipate(200, status)).toBe(true);
     expect(canParticipate(0, status)).toBe(false);
   });
-  it("town signalは控えも回復し、重複・古いsignalは進めず、最大HP増加は治癒しない", () => {
+  it("街探索の完了は控えも回復し、完了後の文章送りは回復せず、最大HP増加は治癒しない", () => {
     let state = applyPartyStatus(game(), "player", { kind: "physicalFatigue", amount: 10 }, characters);
     state = applyPartyStatus(state, "reserve", { kind: "haze", amount: 10 }, characters);
     state = applyPartyStatus(state, "reserve", { kind: "haze", amount: 10 }, characters);
     expect(member(state).hp).toBe(181);
-    state = receiveTownRecoverySignal(state, 10, characters);
+    state = completeMarketVisit(state, characters);
     expect(member(state)).toMatchObject({ hp: 181, status: { physicalFatigue: 0 } });
     expect(member(state, "reserve")).toMatchObject({ hp: 200, status: { haze: 10 } });
-    state = receiveTownRecoverySignal(state, 10, characters);
-    state = receiveTownRecoverySignal(state, 9, characters);
+    expect(actInTown(state, { type: "advance" }, characters, initialAdventure)).toMatchObject({
+      accepted: false,
+      state,
+    });
     expect(member(state, "reserve").status?.haze).toBe(10);
-    state = receiveTownRecoverySignal(state, 11, characters);
+    state = completeMarketVisit(state, characters);
     expect(member(state, "reserve").status?.haze).toBe(0);
   });
   it("戦闘・会話・退出は回復せず、次戦も状態と乱数を引き継ぐ", () => {
@@ -105,7 +109,11 @@ describe("状態異常", () => {
     state = applyPartyStatus(state, "reserve", { kind: "incapacity" }, characters);
     const departed = departOnExpedition(state, characters, initialDungeon, initialAdventure);
     if (!departed.accepted) throw new Error(departed.reason);
-    state = receiveTownRecoverySignal(departed.state, 0, characters);
+    expect(beginTownExploration(departed.state, "market", initialAdventure)).toMatchObject({
+      accepted: false,
+      state: departed.state,
+    });
+    state = departed.state;
     expect(member(state).status?.haze).toBe(10);
     function act(command: Parameters<typeof actInExpedition>[1]) {
       const result = actInExpedition(state, command, initialDungeon, initialAdventure);
@@ -124,7 +132,10 @@ describe("状態異常", () => {
     if (!left.accepted) throw new Error(left.reason);
     expect(member(left.state, "reserve").status?.incapacityRecoverySteps).toBe(6);
     expect(member(left.state).status?.haze).toBe(10);
-    expect(member(receiveTownRecoverySignal(left.state, 0, characters)).status?.haze).toBe(10);
+    const recovered = completeMarketVisit(left.state, characters);
+    expect(member(recovered).status?.haze).toBe(0);
+    expect(recovered.clock?.elapsedHalfDays).toBe((left.state.clock?.elapsedHalfDays ?? 0) + 1);
+    expect(recovered.clock?.recoverySteps).toBe((left.state.clock?.recoverySteps ?? 0) + 1);
     expect(left.state.randomState).toBe(2165703038);
   });
 });

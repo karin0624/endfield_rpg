@@ -6,6 +6,26 @@ export const DEBUG_SAVE_KEY = "endfield-rpg-debug-save";
 type StorageAccess = () => Pick<Storage, "getItem" | "setItem">;
 const browserStorage: StorageAccess = () => window.localStorage;
 
+/** Browser I/O receives already-confirmed bytes; acceptance and parsing belong to the model. */
+export function writeSlotData(data: string, storage: StorageAccess = browserStorage, key = GAME_SAVE_KEY): boolean {
+  try {
+    storage().setItem(key, data);
+    return true;
+  } catch {
+    return false;
+  }
+}
+export function readSlotData(
+  storage: StorageAccess = browserStorage,
+  key = GAME_SAVE_KEY,
+): { readonly data: string | null } | { readonly error: true } {
+  try {
+    return { data: storage().getItem(key) };
+  } catch {
+    return { error: true };
+  }
+}
+
 export function writeSlot(
   game: ExpeditionGame,
   definitions: SaveDefinitions,
@@ -18,9 +38,7 @@ export function writeSlot(
       saved: false,
       message: result.reason === "not-in-town" ? "街に戻ってから保存してください。" : "保存できませんでした。",
     };
-  try {
-    storage().setItem(key, result.data);
-  } catch {
+  if (!writeSlotData(result.data, storage, key)) {
     return { saved: false, message: "保存できませんでした。ブラウザの保存領域を確認してください。" };
   }
   return { saved: true, message: "保存しました。" };
@@ -33,12 +51,11 @@ export function loadSlot(
   key = GAME_SAVE_KEY,
 ): { readonly message: string; readonly state?: ExpeditionGame } {
   if (!canSaveGame(game)) return { message: "街に戻ってから読み込んでください。" };
-  let data: string | null;
-  try {
-    data = storage().getItem(key);
-  } catch {
+  const read = readSlotData(storage, key);
+  if ("error" in read) {
     return { message: "読み込めませんでした。ブラウザの保存領域を確認してください。" };
   }
+  const data = read.data;
   if (data === null) return { message: "保存データがありません。" };
   const result = deserializeGame(data, definitions);
   if (!result.accepted)

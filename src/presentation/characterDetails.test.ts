@@ -9,8 +9,8 @@ import { applyPartyStatus, type ExpeditionGame } from "../game/expedition";
 import { chooseGrowthSkill, grownCharacters, rewardGrowth } from "../game/growthRuntime";
 import { createParty } from "../game/party";
 import { resetExplorationSkills } from "../game/skillAcquisition";
-import type { CharacterDetailsContext } from "../web/characterDetailsText";
 import { createCharacterDetailsModel, projectCharacterDetails, reduceCharacterDetails } from "./characterDetails";
+import type { CharacterDetailsContext } from "./characterDetailsText";
 import { createPartyModel } from "./partyModel";
 import { projectParty } from "./partyProjection";
 
@@ -133,11 +133,7 @@ describe("人物詳細の読み取り投影", () => {
     for (const skillId of ["test-strength", "test-vitality", "test-vitality"]) {
       const current = state.growth;
       if (!current?.choice) throw new Error("成長選択がありません");
-      const selected = chooseGrowthSkill(
-        state,
-        { explorationId: current.explorationId, characterId: "player", level: current.choice.level, skillId },
-        growth,
-      );
+      const selected = chooseGrowthSkill(state, skillId, growth);
       if (!selected.accepted) throw new Error(selected.reason);
       state = selected.state;
     }

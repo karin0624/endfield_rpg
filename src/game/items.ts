@@ -39,7 +39,7 @@ function validStack(stack: ItemStack, catalog: ItemCatalog): boolean {
   const item = catalog.find(({ id }) => id === stack.itemId);
   return validQuantity(stack.quantity) && (item?.kind === "consumable" || item?.kind === "material");
 }
-function mergeStacks(stacks: readonly ItemStack[]): ItemStack[] {
+export function mergeStacks(stacks: readonly ItemStack[]): ItemStack[] {
   const result: ItemStack[] = [];
   for (const stack of stacks) {
     const index = result.findIndex(({ itemId }) => itemId === stack.itemId);

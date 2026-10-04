@@ -112,20 +112,8 @@ export function deserializeGame(data: string, definitions: SaveDefinitions): Sav
   }
   if (!record(value)) return invalid;
   if (value.version !== 5) return { accepted: false, reason: "unsupported-version" };
-  if (
-    !keys(value, [
-      "version",
-      "adventure",
-      "party",
-      "clock",
-      "randomState",
-      "lastTownRecoverySignal",
-      "growth",
-      "inventory",
-    ])
-  )
-    return invalid;
-  const { adventure, party, clock, randomState, lastTownRecoverySignal } = value;
+  if (!keys(value, ["version", "adventure", "party", "clock", "randomState", "growth", "inventory"])) return invalid;
+  const { adventure, party, clock, randomState } = value;
   const inventory = parseInventory(value.inventory);
   if (!inventory) return invalid;
   if (
@@ -206,9 +194,7 @@ export function deserializeGame(data: string, definitions: SaveDefinitions): Sav
     typeof randomState !== "number" ||
     !Number.isInteger(randomState) ||
     randomState < 0 ||
-    randomState > 0xffffffff ||
-    !(lastTownRecoverySignal === null || counter(lastTownRecoverySignal)) ||
-    (clock.recoverySteps > 0 && (lastTownRecoverySignal === null || lastTownRecoverySignal < clock.recoverySteps - 1))
+    randomState > 0xffffffff
   )
     return invalid;
   return {
@@ -232,7 +218,6 @@ export function deserializeGame(data: string, definitions: SaveDefinitions): Sav
         pendingAction: null,
       },
       randomState,
-      ...(lastTownRecoverySignal === null ? {} : { lastTownRecoverySignal }),
     },
   };
 }
@@ -266,7 +251,6 @@ export function serializeGame(
       nextActionId: clock.nextActionId,
     },
     randomState: game.randomState ?? 1,
-    lastTownRecoverySignal: game.lastTownRecoverySignal ?? null,
   });
   return deserializeGame(data, definitions).accepted
     ? { accepted: true, data }

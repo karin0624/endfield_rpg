@@ -88,7 +88,6 @@ it("有効な旧v4保存の拒否でも元のスロットと現在セッショ�
     },
     clock: { elapsedHalfDays: 0, recoverySteps: 0, nextActionId: 1 },
     randomState: 1,
-    lastTownRecoverySignal: null,
     growth: null,
   });
   let stored = bytes;

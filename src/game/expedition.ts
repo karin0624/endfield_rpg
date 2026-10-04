@@ -59,7 +59,6 @@ import {
   beginTimedAction,
   completeTimedAction,
   createActionClock,
-  type TimedAction,
 } from "./time";
 
 /** One shared session survives in-app navigation; persistent saves are separate. */
@@ -70,7 +69,6 @@ export interface ExpeditionGame {
   readonly party: PartyState;
   readonly dungeon: DungeonState | null;
   readonly randomState?: number;
-  readonly lastTownRecoverySignal?: number;
   readonly clock?: ActionClock;
 }
 export type ExpeditionRejection =
@@ -262,7 +260,7 @@ export function actInExpedition(
     updated = reward.state;
   }
   if (skills?.growth && dungeon.outcome === "failed") {
-    const returned = leaveExpedition(updated, updated.clock?.pendingAction?.id, skills);
+    const returned = leaveExpedition(updated, skills);
     if (!returned.accepted) throw new Error("敗北帰還を適用できません");
     return { state: returned.state, result, completion: returned.completion };
   }
@@ -270,19 +268,14 @@ export function actInExpedition(
 }
 
 /** Commit return healing and calendar cost together; symptoms and recovery counters persist. */
-export function leaveExpedition(
-  state: ExpeditionGame,
-  actionId = state.clock?.pendingAction?.id,
-  skills?: BattleSkillRules,
-): ExpeditionResult {
+export function leaveExpedition(state: ExpeditionGame, skills?: BattleSkillRules): ExpeditionResult {
   if (hasPendingGrowth(state)) return { accepted: false, state, reason: "action-in-progress" };
   if (state.dungeon === null || state.dungeon.activity !== null)
     return { accepted: false, state, reason: "not-on-route" };
   const clock = state.clock ?? createActionClock();
   const pending = clock.pendingAction;
-  if (pending?.kind !== "dungeon-expedition" || pending.id !== actionId)
-    return { accepted: false, state, reason: "not-on-route" };
-  const result = completeTimedAction(clock, pending);
+  if (pending?.kind !== "dungeon-expedition") return { accepted: false, state, reason: "not-on-route" };
+  const result = completeTimedAction(clock);
   let resetState = state;
   if (skills?.growth && state.growth) {
     const reset = resetExplorationSkills(
@@ -330,20 +323,14 @@ export function leaveExpedition(
   };
 }
 
-/** Town integration supplies a monotonically increasing signal; duplicate delivery is a no-op. */
-export function receiveTownRecoverySignal(
+/** Recovery is part of the current town exploration's synchronous completion. */
+function recoverTownParty(
   state: ExpeditionGame,
-  signal: number,
   characters: readonly CharacterDefinition[],
   fatigue?: MentalFatigueDefinition,
 ): ExpeditionGame {
-  if (!Number.isSafeInteger(signal) || signal < 0) throw new RangeError("回復signalは非負の整数です");
-  if (signal <= (state.lastTownRecoverySignal ?? -1)) return state;
-  // Consume ineligible deliveries too, so delayed replay cannot recover dungeon time.
-  if (state.dungeon !== null || state.adventure.mode !== "town") return { ...state, lastTownRecoverySignal: signal };
   return {
     ...state,
-    lastTownRecoverySignal: signal,
     party: {
       ...state.party,
       members: state.party.members.map((member) => {
@@ -456,31 +443,22 @@ export function beginTownExploration(
   };
 }
 
-/** Complete only the current action after its conversation has returned to town. */
-export function completeTownExploration(
+/** Complete the current town activity after its conversation has returned to town. */
+function completeTownExploration(
   state: ExpeditionGame,
-  action: TimedAction,
   characters: readonly CharacterDefinition[],
   fatigue?: MentalFatigueDefinition,
 ): TownActionResult {
   const clock = state.clock ?? createActionClock();
-  if (state.dungeon !== null || state.adventure.mode !== "town")
-    return { accepted: false, state, reason: "not-in-town" };
-  if (action.kind !== "town-exploration") return { accepted: false, state, reason: "action-not-current" };
-  const result = completeTimedAction(clock, action);
+  const result = completeTimedAction(clock);
   if (result.completion === undefined) return { accepted: false, state, reason: "action-not-current" };
   let returnedState = state;
   if (state.inventory) {
     const returnedItems = finishInventory(state.inventory, "cleared", state.randomState ?? 1);
     returnedState = { ...state, inventory: returnedItems.inventory, randomState: returnedItems.randomState };
   }
-  // Recovery notifications have their own watermark, independent of action/calendar IDs.
-  const recovered = receiveTownRecoverySignal(
-    { ...returnedState, clock: result.clock },
-    (state.lastTownRecoverySignal ?? -1) + 1,
-    characters,
-    fatigue,
-  );
+  // Calendar, returned items and all members' recovery are committed together.
+  const recovered = recoverTownParty({ ...returnedState, clock: result.clock }, characters, fatigue);
   const recovery = recovered.party.members.map((member) => {
     const before = state.party.members.find(({ id }) => id === member.id)?.status ?? healthyStatus();
     const after = member.status ?? healthyStatus();
@@ -500,10 +478,9 @@ export function completeTownExploration(
   return { accepted: true, state: recovered, completion: { ...result.completion, recovery } };
 }
 export type TownCommand = { readonly type: "advance" } | { readonly type: "choose"; readonly optionId: string };
-/** The caller passes the action ID with every command, including retries from an old screen. */
+/** Apply a conversation command to the current town exploration. */
 export function actInTown(
   state: ExpeditionGame,
-  actionId: number,
   command: TownCommand,
   characters: readonly CharacterDefinition[],
   definition: AdventureDefinition,
@@ -511,8 +488,7 @@ export function actInTown(
   skills?: BattleSkillRules,
 ): TownActionResult {
   const pending = state.clock?.pendingAction;
-  if (pending?.kind !== "town-exploration" || pending.id !== actionId)
-    return { accepted: false, state, reason: "action-not-current" };
+  if (pending?.kind !== "town-exploration") return { accepted: false, state, reason: "action-not-current" };
   if (hasPendingGrowth(state)) return { accepted: false, state, reason: "action-in-progress" };
   if (state.dungeon !== null) return { accepted: false, state, reason: "not-in-town" };
   const result =
@@ -540,7 +516,6 @@ export function actInTown(
   if (result.state.mode !== "town") return { accepted: true, state: updated };
   const completed = completeTownExploration(
     updated,
-    pending,
     skills?.growth ? grownCharacters({ ...updated, inventory: undefined }, skills) : characters,
     fatigue,
   );

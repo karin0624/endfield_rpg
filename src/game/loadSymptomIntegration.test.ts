@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { completeMarketVisit } from "../../tests/helpers/completeMarketVisit";
 import { characters } from "../content/characters";
 import { growthRules } from "../content/growthRules";
 import { initialAdventure } from "../content/initialAdventure";
@@ -14,8 +15,8 @@ import {
   performBattleSkill,
 } from "./battle";
 import { createInitialGameState } from "./createInitialGameState";
-import { actInExpedition, departOnExpedition, type ExpeditionGame, receiveTownRecoverySignal } from "./expedition";
-import { rewardGrowth } from "./growthRuntime";
+import { actInExpedition, actInTown, departOnExpedition, type ExpeditionGame } from "./expedition";
+import { chooseGrowthSkill, grownCharacters, rewardGrowth } from "./growthRuntime";
 import { createParty } from "./party";
 import { deserializeGame, serializeGame } from "./save";
 import { initialLearnedSkills } from "./skills";
@@ -112,7 +113,7 @@ describe("追加発症を含む有効使用の確定順序", () => {
 });
 
 describe("成長・街回復・現行保存との境界", () => {
-  it("症状補正後の成長増分だけHPへ加え、回復通知はHPを増やさず時計も進めない", () => {
+  it("症状補正後の成長増分だけHPへ加え、権利解決後の実街完了はHPを増やさず回復する", () => {
     const initial: ExpeditionGame = {
       adventure: createInitialGameState(initialGameOptions),
       party: {
@@ -135,21 +136,31 @@ describe("成長・街回復・現行保存との境界", () => {
       mentalFatigue: 40,
       status: { physicalFatigue: 100, haze: 75 },
     });
-    // No growth rules passed to recovery: pass the already grown max HP as its public contract requires.
-    const recovered = receiveTownRecoverySignal(
-      grown.state,
-      0,
-      characters.map((c) => (c.id === "player" ? { ...c, maxHp: 24 } : c)),
+    const choice = grown.state.growth?.choice;
+    if (!choice || !grown.state.growth) throw new Error("choice");
+    const settled = chooseGrowthSkill(grown.state, "test-vitality", {
+      catalog: skillCatalog,
+      fatigue: mentalFatigueDefinition,
+      growth: growthRules,
+    });
+    expect(settled.accepted).toBe(true);
+    expect(settled.state.party.members[0].hp).toBe(12);
+    // Recovery uses the confirmed grown maximum HP; it does not grant further growth.
+    const recovered = completeMarketVisit(
+      settled.state,
+      grownCharacters(settled.state, { catalog: skillCatalog, fatigue: mentalFatigueDefinition, growth: growthRules }),
       mentalFatigueDefinition,
     );
     expect(recovered.party.members[0]).toMatchObject({
-      hp: 10,
+      hp: 12,
       mentalFatigue: 30,
       status: { physicalFatigue: 90, haze: 65 },
     });
-    expect(recovered.clock).toBeUndefined();
-    expect(recovered.randomState).toBe(grown.state.randomState);
-    expect(receiveTownRecoverySignal(recovered, 0, characters, mentalFatigueDefinition)).toEqual(recovered);
+    expect(recovered.clock).toMatchObject({ elapsedHalfDays: 1, recoverySteps: 1, pendingAction: null });
+    expect(recovered.randomState).toBe(settled.state.randomState);
+    expect(
+      actInTown(recovered, { type: "advance" }, characters, initialAdventure, mentalFatigueDefinition),
+    ).toMatchObject({ accepted: false, state: recovered });
   });
   it("現行版は端数症状と乱数を保持し、旧版・不正な数値を変換しない", () => {
     const game: ExpeditionGame = {

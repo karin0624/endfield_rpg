@@ -11,7 +11,6 @@ import {
   type ExpeditionGame,
   editExpeditionParty,
   leaveExpedition,
-  receiveTownRecoverySignal,
 } from "./expedition";
 import { chooseGrowthSkill } from "./growthRuntime";
 import { createParty } from "./party";
@@ -55,10 +54,10 @@ describe("Issue46: 公開操作による複数日受入", () => {
       operations.push({ town: place });
       accept(beginTownExploration(game, place, adventure));
       const id = game.clock?.pendingAction?.id ?? -1;
-      accept(actInTown(game, id, { type: "advance" }, characters, adventure, mentalFatigueDefinition, rules));
-      expect(
-        actInTown(game, id, { type: "advance" }, characters, adventure, mentalFatigueDefinition, rules),
-      ).toMatchObject({ accepted: false, state: game });
+      accept(actInTown(game, { type: "advance" }, characters, adventure, mentalFatigueDefinition, rules));
+      expect(actInTown(game, { type: "advance" }, characters, adventure, mentalFatigueDefinition, rules)).toMatchObject(
+        { accepted: false, state: game },
+      );
       return id;
     }
     function selection() {
@@ -81,8 +80,7 @@ describe("Issue46: 公開操作による複数日受入", () => {
         expect(prepareSkillChoice(game.growth, rules.catalog)).toEqual(game.growth);
         const command = selection();
         operations.push({ choose: command });
-        accept(chooseGrowthSkill(game, command, rules));
-        expect(chooseGrowthSkill(game, command, rules)).toMatchObject({ accepted: false, state: game });
+        accept(chooseGrowthSkill(game, command.skillId, rules));
       }
       expect(game.growth?.choice).toBeNull();
     }
@@ -100,7 +98,6 @@ describe("Issue46: 公開操作による複数日受入", () => {
           party: game.party,
           clock: game.clock,
           randomState: game.randomState,
-          lastTownRecoverySignal: game.lastTownRecoverySignal,
           growth: {
             growth: game.growth?.growth,
             characters: game.growth?.characters,
@@ -134,7 +131,7 @@ describe("Issue46: 公開操作による複数日受入", () => {
         expeditionActionId: game.dungeon?.expeditionActionId ?? -1,
       };
     }
-    const recruitAction = town("recruit");
+    town("recruit");
     expect(game.party.members.map(({ id }) => id)).toEqual(["player", "a", "b", "c", "reserve"]);
     expect(game.clock).toMatchObject({ elapsedHalfDays: 1, recoverySteps: 1 });
     const oldTownChoice = selection();
@@ -227,7 +224,7 @@ describe("Issue46: 公開操作による複数日受入", () => {
       expect(game.growth?.growth.characters.map(({ experience }) => experience)).toEqual([5, 5, 5, 5, 0]);
       expect(game.growth?.choice).toBeNull();
       operations.push({ return: expeditionId });
-      accept(leaveExpedition(game, expeditionId, rules));
+      accept(leaveExpedition(game, rules));
     }
     expect(game.dungeon).toBeNull();
     expect(game.clock).toMatchObject({ elapsedHalfDays: 3, recoverySteps: 2 });
@@ -249,14 +246,15 @@ describe("Issue46: 公開操作による複数日受入", () => {
       expect(member.learned.map(({ skillId }) => skillId)).toEqual(["test-heal"]);
     expect(game.party.members[4]).toMatchObject({ hp: 200 });
     expect(game.randomState).toBe(3239474069);
-    expect(leaveExpedition(game, expeditionId, rules)).toMatchObject({ accepted: false, state: game });
+    expect(leaveExpedition(game, rules)).toMatchObject({ accepted: false, state: game });
     reject(lastBranch);
     roundTrip();
-    expect(chooseGrowthSkill(game, oldTownChoice, rules)).toMatchObject({ accepted: false, state: game });
-    expect(chooseGrowthSkill(game, oldBattleChoice, rules)).toMatchObject({ accepted: false, state: game });
-    expect(
-      actInTown(game, recruitAction, { type: "advance" }, characters, adventure, mentalFatigueDefinition, rules),
-    ).toMatchObject({ accepted: false, state: game });
+    expect(chooseGrowthSkill(game, oldTownChoice.skillId, rules)).toMatchObject({ accepted: false, state: game });
+    expect(chooseGrowthSkill(game, oldBattleChoice.skillId, rules)).toMatchObject({ accepted: false, state: game });
+    expect(actInTown(game, { type: "advance" }, characters, adventure, mentalFatigueDefinition, rules)).toMatchObject({
+      accepted: false,
+      state: game,
+    });
     for (let step = 1; step <= (outcome === "failed" ? 6 : 1); step++) {
       town();
       resolve();
@@ -269,9 +267,11 @@ describe("Issue46: 公開操作による複数日受入", () => {
       });
       if (outcome === "failed")
         expect(departOnExpedition(game, characters, dungeon, adventure, rules).accepted).toBe(step === 6);
-      operations.push({ repeatRecoverySignal: game.lastTownRecoverySignal });
-      const before = game;
-      game = receiveTownRecoverySignal(game, game.lastTownRecoverySignal ?? -1, characters, mentalFatigueDefinition);
+      operations.push({ completedConversation: game.adventure.mode });
+      const before = structuredClone(game);
+      expect(actInTown(game, { type: "advance" }, characters, adventure, mentalFatigueDefinition, rules)).toMatchObject(
+        { accepted: false, state: before },
+      );
       expect(game).toEqual(before);
       roundTrip();
     }
@@ -281,7 +281,7 @@ describe("Issue46: 公開操作による複数日受入", () => {
     });
     depart();
     reject(lastBranch);
-    expect(chooseGrowthSkill(game, oldBattleChoice, rules)).toMatchObject({ accepted: false, state: game });
+    expect(chooseGrowthSkill(game, oldBattleChoice.skillId, rules)).toMatchObject({ accepted: false, state: game });
     expect(game.dungeon?.party[0]).toMatchObject({
       attackPower: outcome === "failed" ? 20 : 21,
       basicAttackBonus: outcome === "failed" ? 0 : 2,
@@ -291,7 +291,7 @@ describe("Issue46: 公開操作による複数日受入", () => {
       // Symptoms50 -> town40 -> expedition40 -> town30. Only two of these three half-days heal.
       expect(game.party.members[0].status?.physicalFatigue).toBe(40);
       operations.push({ return: game.clock?.pendingAction?.id });
-      accept(leaveExpedition(game, undefined, rules));
+      accept(leaveExpedition(game, rules));
       expect(game.party.members[0]).toMatchObject({ hp: 142, mentalFatigue: 90, status: { physicalFatigue: 40 } });
       town();
       resolve();

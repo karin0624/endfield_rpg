@@ -3,9 +3,9 @@ import type { ExpeditionRejection } from "../game/expedition";
 import { mentalFatigueLabel } from "../game/mentalFatigue";
 import { characterById, departureRejection } from "../game/party";
 import { effectiveMaxHp, healthyStatus } from "../game/status";
-import { formatAmount, symptomDescriptions } from "../web/sessionFeedback";
 import { characterPortraitPath } from "./characterPortrait";
 import type { PartyModel } from "./partyModel";
+import { formatAmount, symptomDescriptions } from "./statusText";
 
 const rejectionText: Record<ExpeditionRejection, string> = {
   "invalid-items": "持込み個数を確認してください。",

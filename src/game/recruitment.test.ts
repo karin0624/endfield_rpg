@@ -30,9 +30,8 @@ function accepted(result: TownActionResult): ExpeditionGame {
 }
 function invite(state: ExpeditionGame): TownActionResult {
   const started = accepted(beginTownExploration(state, "find-companion", initialAdventure));
-  const id = started.clock?.pendingAction?.id ?? -1;
-  const choice = accepted(actInTown(started, id, { type: "advance" }, characters, initialAdventure));
-  return actInTown(choice, id, { type: "choose", optionId: "invite-gilberta" }, characters, initialAdventure);
+  const choice = accepted(actInTown(started, { type: "advance" }, characters, initialAdventure));
+  return actInTown(choice, { type: "choose", optionId: "invite-gilberta" }, characters, initialAdventure);
 }
 describe("街探索による仲間加入", () => {
   it("初期はロッシ単独。会話終了だけで加入し、初期HPとフラグを持つ控えになる", () => {
@@ -40,18 +39,11 @@ describe("街探索による仲間加入", () => {
     expect(initial.party.members.map(({ id }) => id)).toEqual(["player"]);
     expect(departOnExpedition(initial, characters, initialDungeon, initialAdventure).accepted).toBe(true);
     let state = accepted(beginTownExploration(initial, "find-companion", initialAdventure));
-    const actionId = state.clock?.pendingAction?.id ?? -1;
     expect(state.party.members).toHaveLength(1);
-    state = accepted(actInTown(state, actionId, { type: "advance" }, characters, initialAdventure));
+    state = accepted(actInTown(state, { type: "advance" }, characters, initialAdventure));
     expect(state.party.members).toHaveLength(1);
     expect(state.clock?.elapsedHalfDays).toBe(0);
-    const joined = actInTown(
-      state,
-      actionId,
-      { type: "choose", optionId: "invite-gilberta" },
-      characters,
-      initialAdventure,
-    );
+    const joined = actInTown(state, { type: "choose", optionId: "invite-gilberta" }, characters, initialAdventure);
     state = accepted(joined);
     expect(state.party.members.map(({ id, hp }) => ({ id, hp }))).toEqual([
       { id: "player", hp: 20 },
@@ -61,16 +53,15 @@ describe("街探索による仲間加入", () => {
     expect(state.adventure.flags).toContain("joined-gilberta");
     expect(joined).toMatchObject({ completion: { recruitedIds: ["gilberta"], calendarHalfDays: 1, recoverySteps: 1 } });
     expect(
-      actInTown(state, actionId, { type: "choose", optionId: "invite-gilberta" }, characters, initialAdventure),
+      actInTown(state, { type: "choose", optionId: "invite-gilberta" }, characters, initialAdventure),
     ).toMatchObject({ accepted: false, reason: "action-not-current" });
     expect(state.clock).toMatchObject({ elapsedHalfDays: 1, recoverySteps: 1 });
     expect(setPartySlot(state.party, 1, "gilberta").accepted).toBe(true);
   });
   it("見送りは加入も加入フラグも残さず、再訪で改めて選べる", () => {
     let state = accepted(beginTownExploration(game(), "find-companion", initialAdventure));
-    const id = state.clock?.pendingAction?.id ?? -1;
-    state = accepted(actInTown(state, id, { type: "advance" }, characters, initialAdventure));
-    const declined = actInTown(state, id, { type: "choose", optionId: "leave" }, characters, initialAdventure);
+    state = accepted(actInTown(state, { type: "advance" }, characters, initialAdventure));
+    const declined = actInTown(state, { type: "choose", optionId: "leave" }, characters, initialAdventure);
     state = accepted(declined);
     expect(state.party.members.map(({ id }) => id)).toEqual(["player"]);
     expect(state.adventure.flags).not.toContain("joined-gilberta");
@@ -103,13 +94,7 @@ describe("街探索による仲間加入", () => {
     if (!duplicate.accepted) throw new Error(duplicate.reason);
     state = { ...state, party: duplicate.state };
     state = accepted(beginTownExploration(state, "find-companion", initialAdventure));
-    const revisited = actInTown(
-      state,
-      state.clock?.pendingAction?.id ?? -1,
-      { type: "advance" },
-      characters,
-      initialAdventure,
-    );
+    const revisited = actInTown(state, { type: "advance" }, characters, initialAdventure);
     expect(revisited).toMatchObject({
       accepted: true,
       completion: { recruitedIds: [] },
@@ -163,7 +148,7 @@ describe("街探索による仲間加入", () => {
     };
     const state = accepted(beginTownExploration(game(), "test", definition));
     const before = structuredClone(state);
-    const result = actInTown(state, state.clock?.pendingAction?.id ?? -1, { type: "advance" }, characters, definition);
+    const result = actInTown(state, { type: "advance" }, characters, definition);
     expect(result.state).toEqual(before);
     expect(state).toEqual(before);
     expect(result).toMatchObject({
@@ -196,13 +181,7 @@ describe("街探索による仲間加入", () => {
       ],
     };
     const state = accepted(beginTownExploration(accepted(invite(game())), "test", definition));
-    const completed = actInTown(
-      state,
-      state.clock?.pendingAction?.id ?? -1,
-      { type: "advance" },
-      characters,
-      definition,
-    );
+    const completed = actInTown(state, { type: "advance" }, characters, definition);
     const next = accepted(completed);
     expect(next.adventure.flags).not.toContain("enrollment-verified");
     expect(next.party.members.filter(({ id }) => id === "gilberta")).toHaveLength(1);
@@ -224,13 +203,7 @@ describe("街探索による仲間加入", () => {
       ],
     };
     const state = accepted(beginTownExploration(game(), "test", definition));
-    const completed = actInTown(
-      state,
-      state.clock?.pendingAction?.id ?? -1,
-      { type: "advance" },
-      definitions,
-      definition,
-    );
+    const completed = actInTown(state, { type: "advance" }, definitions, definition);
     expect(completed).toMatchObject({
       accepted: true,
       completion: { recruitedIds: ["gilberta", "scout"], calendarHalfDays: 1, recoverySteps: 1 },

@@ -182,26 +182,15 @@ export function grantSkillExperience(
   return { accepted: true, state: prepareSkillChoice({ ...state, growth: growth.state, characters }, catalog) };
 }
 
-export function chooseSkill(
-  state: ExplorationSkills,
-  input: {
-    readonly explorationId: string;
-    readonly characterId: string;
-    readonly level: number;
-    readonly skillId: string;
-  },
-  catalog: SkillCatalog,
-): AcquisitionResult {
-  const invalid = sessionRejection(state, input.explorationId);
-  if (invalid) return invalid;
+export function chooseSkill(state: ExplorationSkills, skillId: string, catalog: SkillCatalog): AcquisitionResult {
+  if (state.closed) return reject(state, "closed-exploration");
   const choice = state.choice;
-  if (choice?.status !== "offered" || choice.characterId !== input.characterId || choice.level !== input.level)
-    return reject(state, "wrong-choice");
-  if (!choice.candidateIds.includes(input.skillId)) return reject(state, "candidate-not-offered");
-  const selected = skillById(catalog, input.skillId);
+  if (choice?.status !== "offered") return reject(state, "wrong-choice");
+  if (!choice.candidateIds.includes(skillId)) return reject(state, "candidate-not-offered");
+  const selected = skillById(catalog, skillId);
   const knownSelection = state.characters
-    .find(({ characterId }) => characterId === input.characterId)
-    ?.learned.find(({ skillId }) => skillId === input.skillId);
+    .find(({ characterId }) => characterId === choice.characterId)
+    ?.learned.find((entry) => entry.skillId === skillId);
   if (
     knownSelection &&
     (knownSelection.type !== "passive" ||
@@ -210,19 +199,19 @@ export function chooseSkill(
   )
     return reject(state, "ineligible-candidate");
   const characters = state.characters.map((character) => {
-    if (character.characterId !== input.characterId) return character;
-    const known = character.learned.find(({ skillId }) => skillId === input.skillId);
+    if (character.characterId !== choice.characterId) return character;
+    const known = character.learned.find((entry) => entry.skillId === skillId);
     const learned = known
       ? character.learned.map((entry) =>
-          entry.skillId === input.skillId && entry.type === "passive" ? { ...entry, rank: entry.rank + 1 } : entry,
+          entry.skillId === skillId && entry.type === "passive" ? { ...entry, rank: entry.rank + 1 } : entry,
         )
-      : [...character.learned, learn(catalog, input.skillId, "expedition", "choice")];
+      : [...character.learned, learn(catalog, skillId, "expedition", "choice")];
     return { ...character, learned };
   });
   const growth = {
     ...state.growth,
     characters: state.growth.characters.map((character) =>
-      character.characterId === input.characterId
+      character.characterId === choice.characterId
         ? { ...character, pendingChoiceLevels: character.pendingChoiceLevels.slice(1) }
         : character,
     ),

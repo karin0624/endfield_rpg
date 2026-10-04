@@ -19,6 +19,7 @@
     "test:editor": "sh scripts/run-browser-test.sh editor",
     "test:editor:inside": "PLAYWRIGHT_EDITOR=1 sh scripts/run-playwright-quality.sh editor",
     "build:debug": "node scripts/check-assets.mjs && tsc --noEmit && vite build --mode debug --outDir dist-debug",
+    "build:views": "node scripts/check-assets.mjs && tsc --noEmit && vite build --config vite.views.config.ts",
     "test:coverage": "sh scripts/run-browser-test.sh coverage",
     "test:coverage:inside": "npm run test:e2e:inside --",
     "test:long": "sh scripts/run-browser-test.sh long",

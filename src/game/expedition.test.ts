@@ -256,13 +256,13 @@ describe("仲間と出撃編成", () => {
       if (!started.accepted) throw new Error(started.reason);
       const id = started.state.clock?.pendingAction?.id;
       if (id === undefined) throw new Error("街探索IDがありません");
-      const completed = actInTown(started.state, id, { type: "advance" }, companions, initialAdventure);
+      const completed = actInTown(started.state, { type: "advance" }, companions, initialAdventure);
       if (!completed.accepted) throw new Error(completed.reason);
       state = completed.state;
       expect(state.party.members[0].hp).toBe(20);
       expect(state.party.members[0].status?.incapacityRecoverySteps).toBe(step === 6 ? null : 6 - step);
       expect(departOnExpedition(state, companions, initialDungeon, initialAdventure).accepted).toBe(step === 6);
-      expect(actInTown(state, id, { type: "advance" }, companions, initialAdventure).accepted).toBe(false);
+      expect(actInTown(state, { type: "advance" }, companions, initialAdventure).accepted).toBe(false);
     }
     expect(state.clock).toMatchObject({ elapsedHalfDays: 7, recoverySteps: 6 });
   });
@@ -277,13 +277,7 @@ describe("仲間と出撃編成", () => {
     // A normal town action raises both maxima without healing their current HP.
     const started = beginTownExploration(state, "market", initialAdventure);
     if (!started.accepted) throw new Error(started.reason);
-    const town = actInTown(
-      started.state,
-      started.state.clock?.pendingAction?.id ?? -1,
-      { type: "advance" },
-      companions,
-      initialAdventure,
-    );
+    const town = actInTown(started.state, { type: "advance" }, companions, initialAdventure);
     if (!town.accepted) throw new Error(town.reason);
     state = applyPartyStatus(town.state, "player", { kind: "haze", amount: 10 }, companions);
     const route: DungeonDefinition = {
@@ -310,7 +304,6 @@ describe("仲間と出撃編成", () => {
     };
     const departed = departOnExpedition(state, companions, route, initialAdventure);
     if (!departed.accepted) throw new Error(departed.reason);
-    const actionId = departed.state.clock?.pendingAction?.id;
     let update = actInExpedition(departed.state, { type: "enter", nodeId: "boss" }, route, initialAdventure);
     if (outcome === "cleared")
       update = actInExpedition(
@@ -320,7 +313,7 @@ describe("仲間と出撃編成", () => {
         initialAdventure,
       );
     expect(update.state.dungeon?.outcome).toBe(outcome);
-    const returned = leaveExpedition(update.state, actionId);
+    const returned = leaveExpedition(update.state);
     if (!returned.accepted) throw new Error(returned.reason);
     expect(returned.state.party.members).toMatchObject([
       {
@@ -331,7 +324,7 @@ describe("仲間と出撃編成", () => {
       { id: "gilberta", hp: 15, status: { physicalFatigue: 10 } },
     ]);
     expect(returned.state.clock).toMatchObject({ elapsedHalfDays: 2, recoverySteps: 1 });
-    expect(leaveExpedition(returned.state, actionId).accepted).toBe(false);
+    expect(leaveExpedition(returned.state).accepted).toBe(false);
   });
 });
 

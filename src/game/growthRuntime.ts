@@ -120,13 +120,9 @@ export function rewardGrowth(game: ExpeditionGame, reward: ExperienceReward, rul
     ),
   } as const;
 }
-export function chooseGrowthSkill(
-  game: ExpeditionGame,
-  input: Parameters<typeof chooseSkill>[1],
-  rules: BattleSkillRules,
-) {
+export function chooseGrowthSkill(game: ExpeditionGame, skillId: string, rules: BattleSkillRules) {
   if (!game.growth) return { accepted: false, state: game, reason: "growth-unavailable" } as const;
-  const result = chooseSkill({ ...game.growth, randomState: game.randomState ?? 1 }, input, rules.catalog);
+  const result = chooseSkill({ ...game.growth, randomState: game.randomState ?? 1 }, skillId, rules.catalog);
   if (!result.accepted) return { ...result, state: game };
   return {
     accepted: true,

@@ -103,12 +103,7 @@ export function mountDungeonUi(
     getItems?: () => ItemState | undefined;
     allowBasicAttack?: boolean;
     getGrowth?: () => ExplorationSkills | undefined;
-    chooseGrowth?: (input: {
-      explorationId: string;
-      characterId: string;
-      level: number;
-      skillId: string;
-    }) => DungeonState | undefined;
+    chooseGrowth?: (skillId: string) => DungeonState | undefined;
     skillRules?: BattleSkillRules;
     calendarLabel: string;
     combatants: readonly BattleCombatantDefinition[];

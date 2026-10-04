@@ -1,5 +1,9 @@
 import { expect, it } from "vitest";
-import { calendarLabel, completionFeedback, symptomLabel } from "./sessionFeedback";
+import { characters } from "../content/characters";
+import { initialAdventure } from "../content/initialAdventure";
+import { actInTown, applyPartyStatus, beginTownExploration } from "../game/expedition";
+import { campaignRules, createCampaignGame } from "./campaignModel";
+import { calendarLabel, completionFeedback, symptomLabel } from "./statusText";
 
 it("現在の症状と必要な街探索回数を伝え、健康な仲間にラベルを増やさない", () => {
   expect(symptomLabel({ physicalFatigue: 50, haze: 25, incapacityRecoverySteps: 6 })).toBe(
@@ -7,6 +11,33 @@ it("現在の症状と必要な街探索回数を伝え、健康な仲間にラ�
   );
   expect(symptomLabel({ physicalFatigue: 0, haze: 0, incapacityRecoverySteps: null })).toBe("");
   expect(calendarLabel()).toBe("1日目 · 昼");
+});
+
+it("実際の街完了から全快・療養継続・精神疲労の減少と無変更を伝える", () => {
+  let game = createCampaignGame();
+  game = applyPartyStatus(game, "player", { kind: "physicalFatigue", amount: 10 }, characters);
+  game = applyPartyStatus(game, "player", { kind: "haze", amount: 10 }, characters);
+  game = applyPartyStatus(game, "player", { kind: "incapacity" }, characters);
+  game = {
+    ...game,
+    party: { ...game.party, members: game.party.members.map((member) => ({ ...member, mentalFatigue: 20 })) },
+  };
+  const visit = beginTownExploration(game, "market", initialAdventure);
+  const ended = actInTown(
+    visit.state,
+    { type: "advance" },
+    characters,
+    initialAdventure,
+    campaignRules.fatigue,
+    campaignRules,
+  );
+  expect(ended.accepted).toBe(true);
+  if (!ended.accepted) throw new Error(ended.reason);
+  expect(completionFeedback(ended.completion, characters)).toEqual([
+    "ロッシ · 精神疲労：20 → 10（なし） / 肉体疲労：10 → 0（なし） / 朦朧：10 → 0（なし） / 戦闘不能：あと街探索6回 → 5回",
+  ]);
+  expect(calendarLabel(ended.state.clock)).toBe("1日目 · 夜");
+  expect(completionFeedback(undefined, characters)).toEqual([]);
 });
 it("街での軽快と復帰を表示し、変化のない仲間は結果へ並べない", () => {
   const before = { physicalFatigue: 50, haze: 25, incapacityRecoverySteps: 1 } as const;

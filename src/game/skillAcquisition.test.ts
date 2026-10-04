@@ -95,13 +95,7 @@ function select(
   skills = catalog,
 ): ExplorationSkills {
   if (!state.choice || !skillId) throw new Error("選択候補がありません");
-  return accepted(
-    chooseSkill(
-      state,
-      { explorationId: "run-1", characterId: state.choice.characterId, level: state.choice.level, skillId },
-      skills,
-    ),
-  );
+  return accepted(chooseSkill(state, skillId, skills));
 }
 
 describe("探索内スキル取得コア", () => {
@@ -189,13 +183,8 @@ describe("探索内スキル取得コア", () => {
     const before = structuredClone(state);
     expect(prepareSkillChoice(state, catalog)).toEqual(before);
     expect(state).toEqual(before);
-    for (const input of [
-      { explorationId: "old-run", characterId: "player", level: 2, skillId: "test-heal" },
-      { explorationId: "run-1", characterId: "gilberta", level: 2, skillId: "test-heal" },
-      { explorationId: "run-1", characterId: "player", level: 3, skillId: "test-heal" },
-      { explorationId: "run-1", characterId: "player", level: 2, skillId: "required" },
-    ]) {
-      expect(chooseSkill(state, input, catalog)).toMatchObject({ accepted: false, state: before });
+    for (const skillId of ["required", "missing"]) {
+      expect(chooseSkill(state, skillId, catalog)).toMatchObject({ accepted: false, state: before });
       expect(state).toEqual(before);
     }
     expect(
@@ -219,9 +208,7 @@ describe("探索内スキル取得コア", () => {
       acquisition: "choice",
       origin: "expedition",
     });
-    expect(
-      chooseSkill(state, { explorationId: "run-1", characterId: "player", level: 2, skillId: "test-heal" }, catalog),
-    ).toMatchObject({ accepted: false, state });
+    expect(chooseSkill(state, "test-heal", catalog)).toMatchObject({ accepted: false, state });
     state = reward(state, 10, definition, catalog, "player", "next");
     expect(state.choice?.candidateIds).not.toContain("test-heal");
   });
@@ -293,9 +280,7 @@ describe("探索内スキル取得コア", () => {
     expect(state.randomState).toBe(1);
     expect(state.growth.characters[0].pendingChoiceLevels).toEqual([2]);
     expect(prepareSkillChoice(state, skills)).toEqual(state);
-    expect(
-      chooseSkill(state, { explorationId: "run-1", characterId: "player", level: 2, skillId: "test-strike" }, skills),
-    ).toMatchObject({ accepted: false, reason: "wrong-choice", state });
+    expect(chooseSkill(state, "test-strike", skills)).toMatchObject({ accepted: false, reason: "wrong-choice", state });
   });
   it("初期化で保証・抽選・強化・権利を除き、初期能力と初期パッシブに戻す", () => {
     const definition = progression(1, 1);
@@ -315,14 +300,18 @@ describe("探索内スキル取得コア", () => {
     expect(state.choice).toBeNull();
     expect(state.randomState).toBe(rng);
     expect(state.growth.appliedRewardIds).toEqual(["reward-1", "to-five"]);
-    expect(
-      chooseSkill(state, { explorationId: "run-1", characterId: "player", level: 3, skillId: "extra" }, catalog),
-    ).toMatchObject({ accepted: false, reason: "closed-exploration", state });
+    expect(chooseSkill(state, "extra", catalog)).toMatchObject({
+      accepted: false,
+      reason: "closed-exploration",
+      state,
+    });
     const next = createExplorationSkills("run-2", state.randomState, definition, catalog);
     expect(next.randomState).toBe(rng);
-    expect(
-      chooseSkill(next, { explorationId: "run-1", characterId: "player", level: 2, skillId: "test-strength" }, catalog),
-    ).toMatchObject({ accepted: false, reason: "wrong-exploration", state: next });
+    expect(chooseSkill(next, "test-strength", catalog)).toMatchObject({
+      accepted: false,
+      reason: "wrong-choice",
+      state: next,
+    });
   });
   it("未決定の初期定義を空習得へ変換せず、解禁漏れになる初期レベルを拒否する", () => {
     expect(() =>

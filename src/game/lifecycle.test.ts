@@ -52,18 +52,11 @@ function roundTrip(game: ExpeditionGame): ExpeditionGame {
 function town(game: ExpeditionGame, place = "market", invite = false): ExpeditionGame {
   const begun = beginTownExploration(game, place, initialAdventure);
   if (!begun.accepted) throw new Error(begun.reason);
-  const id = begun.state.clock?.pendingAction?.id ?? -1;
-  let update = actInTown(begun.state, id, { type: "advance" }, definitions, initialAdventure);
+  let update = actInTown(begun.state, { type: "advance" }, definitions, initialAdventure);
   if (invite)
-    update = actInTown(
-      update.state,
-      id,
-      { type: "choose", optionId: "invite-gilberta" },
-      definitions,
-      initialAdventure,
-    );
+    update = actInTown(update.state, { type: "choose", optionId: "invite-gilberta" }, definitions, initialAdventure);
   if (!update.accepted) throw new Error(update.reason);
-  expect(actInTown(update.state, id, { type: "advance" }, definitions, initialAdventure).accepted).toBe(false);
+  expect(actInTown(update.state, { type: "advance" }, definitions, initialAdventure).accepted).toBe(false);
   return update.state;
 }
 function expedition(
@@ -101,12 +94,11 @@ function expedition(
     act({ type: "enter", nodeId: "boss-c" });
     fight();
   }
-  const actionId = game.clock?.pendingAction?.id;
   expect(game.dungeon?.outcome).toBe(expectedOutcome);
   if (branch === "battle-a") expect(game.party.members[0].hp).toBeLessThan(153);
-  const returned = leaveExpedition(game, actionId);
+  const returned = leaveExpedition(game);
   if (!returned.accepted) throw new Error(returned.reason);
-  expect(leaveExpedition(returned.state, actionId).accepted).toBe(false);
+  expect(leaveExpedition(returned.state).accepted).toBe(false);
   expect(returned.state.clock?.elapsedHalfDays).toBe(before + 1);
   return returned.state;
 }

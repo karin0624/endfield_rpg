@@ -327,11 +327,7 @@ it("レベルとパッシブを得ても速度123と基礎命中率0.73は変わ
   for (const skillId of ["test-strength", "test-power", "test-vitality"]) {
     const growth = game.growth;
     if (!growth?.choice) throw new Error("選択がありません");
-    const selected = chooseGrowthSkill(
-      game,
-      { explorationId: growth.explorationId, characterId: "player", level: growth.choice.level, skillId },
-      rules,
-    );
+    const selected = chooseGrowthSkill(game, skillId, rules);
     if (!selected.accepted) throw new Error(selected.reason);
     game = selected.state;
     const character = grownCharacters(game, rules).find((entry) => entry.id === "player");

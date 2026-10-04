@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { completeMarketVisit } from "../../tests/helpers/completeMarketVisit";
 import { characters } from "../content/characters";
 import { initialAdventure } from "../content/initialAdventure";
 import { initialDungeon } from "../content/initialDungeon";
@@ -14,7 +15,6 @@ import {
   type ExpeditionGame,
   editExpeditionParty,
   leaveExpedition,
-  receiveTownRecoverySignal,
 } from "./expedition";
 import { createGameRandom, nextGameRandom } from "./gameRandom";
 import { createParty } from "./party";
@@ -29,7 +29,6 @@ interface SavePayload {
   };
   clock: { elapsedHalfDays: number; recoverySteps: number };
   randomState: number;
-  lastTownRecoverySignal: number | null;
 }
 function initial(): ExpeditionGame {
   return {
@@ -51,13 +50,7 @@ function restored(game: ExpeditionGame): ExpeditionGame {
 function market(game: ExpeditionGame): ExpeditionGame {
   const started = beginTownExploration(game, "market", initialAdventure);
   if (!started.accepted) throw new Error(started.reason);
-  const ended = actInTown(
-    started.state,
-    started.state.clock?.pendingAction?.id ?? -1,
-    { type: "advance" },
-    characters,
-    initialAdventure,
-  );
+  const ended = actInTown(started.state, { type: "advance" }, characters, initialAdventure);
   if (!ended.accepted) throw new Error(ended.reason);
   return ended.state;
 }
@@ -122,50 +115,35 @@ describe("街のセーブ", () => {
   it("加入フラグ、控え、空き枠、現在地を保持し、同じ相手を再加入させない", () => {
     const started = beginTownExploration(initial(), "find-companion", initialAdventure);
     if (!started.accepted) throw new Error(started.reason);
-    const id = started.state.clock?.pendingAction?.id ?? -1;
-    const line = actInTown(started.state, id, { type: "advance" }, characters, initialAdventure);
-    const joined = actInTown(
-      line.state,
-      id,
-      { type: "choose", optionId: "invite-gilberta" },
-      characters,
-      initialAdventure,
-    );
+    const line = actInTown(started.state, { type: "advance" }, characters, initialAdventure);
+    const joined = actInTown(line.state, { type: "choose", optionId: "invite-gilberta" }, characters, initialAdventure);
     if (!joined.accepted) throw new Error(joined.reason);
     const loaded = restored(joined.state);
     expect(loaded.adventure).toMatchObject({ currentPlaceId: "find-companion", flags: ["joined-gilberta"] });
     expect(loaded.party.members.map(({ id }) => id)).toEqual(["player", "gilberta"]);
     expect(loaded.party.slots).toEqual(["player", null, null, null]);
     const again = beginTownExploration(loaded, "find-companion", initialAdventure);
-    const completed = actInTown(
-      again.state,
-      again.state.clock?.pendingAction?.id ?? -1,
-      { type: "advance" },
-      characters,
-      initialAdventure,
-    );
+    const completed = actInTown(again.state, { type: "advance" }, characters, initialAdventure);
     expect(completed.state.party.members).toHaveLength(2);
     const empty = editExpeditionParty(loaded, 0, null);
     expect(restored(empty.state).party.slots).toEqual([null, null, null, null]);
   });
-  it("乱数と回復通知の重複抑止を復元する", () => {
-    let game = receiveTownRecoverySignal(initial(), 100, characters);
+  it("乱数と街回復の残量を復元し、次の実探索でだけ回復する", () => {
+    let game = initial();
     game = { ...game, randomState: createGameRandom(0) };
     game = applyPartyStatus(game, "player", { kind: "haze", amount: 10 }, characters);
     const loaded = restored(game);
     expect(nextGameRandom(loaded.randomState ?? -1)).toEqual({ state: 1013904223, value: 1013904223 / 4294967296 });
-    expect(receiveTownRecoverySignal(loaded, 100, characters).party.members[0].status?.haze).toBe(10);
-    expect(receiveTownRecoverySignal(loaded, 101, characters).party.members[0].status?.haze).toBe(0);
+    expect(actInTown(loaded, { type: "advance" }, characters, initialAdventure)).toMatchObject({
+      accepted: false,
+      state: loaded,
+    });
+    expect(loaded.party.members[0].status?.haze).toBe(10);
+    expect(completeMarketVisit(loaded, characters).party.members[0].status?.haze).toBe(0);
   });
   it("会話、必須選択、探索途中を保存しない", () => {
     const started = beginTownExploration(initial(), "find-companion", initialAdventure);
-    const choice = actInTown(
-      started.state,
-      started.state.clock?.pendingAction?.id ?? -1,
-      { type: "advance" },
-      characters,
-      initialAdventure,
-    );
+    const choice = actInTown(started.state, { type: "advance" }, characters, initialAdventure);
     const departed = departOnExpedition(initial(), characters, initialDungeon, initialAdventure);
     for (const game of [started.state, choice.state, departed.state])
       expect(serializeGame(game, definitions)).toMatchObject({ accepted: false, reason: "not-in-town" });
@@ -201,21 +179,15 @@ describe("街のセーブ", () => {
     (v: SavePayload) => {
       v.randomState = -1;
     },
-    (v: SavePayload) => {
-      v.lastTownRecoverySignal = 0.5;
-    },
   ])("不正な外部データを拒否する %#", (corrupt) => {
     const value = JSON.parse(encoded(initial()));
     corrupt(value);
     expect(deserializeGame(JSON.stringify(value), definitions).accepted).toBe(false);
   });
-  it("加入済みと未加入の矛盾、回復の重複抑止値の欠落を拒否する", () => {
+  it("加入済みと未加入の矛盾を拒否する", () => {
     const value = JSON.parse(encoded(initial()));
     value.adventure.flags = ["joined-gilberta"];
     expect(deserializeGame(JSON.stringify(value), definitions).accepted).toBe(false);
-    const recovered = JSON.parse(encoded(market(initial())));
-    recovered.lastTownRecoverySignal = null;
-    expect(deserializeGame(JSON.stringify(recovered), definitions).accepted).toBe(false);
   });
   it("壊れたJSONと未対応形式を拒否する", () => {
     expect(deserializeGame("{", definitions)).toMatchObject({ accepted: false, reason: "invalid-data" });
@@ -258,7 +230,6 @@ describe("保存JSONの公開境界", () => {
     ["負の療養回数", "clock.recoverySteps", -1],
     ["行動IDのゼロ", "clock.nextActionId", 0],
     ["生活時計と行動IDの矛盾", "clock.nextActionId", 2],
-    ["負の処理済通知", "lastTownRecoverySignal", -1],
     ["負の物品版", "inventory.items.version", -1],
     ["端数の物品版", "inventory.items.version", 0.5],
     ["端数の所持金", "inventory.balance", 0.5],
@@ -291,7 +262,6 @@ describe("保存JSONの公開境界", () => {
       },
       clock: { elapsedHalfDays: 0, recoverySteps: 0, nextActionId: 1 },
       randomState: 1,
-      lastTownRecoverySignal: null,
       growth: null,
       inventory: {
         balance: 0,
@@ -301,7 +271,7 @@ describe("保存JSONの公開境界", () => {
     };
     expect(deserializeGame(JSON.stringify(source), definitions)).toMatchObject({ accepted: true });
     for (const [path, required] of [
-      [[], ["version", "adventure", "party", "clock", "randomState", "lastTownRecoverySignal", "growth", "inventory"]],
+      [[], ["version", "adventure", "party", "clock", "randomState", "growth", "inventory"]],
       [["adventure"], ["currentPlaceId", "flags"]],
       [["party"], ["members", "slots"]],
       [["clock"], ["elapsedHalfDays", "recoverySteps", "nextActionId"]],
@@ -390,7 +360,4 @@ it("時計・療養残りの型と安全整数上限、既処理通知の遅れ�
     payload.party.members[0].status.incapacityRecoverySteps = value;
     expect(deserializeGame(JSON.stringify(payload), definitions)).toEqual({ accepted: false, reason: "invalid-data" });
   }
-  const payload = JSON.parse(encoded(market(market(initial()))));
-  payload.lastTownRecoverySignal = 0;
-  expect(deserializeGame(JSON.stringify(payload), definitions)).toEqual({ accepted: false, reason: "invalid-data" });
 });

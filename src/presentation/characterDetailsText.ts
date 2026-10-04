@@ -9,7 +9,7 @@ import {
   type SkillCatalog,
   skillById,
 } from "../game/skills";
-import { formatAmount } from "./sessionFeedback";
+import { formatAmount } from "./statusText";
 
 /** Supplied anew on every open; reading never initializes a growth session. */
 export interface CharacterDetailsContext {

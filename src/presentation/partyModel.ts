@@ -9,14 +9,14 @@ import {
 } from "../game/expedition";
 import type { ItemStack } from "../game/items";
 import { type CharacterDefinition, departureRejection, type PartySlots } from "../game/party";
-import type { CharacterDetailsContext } from "../web/characterDetailsText";
-import { togglePartySelection } from "../web/partySelection";
 import {
   type CharacterDetailsInteraction,
   type CharacterDetailsModel,
   createCharacterDetailsModel,
   reduceCharacterDetails,
 } from "./characterDetails";
+import type { CharacterDetailsContext } from "./characterDetailsText";
+import { togglePartySelection } from "./partySelection";
 
 export type PartyFocus =
   | { readonly kind: "slot"; readonly slot: number }
