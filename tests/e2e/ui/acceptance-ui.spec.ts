@@ -56,11 +56,11 @@ test("成長の新規・強化・保証表示と二人の権利をキーボー�
   await expect(panel).toContainText("レベル保証で習得：保証技（探索中のみ）");
   await expect(panel.getByRole("button", { name: /^known/ })).toContainText("パッシブ 強化 1→2 / 上限3");
   await expect(panel.getByRole("button", { name: /^new/ })).toContainText("パッシブ 習得 0→1 / 上限3");
-  const before = await page.locator("#state").textContent();
+  const before = JSON.parse((await page.locator("#state").textContent()) ?? "");
   const offers = await panel.getByRole("button").allTextContents();
   await page.setViewportSize({ width: 320, height: 650 });
   await page.keyboard.press("Escape");
-  expect(await page.locator("#state").textContent()).toBe(before);
+  expect(JSON.parse((await page.locator("#state").textContent()) ?? "")).toEqual(before);
   expect(await panel.getByRole("button").allTextContents()).toEqual(offers);
   for (const choice of await panel.getByRole("button").all()) {
     await page.keyboard.press("Tab");
@@ -84,10 +84,10 @@ test("成長の候補不足は理由を示して権利を保持し、キー入�
     "有効な3候補が不足しています。選択権利を保持したまま進行を停止しています。",
   );
   await expect(panel.getByRole("button")).toHaveCount(0);
-  const before = await page.locator("#state").textContent();
+  const before = JSON.parse((await page.locator("#state").textContent()) ?? "");
   for (const key of ["Escape", "Enter", "Space"]) await page.keyboard.press(key);
   await expect(panel.getByRole("alert")).toBeVisible();
-  expect(await page.locator("#state").textContent()).toBe(before);
+  expect(JSON.parse((await page.locator("#state").textContent()) ?? "")).toEqual(before);
   await expect(page.locator("#commits")).toHaveText("0");
 });
 

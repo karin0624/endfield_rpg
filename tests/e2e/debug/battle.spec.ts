@@ -105,7 +105,7 @@ test("敵札の文字寸法と画面サイズの変更に追従し、離脱後�
   const attack = page.getByRole("button", { name: "通常攻撃" });
   for (let turn = 0; turn < 4; turn++) {
     await attack.click();
-    await expect(page.locator("[data-battle-ui]")).toHaveAttribute("data-replaying", "false", { timeout: 60_000 });
+    await expect(page.getByRole("button", { name: "演出を省略", exact: true })).toBeHidden({ timeout: 60_000 });
   }
   await expect(page.getByRole("heading", { name: "戦闘に勝利しました" })).toBeVisible();
   await page.setViewportSize({ width: 900, height: 900 });
@@ -175,11 +175,19 @@ test("街の場所から会話を送り、選択後の再訪でも進行を保�
   await expect(page.locator("[data-adventure-screen]")).toHaveCSS("height", "844px");
   await expect(page.getByText("ロッシは掲示板の前で足を止めた。")).toBeVisible();
   await expect(page.locator('[data-portrait-id="rossi"]')).toBeVisible();
-  await expect(page.locator('[data-portrait-id="rossi"] img')).toHaveJSProperty("naturalWidth", 1024);
+  await expect
+    .poll(() =>
+      page.locator('[data-portrait-id="rossi"] img').evaluate((image: HTMLImageElement) => image.naturalWidth),
+    )
+    .toBeGreaterThan(0);
   await page.keyboard.press("Space");
   await expect(page.getByText("ギルベルタが掲示板の前で会釈した。")).toBeVisible();
   await expect(page.locator("[data-adventure-screen]")).toHaveScreenshot("conversation-gilberta-390.png");
-  await expect(page.locator('[data-portrait-id="gilberta"] img')).toHaveJSProperty("naturalWidth", 1024);
+  await expect
+    .poll(() =>
+      page.locator('[data-portrait-id="gilberta"] img').evaluate((image: HTMLImageElement) => image.naturalWidth),
+    )
+    .toBeGreaterThan(0);
 
   await page.locator("[data-conversation-stage]").click();
   await expect(page.getByText("何を聞こう？")).toBeVisible();

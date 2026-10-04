@@ -5,6 +5,7 @@ import type { LoadSymptomKind } from "../game/loadSymptoms";
 import { createParty } from "../game/party";
 import { deserializeGame, serializeGame } from "../game/save";
 import { createExplorationSkills } from "../game/skillAcquisition";
+import { skillById } from "../game/skills";
 import { type ContentDefinitions, contentDefinitions, validateContent } from "./validateContent";
 
 function fixture(): ContentDefinitions {
@@ -14,7 +15,7 @@ function fixture(): ContentDefinitions {
 function addedContent(flag = "joined-new"): ContentDefinitions {
   const c = fixture();
   const character = { ...c.characters[1], id: "new-companion", name: "追加の仲間" };
-  const newSkill = { ...c.skills.skills[0], id: "new-strike" };
+  const newSkill = { ...skillById(c.skills, "test-strike"), id: "new-strike" };
   const roster = [...c.characters, character];
   const conversation = {
     id: "new-recruitment",

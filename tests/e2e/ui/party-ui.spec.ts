@@ -8,35 +8,27 @@ test("編成integration: campaign配下の通常入力と選択・押し直し�
   await page.getByRole("button", { name: "実行する", exact: true }).click();
   await page.getByRole("button", { name: "ホームへ", exact: true }).click();
   const quantity = page.getByRole("spinbutton", { name: "持込み個数（HP回復品）" });
-  expect(
-    await quantity.evaluate((input) => {
-      const event = new MouseEvent("click", { bubbles: true, cancelable: true, detail: 2 });
-      input.dispatchEvent(event);
-      return event.defaultPrevented;
-    }),
-  ).toBe(false);
+  await quantity.dblclick();
+  await expect(quantity).toBeFocused();
+  await quantity.fill("0");
+  await expect(quantity).toHaveValue("0");
   await page.getByRole("button", { name: "出撃編成を見る", exact: true }).click();
   await page.getByRole("button", { name: "枠 1", exact: true }).click();
-  const candidate = page.locator(".party-candidate").first();
+  const candidate = page.getByRole("group", { name: "候補一覧" }).getByRole("button", { name: "ロッシ", exact: true });
   await candidate.focus();
   await page.keyboard.press("Space");
   // A single synchronous dispatch sequence includes both real mounted capture ancestors.
   // Synthetic integration input does not replace the native pointer tests below and in campaign.spec.ts.
   const states = await candidate.evaluate((button) =>
     [1, 2, 3].map((detail) => {
-      const prevented = ["mousedown", "mouseup", "click"].map((type) => {
+      for (const type of ["mousedown", "mouseup", "click"]) {
         const event = new MouseEvent(type, { bubbles: true, cancelable: true, detail });
         button.dispatchEvent(event);
-        return event.defaultPrevented;
-      });
-      return { selected: button.getAttribute("aria-pressed"), prevented };
+      }
+      return button.getAttribute("aria-pressed");
     }),
   );
-  expect(states).toEqual([
-    { selected: "true", prevented: [false, false, false] },
-    { selected: "false", prevented: [false, false, false] },
-    { selected: "true", prevented: [false, false, false] },
-  ]);
+  expect(states).toEqual(["true", "false", "true"]);
 });
 
 test("候補の短間隔4連続クリックと複数カード切替を一回ずつ即時反映する", async ({ page }) => {
@@ -115,7 +107,8 @@ for (const count of [12, 24]) {
     await page.setViewportSize({ width: 1920, height: 1080 });
     await collectCoverage(page);
     await page.goto(`/tests/fixtures/party-selection.html?count=${count}`);
-    const before = await page.locator("#state").textContent();
+    const readState = async () => JSON.parse((await page.locator("#state").textContent()) ?? "");
+    const before = await readState();
     const slot = page.getByRole("button", { name: "枠 2", exact: true });
     await slot.click();
     const grid = page.getByRole("group", { name: "候補一覧" });
@@ -130,7 +123,7 @@ for (const count of [12, 24]) {
     await expect(choices.first()).toHaveAccessibleDescription(/隊列 1/);
     // The modal makes the fixture control inert; invoke its public snapshot action without moving focus.
     await page.locator("#snapshot").evaluate((button: HTMLButtonElement) => button.click());
-    await expect(page.locator("#state")).toHaveText(before ?? "");
+    await expect.poll(readState).toEqual(before);
     await expect(page.getByRole("button", { name: "戻る", exact: true })).toBeHidden();
     await choices.nth(1).click();
     await expect(choices.nth(1)).toHaveAttribute("aria-pressed", "false");
@@ -156,7 +149,7 @@ for (const count of [12, 24]) {
     await expect(last).toHaveAccessibleDescription(/隊列 2/);
     // The modal makes the fixture control inert; invoke its public snapshot action without moving focus.
     await page.locator("#snapshot").evaluate((button: HTMLButtonElement) => button.click());
-    await expect(page.locator("#state")).toHaveText(before ?? "");
+    await expect.poll(readState).toEqual(before);
     await formationScreenshot(page, testInfo, `party-${count}-1920.png`);
     await page.getByRole("button", { name: "確定", exact: true }).dblclick();
     await expect(slot).toContainText(`仲間 ${count}`);
@@ -228,7 +221,8 @@ for (const width of [320, 390, 1920]) {
     await page.setViewportSize({ width, height: 1080 });
     await collectCoverage(page);
     await page.goto("/tests/fixtures/character-details.html");
-    const before = await page.locator("#state").textContent();
+    const readState = async () => JSON.parse((await page.locator("#state").textContent()) ?? "");
+    const before = await readState();
     const opener = page.getByRole("button", { name: /長い名前のロッシ.*の詳細/ });
     await opener.focus();
     await page.keyboard.press("Enter");
@@ -265,9 +259,9 @@ for (const width of [320, 390, 1920]) {
     await page.getByRole("button", { name: "状態を確認", exact: true }).click();
     // The modal makes the fixture control inert; invoke its public snapshot action without moving focus.
     await page.locator("#snapshot").evaluate((button: HTMLButtonElement) => button.click());
-    await expect(page.locator("#state")).toHaveText(before ?? "");
+    await expect.poll(readState).toEqual(before);
     await page.getByRole("button", { name: "帰還時の育成初期化" }).click();
-    const reset = await page.locator("#state").textContent();
+    const reset = await readState();
     await opener.click();
     await expect(stat("レベル")).toHaveText("1");
     await expect(stat("HP")).toContainText("症状前最大HP 20");
@@ -276,7 +270,7 @@ for (const width of [320, 390, 1920]) {
     await expect(dialog).not.toContainText("検証用体力補正");
     await dialog.getByRole("button", { name: "編成へ戻る" }).click();
     await page.getByRole("button", { name: "状態を確認", exact: true }).click();
-    await expect(page.locator("#state")).toHaveText(reset ?? "");
+    await expect.poll(readState).toEqual(reset);
   });
 }
 

@@ -144,7 +144,15 @@ test("街探索から加入・編成・ボス帰還・再訪まで同じセッ�
   await expect(second).toHaveAccessibleDescription("空き枠。仲間を選択");
   await editSlot(page, 2, "gilberta");
   await expect(page.locator(".party-slot").nth(1)).toContainText("HP 18/18");
-  await expect(page.locator(".party-slot").nth(1).locator("img")).toHaveJSProperty("naturalWidth", 1024);
+  await expect
+    .poll(() =>
+      page
+        .locator(".party-slot")
+        .nth(1)
+        .locator("img")
+        .evaluate((image: HTMLImageElement) => image.naturalWidth),
+    )
+    .toBeGreaterThan(0);
   await page.screenshot({ path: testInfo.outputPath("joined-party-1920.png") });
   await page.getByRole("button", { name: "出発する", exact: true }).click();
   await expect(page.locator("[data-calendar]")).toHaveText("1日目 · 夜");
@@ -205,7 +213,7 @@ test("キャラ詳細の閲覧だけでは編成・保存内容を変えず、�
   await editSlot(page, 2, "gilberta");
   await page.getByRole("button", { name: "戻る", exact: true }).click();
   await page.getByRole("button", { name: "保存", exact: true }).click();
-  const saved = await page.evaluate(() => localStorage.getItem("endfield-rpg-debug-save"));
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem("endfield-rpg-debug-save") ?? "null"));
   await entry.click();
   await page.getByRole("button", { name: "枠 1", exact: true }).click();
   const rossi = page.getByRole("button", { name: "ロッシの詳細" });
@@ -290,7 +298,9 @@ test("キャラ詳細の閲覧だけでは編成・保存内容を変えず、�
   await expect(page.locator("[data-party-calendar]")).toHaveText("1日目 · 夜");
   await page.getByRole("button", { name: "戻る", exact: true }).click();
   await page.getByRole("button", { name: "保存", exact: true }).click();
-  expect(await page.evaluate(() => localStorage.getItem("endfield-rpg-debug-save"))).toBe(saved);
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("endfield-rpg-debug-save") ?? "null"))).toEqual(
+    saved,
+  );
   expect(errors).toEqual([]);
 });
 

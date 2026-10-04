@@ -7,7 +7,8 @@ for (const example of [
     kind: "battle",
     path: "/tests/fixtures/battle-editor.html",
     panel: "構図設定",
-    field: "cameraY",
+    group: "カメラの初期位置",
+    label: "カメラ 高さ",
     value: "8",
     entry: "構図設定",
   },
@@ -15,7 +16,8 @@ for (const example of [
     kind: "adventure",
     path: "/?debug=1&adventureEdit=1",
     panel: "会話画面の配置設定",
-    field: "leftX",
+    group: "立ち絵・横画面",
+    label: "左の水平位置 (%)",
     value: "32",
     entry: "会話画面の配置設定",
   },
@@ -24,7 +26,9 @@ for (const example of [
     await page.goto(example.path);
     const panel = page.getByRole("complementary", { name: example.panel });
     const save = panel.getByRole("button", { name: "標準として保存", exact: true });
-    const input = panel.locator(`input[type=number][data-key="${example.field}"]`);
+    const input = panel
+      .getByRole("group", { name: example.group })
+      .getByRole("spinbutton", { name: example.label, exact: true });
     await expect(save).toBeEnabled({ timeout: 60_000 });
     await input.fill(example.value);
     await save.click();

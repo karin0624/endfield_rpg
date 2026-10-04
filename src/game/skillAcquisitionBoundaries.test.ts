@@ -108,7 +108,9 @@ describe("Lv15・20をまたぐスキル習得", () => {
         acquisition: "guaranteed",
       });
       expect(state.randomState).toBe(2165703038);
-      expect(prepareSkillChoice(state, catalog)).toEqual(state);
+      const beforeFirstChoice = structuredClone(state);
+      expect(prepareSkillChoice(state, catalog)).toEqual(beforeFirstChoice);
+      expect(state).toEqual(beforeFirstChoice);
       const firstInput = {
         explorationId: "boundary-run",
         characterId: "player",
@@ -118,8 +120,9 @@ describe("Lv15・20をまたぐスキル習得", () => {
       expect(chooseSkill(state, { ...firstInput, level: finalLevel }, catalog)).toMatchObject({
         accepted: false,
         reason: "wrong-choice",
-        state,
+        state: beforeFirstChoice,
       });
+      expect(state).toEqual(beforeFirstChoice);
       state = accepted(chooseSkill(state, firstInput, catalog));
       expect(state.growth.characters[0].pendingChoiceLevels).toEqual([finalLevel]);
       expect(state.choice).toEqual({
@@ -129,8 +132,15 @@ describe("Lv15・20をまたぐスキル習得", () => {
         candidateIds: ["normal-c", "normal-a", "normal-b"],
       });
       expect(state.randomState).toBe(1587069247);
-      expect(chooseSkill(state, firstInput, catalog)).toMatchObject({ accepted: false, reason: "wrong-choice", state });
-      expect(prepareSkillChoice(state, catalog)).toEqual(state);
+      const beforeSecondChoice = structuredClone(state);
+      expect(chooseSkill(state, firstInput, catalog)).toMatchObject({
+        accepted: false,
+        reason: "wrong-choice",
+        state: beforeSecondChoice,
+      });
+      expect(state).toEqual(beforeSecondChoice);
+      expect(prepareSkillChoice(state, catalog)).toEqual(beforeSecondChoice);
+      expect(state).toEqual(beforeSecondChoice);
       const secondInput = { ...firstInput, level: finalLevel, skillId: "normal-c" };
       state = accepted(chooseSkill(state, secondInput, catalog));
       expect(state.choice).toBeNull();
@@ -140,16 +150,19 @@ describe("Lv15・20をまたぐスキル習得", () => {
         { skillId: "normal-c", type: "active", origin: "expedition", acquisition: "choice" },
       ]);
       expect(state.characters[0].learned.some(({ skillId }) => skillId === "normal-guaranteed")).toBe(false);
+      const beforeReplay = structuredClone(state);
       expect(chooseSkill(state, secondInput, catalog)).toMatchObject({
         accepted: false,
         reason: "wrong-choice",
-        state,
+        state: beforeReplay,
       });
+      expect(state).toEqual(beforeReplay);
       expect(grantSkillExperience(state, "boundary-run", reward, progression, catalog)).toMatchObject({
         accepted: false,
         reason: "reward-already-applied",
-        state,
+        state: beforeReplay,
       });
+      expect(state).toEqual(beforeReplay);
     },
   );
 
@@ -178,13 +191,15 @@ describe("Lv15・20をまたぐスキル習得", () => {
         pendingChoiceLevels: [milestone, finalLevel],
       });
       expect(state.randomState).toBe(1);
+      const before = structuredClone(state);
       expect(
         chooseSkill(
           state,
           { explorationId: "boundary-run", characterId: "player", level: milestone, skillId: `${tier}-c` },
           catalog,
         ),
-      ).toMatchObject({ accepted: false, reason: "wrong-choice", state });
+      ).toMatchObject({ accepted: false, reason: "wrong-choice", state: before });
+      expect(state).toEqual(before);
     },
   );
 });

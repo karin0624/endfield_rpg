@@ -84,7 +84,7 @@ test("通常版で導入・ホーム・街・編成・戦闘・帰還・保存�
     await skills.click();
     await page.getByRole("button", { name: "攻撃", exact: true }).click();
     await page.getByRole("button", { name: "使用する", exact: true }).click();
-    await expect(page.locator("[data-battle-ui]")).toHaveAttribute("data-replaying", "false", { timeout: 60_000 });
+    await expect(page.getByRole("button", { name: "演出を省略", exact: true })).toBeHidden({ timeout: 60_000 });
   }
   await expect(victory).toBeVisible();
   await page.getByRole("button", { name: "戦闘を終えてルートへ戻る" }).click();
@@ -99,7 +99,7 @@ test("通常版で導入・ホーム・街・編成・戦闘・帰還・保存�
   await expect(page.getByRole("heading", { name: "ENDFIELD RPG" })).toBeVisible();
   await expect(page.getByRole("status")).toHaveText("保存しました。");
   await expect(page).toHaveScreenshot("campaign-09-saved-title-1920.png");
-  const saved = await page.evaluate(() => localStorage.getItem("endfield-rpg-game-save"));
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem("endfield-rpg-game-save") ?? "null"));
   await collectCoverage(page);
   await page.reload();
   await page.getByRole("button", { name: "続きから" }).dblclick();
@@ -107,6 +107,8 @@ test("通常版で導入・ホーム・街・編成・戦闘・帰還・保存�
   await cleanNormal(page);
   await expect(page).toHaveScreenshot("campaign-10-resumed-home-1920.png");
   await save(page);
-  expect(await page.evaluate(() => localStorage.getItem("endfield-rpg-game-save"))).toBe(saved);
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("endfield-rpg-game-save") ?? "null"))).toEqual(
+    saved,
+  );
   expect(errors).toEqual([]);
 });

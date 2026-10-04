@@ -14,7 +14,7 @@ export async function winByAttacking(page: Page) {
   const victory = page.getByRole("heading", { name: "戦闘に勝利しました" });
   for (let turn = 0; turn < 12 && !(await victory.isVisible()); turn++) {
     await page.getByRole("button", { name: "通常攻撃" }).click();
-    await expect(page.locator("[data-battle-ui]")).toHaveAttribute("data-replaying", "false", { timeout: 60_000 });
+    await expect(page.getByRole("button", { name: "演出を省略", exact: true })).toBeHidden({ timeout: 60_000 });
   }
   await expect(victory).toBeVisible();
 }

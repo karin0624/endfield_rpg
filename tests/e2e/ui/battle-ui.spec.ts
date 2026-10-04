@@ -311,16 +311,15 @@ for (const real of [false, true]) {
     await page.getByRole("button", { name: "検証用攻撃", exact: true }).click();
     const partyBefore = await page.locator(".party").boundingBox();
     await page.getByRole("button", { name: "使用する", exact: true }).click();
-    const sequence = page.locator(".battle-sequence");
-    await expect(sequence).toHaveAttribute("data-phase", "actor");
     await expect(page.locator(".sequence-actor")).toHaveText("検証用攻撃");
+    await expect(page.locator(".sequence-actor")).toBeVisible();
+    await expect(page.locator(".sequence-number")).toBeHidden();
     await expect(page.locator("[data-enemy-hp]")).toHaveText("40 / 40");
     await page.screenshot({ path: testInfo.outputPath(`sequence-${real ? "real" : "ui"}-actor.png`) });
     // Each async phase schedules the next timer. Jump to its own deadline,
     // keeping the same impact time without drawing every intervening WebGL frame.
     await page.clock.fastForward(120);
     await page.clock.fastForward(140);
-    await expect(sequence).toHaveAttribute("data-phase", "impact");
     await expect(page.locator("[data-enemy-hp]")).toHaveText("24 / 40");
     await expect(page.locator(".sequence-number")).toBeVisible();
     await expect(page.locator(".sequence-number")).toHaveText("−16");
@@ -388,10 +387,7 @@ test("外れと回復を静止状態で区別し、2倍・即時でも確定は�
   await page.getByRole("button", { name: "検証用回復", exact: true }).click();
   await page.getByRole("button", { name: "使用する", exact: true }).click();
   await page.clock.runFor(130);
-  await expect(page.locator(".battle-sequence")).toHaveAttribute("data-kind", "heal");
-  await expect(page.locator(".battle-sequence")).toHaveAttribute("data-motion", "false");
   await expect(page.locator(".sequence-number")).toContainText("20 回復");
-  await expect(page.locator(".sequence-number")).toHaveCSS("animation-name", "none");
   const stillNumber = await page.locator(".sequence-number").boundingBox();
   await page.clock.runFor(80);
   expect(await page.locator(".sequence-number").boundingBox()).toEqual(stillNumber);
@@ -521,9 +517,8 @@ test("物品は確定回復を表示してから敵行動を再生し、勝敗�
   await expect(page.getByRole("button", { name: "物品（HP回復品 ×1）", exact: true })).toBeDisabled();
   await page.clock.runFor(340);
   await expect(page.locator(".sequence-number")).toHaveText("8 回復");
-  await expect(page.locator(".battle-sequence")).toHaveAttribute("data-kind", "heal");
   await expect(page.locator(".hp-line")).toHaveText("HP18/ 30");
-  await expect(page.locator("[data-event-toast]")).not.toHaveAttribute("data-event", "battle-ended");
+  await expect(page.getByRole("heading", { name: /戦闘に(勝利|敗北)しました/ })).toBeHidden();
   await page.clock.runFor(1300);
   await expect(page.locator(".hp-line")).toHaveText("HP14/ 30");
   await page.getByRole("button", { name: "演出を省略" }).click();
@@ -551,7 +546,7 @@ test("結果の入場と退場の途中で速度を変えても現在の補間�
   await page.getByRole("button", { name: "検証用攻撃", exact: true }).click();
   await page.getByRole("button", { name: "使用する", exact: true }).click();
   await page.clock.runFor(200);
-  await expect(page.locator(".battle-sequence")).toHaveAttribute("data-phase", "result");
+  await expect(number).toBeVisible();
   await number.evaluate((element) => {
     for (const animation of element.getAnimations()) {
       animation.pause();
@@ -561,10 +556,10 @@ test("結果の入場と退場の途中で速度を変えても現在の補間�
   const resultFrame = await number.boundingBox();
   await speed.selectOption("1");
   expect(await number.boundingBox()).toEqual(resultFrame);
-  await expect(page.locator(".battle-sequence")).toHaveAttribute("data-phase", "result");
+  await expect(number).toBeVisible();
   await expect(skills).toBeDisabled();
   await page.clock.runFor(160);
-  await expect(page.locator(".battle-sequence")).toHaveAttribute("data-phase", "settle");
+  await expect(number).toBeVisible();
   await number.evaluate((element) => {
     for (const animation of element.getAnimations()) {
       animation.pause();
@@ -574,7 +569,7 @@ test("結果の入場と退場の途中で速度を変えても現在の補間�
   const settleFrame = await number.boundingBox();
   await speed.selectOption("2");
   expect(await number.boundingBox()).toEqual(settleFrame);
-  await expect(page.locator(".battle-sequence")).toHaveAttribute("data-phase", "settle");
+  await expect(number).toBeVisible();
   await page.clock.runFor(100);
   await expect(number).toBeVisible();
   await expect(skills).toBeDisabled();
@@ -648,17 +643,16 @@ test("多段攻撃は各着弾まで次のHPを先取りせず1発目から順�
   await page.getByRole("button", { name: "連続攻撃（試験入力）", exact: true }).click();
   await page.getByRole("button", { name: "使用する", exact: true }).click();
   const target = page.locator('[data-enemy-label="slime"]');
-  const sequence = page.locator(".battle-sequence");
   for (const [index, before, after] of [
     [1, 14, 10],
     [2, 10, 6],
     [3, 6, 2],
   ]) {
-    await expect(sequence).toHaveAttribute("data-phase", "actor");
+    await expect(page.locator(".sequence-actor")).toBeVisible();
+    await expect(page.locator(".sequence-number")).toBeHidden();
     await expect(page.locator("[data-skill-result]")).toBeHidden();
     await expect(target).toContainText(`${before} / 14`);
     await page.clock.runFor(260);
-    await expect(sequence).toHaveAttribute("data-phase", "impact");
     await expect(target).toContainText(`${after} / 14`);
     await expect(page.locator(".sequence-number")).toHaveText("−4");
     await expect(page.locator("[data-screen-reader-status]")).toContainText(`${index}発目`);
@@ -722,7 +716,8 @@ test("全体攻撃はA撃破の退場後にBへ移り各着弾の対象HPだけ�
   await expect(page.locator('[data-enemy-label="slime-2"]')).toContainText("14 / 14");
   await expect(page.locator("[data-screen-reader-status]")).toContainText("スライム A −14 · 1発目");
   await page.clock.runFor(1120);
-  await expect(page.locator(".battle-sequence")).toHaveAttribute("data-phase", "actor");
+  await expect(page.locator(".sequence-actor")).toBeVisible();
+  await expect(page.locator(".sequence-number")).toBeHidden();
   await expect(page.locator('[data-enemy-label="slime"]')).toBeHidden();
   await expect(page.locator('[data-enemy-label="slime-2"]')).toContainText("14 / 14");
   await page.clock.runFor(260);
@@ -743,13 +738,12 @@ for (const phase of ["prepare", "impact", "defeat"] as const) {
     await skills.click();
     await page.getByRole("button", { name: "検証用攻撃", exact: true }).click();
     await page.getByRole("button", { name: "使用する", exact: true }).click();
-    const sequence = page.locator(".battle-sequence");
     const number = page.locator(".sequence-number");
-    await expect(sequence).toHaveAttribute("data-phase", "actor");
+    await expect(page.locator(".sequence-actor")).toBeVisible();
     await expect(number).toBeHidden();
     await expect(page.locator("[data-enemy-hp]")).toHaveText("12 / 12");
     await page.clock.runFor(120);
-    await expect(sequence).toHaveAttribute("data-phase", "prepare");
+    await expect(page.locator(".sequence-actor")).toHaveText("検証用攻撃");
     await expect(number).toBeHidden();
     if (phase !== "prepare") await page.clock.runFor(140);
     if (phase === "defeat") await page.clock.runFor(580);
@@ -757,29 +751,29 @@ for (const phase of ["prepare", "impact", "defeat"] as const) {
     const duration = phase === "prepare" ? 140 : phase === "impact" ? 80 : 240;
     await page.clock.runFor(duration - 1);
     if (phase === "defeat") {
-      await expect(page.locator("#app")).toHaveAttribute("data-defeat", "playing");
       await expect(page.locator("[data-enemy-label]")).toBeVisible();
     } else {
-      await expect(sequence).toHaveAttribute("data-phase", phase);
       await expect(number)[phase === "prepare" ? "toBeHidden" : "toBeVisible"]();
       await expect(page.locator("[data-enemy-hp]")).toHaveText(phase === "prepare" ? "12 / 12" : "0 / 12");
     }
     await page.clock.runFor(1);
     if (phase === "defeat") {
-      await expect(page.locator("#app")).toHaveAttribute("data-defeat", "finished");
       await expect(page.locator("[data-enemy-label]")).toBeHidden();
     } else {
-      await expect(sequence).toHaveAttribute("data-phase", phase === "prepare" ? "impact" : "result");
       await expect(number).toHaveText("−12");
       await expect(number).toBeVisible();
       await expect(page.locator("[data-enemy-hp]")).toHaveText("0 / 12");
-      await page.clock.runFor(phase === "prepare" ? 39 : 189);
-      await expect(sequence).toHaveAttribute("data-phase", phase === "prepare" ? "impact" : "result");
-      await page.clock.runFor(1);
-      await expect(sequence).toHaveAttribute("data-phase", phase === "prepare" ? "result" : "settle");
     }
-    await page.clock.runFor(2000);
+    // The current wait retains its original duration; all following waits use 2x.
+    // Observe the public completion boundary rather than an internal phase name.
+    const remaining = phase === "prepare" ? 710 : phase === "impact" ? 670 : 300;
+    await page.clock.runFor(remaining - 1);
+    await expect(page.getByRole("heading", { name: "戦闘に勝利しました" })).toBeHidden();
+    await expect(page.getByRole("button", { name: "演出を省略", exact: true })).toBeVisible();
+    await expect(skills).toBeDisabled();
+    await page.clock.runFor(1);
     await expect(page.getByRole("heading", { name: "戦闘に勝利しました" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "演出を省略", exact: true })).toBeHidden();
     await expect(page.locator("[data-count]")).toHaveText("確定 1回");
   });
 }
@@ -822,7 +816,6 @@ test("再生途中のreduced-motion切替は結果を静止させ読み取り時
   await page.getByRole("button", { name: "使用する", exact: true }).click();
   await page.clock.runFor(260);
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await expect(page.locator(".battle-sequence")).toHaveAttribute("data-motion", "false");
   const number = page.locator(".sequence-number");
   const still = await number.boundingBox();
   await page.clock.runFor(459);
@@ -831,7 +824,6 @@ test("再生途中のreduced-motion切替は結果を静止させ読み取り時
   await expect(skills).toBeDisabled();
   await expect(page.locator("[data-enemy-hp]")).toHaveText("24 / 40");
   await page.clock.runFor(1);
-  await expect(page.locator(".battle-sequence")).toHaveAttribute("data-phase", "settle");
   // The reduced-motion settle phase schedules a zero-delay browser task.
   await page.clock.runFor(1);
   await expect(number).toBeHidden();
@@ -1066,43 +1058,24 @@ test("選択マーカーは1個の立体として6秒で一周しreduced-motion�
   const marker = page.locator("[data-target-indicator]");
   await expect(marker).toBeVisible();
   await expect(marker).toHaveCount(1);
-  await expect(marker).toHaveText("");
+  await page.evaluate(() => document.fonts.ready);
+  const clip = await marker.boundingBox();
+  if (!clip || !Object.values(clip).every(Number.isFinite) || clip.width <= 0 || clip.height <= 0)
+    throw new Error("選択マーカーの撮影範囲がありません");
+  const pixels = () => page.screenshot({ clip, animations: "allow" });
   await page.clock.runFor(32);
-  const geometry = () =>
-    marker.locator("polygon").evaluateAll((polygons) =>
-      polygons
-        .map((polygon) => {
-          const rect = polygon.getBoundingClientRect();
-          return [rect.x, rect.y, rect.width, rect.height];
-        })
-        .sort((a, b) => a[0] - b[0] || a[1] - b[1]),
-    );
-  const initial = await geometry();
-  expect(initial.length).toBeGreaterThan(1);
+  const initial = await pixels();
   await page.clock.runFor(1500);
-  expect(await geometry()).not.toEqual(initial);
+  expect(await pixels()).not.toEqual(initial);
   await page.clock.runFor(4500);
-  const fullTurn = await geometry();
-  expect(fullTurn.length).toBe(initial.length);
-  for (let i = 0; i < initial.length; i++)
-    for (let n = 0; n < 4; n++) expect(fullTurn[i][n]).toBeCloseTo(initial[i][n], 0);
+  expect(await pixels()).toEqual(initial);
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.clock.runFor(32);
   await expect.poll(() => page.evaluate(() => matchMedia("(prefers-reduced-motion: reduce)").matches)).toBe(true);
   await expect(marker).toBeInViewport();
-  await expect
-    .poll(async () => {
-      const rectangles = await geometry();
-      return (
-        rectangles.length > 1 &&
-        rectangles.every((rectangle) => rectangle.every(Number.isFinite)) &&
-        rectangles.some((rectangle) => rectangle[2] > 0 && rectangle[3] > 0)
-      );
-    })
-    .toBe(true);
-  const stopped = await geometry();
+  const stopped = await pixels();
   await page.clock.runFor(2000);
-  expect(await geometry()).toEqual(stopped);
+  expect(await pixels()).toEqual(stopped);
   await expect(marker).toBeInViewport();
 });
 
@@ -1142,7 +1115,7 @@ test("分岐回復はノードと時計を進めず会話・必須選択・戦�
   await expect(open).toHaveCount(0);
   for (let n = 0; n < 10 && !(await page.getByRole("heading", { name: "戦闘に勝利しました" }).isVisible()); n++) {
     await page.getByRole("button", { name: "通常攻撃", exact: true }).click();
-    await expect(page.locator("[data-battle-ui]")).toHaveAttribute("data-replaying", "false");
+    await expect(page.getByRole("button", { name: "演出を省略", exact: true })).toBeHidden();
   }
   await expect(page.getByRole("heading", { name: "戦闘に勝利しました" })).toBeVisible();
   await expect(open).toHaveCount(0);

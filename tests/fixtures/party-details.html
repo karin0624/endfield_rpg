@@ -14,7 +14,7 @@
     import "/src/web/style.css";
 
     const definitions = [
-      { ...characters[0], maxHp: 200, name: "ロッシ（長い名前の折返しと読みやすさを確認する表示条件）" },
+      { ...characters.find(({ id }) => id === "player"), maxHp: 200, name: "ロッシ（長い名前の折返しと読みやすさを確認する表示条件）" },
       { id: "no-portrait", name: "画像未提供の仲間（表示条件テスト）", maxHp: 200, speed: 100, attackPower: 8 },
     ];
     let game = {

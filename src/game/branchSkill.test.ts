@@ -65,8 +65,10 @@ describe("分岐でのHP回復", () => {
     // maxHP floor(200/3)=66; base 8+33=41; fatigue 100 => 20.5.
     expect(first.state.party[1].hp).toBe(21.5);
     expect(first.state.party[0].mentalFatigue).toBe(103);
+    const beforeReplay = structuredClone(first.state);
     const replay = performDungeonBranchSkill(first.state, input(start), initialDungeon, rules);
-    expect(replay).toMatchObject({ accepted: false, state: first.state, events: [] });
+    expect(replay).toMatchObject({ accepted: false, state: beforeReplay, events: [] });
+    expect(first.state).toEqual(beforeReplay);
     const second = use(first.state);
     expect(second.accepted).toBe(true);
     expect(second.state.party[1].hp).toBeCloseTo(41.69704433497537, 10);
@@ -111,11 +113,13 @@ describe("分岐でのHP回復", () => {
     { expeditionActionId: 6 },
   ])("不正入力 %j はHP・疲労・症状・乱数を変えない", (patch) => {
     const start = initial();
+    const before = structuredClone(start);
     expect(performDungeonBranchSkill(start, { ...input(start), ...patch }, initialDungeon, rules)).toMatchObject({
       accepted: false,
-      state: start,
+      state: before,
       events: [],
     });
+    expect(start).toEqual(before);
   });
   it.each(["healer", "target"])("HP0・参加不能の%sを拒否する", (id) => {
     for (const patch of [{ hp: 0 }, { status: { ...healthyStatus(), incapacityRecoverySteps: 6 } }]) {
@@ -124,30 +128,37 @@ describe("分岐でのHP回復", () => {
         ...state,
         party: state.party.map((member) => (member.id === id ? { ...member, ...patch } : member)),
       };
+      const before = structuredClone(blocked);
       expect(performDungeonBranchSkill(blocked, input(blocked), initialDungeon, rules)).toMatchObject({
         accepted: false,
-        state: blocked,
+        state: before,
         events: [],
       });
+      expect(blocked).toEqual(before);
     }
   });
   it("戦闘・会話・探索終了・別探索の古い入力を拒否する", () => {
     const start = initial();
     for (const node of ["battle-a", "conversation-b"]) {
       const entered = accepted(enterNextDungeonNode(start, node, initialDungeon, initialAdventure)).state;
+      const before = structuredClone(entered);
       expect(performDungeonBranchSkill(entered, input(start), initialDungeon, rules)).toMatchObject({
         accepted: false,
-        state: entered,
+        state: before,
       });
+      expect(entered).toEqual(before);
     }
     for (const changed of [
       { ...start, outcome: "cleared" as const },
       { ...start, expeditionActionId: 8 },
-    ])
+    ]) {
+      const before = structuredClone(changed);
       expect(performDungeonBranchSkill(changed, input(start), initialDungeon, rules)).toMatchObject({
         accepted: false,
-        state: changed,
+        state: before,
       });
+      expect(changed).toEqual(before);
+    }
   });
 });
 

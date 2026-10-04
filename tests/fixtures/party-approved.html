@@ -32,8 +32,8 @@
       game = applyPartyStatus(game, "symptom-hp", { kind: "physicalFatigue", amount: 50 }, definitions);
       // These are legal initial display inputs, validated through the public save boundary
       // before mounting the UI. No gameplay result or active UI state is injected.
-      const hp = [20, 10, 0, 6.5];
-      game = { ...game, party: { ...game.party, members: game.party.members.map((member, index) => ({ ...member, hp: hp[index] })) } };
+      const hp = { player: 20, gilberta: 10, "empty-hp": 0, "symptom-hp": 6.5 };
+      game = { ...game, party: { ...game.party, members: game.party.members.map((member) => ({ ...member, hp: hp[member.id] })) } };
       const saveDefinitions = { characters: definitions, placeIds: [game.adventure.currentPlaceId] };
       const saved = serializeGame(game, saveDefinitions);
       if (!saved.accepted) throw new Error("Invalid initial HP display fixture");

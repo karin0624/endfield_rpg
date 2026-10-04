@@ -53,7 +53,7 @@
     };
     const root = document.querySelector("#fixture");
     const opener = document.createElement("button");
-    opener.textContent = `${definitions[0].name}の詳細`;
+    opener.textContent = `${definitions.find(({ id }) => id === "player").name}の詳細`;
     root.append(opener);
     const details = mountCharacterDetailsUi(root, grownCharacters(game, rules), () => game.party,
       () => ({ characters: grownCharacters(game, rules), baseCharacters: definitions, growth: game.growth, rules }));

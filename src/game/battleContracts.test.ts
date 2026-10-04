@@ -27,13 +27,14 @@ import {
   type PassiveSkillDefinition,
   passiveSkillAmount,
   type SkillCatalog,
+  skillById,
   validateSkillCatalog,
 } from "./skills";
 import { healthyStatus } from "./status";
 import { multidayFixture } from "./testing/multidayFixture";
 
-const strike = skillCatalog.skills[0];
-const heal = skillCatalog.skills[1];
+const strike = skillById(skillCatalog, "test-strike") as ActiveSkillDefinition;
+const heal = skillById(skillCatalog, "test-heal") as ActiveSkillDefinition;
 const definitions: BattleCombatantDefinition[] = [
   {
     id: "hero",
@@ -300,7 +301,9 @@ describe("戦闘公開契約の監査境界", () => {
       ).toThrow();
   });
   it.each([0, -1, 1.5, Number.NaN, Infinity, 3])("パッシブrank%sは個別上限の外なら拒否する", (rank) => {
-    expect(() => passiveSkillAmount(skillCatalog.skills[2] as PassiveSkillDefinition, rank)).toThrow();
+    expect(() =>
+      passiveSkillAmount(skillById(skillCatalog, "test-strength") as PassiveSkillDefinition, rank),
+    ).toThrow();
   });
 });
 

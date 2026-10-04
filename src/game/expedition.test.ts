@@ -115,7 +115,12 @@ describe("仲間と出撃編成", () => {
     state = act(state, { type: "enter", nodeId: "boss-c" });
     expect(state.dungeon?.party.map(({ id }) => id)).toEqual(companions.slice(0, count).map(({ id }) => id));
     expect(state.party.members).toHaveLength(5);
-    expect(state.party.members.find(({ id }) => id === "reserve")).toEqual({ id: "reserve", hp: 16 });
+    const reserve = state.party.members.find(({ id }) => id === "reserve");
+    expect(reserve).toMatchObject({ id: "reserve", hp: 16 });
+    expect(reserve?.status?.physicalFatigue ?? 0).toBe(0);
+    expect(reserve?.status?.haze ?? 0).toBe(0);
+    expect(reserve?.status?.incapacityRecoverySteps ?? null).toBeNull();
+    expect(reserve?.mentalFatigue ?? 0).toBe(0);
     expect(editExpeditionParty(state, 0, "reserve")).toMatchObject({ accepted: false, reason: "not-in-town" });
     for (let turn = 0; state.dungeon?.activity?.type === "battle" && turn < 10; turn++) {
       const actorId = state.dungeon.activity.state.currentActorId;
@@ -139,7 +144,11 @@ describe("仲間と出撃編成", () => {
       accepted: false,
       reason: "empty-party",
     });
-    expect(empty.party.members).toEqual([{ id: "player", hp: 20 }]);
+    expect(empty.party.members.map(({ id, hp }) => ({ id, hp }))).toEqual([{ id: "player", hp: 20 }]);
+    expect(empty.party.members[0].status?.physicalFatigue ?? 0).toBe(0);
+    expect(empty.party.members[0].status?.haze ?? 0).toBe(0);
+    expect(empty.party.members[0].status?.incapacityRecoverySteps ?? null).toBeNull();
+    expect(empty.party.members[0].mentalFatigue ?? 0).toBe(0);
   });
 
   it("会話中・探索中は編成と再出撃を拒否する", () => {
@@ -208,7 +217,7 @@ describe("仲間と出撃編成", () => {
     );
     expect(invalid.result).toMatchObject({ accepted: false, reason: "node-already-resolved" });
     state = accepted(leaveExpedition(invalid.state));
-    expect(state.adventure.flags).toEqual(["visited-guild", "marked-ruins-route", "scouted-ruins"]);
+    expect([...state.adventure.flags].sort()).toEqual(["marked-ruins-route", "scouted-ruins", "visited-guild"]);
   });
 
   it("単独で会話分岐からボスを倒し、帰還でHP全回復と半日を一度だけ計上する", () => {
@@ -222,7 +231,7 @@ describe("仲間と出撃編成", () => {
     expect(state.dungeon).toBeNull();
     expect(state.party.members.map(({ id, hp }) => ({ id, hp }))).toEqual([{ id: "player", hp: 20 }]);
     expect(state.clock).toMatchObject({ elapsedHalfDays: 1, recoverySteps: 0 });
-    expect(state.adventure.flags).toEqual(["marked-ruins-route", "scouted-ruins"]);
+    expect([...state.adventure.flags].sort()).toEqual(["marked-ruins-route", "scouted-ruins"]);
     expect(leaveExpedition(state)).toMatchObject({ accepted: false, reason: "not-on-route" });
   });
 

@@ -17,7 +17,7 @@
     mountGrowthChoice(document.querySelector("#choice"), reward.state, skillCatalog, { player: "ロッシ" }, input => {
       const result = chooseSkill(reward.state, input, skillCatalog);
       if (!result.accepted) throw new Error(result.reason);
-      document.querySelector("#learned").textContent = result.state.characters[0].learned.map(entry => entry.skillId).join(",");
+      document.querySelector("#learned").textContent = result.state.characters.find(({ characterId }) => characterId === "player").learned.map(entry => entry.skillId).join(",");
     });
   </script>
 </html>

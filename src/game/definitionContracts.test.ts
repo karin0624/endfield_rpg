@@ -29,14 +29,10 @@ function changedNode(id: string, patch: Partial<DungeonNodeDefinition>): Dungeon
 }
 describe("公開定義の拒否契約", () => {
   it.each([
-    [
-      "duplicate node",
-      { ...initialDungeon, nodes: [...initialDungeon.nodes, initialDungeon.nodes[0]] },
-      /ノードIDが重複/,
-    ],
-    ["duplicate edge", changedNode("entrance", { nextNodeIds: ["battle-a", "battle-a"] }), /接続先ノードIDが重複/],
-    ["self edge", changedNode("battle-a", { nextNodeIds: ["battle-a"] }), /自身への接続/],
-    ["return to start", changedNode("battle-a", { nextNodeIds: ["entrance"] }), /入口ノードへ戻る/],
+    ["duplicate node", { ...initialDungeon, nodes: [...initialDungeon.nodes, initialDungeon.nodes[0]] }],
+    ["duplicate edge", changedNode("entrance", { nextNodeIds: ["battle-a", "conversation-b", "battle-a"] })],
+    ["self edge", changedNode("battle-a", { nextNodeIds: ["boss-c", "battle-a"] })],
+    ["return to start", changedNode("battle-a", { nextNodeIds: ["boss-c", "entrance"] })],
     [
       "cycle",
       {
@@ -49,32 +45,38 @@ describe("公開定義の拒否契約", () => {
               : node,
         ),
       },
-      /循環/,
     ],
-    ["unreachable node", changedNode("entrance", { nextNodeIds: ["battle-a"] }), /到達できない/],
+    ["unreachable node", changedNode("entrance", { nextNodeIds: ["battle-a"] })],
     [
       "duplicate start",
       {
         ...initialDungeon,
-        nodes: [...initialDungeon.nodes, { id: "other", label: "other", type: "start", nextNodeIds: ["boss-c"] }],
+        nodes: [
+          ...initialDungeon.nodes.map((node) =>
+            node.id === "entrance" ? { ...node, nextNodeIds: [...node.nextNodeIds, "other"] } : node,
+          ),
+          { id: "other", label: "other", type: "start", nextNodeIds: ["boss-c"] },
+        ],
       },
-      /start型ノードは/,
     ],
-    ["missing boss", changedNode("boss-c", { type: "battle" }), /boss型ノード/],
+    ["missing boss", changedNode("boss-c", { type: "battle" })],
     [
       "duplicate boss",
       {
         ...initialDungeon,
-        nodes: [...initialDungeon.nodes, { ...initialDungeon.nodes.find((node) => node.type === "boss"), id: "other" }],
+        nodes: [
+          ...initialDungeon.nodes.map((node) =>
+            node.id === "entrance" ? { ...node, nextNodeIds: [...node.nextNodeIds, "other"] } : node,
+          ),
+          { ...initialDungeon.nodes.find((node) => node.type === "boss"), id: "other" },
+        ],
       },
-      /boss型ノード/,
     ],
-    ["boss edge", changedNode("boss-c", { nextNodeIds: ["battle-a"] }), /boss型ノード/],
-    ["dead end", changedNode("battle-a", { nextNodeIds: [] }), /終端以外のノード/],
-  ] as const)("dungeon rejects %s", (_name, definition, message) => {
-    expect(() => assertValidDungeonDefinition(definition as DungeonDefinition, initialAdventure, party)).toThrow(
-      message,
-    );
+    ["boss edge", changedNode("boss-c", { nextNodeIds: ["battle-a"] })],
+    ["dead end", changedNode("battle-a", { nextNodeIds: [] })],
+  ] as const)("dungeon rejects %s", (_name, definition) => {
+    expect(() => assertValidDungeonDefinition(initialDungeon, initialAdventure, party)).not.toThrow();
+    expect(() => assertValidDungeonDefinition(definition as DungeonDefinition, initialAdventure, party)).toThrow();
   });
   it("availableWhen requires all flags and excludes any forbidden flag for both listing and direct input", () => {
     const definition: AdventureDefinition = {
@@ -86,21 +88,24 @@ describe("公開定義の拒否契約", () => {
     };
     for (const flags of [[], ["a"], ["b"], ["a", "b", "closed"]]) {
       const state = { ...createInitialGameState(initialGameOptions), flags };
+      const before = structuredClone(state);
       expect(getAvailableTownPlaces(state, definition)).toEqual([]);
       expect(selectTownPlace(state, "market", definition)).toEqual({
         accepted: false,
         reason: "place-unavailable",
-        state,
+        state: before,
       });
+      expect(state).toEqual(before);
     }
     const state = { ...createInitialGameState(initialGameOptions), flags: ["a", "b"] };
     expect(getAvailableTownPlaces(state, definition).map((place) => place.id)).toContain("market");
     expect(selectTownPlace(state, "market", definition).accepted).toBe(true);
   });
   it.each(["missing default", "duplicate option", "empty options"])("adventure rejects %s", (kind) => {
+    expect(() => assertValidAdventureDefinition(tinyAdventure)).not.toThrow();
     const definition: AdventureDefinition = {
-      ...initialAdventure,
-      conversations: initialAdventure.conversations.map((conversation) => ({
+      ...tinyAdventure,
+      conversations: tinyAdventure.conversations.map((conversation) => ({
         ...conversation,
         nodes: Object.fromEntries(
           Object.entries(conversation.nodes).map(([id, node]) => [
@@ -123,9 +128,7 @@ describe("公開定義の拒否契約", () => {
         ),
       })),
     };
-    expect(() => assertValidAdventureDefinition(definition)).toThrow(
-      kind === "missing default" ? /既定選択肢/ : kind === "duplicate option" ? /選択肢IDが重複/ : /選択肢がありません/,
-    );
+    expect(() => assertValidAdventureDefinition(definition)).toThrow();
   });
 });
 

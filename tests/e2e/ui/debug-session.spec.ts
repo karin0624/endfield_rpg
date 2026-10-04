@@ -46,7 +46,7 @@ test("全滅帰還でHP全回復し、街探索6回で戦闘不能から復帰�
   const defeat = page.getByRole("heading", { name: "戦闘に敗北しました" });
   for (let turn = 0; turn < 10 && !(await defeat.isVisible()); turn++) {
     await attack.click();
-    await expect(page.locator("[data-battle-ui]")).toHaveAttribute("data-replaying", "false", { timeout: 60_000 });
+    await expect(page.getByRole("button", { name: "演出を省略", exact: true })).toBeHidden({ timeout: 60_000 });
   }
   await expect(defeat).toBeVisible();
   await page.getByRole("button", { name: "戦闘を終えてルートへ戻る" }).click();
@@ -219,7 +219,7 @@ test("初期症状の試験データから実操作で数値回復・全滅帰�
   const defeat = page.getByRole("heading", { name: "戦闘に敗北しました" });
   for (let turn = 0; turn < 12 && !(await defeat.isVisible()); turn++) {
     await attack.click();
-    await expect(page.locator("[data-battle-ui]")).toHaveAttribute("data-replaying", "false", { timeout: 60_000 });
+    await expect(page.getByRole("button", { name: "演出を省略", exact: true })).toBeHidden({ timeout: 60_000 });
   }
   await expect(defeat).toBeVisible();
   await page.getByRole("button", { name: "戦闘を終えてルートへ戻る" }).click();
@@ -268,7 +268,7 @@ test("通常探索のスキル使用を次戦・帰還・保存読込・街回�
     await page.getByRole("button", { name, exact: true }).click();
     if (target) await page.getByRole("combobox", { name: "回復対象" }).selectOption(target);
     await page.getByRole("button", { name: "使用する", exact: true }).click();
-    await expect(page.locator("[data-battle-ui]")).toHaveAttribute("data-replaying", "false", { timeout: 60_000 });
+    await expect(page.getByRole("button", { name: "演出を省略", exact: true })).toBeHidden({ timeout: 60_000 });
     await expect(endsBattle ? page.getByRole("button", { name: "戦闘を終えてルートへ戻る" }) : skills).toBeEnabled();
   };
   await use("検証用攻撃");
@@ -298,23 +298,32 @@ test("通常探索のスキル使用を次戦・帰還・保存読込・街回�
   await page.getByRole("button", { name: "街へ戻る", exact: true }).click();
   await expect(page.locator("[data-town-recovery]")).toContainText("精神疲労 22");
   await page.getByRole("button", { name: "保存", exact: true }).click();
-  const saved = await page.evaluate(() => localStorage.getItem("endfield-rpg-debug-save"));
-  expect(JSON.parse(saved ?? "{}").party.members[0].mentalFatigue).toBe(22);
-  expect(JSON.parse(saved ?? "{}").growth.growth.characters[0]).toMatchObject({ level: 1, experience: 0 });
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem("endfield-rpg-debug-save") ?? "null"));
+  expect(saved.party.members.find(({ id }: { id: string }) => id === "player").mentalFatigue).toBe(22);
   expect(
-    JSON.parse(saved ?? "{}").growth.characters[0].learned.map((entry: { skillId: string }) => entry.skillId),
+    saved.growth.growth.characters.find(({ characterId }: { characterId: string }) => characterId === "player"),
+  ).toMatchObject({ level: 1, experience: 0 });
+  expect(
+    saved.growth.characters
+      .find(({ characterId }: { characterId: string }) => characterId === "player")
+      .learned.map((entry: { skillId: string }) => entry.skillId),
   ).toEqual(["test-strike", "test-heal"]);
   await collectCoverage(page);
   await page.reload();
   await page.getByRole("button", { name: "読込", exact: true }).dblclick();
-  expect(await page.evaluate(() => localStorage.getItem("endfield-rpg-debug-save"))).toBe(saved);
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("endfield-rpg-debug-save") ?? "null"))).toEqual(
+    saved,
+  );
   await page.getByRole("button", { name: "市場", exact: true }).click();
   await page.keyboard.press("Space");
   await expect(page.locator("[data-town-recovery]")).toContainText("精神疲労：22 → 12");
   await page.getByRole("button", { name: "保存", exact: true }).click();
   expect(
     await page.evaluate(
-      () => JSON.parse(localStorage.getItem("endfield-rpg-debug-save") ?? "{}").party.members[0].mentalFatigue,
+      () =>
+        JSON.parse(localStorage.getItem("endfield-rpg-debug-save") ?? "{}").party.members.find(
+          ({ id }: { id: string }) => id === "player",
+        ).mentalFatigue,
     ),
   ).toBe(12);
   await page.screenshot({ path: testInfo.outputPath("skill-town-recovery.png") });

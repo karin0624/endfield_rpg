@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { createServer as createHttpServer, request } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -139,11 +139,20 @@ for (const kind of ["battle", "adventure"] as const) {
       expect(await readFile(other, "utf8")).toBe("other settings bytes");
     });
     it("reports disk failure without replacing the old file and permits retry", async () => {
-      const { file, original, url, headers } = await serve(kind);
-      await mkdir(`${file}.tmp`);
-      expect((await fetch(url, { method: "POST", headers, body: original })).status).toBe(500);
+      const { root, file, original, url, headers } = await serve(kind);
+      const directory = join(root, "src/web");
+      const unavailable = join(root, "unavailable-settings");
+      // Make the public destination unavailable, regardless of the writer's temporary filename or UID.
+      await rename(directory, unavailable);
+      try {
+        await writeFile(directory, "temporarily unavailable settings directory");
+        expect((await fetch(url, { method: "POST", headers, body: original })).status).toBe(500);
+        expect(await readFile(join(unavailable, `${kind}-settings.json`), "utf8")).toBe(original);
+      } finally {
+        await rm(directory, { force: true });
+        await rename(unavailable, directory);
+      }
       expect(await readFile(file, "utf8")).toBe(original);
-      await rm(`${file}.tmp`, { recursive: true });
       expect((await fetch(url, { method: "POST", headers, body: original })).status).toBe(200);
     });
   });

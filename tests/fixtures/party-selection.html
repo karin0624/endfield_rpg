@@ -22,7 +22,8 @@
     }))];
     if (params.has("long")) definitions[definitions.length - 1].name = "長い名前の仲間（折り返しと欠けがないことを確認する表示条件）";
     if (params.has("large-type")) {
-      definitions[0] = { ...definitions[0], maxHp: Number.MAX_SAFE_INTEGER, name: "長い名前の仲間（精神疲労・戦闘不能・複雑な日本語を確認）" };
+      const player = definitions.findIndex(({ id }) => id === "player");
+      definitions[player] = { ...definitions[player], maxHp: Number.MAX_SAFE_INTEGER, name: "長い名前の仲間（精神疲労・戦闘不能・複雑な日本語を確認）" };
     }
     const stressIndices = params.has("stress") ? [0, 4, 5] : [];
     for (const index of stressIndices) definitions[index].name = `長い名前の仲間${index + 1}（折り返しと欠けがないことを確認する表示条件）`;

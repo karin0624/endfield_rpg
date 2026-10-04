@@ -58,10 +58,10 @@ describe("追加発症を含む有効使用の確定順序", () => {
     expect(result.accepted).toBe(true);
     expect(result.events[0]).toMatchObject({
       type: "skill",
-      amount: 13.333333333333343,
       fatigueBefore: 20,
       fatigueAfter: 40,
     });
+    expect(result.events[0]).toMatchObject({ amount: expect.closeTo(40 / 3, 12) });
     // Seed1's first draw is 0.23645: greater than p(20)=1/6, less than p(40)=2/7.
     expect(result.events[1]).toEqual({
       type: "symptom",

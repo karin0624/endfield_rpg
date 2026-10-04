@@ -94,8 +94,9 @@ describe("Issue46: 公開操作による複数日受入", () => {
         expect(JSON.parse(written.data).version).toBe(5);
         const read = deserializeGame(written.data, save);
         if (!read.accepted) throw new Error(read.reason);
+        const { flags, ...adventure } = game.adventure;
         expect(read.state).toMatchObject({
-          adventure: game.adventure,
+          adventure,
           party: game.party,
           clock: game.clock,
           randomState: game.randomState,
@@ -107,8 +108,14 @@ describe("Issue46: 公開操作による複数日受入", () => {
             closed: game.growth?.closed,
           },
         });
+        expect([...read.state.adventure.flags].sort()).toEqual([...flags].sort());
         const rewritten = serializeGame(read.state, save);
-        expect(rewritten).toEqual(written);
+        if (!rewritten.accepted) throw new Error(rewritten.reason);
+        const saved = JSON.parse(written.data);
+        const resaved = JSON.parse(rewritten.data);
+        saved.adventure.flags.sort();
+        resaved.adventure.flags.sort();
+        expect(resaved).toEqual(saved);
         game = read.state;
       }
     }
@@ -230,7 +237,7 @@ describe("Issue46: 公開操作による複数日受入", () => {
       status: { physicalFatigue: 50, haze: 0, incapacityRecoverySteps: outcome === "failed" ? 6 : null },
     });
     expect(game.party.slots).toEqual(["player", "a", "b", "c"]);
-    expect(game.adventure.flags).toEqual(["joined-a", "joined-b", "joined-c", "joined-reserve"]);
+    expect([...game.adventure.flags].sort()).toEqual(["joined-a", "joined-b", "joined-c", "joined-reserve"]);
     for (const growth of game.growth?.growth.characters ?? [])
       expect(growth).toMatchObject({
         level: 1,

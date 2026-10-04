@@ -48,7 +48,7 @@
     const late = document.querySelector("#late");
     const query = new URLSearchParams(location.search);
     const full = query.get("party") === "boss"
-      ? [initialBattleCombatants[0], ...initialDungeon.nodes.find(node => node.type === "boss").enemies]
+      ? [initialBattleCombatants.find(({ id }) => id === "player"), ...initialDungeon.nodes.find(node => node.type === "boss").enemies]
       : initialBattleCombatants;
     const small = full.filter(({ id }) => id === "player" || id === "slime-2");
     const view = document.querySelector("#view");

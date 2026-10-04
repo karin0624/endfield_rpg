@@ -274,16 +274,50 @@ describe("保存JSONの公開境界", () => {
   });
 
   it("現行JSONの必須フィールド欠落と余分なフィールドを拒否する", () => {
-    const source = JSON.parse(encoded(initial()));
-    for (const path of [
-      [],
-      ["adventure"],
-      ["party"],
-      ["clock"],
-      ["inventory"],
-      ["inventory", "items"],
-      ["party", "members", "0"],
-      ["party", "members", "0", "status"],
+    // An independent v5 input: a serializer omission must not remove a rejection check.
+    const source = {
+      version: 5,
+      adventure: { currentPlaceId: "town-square", flags: [] },
+      party: {
+        members: [
+          {
+            id: "player",
+            hp: 20,
+            mentalFatigue: 0,
+            status: { physicalFatigue: 0, haze: 0, incapacityRecoverySteps: null },
+          },
+        ],
+        slots: ["player", null, null, null],
+      },
+      clock: { elapsedHalfDays: 0, recoverySteps: 0, nextActionId: 1 },
+      randomState: 1,
+      lastTownRecoverySignal: null,
+      growth: null,
+      inventory: {
+        balance: 0,
+        equipment: { owned: [], assignments: [] },
+        items: { version: 0, home: [], importantIds: [], exploration: null },
+      },
+    };
+    expect(deserializeGame(JSON.stringify(source), definitions)).toMatchObject({ accepted: true });
+    for (const [path, required] of [
+      [[], ["version", "adventure", "party", "clock", "randomState", "lastTownRecoverySignal", "growth", "inventory"]],
+      [["adventure"], ["currentPlaceId", "flags"]],
+      [["party"], ["members", "slots"]],
+      [["clock"], ["elapsedHalfDays", "recoverySteps", "nextActionId"]],
+      [["inventory"], ["balance", "equipment", "items"]],
+      [
+        ["inventory", "items"],
+        ["version", "home", "importantIds", "exploration"],
+      ],
+      [
+        ["party", "members", "0"],
+        ["id", "hp", "mentalFatigue", "status"],
+      ],
+      [
+        ["party", "members", "0", "status"],
+        ["physicalFatigue", "haze", "incapacityRecoverySteps"],
+      ],
     ]) {
       const locate = (payload: Record<string, unknown>) => {
         let record = payload;
@@ -296,12 +330,12 @@ describe("保存JSONの公開境界", () => {
         accepted: false,
         reason: "invalid-data",
       });
-      for (const key of Object.keys(locate(source)).filter((key) => key !== "version")) {
+      for (const key of required) {
         const missing = structuredClone(source);
         delete locate(missing)[key];
         expect(deserializeGame(JSON.stringify(missing), definitions), `missing: ${[...path, key].join(".")}`).toEqual({
           accepted: false,
-          reason: "invalid-data",
+          reason: path.length === 0 && key === "version" ? "unsupported-version" : "invalid-data",
         });
       }
     }

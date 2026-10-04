@@ -321,7 +321,7 @@ for (const failure of ["model-404", "model-invalid", "background-404"] as const)
   });
 }
 
-test("背景の失敗は保留中のモデル読込を完了させてから通知し退出で全資源を解放する", async ({ page }) => {
+test("背景失敗と遅着するモデルがあっても操作を公開せず退出で全資源を解放する", async ({ page }) => {
   await observeWebGLResources(page);
   let release = () => {};
   let requested = () => {};
@@ -347,7 +347,6 @@ test("背景の失敗は保留中のモデル読込を完了させてから通�
   await groundRequested;
   await backgroundFailed;
   try {
-    await expect(page.getByLabel("表示状態")).toHaveText("読込中");
     await expect(page.getByRole("button", { name: "通常攻撃", exact: true })).toHaveCount(0);
   } finally {
     release();

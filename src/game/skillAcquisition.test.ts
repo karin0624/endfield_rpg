@@ -12,19 +12,25 @@ import {
   resetExplorationSkills,
 } from "./skillAcquisition";
 import {
+  type ActiveSkillDefinition,
   activeSkillBaseAmount,
+  type PassiveSkillDefinition,
   passiveSkillAmount,
   type SkillCatalog,
   type SkillDefinition,
+  skillById,
   validateSkillCatalog,
 } from "./skills";
 
 // All values are test fixtures, not character balance or an adopted unlock table.
+const strike = skillById(skillCatalog, "test-strike") as ActiveSkillDefinition;
+const heal = skillById(skillCatalog, "test-heal") as ActiveSkillDefinition;
+const strength = skillById(skillCatalog, "test-strength") as PassiveSkillDefinition;
 const extra: readonly SkillDefinition[] = [
-  { ...skillCatalog.skills[0], id: "extra", effect: { ...skillCatalog.skills[0].effect, amount: 5 } },
-  { ...skillCatalog.skills[0], id: "required" },
+  { ...strike, id: "extra", effect: { ...strike.effect, amount: 5 } },
+  { ...strike, id: "required" },
   {
-    ...skillCatalog.skills[2],
+    ...strength,
     id: "long-passive",
     effect: { type: "basic-attack-power-bonus", rankAmounts: [1, 4, 9] },
   },
@@ -180,14 +186,17 @@ describe("探索内スキル取得コア", () => {
     // Independent LCG example: seed 1 produces indices 1,1,1 in shrinking lists of 5,4,3.
     expect(state.choice?.candidateIds).toEqual(["test-heal", "test-strength", "extra"]);
     expect(state.randomState).toBe(2165703038);
-    expect(prepareSkillChoice(state, catalog)).toEqual(state);
+    const before = structuredClone(state);
+    expect(prepareSkillChoice(state, catalog)).toEqual(before);
+    expect(state).toEqual(before);
     for (const input of [
       { explorationId: "old-run", characterId: "player", level: 2, skillId: "test-heal" },
       { explorationId: "run-1", characterId: "gilberta", level: 2, skillId: "test-heal" },
       { explorationId: "run-1", characterId: "player", level: 3, skillId: "test-heal" },
       { explorationId: "run-1", characterId: "player", level: 2, skillId: "required" },
     ]) {
-      expect(chooseSkill(state, input, catalog)).toMatchObject({ accepted: false, state });
+      expect(chooseSkill(state, input, catalog)).toMatchObject({ accepted: false, state: before });
+      expect(state).toEqual(before);
     }
     expect(
       grantSkillExperience(
@@ -197,7 +206,8 @@ describe("探索内スキル取得コア", () => {
         definition,
         catalog,
       ),
-    ).toMatchObject({ accepted: false, reason: "pending-choice", state });
+    ).toMatchObject({ accepted: false, reason: "pending-choice", state: before });
+    expect(state).toEqual(before);
   });
   it("新規アクティブはランクなしで1回だけ取得でき、次の候補と二重入力から除外する", () => {
     const definition = progression(1, 1);
@@ -363,10 +373,9 @@ describe("探索内スキル取得コア", () => {
 
 describe("ランクを持たない能力値依存効果と個別パッシブ定義", () => {
   it("参照能力値で基礎効果だけが伸び、疲労増加量を変えない", () => {
-    const strike = skillCatalog.skills[0];
     expect(activeSkillBaseAmount(strike, { attackPower: 8, maxHp: 20 })).toBe(16);
     expect(activeSkillBaseAmount(strike, { attackPower: 12, maxHp: 20 })).toBe(18);
-    expect(activeSkillBaseAmount(skillCatalog.skills[1], { attackPower: 8, maxHp: 20 })).toBe(18);
+    expect(activeSkillBaseAmount(heal, { attackPower: 8, maxHp: 20 })).toBe(18);
     expect(
       activeSkillBaseAmount(
         { ...strike, effect: { type: "damage", amount: 0.25, scaling: { stat: "attackPower", coefficient: 0.5 } } },
@@ -376,9 +385,8 @@ describe("ランクを持たない能力値依存効果と個別パッシブ定�
     expect(strike.mentalFatigueIncrease).toBe(4);
   });
   it("個別上限と非一律の段階効果を持ち、範囲外ランクを拒否する", () => {
-    expect(passiveSkillAmount(skillCatalog.skills[2], 2)).toBe(4);
-    for (const rank of [0, -1, 1.5, Number.NaN, 3])
-      expect(() => passiveSkillAmount(skillCatalog.skills[2], rank)).toThrow();
+    expect(passiveSkillAmount(strength, 2)).toBe(4);
+    for (const rank of [0, -1, 1.5, Number.NaN, 3]) expect(() => passiveSkillAmount(strength, rank)).toThrow();
     const long = extra[2];
     if (long.type !== "passive") throw new Error("パッシブ定義なし");
     expect(passiveSkillAmount(long, 3)).toBe(9);
@@ -398,15 +406,15 @@ describe("ランクを持たない能力値依存効果と個別パッシブ定�
 
 describe("追加の定義検証", () => {
   it.each([0, -1, Number.NaN, Number.POSITIVE_INFINITY])("不正な能力値係数%sを拒否する", (coefficient) => {
-    const strike = skillCatalog.skills[0];
     expect(() =>
       validateSkillCatalog(
         {
           ...catalog,
-          skills: [
-            { ...strike, effect: { ...strike.effect, scaling: { stat: "attackPower" as const, coefficient } } },
-            ...catalog.skills.slice(1),
-          ],
+          skills: catalog.skills.map((skill) =>
+            skill.id === "test-strike"
+              ? { ...strike, effect: { ...strike.effect, scaling: { stat: "attackPower" as const, coefficient } } }
+              : skill,
+          ),
         },
         [{ id: "player" }, { id: "gilberta" }],
       ),

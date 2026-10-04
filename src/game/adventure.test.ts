@@ -16,6 +16,7 @@ import { createInitialGameState } from "./createInitialGameState";
 describe("街・会話の進行", () => {
   it("場所選択から会話、選択肢、フラグ更新、再訪分岐まで進む", () => {
     let state = createInitialGameState(initialGameOptions);
+    const beforeListing = structuredClone(state);
 
     expect(getAvailableTownPlaces(state, initialAdventure)).toEqual([
       { id: "town-square", label: "街の広場" },
@@ -23,6 +24,7 @@ describe("街・会話の進行", () => {
       { id: "market", label: "市場" },
       { id: "find-companion", label: "同行者を探す（仮）" },
     ]);
+    expect(state).toEqual(beforeListing);
 
     const started = selectTownPlace(state, "guild", initialAdventure);
     expect(started.accepted).toBe(true);
@@ -43,8 +45,8 @@ describe("街・会話の進行", () => {
     if (!greeted.accepted) return;
     state = greeted.state;
 
-    const greeting = getCurrentConversationScene(state, initialAdventure);
-    expect(greeting).toMatchObject({
+    const beforeGreeting = structuredClone(state);
+    const expectedGreeting = {
       type: "line",
       text: "ギルベルタが掲示板の前で会釈した。",
       presentation: {
@@ -54,8 +56,11 @@ describe("街・会話の進行", () => {
         expressionId: "smile",
         position: "center",
       },
-    });
-    expect(getCurrentConversationScene(state, initialAdventure)).toEqual(greeting);
+    };
+    expect(getCurrentConversationScene(state, initialAdventure)).toMatchObject(expectedGreeting);
+    expect(state).toEqual(beforeGreeting);
+    expect(getCurrentConversationScene(state, initialAdventure)).toMatchObject(expectedGreeting);
+    expect(state).toEqual(beforeGreeting);
     expect(state.flags).toEqual([]);
 
     const choiceStep = advanceConversation(state, initialAdventure);
@@ -72,8 +77,10 @@ describe("街・会話の進行", () => {
       ],
     });
 
+    const beforeLockedChoice = structuredClone(state);
     const lockedChoice = chooseConversationOption(state, "ask-secret", initialAdventure);
-    expect(lockedChoice).toEqual({ accepted: false, reason: "choice-unavailable", state });
+    expect(lockedChoice).toEqual({ accepted: false, reason: "choice-unavailable", state: beforeLockedChoice });
+    expect(state).toEqual(beforeLockedChoice);
     expect(state.flags).toEqual([]);
 
     const selected = chooseConversationOption(state, "ask-quest", initialAdventure);
@@ -93,12 +100,14 @@ describe("街・会話の進行", () => {
     expect(state).toMatchObject({
       mode: "town",
       currentPlaceId: "guild",
-      flags: ["heard-guild-quest", "visited-guild"],
     });
+    expect([...state.flags].sort()).toEqual(["heard-guild-quest", "visited-guild"]);
     expect(getCurrentConversationScene(state, initialAdventure)).toBeNull();
 
+    const beforeDuplicate = structuredClone(state);
     const duplicateAdvance = advanceConversation(state, initialAdventure);
-    expect(duplicateAdvance).toEqual({ accepted: false, reason: "not-in-conversation", state });
+    expect(duplicateAdvance).toEqual({ accepted: false, reason: "not-in-conversation", state: beforeDuplicate });
+    expect(state).toEqual(beforeDuplicate);
 
     const revisited = selectTownPlace(state, "guild", initialAdventure);
     expect(revisited.accepted).toBe(true);
@@ -138,15 +147,19 @@ describe("街・会話の進行", () => {
 
   it("会話中の移動と街に存在しない場所を拒否し、状態を変えない", () => {
     const townState = createInitialGameState(initialGameOptions);
+    const beforeMissing = structuredClone(townState);
     const missingPlace = selectTownPlace(townState, "unknown", initialAdventure);
-    expect(missingPlace).toEqual({ accepted: false, reason: "place-unavailable", state: townState });
+    expect(missingPlace).toEqual({ accepted: false, reason: "place-unavailable", state: beforeMissing });
+    expect(townState).toEqual(beforeMissing);
 
     const started = selectTownPlace(townState, "market", initialAdventure);
     expect(started.accepted).toBe(true);
     if (!started.accepted) return;
+    const beforeMove = structuredClone(started.state);
     const rejectedMove = selectTownPlace(started.state, "guild", initialAdventure);
-    expect(rejectedMove).toEqual({ accepted: false, reason: "not-in-town", state: started.state });
+    expect(rejectedMove).toEqual({ accepted: false, reason: "not-in-town", state: beforeMove });
     expect(getAvailableTownPlaces(started.state, initialAdventure)).toEqual([]);
+    expect(started.state).toEqual(beforeMove);
   });
 
   it("会話データの場所参照と選択肢の到達先を検証する", () => {

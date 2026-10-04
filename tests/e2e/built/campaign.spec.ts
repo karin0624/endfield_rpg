@@ -569,7 +569,7 @@ test("通常本編の全滅からホーム保存再開・六回療養・再出�
     await page.getByRole("button", { name: "スキル", exact: true }).click();
     await page.getByRole("button", { name: "攻撃", exact: true }).click();
     await page.getByRole("button", { name: "使用する", exact: true }).click();
-    await expect(page.locator("[data-battle-ui]")).toHaveAttribute("data-replaying", "false", { timeout: 60_000 });
+    await expect(page.getByRole("button", { name: "演出を省略", exact: true })).toBeHidden({ timeout: 60_000 });
   }
   await expect(defeat).toBeVisible();
   await page.getByRole("button", { name: "戦闘を終えてルートへ戻る" }).click();
@@ -625,18 +625,22 @@ test("通常帰還の物品ロストを表示し、ホーム再描画と保存�
   await expect(page.locator("[data-town-recovery]")).toContainText("物品ロスト：1個");
   await expect(page.locator(".campaign-copy")).toContainText("ホーム保管 HP回復品 0個");
   await save(page);
-  const saved = await page.evaluate(() => localStorage.getItem("endfield-rpg-game-save"));
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem("endfield-rpg-game-save") ?? "null"));
   await page.getByRole("button", { name: "装備を整える", exact: true }).click();
   await page.getByRole("button", { name: "ホームへ戻る", exact: true }).click();
   await save(page);
-  expect(await page.evaluate(() => localStorage.getItem("endfield-rpg-game-save"))).toBe(saved);
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("endfield-rpg-game-save") ?? "null"))).toEqual(
+    saved,
+  );
   await collectCoverage(page);
   await page.reload();
   await page.getByRole("button", { name: "続きから", exact: true }).click();
   await expect(page.locator(".campaign-copy")).toContainText("ホーム保管 HP回復品 0個");
   await expect(page.locator("[data-town-recovery]")).toBeHidden();
   await save(page);
-  expect(await page.evaluate(() => localStorage.getItem("endfield-rpg-game-save"))).toBe(saved);
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("endfield-rpg-game-save") ?? "null"))).toEqual(
+    saved,
+  );
 });
 
 test("市場の複数購入では療養を進めず、終了時にだけ非ゼロの療養時計と控え症状を更新する", async ({ page }) => {
@@ -724,7 +728,7 @@ test("仲間への誘いを見送り再訪で加入し、編成変更だけを�
   const after = await readSave();
   await expect(page.getByLabel("持込み個数（HP回復品）")).toHaveValue("1");
   expect(before.randomState).toBe(12345);
-  expect(before.party.members[0]).toEqual(
+  expect(before.party.members.find(({ id }: { id: string }) => id === "player")).toEqual(
     expect.objectContaining({ hp: 12, status: expect.objectContaining({ haze: 20 }) }),
   );
   expect(before.inventory.items.home).toEqual([{ itemId: "hp-recovery", quantity: 1 }]);
