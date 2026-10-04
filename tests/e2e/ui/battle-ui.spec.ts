@@ -1,5 +1,4 @@
 import { collectCoverage, expect, test } from "../coverage";
-import { assertBattleCardContrast } from "../plateContrast";
 
 test("敵を選んで攻撃すると対象のHPが更新される", async ({ page }) => {
   await page.goto("/tests/fixtures/battle-ui.html?demo=1");
@@ -978,43 +977,6 @@ for (const fontPercent of [100, 200]) {
       .toBe(true);
     const player = page.locator(".ally-card").filter({ hasText: "Player" });
     await expect(player.locator("summary")).toHaveCount(0);
-    const contrastBefore = await assertBattleCardContrast(player);
-    if (fontPercent === 100) {
-      const hpValue = player.locator(".hp-line b");
-      const original = await hpValue.textContent();
-      await hpValue.evaluate((value) => {
-        const child = document.createElement("span");
-        child.textContent = value.textContent;
-        child.style.webkitTextFillColor = "#232825";
-        value.replaceChildren(child);
-      });
-      await expect(assertBattleCardContrast(player)).rejects.toThrow(/text-only/);
-      await hpValue.evaluate((value, original) => {
-        value.textContent = original;
-      }, original);
-      for (const [target, style, failure] of [
-        [hpValue, "visibility: hidden", /visible text/],
-        [player.locator(".hp-line"), "height: 1px; overflow: hidden", /clipped/],
-        [player, "border-radius: 999px", /rectangular plate/],
-      ] as const) {
-        const prior = await target.getAttribute("style");
-        try {
-          await target.evaluate((element, style) => element.setAttribute("style", style), style);
-          await expect(assertBattleCardContrast(player)).rejects.toThrow(failure);
-        } finally {
-          await target.evaluate((element, prior) => {
-            if (prior === null) element.removeAttribute("style");
-            else element.setAttribute("style", prior);
-          }, prior);
-        }
-      }
-      await assertBattleCardContrast(player);
-      const lowContrast = await page.addStyleTag({
-        content: ".ally-card .hp-line b { -webkit-text-fill-color: #232825 !important }",
-      });
-      await expect(assertBattleCardContrast(player)).rejects.toThrow(/4\.5/);
-      await lowContrast.evaluate((style) => style.parentNode?.removeChild(style));
-    }
     const hpPosition = () =>
       player.evaluate((card) => {
         const line = card.querySelector(".hp-line");
@@ -1042,11 +1004,6 @@ for (const fontPercent of [100, 200]) {
     await expect(player).toContainText("HP15/ 15");
     const hpAfter = await hpPosition();
     expect(hpAfter.hp, JSON.stringify({ before: hpBefore.rows, after: hpAfter.rows })).toEqual(hpBefore.hp);
-    const contrastAfter = await assertBattleCardContrast(player);
-    await info.attach("Playerの既存plateによる文字contrast下限", {
-      body: JSON.stringify({ fontPercent, before: contrastBefore, after: contrastAfter }, null, 2),
-      contentType: "application/json",
-    });
     await info.attach("HP位置と症状行", {
       body: JSON.stringify({ fontPercent, before: hpBefore, after: hpAfter }, null, 2),
       contentType: "application/json",

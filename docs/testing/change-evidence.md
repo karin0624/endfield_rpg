@@ -57,7 +57,7 @@ VRTはブラウザの各層で用いる視覚assertionであり、操作・論�
 
 | 固定監査の領域 | 具体的な不足への対応 | 残る区別・限界 |
 | --- | --- | --- |
-| UI（UI-C/P/D/B/E/V） | 通常保存・取消・focus、クイック編成の各入力結果、各着弾、実コアのRNG、routeの狭幅、全設定control、実font使用、必要状態VRT。入口は `tests/e2e/built/campaign.spec.ts` と `tests/e2e/{debug,ui,settings}/` | UI-B23の通常幅・文字200%は修正と回帰テストを追加。狭幅のdocument座標固定は分離承認済みIssue #103へ残す。UI-V04は既存Playerカードの条件付き保証を追加したが、画像上の編成名・halo・重要非文字を含む全体は未検証で、分離承認済みIssue #104へ残す。全画面タイポグラフィの仕上げは承認済みIssue #99へ分けるが、現在のfont読込・実使用と狭幅操作の保証を混同しない |
+| UI（UI-C/P/D/B/E/V） | 通常保存・取消・focus、クイック編成の各入力結果、各着弾、実コアのRNG、routeの狭幅、全設定control、実font使用、必要状態VRT。入口は `tests/e2e/built/campaign.spec.ts` と `tests/e2e/{debug,ui,settings}/` | UI-B23の通常幅・文字200%は修正と回帰テストを追加。狭幅のdocument座標固定は分離承認済みIssue #103へ残す。UI-V04の自作plate検証は旧headでの試行として現行テストから除去し、画像上の編成名・halo・重要非文字を含むコントラスト調査は独立品質改善Issue #104へ分離する。全画面タイポグラフィの仕上げは承認済みIssue #99へ分けるが、現在のfont読込・実使用と狭幅操作の保証を混同しない |
 | 進行・保存（ADV/DUN/EXP/GROW/REC/SAVE等） | `definitionContracts.test.ts` のDAG/条件分岐負例、`growthRuntime.test.ts` の保証技/習得境界、`multidayAcceptance.test.ts` と `save.test.ts` の公開状態の引継ぎ・拒否 | 公開数量・金額の保存不一致は修正。将来コンテンツや未確定バランスを実装済み保証へ含めない |
 | 物品・装備（ITEM/EQUIP/SAVEITEM） | `items.test.ts` の各回優先消費と成功合算、`itemUse.test.ts` の古い入力拒否、`inventoryIntegration.test.ts` の購入→探索→帰還→保存と実戦闘の回復後被弾、装備＋育成＋疲労 | SAVEITEM-03で監査者が推定したversionの包括上限は公開仕様にない。通常版数の保持・不正値拒否は検証するが、version枯渇時の方針は未定義・未検証 |
 | 戦闘（BAT-T/A/S/F/L等） | `battleContracts.test.ts` の独立した入力/HP/時刻/出来事/確率等値境界、`skills.test.ts` 等の対象と拒否、Playwrightの途中表示と速度・省略・退出後の論理結果 | BAT-D01〜04の途中速度変更・割込・SP・戦略AI・本編へのmulti/all技提供・最終バランスは未実装計画。実装済みmulti/all runtimeの不足へ読み替えない |
@@ -65,22 +65,22 @@ VRTはブラウザの各層で用いる視覚assertionであり、操作・論�
 
 ### 分離承認済みの残件
 
-- **UI-V04：画像背景との絶対コントラスト。** 下記の既存Playerカードは条件付きで4.5:1を検証する。一方、編成名や見出しの画像／pseudo背景・blur halo、重要非文字3:1は独立した品質改善として、ユーザーが分離を承認した [Issue #104](https://github.com/karin0624/endfield_rpg/issues/104) へ残す。標準axeのincompleteは不適合の証明でも成功でもない。試作画素解析器はhaloの既知条件で誤判定したため採用しない。VRT・違反0・目視を絶対コントラストの保証へ読み替えない。
+- **UI-V04：画像背景との絶対コントラスト。** 限定したPlayerカードの自作plate計測も現行の通常仕様テストから取り除いた。編成名や見出しの画像／pseudo背景・blur halo、重要非文字を含むコントラスト調査は独立した品質改善として、ユーザーが分離を承認した [Issue #104](https://github.com/karin0624/endfield_rpg/issues/104) へ残す。標準axeのincompleteは不適合の証明でも成功でもない。試作画素解析器はhaloの既知条件で誤判定したため採用しない。VRT・違反0・目視を絶対コントラストの保証へ読み替えない。
 全実装済み仕様をテストする要求は維持する。狭幅HPと上のコントラスト残件はユーザーが別Issueへの分離を承認した。デザインガイドラインは設計指針であり、`specs/`への配置だけで実装仕様・必須テスト・マージ条件に昇格させない。コントラスト改善を未達の実装仕様として完了条件へ置かず、WCAG適合・VRTの視覚回帰・テストの有無を区別する。分離承認をWCAG適合や自動テストの成功へ読み替えない。
 
 ### HP位置の修正前後の検証
 
 初期画面は通常・文字200%・320px幅の同じ条件で修正前と全体pixel diffが0だった。通常のdocument上のHP行は`817.03125→801.421875`だったものが`817.03125→817.03125`となり、文字200%では`697.828125→557.421875`が`697.828125→697.828125`となった。320px幅はステージ下へ縦積みするため、上の行動結果パネルの拡大で修正前後とも`737.78125→826.5625`となる。狭幅の後続3カードでは症状行の拡大も加わりHPが126.78125px移動する。仕様は900px以下の縦積みとHP不動を同じ節で規定し、後者に明示的なviewport除外はないため、全幅解決やPC専用条件とは扱わない。狭幅のdocument座標まで固定する受入範囲と追加情報のflow配置は、ユーザーが分離を承認した [Issue #103](https://github.com/karin0624/endfield_rpg/issues/103) へ残す。基準画像を更新せず、初期構図を維持する修正の範囲と別のflow変化をレビューで照合する。
 
-### 既存plateの限定したcontrast試行
+### 旧headの自作contrast試行と分離
 
-以下は設計指針を根拠にこのPRで追加した品質検証の記録であり、実装仕様やマージ条件ではない。既存HP位置・症状表示・キーボード操作・VRTの保証とは分け、独立品質改善Issue #104で整理する。
+旧head [abd6f7c](https://github.com/karin0624/endfield_rpg/tree/abd6f7c8bdcbd073469cd7f0c99347beb556ce9f) では、このPRで追加した [比率計算](https://github.com/karin0624/endfield_rpg/blob/abd6f7c8bdcbd073469cd7f0c99347beb556ce9f/tests/contrast.ts) と [plate前提検証](https://github.com/karin0624/endfield_rpg/blob/abd6f7c8bdcbd073469cd7f0c99347beb556ce9f/tests/e2e/plateContrast.ts) を通常CIで実行していた。限定条件での4.5:1と専用負例を確認した試行であり、画像背景・halo・重要非文字まで含むWCAG適合を示していない。
 
-`tests/e2e/plateContrast.ts` は実入力で到達したPlayerカードの名前・待機状態・HP表記を対象に、通常と文字200%、無症状と初回症状後で確認する。実DOMの可視の単純text-only対象、矩形plateのborderより内側への文字全域被覆、単色plate、不透明な文字、祖先・文字経路のopacity/filter/blend/mask/pseudo overlay不在をassertする。別色の子要素、visibility/content-visibility、途中のoverflowによる切取り、非矩形plate、変形や未対応scroll containerは成功へ読み替えず拒否する。HP数値へ低contrast spanを追加した旧helperは親のfillだけを使い成功したが、限定条件を厳密化した後は拒否する。実ブラウザ回帰で子要素、不可視、height 1pxの中間切取り、角丸plateを渡し、拒否後に元DOMを復元して通常／文字200%の正例を確認する。plateとbox/text shadowの色範囲をsource-overの十分条件として扱い、画像下地を全sRGB範囲へ広げたWCAG相対輝度の下限を丸めず比較する。色の一致だけの見た目proxyではなく、成立条件と4.5:1の公開基準を確認する限定保証である。
+設計指針から実装仕様の合否条件へ持ち込んでいたため、ユーザーの分離承認に従い、自作計算・plate helper・専用単体テストを削除した。混在していたHP位置ケースからもcontrast前後計測・DOM/CSSを壊す専用負例・contrast添付だけを除き、HP座標・症状表示・キーボード操作・スクリーンショットとHP添付は維持した。optional経路は追加せず、今後の方法・範囲の調査は [独立品質改善Issue #104](https://github.com/karin0624/endfield_rpg/issues/104) で行う。
 
-このfixtureのplateは初期`#3c463e`、待機後`#232825`、alpha1、影には`#445045`等がある。本文・補助文字の下限は両状態・両文字サイズで**4.584813721131425:1**だった。文字fillをplateと同色へ一時変更した実ブラウザ入力ではassertionが拒否し、復元後に成功する。数式は白黒21:1、白文字／黒plate alpha0.6の既知値5.74183648145415:1、丸めると境界を誤る`#777`と`#767676`の値、foregroundが可能背景範囲内にある負例をVitestで確認する。alpha0.6の例は現CSSの値ではない。
+現在の通常仕様テストはこの試行によるcontrast保証を含まない。基準画像・UI外観を変更せず、既存VRTは承認された画面の構図と視覚回帰を担う。旧headの結果を現在のテスト保証やWCAG適合へ読み替えない。
 
-この保証は編成の画像上の文字、blur halo、祖先opacityを持つ敗北カード、非文字マーカーへ転用しない。基準画像・UI外観は変更せず、既存VRTは構図と視覚回帰を別に担う。計算根拠は[WCAG文字contrast](https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html)と[source-over合成](https://www.w3.org/TR/compositing-1/)を参照する。
+除去後の`npm run check`は45ファイル・685ケースの発見／全実行／成功を照合した。固定Playwrightコンテナでは通常文字・文字200%のHP位置2ケースが5.7秒で成功し、症状表示・キーボード展開・HP添付と前後スクリーンショットも維持した。この件数は検証時点の観測結果であり、不変要件ではない。対象ケースの撮影をVRT成功として数えず、既存VRTは最終CIで別途確認する。
 
 ### 未定義の設計境界
 
@@ -101,7 +101,9 @@ SAVEITEM-03の通常のversion一致・更新・保存は既存／追加テス�
 
 [Viteのhidden map](https://vite.dev/config/build-options.html#build-sourcemap)は外部mapを生成し、実行JSへmap参照コメントを付加しない。Playwrightのnative V8データに、そのchunkの隣接mapをMonocart標準APIの`sourceMap`として渡す。dev fixtureは既存のinline mapを使う。未読込srcの分母、project別report、追加page/contextの拒否、遷移前回収、各case annotationと全件照合は維持する。minified V8からの再mappingによりcounterや率は旧非minify解析buildと一致するとは限らず、旧率の単純比較を合格条件にしない。
 
-- `npm run check`は46ファイル・686ケースを発見し、全実行・成功を照合した。通常・hidden map付き通常・hidden map付きdebugの各buildも実LFS素材で成功した。
+分岐指標は生成JSから対応づけられた範囲であり、元TSの全分岐分母を保証しない。[Monocart 2.13の変換処理](https://github.com/cenfun/monocart-coverage-reports/blob/v2.13.0/lib/converter/converter.js#L620-L672)はmapping不能な分岐群を除き、`all`も未収集ファイルの追加だけで読込済みTSのtree shaking削除分や未mapping分岐を埋めない。下記の69src集合一致はsource欠落の確認であり、全分岐維持の証明ではない。
+
+- 単一coverage統合時点の`npm run check`は46ファイル・686ケースを発見し、全実行・成功を照合した。通常・hidden map付き通常・hidden map付きdebugの各buildも実LFS素材で成功した。
 - 通常とhidden map付き通常buildのJS/CSS/HTMLは129ファイルすべてSHA-256が一致した。debug同士も151ファイルすべて一致した。通常buildは外部map122個だけが付加され、実行ファイルのbytesは変わらなかった。
 - 固定Playwrightコンテナで全4projectの代表6ケースが1.3分で成功した。通常配布の公開境界、debugの実描画VRT、保存reload、uiの選択VRT、settingsの実素材・非root独立buildと構図VRTを含む。6ケース全てにcoverage annotationがあり、global errorは0だった。
 - 各projectのreportは69個のsrcを含み、旧CI artifactのsource集合と厳密に一致した。未読込ファイルの0-hitも残った。全件discoveryも従来と同じ170件（built20・debug25・ui80・settings45）だった。この件数一致は今回の実行漏れ比較の観測事実であり、170件や既存ケース構造の不変を要件としない。

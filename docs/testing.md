@@ -96,6 +96,8 @@ Vitest 5の標準 `@vitest/coverage-v8` で `src/**/*.ts` と `scripts/*.{ts,mjs
 
 ブラウザはPlaywright native V8とMonocartを使い、自前のsrc TSをsourcemapで正規化する。全srcの未読込も含め、vendor・テスト・CSSを混ぜない。`coverage/browser/{built,debug,ui,settings}/` はprojectごとの実行由来のレポートであり、同じ分母を平均・合算したり、unit率と統合したりしない。通常配布と同じminification・tree shakingのbuildを`dist/`・`dist-debug/`へ一度生成し、hidden sourcemapだけを付加する。共有fixtureが実行中のV8データへ隣接する外部mapを渡す。fixture／エディターのdevソースはViteのinline mapを使う。専用の非minify解析buildは作らない。配布・操作・VRTの合否とcoverageは同じ実行から得る。全srcの未読込ファイルは分母から除外しない。minification後のV8データを再mappingするため、counterや率は旧非minify解析buildと同じになるとは限らない。旧レポートとの率の単純比較を品質の判定に使わない。
 
+ブラウザの分岐指標は生成JSから元TSへ対応づけられた範囲を表し、元TSの全分岐分母を保証しない。[Monocart 2.13の変換処理](https://github.com/cenfun/monocart-coverage-reports/blob/v2.13.0/lib/converter/converter.js#L620-L672)はmapping不能な分岐群を除く。`all`は未収集ファイルを追加するが、読込済みTSのtree shakingで削除された部分や未mapping分岐を補完しない。今回の69src集合の一致はsource欠落の確認であり、全分岐維持の証明ではない。
+
 CIはgit上の品質テストファイル、runnerの `--list`、実JSON結果を照合し、空／未発見ファイル、重複名、未実行、skip/todo/only、失敗・retry・期待失敗を拒否する。Vitestの標準Reporter APIで個別retryと期待失敗も確認する。全件ブラウザ実行は共有fixtureを必須にし、追加context/pageや遷移前回収漏れ、map欠落・不正、ケースごとの収集欠落を拒否する。手書きの仕様ID・テストID台帳や独自runnerは増やさない。
 
 自動検査は登録漏れや未実行を検出するが、assertionの意味や自然言語仕様の完全性は証明しない。PRでは次を確認する。
