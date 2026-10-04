@@ -104,7 +104,9 @@ SAVEITEM-03の通常のversion一致・更新・保存は既存／追加テス�
 - `npm run check`は46ファイル・686ケースを発見し、全実行・成功を照合した。通常・hidden map付き通常・hidden map付きdebugの各buildも実LFS素材で成功した。
 - 通常とhidden map付き通常buildのJS/CSS/HTMLは129ファイルすべてSHA-256が一致した。debug同士も151ファイルすべて一致した。通常buildは外部map122個だけが付加され、実行ファイルのbytesは変わらなかった。
 - 固定Playwrightコンテナで全4projectの代表6ケースが1.3分で成功した。通常配布の公開境界、debugの実描画VRT、保存reload、uiの選択VRT、settingsの実素材・非root独立buildと構図VRTを含む。6ケース全てにcoverage annotationがあり、global errorは0だった。
-- 各projectのreportは69個のsrcを含み、旧CI artifactのsource集合と厳密に一致した。未読込ファイルの0-hitも残った。全件discoveryも従来と同じ170件（built20・debug25・ui80・settings45）だった。
+- 各projectのreportは69個のsrcを含み、旧CI artifactのsource集合と厳密に一致した。未読込ファイルの0-hitも残った。全件discoveryも従来と同じ170件（built20・debug25・ui80・settings45）だった。この件数一致は今回の実行漏れ比較の観測事実であり、170件や既存ケース構造の不変を要件としない。
 - 全件discoveryに上の部分結果を渡すと、未実行caseをゲートが拒否した。通常配布chunkのmapを一時的に外した実ブラウザ実行も共有fixtureが拒否し、mapを復元した。実CLIのVitest回帰では古いJSONによる部分実行／list-onlyの偽成功とcase annotation欠落を拒否した。
 
 この小規模確認を最終headの全件CI成功や5分目標達成と扱わない。最終の統合commitでverify/browserの全実行結果・VRT・coverage artifactを確認する。
+
+[性能改善Issue #102](https://github.com/karin0624/endfield_rpg/issues/102) の診断には工程別・ケース別の時間を含む既存report/logを引き継ぐ。品質維持の判定は実装仕様がテストで担保されていることで行い、同じ仕様保証を実証できる統合・移動・書換え・削除を認める。assertion・ケースの件数や構造を固定せず、保証の対応はテストコードと変更の証拠で説明し、巨大な手書き台帳を追加しない。
