@@ -69,9 +69,9 @@ const api = {
     const settings = settingsFor(name);
     if (preview) scene?.previewSettings(settings);
     else scene?.applySettings(settings);
-    // Repaint the supplied snapshot in the updated native projection.
-    closePicture();
-    await paintPicture();
+    // A same-scene settings update keeps the supplied UI state and native HUD owner.
+    // Only a new BattleScene above creates and paints a new UI owner.
+    await view?.settled();
   },
 };
 export type GroundView = typeof api;
