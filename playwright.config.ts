@@ -11,7 +11,7 @@ export const viewServer = {
   wait: { stdout: /Local:\s+http:\/\/127\.0\.0\.1:4174\// },
 };
 export const editorProjects = [
-  { name: "editor-views", testDir: "./tests/editor/views", testMatch: "**/*.spec.ts" },
+  { name: "editor-views", testDir: "./tests/editor/views", testMatch: "**/*.spec.ts", fullyParallel: true },
   { name: "editor-resources", testDir: "./tests/editor/renderer", testMatch: "**/*.spec.ts" },
 ];
 

@@ -78,6 +78,16 @@ Vitestは従前の標準forks・file parallelism、実コンテナではmaxWorke
 
 停止前の工程別診断は全stage成功・402.472秒で完了していた。npm ci 16.113秒、unit discovery 4.535秒、unit実行／coverage 21.723秒、三build計5.222秒、Browser実行334.048秒、終了時global teardown 4.485秒だった。expanded commandsの診断であり、既存の正式host wrapper 413.243秒とは起動方法が違う。残るcase費用をcoverage集計やGPUだけへ帰属させない。今回のcollector annotationで実回収費用を分離し、準備削減後の直列全体を先に測る。並列化はその後に同一runnerの2workers、2shard、独立工程を比較し、Actions上の性能をローカル測定から断定しない。
 
+## 直列と標準2workersの比較
+
+準備削減後の固定head `0f5207e`で、正式host wrapperは直列398.187秒、`--workers=2`は301.204秒だった。どちらも単体795件、Browser31件、54画像、4projectのcoverage／全実行gateが成功し、449 tracked filesと162保護ファイルの変化は0、三buildのmap原文不一致は0だった。Browser wallは直列332.230秒／2workers236.411秒、直列case回収は計8.019秒。2workersのcase duration合計453.722秒は並行latencyの合計であり、CPU消費やnoncase費用とは扱わない。warm caseは23.1→32.2秒、単独設定caseは50.6→73.3秒となり、同一マシン内の競合もある。現在の環境はcpuset 5 CPU、quota 4 core相当、メモリ上限16GiBで、2workers途中のcontainer memory peakは約3.17GiBだった。途中cgroup値は最終CPU総量やGPU利用率を示さない。
+
+標準 `--shard=1/2`／`2/2` の未実行discoveryは25件／6件へ分かれ、先の直列実測重みは192.229秒／129.894秒だった。件数も費用も均等ではない。現collectorは一回の全project run後に集計し、partial shardは今回の全実行gateを通らない。別runnerへ分ける案にはblob reportの標準merge、coverage cacheの独立所有／全体集計、全無filter discoveryとの照合が必要になる。同一マシンの2shardはCPU quotaを共有し、server／processの準備を増やす。独立工程の並列化で隠せる三buildの既存実測は合計5.222秒に限られる。これらを未測定のActions wallや別runnerの計算時間へ読み替えていない。
+
+Vitestのcollectionを既存公開Reporterへ統合した。実行前の全ケースを保存し、stock JSONに見かけの成功として出るretry／期待失敗の拒否を保つ。name filterの外に残るケースもNative collectionへ記録され、結果照合で未実行を拒否する。実CLI5条件と全`npm run check`63ファイル・796ケースが成功した。単独設定5条件は同じfresh constructor、同じdefault更新→次sceneと10画像assertionを保ったまま独立caseへ分け、editor-viewsだけ標準case並列配分を許す。少なくとも前比較の73.3秒一caseが不可分の末尾へ残る問題を解消するためで、保証の省略はない。既定worker数はこの区切りでは1のままで、変更後の全体wallは未測定。
+
+旧編成5枚は標準minified配信でも元rawと全pixel一致した。ショップ390pxの13pixel corner差は元の直前320px captureを与えても残った。CSS／素材／基準／許容差の変更で消しておらず、原因は未解明のまま保持する。
+
 ## 現在の保証対応
 
 | 公開結果 | 主な検証 |

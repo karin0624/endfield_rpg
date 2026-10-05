@@ -35,7 +35,7 @@ Node.jsは `.nvmrc` の24系、ブラウザは `mcr.microsoft.com/playwright:v1.
 
 通常 `dist/` の初期タイトル、debug `dist-debug/` の初期戦闘を実際に描く。任意の画面状態は標準Viteの[multi-page build](https://vite.dev/guide/build.html#multi-page-app)で `dist-views/` へ生成する。同じ標準minifierを使い、通常配布へfixtureを混入しない。3出力は異なる実入口の検証であり、coverage専用の解析buildではない。通常4173、debug4175、直接view4174。viewの実 `BASE_URL=/rpg/` で素材を取得し、非root専用buildやURL書換えを重ねない。
 
-開発エディター・標準構図・HMR変更時は `tests/editor/` も必要になる。低頻度の詳細操作は純粋モデルで、構図と会話の見た目は必要時VRTで担う。単独control構図は条件ごとにfresh rendererを生成し、default更新後の次BattleSceneへの設定引継ぎも確認する。同じsceneの内部／preview更新では既存の画面状態とviewを保持し、準備完了や初期選択をやり直さない。任意四隅・内部／previewは必要時、本編のPC／mobile・既知素材と材質fallbackは既定に残す。通常結果へskipとして混ぜない。
+開発エディター・標準構図・HMR変更時は `tests/editor/` も必要になる。低頻度の詳細操作は純粋モデルで、構図と会話の見た目は必要時VRTで担う。単独control構図は条件ごとに独立caseとfresh rendererを生成し、default更新後の次BattleSceneへの設定引継ぎも確認する。editor-viewsの各caseは独立pageを持ち、Playwrightの標準 `fullyParallel` でcase単位に割り当てられる。worker数が1なら直列に実行する。同じsceneの内部／preview更新では既存の画面状態とviewを保持し、準備完了や初期選択をやり直さない。任意四隅・内部／previewは必要時、本編のPC／mobile・既知素材と材質fallbackは既定に残す。通常結果へskipとして混ぜない。
 
 ## Coverageと実行漏れ
 
@@ -45,7 +45,7 @@ Vitest 5の標準 `@vitest/coverage-v8` で `src/**/*.ts` と `scripts/*.{ts,mjs
 
 生成JSから対応づけられた分岐の指標であり、元TSの全分岐分母を保証しない。[Monocart 2.13](https://github.com/cenfun/monocart-coverage-reports/blob/v2.13.0/lib/converter/converter.js#L620-L672)はmapping不能な分岐群を除く。`all`は未収集ファイルを追加するが、読込済みTSのtree shaking削除分・未mapping分岐は補完しない。source集合一致は欠落確認であり、全分岐維持の証明ではない。
 
-git上の全品質spec、無filterのrunner discovery、今回の実JSONを照合する。既定はeditorだけ明示scope除外、editor単独はそのscope、allは全specを照合する。未知のディレクトリへ置いた品質specも未発見なら失敗する。ファイル解決はnative reportの `config.rootDir`、必須projectとcoverageのproject集合は実configから導く。手書きの仕様ID／case台帳は作らない。
+git上の全品質spec、runnerの実collection、今回の実JSONを照合する。Playwright discoveryは実行引数によるfilterを掛けずに取得する。Vitestは公開Reporterの `onTestModuleCollected` で、実行前の全ケースをprimitiveなfile／fullNameへ記録する。実CLIのname filterで未実行になるケースも残し、発見用の別起動と全test moduleの再importを省く。既定はeditorだけ明示scope除外、editor単独はそのscope、allは全specを照合する。未知のディレクトリへ置いた品質specも未発見なら失敗する。ファイル解決はnative reportの `config.rootDir`、必須projectとcoverageのproject集合は実configから導く。手書きの仕様ID／case台帳は作らない。
 
 空／未発見ファイル、重複名、未実行、skip/todo/only、失敗・retry・期待失敗・global errorを拒否する。実CLI filterやlist-onlyに過去JSONを流用して成功としない。共有coverage fixtureを必須にし、追加context／page・遷移前回収漏れ・map欠落／不正・各caseの収集欠落を拒否する。[Playwright coverage](https://playwright.dev/docs/api/class-coverage)は `resetOnNavigation:false` でも旧documentの保持を保証しないため、必要なdocument移動前にcheckpointを置く。
 
