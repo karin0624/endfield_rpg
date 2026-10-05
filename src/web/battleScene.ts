@@ -15,7 +15,6 @@ import { CreateDisc } from "@babylonjs/core/Meshes/Builders/discBuilder";
 import { CreatePlane } from "@babylonjs/core/Meshes/Builders/planeBuilder";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
-import { RenderingGroup } from "@babylonjs/core/Rendering/renderingGroup";
 import { Scene } from "@babylonjs/core/scene";
 import "@babylonjs/loaders/glTF/2.0/glTFLoader";
 import { initialBattleCombatants } from "../content/initialBattle";
@@ -90,8 +89,6 @@ export function createBattleRenderer(canvas: HTMLCanvasElement, initialSettings:
   // 高DPIの端末でも地面の描画負荷を際限なく増やさない。
   engine.setHardwareScalingLevel(1 / Math.min(window.devicePixelRatio, 1.5));
   const scene = new Scene(engine);
-  // Sort opaque ground near to far so hidden fragments can fail the depth test early.
-  scene.setRenderingOrder(0, RenderingGroup.frontToBackSortCompare);
   // glTF PBR materials share a scene-owned BRDF texture whose RGBD decode is asynchronous.
   scene.addIsReadyCheck({ isReady: () => !scene.environmentBRDFTexture || scene.environmentBRDFTexture.isReady() });
   scene.useRightHandedSystem = true;

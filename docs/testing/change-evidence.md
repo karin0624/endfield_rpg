@@ -352,3 +352,10 @@ warmでも地面を更新するとfull native drawが必要で、first capture�
 editor fixtureの初期2対2は、同じ設定と全4戦闘者をconstructorで準備した直後に同じsettings／actor frameを適用して再描画していた。初期表示は準備済みcanvasと投影したeditor UIを使い、後の1対1→2対2とmobile resizeの実描画は保つ。これはfixtureの明示した重複drawを除く変更であり、Native browserによるviewport変更時の再描画を止めない。
 
 この追加のlint／型／800単体・実collection照合は成功した。固定コンテナでNative V8と同じminificationの2caseを実行し、元のFX6枚とeditor3枚の全9画像が完全一致した。部分実行34.9秒は最終sourceの全品質・全coverage project・5分達成を示さない。追加差分を含む全体検証を次に記録する。
+
+
+### 追加の地面再利用の全体検証とopaque候補の取り下げ
+
+`bfa9b1855f527ca9993407489ec170215707e311` の `npm run test:all` は2026-10-05 07:23:53〜07:30:48 UTC、起動〜shutdownの直列414.359秒、Browser338.133秒、exit0だった。800単体／32browser／54unique基準画像・62assertion／4coverage project・全実行gateが成功し、failure／skip／retry／flaky／global error0、source451の前後変化0、保護162の変化0、三buildのmap原文不一致0だった。FXを1caseへ統合したためcase数だけ33→32となり、6枚のFXを含む画像と意味の保証は保持した。
+
+一回のwarm対照でopaque順序の減少は見られたが、二つの正式全体実行では全体高速化を実証できなかった。速度改善が未確定の製品変更を残さず、public opaque順序の候補3行を元に戻す。成功／失敗／速度の生記録は保持し、隔離診断を製品設定として採用しない。四隅・FXの地形再利用とeditor fixtureの重複draw除去だけを残し、復元した製品sourceで最終の全体検証を行う。
