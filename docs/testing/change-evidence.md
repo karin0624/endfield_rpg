@@ -361,6 +361,8 @@ editor fixtureの初期2対2は、同じ設定と全4戦闘者をconstructorで�
 一回のwarm対照でopaque順序の減少は見られたが、二つの正式全体実行では全体高速化を実証できなかった。速度改善が未確定の製品変更を残さず、public opaque順序の候補3行を元に戻す。成功／失敗／速度の生記録は保持し、隔離診断を製品設定として採用しない。四隅・FXの地形再利用とeditor fixtureの重複draw除去だけを残し、復元した製品sourceで最終の全体検証を行う。
 
 
+復元した製品sourceの `d3dfcf3` で `npm run test:all` を全実行した。起動〜shutdown423.102秒、Native runner332.925秒で、800単体／32browser／54unique基準画像・62assertion／4coverage project・全実行gateが成功した。failure／skip／retry／flaky／global error0、固定source451と保護162の前後差0、三buildのmap原文不一致0だった。製品 `src/` はopaque候補追加前の `a2b1ee2` とbyte単位で同一である。このeditorを含む時間は次の本体5分判定と区別する。
+
 ## #102：5分判定対象をゲーム本体CIへ訂正
 
 ユーザーの補足により、5分以内の対象は設定画面を除くゲーム本体CIの全工程とする。上の`test:all`の389.228／384.619／414.359／423.102秒はeditorを含む全品質の証拠として保持し、ゲーム本体の5分判定やモデル側タスク分離の確定理由として使わない。editorの秒数を差し引いた推定で達成としない。
@@ -368,3 +370,20 @@ editor fixtureの初期2対2は、同じ設定と全4戦闘者をconstructorで�
 既存CIは既に `scripts/run-playwright-quality.sh browser` を使い、標準`playwright.config.ts`の`views`／`renderer`が対象である。設定画面の`editor-views`／`editor-resources`は`playwright.editor.config.ts`と`npm run test:editor`に保持され、`test:all`で追加確認できる。全git specと無filter discoveryの照合はbrowser scopeだけ`tests/editor/`を明示除外し、同scopeの全project／各caseのnative V8／map／実結果を必須とする。手書きの追加分類や専用analysis buildは作らない。
 
 ゲーム本体が使う保存済みJSON設定の読込、実初期描画、PC／mobile、既知／未検証環境と同パス別bytesの元材質、DPR／resize、warm切替、遅着／失敗・退出時のGPU資源0は`views`／`renderer`に継続する。純粋な設定値・ゲーム・presentation・実HTTP等の800単体もcheckに継続する。以下は`npm run test:browser`をそのまま起動し、Docker開始、npm ci、check／単体coverage、必要な3build、本体全Native実行・coverage／実行照合、shutdownまで含めた独立の実測を記録する。
+
+固定head `237aa41` の実際の `npm run test:browser` は383.946秒、Native runnerは289.834秒だった。本体22case、37 unique基準画像（40画像assertion）、単体800case、2coverage projectが成功した。ゲームscopeでもこの一回は5分未達である。
+
+実初期viewport／DPR・標準CDP graphics device・共有page fixture内のprocess CPU累積値を共有fixtureへ記録した固定head `4fe5cb5` の同コマンドは272.004秒、Native runnerは200.394秒だった。CLI overrideなし、configured／actualとも1workerで、Docker開始からnpm ci、check／単体coverage、通常・debug・viewsの3build、本体全Native実行・coverage集計／実行照合、shutdownまでを含む。設定画面の時間を差し引いた推定ではない。
+
+| 本体の実測head | host wrapper wall | Native runner wall | views case duration合計 | renderer case duration合計 |
+| --- | ---: | ---: | ---: | ---: |
+| `237aa41` | 383.946秒 | 289.834秒 | 158.440秒 | 121.559秒 |
+| `4fe5cb5` | 272.004秒 | 200.394秒 | 119.916秒 | 71.686秒 |
+
+後の実行も800単体／本体22case・8ファイル／37 unique基準画像・40画像assertion／`views`・`renderer`全projectの各case native V8と全実行gateが成功した。両coverage projectは0-hitを含む98 sourceを集計した。failure／skip／retry／flaky／global errorは0、固定source451／保護162の前後差と三buildのmap原文不一致は0である。実renderer projectは800×900、DPR条件は1／3、graphics deviceはANGLE Vulkan SwiftShaderだった。VRT body内の既存viewport変更と全基準画像・許容差は保つ。
+
+この一回は5分目標内だが、前の383.946秒も保持し、安定したCI時間や観測fixtureによる速度改善の証明と扱わない。後の測定で祖先cgroupの4core相当quotaとCPU消費・throttle累積値は取得できたが、前の測定に同等の記録がなく、変動原因は未確定である。case durationはPlaywright timeout slotの合計で、排他的なwall／CPU消費ではない。GPU processのCPU累積値もGPU elapsedと混同しない。通常のminifier、実59MBモデル、地形・材質・GPU資源、保存値読込、PC／mobile、既知／未検証・別bytes材質、DPR／resize、warm／遅着／失敗・資源0の保証を継続し、速さだけを理由にモデルや画像を変えていない。
+
+同じ `4fe5cb5` の `npm run test:editor` も既定1workerで全実行し、起動〜shutdown232.486秒、Native runner153.551秒で成功した。単体800case、editor 10case・4ファイル、18 unique基準画像・22画像assertion、`editor-views`／`editor-resources`の各98 source・各case native V8と全実行gate、HMR／退出時の資源0を確認した。source451／保護162の前後差とこのscopeの二buildのmap原文不一致は0である。二つのscopeの実Native inventoryを前の全実行と照合すると、同じ32case／54 unique基準画像・62画像assertion／全4projectを覆い、抜け・追加は0だった（1画像は両scopeで共通）。別scopeの実測時間を合算した値を `test:all` のwall実測とは扱わない。
+
+raw shop390の13pixel変動は、同じNative条件で0／13が出る観測までで原因未確定である。基準PNG・製品CSS・仕様・許容差は変更していない。上の承認済みVRT成功を、このraw差分の解消やコントラスト基準適合の証明として扱わない。最新指示に従いCI／push／PR／merge／uploadは実施せず、ローカル証拠と既定1workerを保持する。
