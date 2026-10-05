@@ -1,58 +1,54 @@
+import { mount, unmount, untrack } from "svelte";
 import { initialBattleCombatants } from "../content/initialBattle";
+import { battleMarkerTarget } from "../presentation/battleModel";
+import { projectBattleActors } from "../presentation/battleProjection";
 import type { BattleSettings } from "../presentation/battleSettings";
 import {
   createDebugBattleModel,
   type DebugBattleEvent,
   type DebugBattleInput,
-  projectDebugBattle,
+  debugBattleInput,
   reduceDebugBattle,
 } from "../presentation/debugBattleModel";
 import { type BattleScene, createBattleRenderer, initialBattleEnvironment } from "./battleScene";
-import { createBattleView } from "./battleView";
+import type { createBattleSurface } from "./battleSurface.svelte.ts";
+import { createBattleView } from "./battleView.svelte.ts";
+import DebugBattleChrome from "./components/DebugBattleChrome.svelte";
 import { requiredElement } from "./requiredElement";
 
 /** Actual handles and clock measurements only; the synchronous model owns the game and screen. */
-export function mountDebugBattle(app: HTMLElement, settings: BattleSettings, editor: boolean) {
+export function mountDebugBattle(
+  app: HTMLElement,
+  settings: BattleSettings,
+  editor: boolean,
+  surface: ReturnType<typeof createBattleSurface>,
+) {
   const board = requiredElement<HTMLDivElement>(app, "[data-board]");
   const canvas = requiredElement<HTMLCanvasElement>(board, "canvas");
-  const status = requiredElement<HTMLElement>(board, "[data-status]");
   const events = new AbortController();
   const motion = matchMedia("(prefers-reduced-motion: reduce)");
   let input: DebugBattleInput = { combatants: initialBattleCombatants, enemyDepths: [], editor };
-  let state = createDebugBattleModel(input, 0, motion.matches);
+  let state = $state.raw(createDebugBattleModel(input, 0, motion.matches));
   let renderer: ReturnType<typeof createBattleRenderer> | undefined;
   let scene: BattleScene | undefined;
   let view: ReturnType<typeof createBattleView> | undefined;
   let animationFrame: number | undefined;
   let previousTime: number | undefined;
-  let appliedUtilityFocus: "town" | "editor" | null = null;
-  const utilities = document.createElement("div");
-  utilities.className = "battle-utility-controls";
-  const town = document.createElement("a");
-  town.href = "?debug=1";
-  town.textContent = "街へ戻る";
-  const editorLink = document.createElement("a");
-  editorLink.href = "?debug=1&edit=1";
-  editorLink.textContent = "構図設定";
-  utilities.append(town);
-  if (editor) utilities.append(document.createTextNode("\n          "), editorLink);
-  utilities.hidden = true;
-  app.append(utilities);
-  for (const [node, target] of [
-    [town, "town"],
-    [editorLink, "editor"],
-  ] as const)
-    node.addEventListener("focus", () => dispatch({ type: "utility-focused", target }), { signal: events.signal });
-  utilities.addEventListener(
-    "keydown",
-    (event) => {
-      if (dispatch({ type: "key", key: event.key, shift: event.shiftKey })) {
-        event.preventDefault();
-        event.stopPropagation();
-      }
+  let ready = $derived(state.view.scene.status === "ready"),
+    focus = $derived(state.utilityFocus);
+  const chrome = mount(DebugBattleChrome, {
+    target: app,
+    props: {
+      editor,
+      dispatch,
+      get ready() {
+        return ready;
+      },
+      get focus() {
+        return focus;
+      },
     },
-    { signal: events.signal },
-  );
+  });
   motion.addEventListener(
     "change",
     () => dispatch({ type: "playback", event: { type: "motion", reduced: motion.matches } }),
@@ -74,25 +70,28 @@ export function mountDebugBattle(app: HTMLElement, settings: BattleSettings, edi
     }
   }
   function render() {
-    const frame = projectDebugBattle(state, input);
-    status.textContent = frame.status.text;
-    status.classList.toggle("sr-only", frame.status.ready);
-    status.toggleAttribute("data-error", frame.status.error);
-    canvas.toggleAttribute("data-ready", frame.status.ready);
-    if (frame.status.ready) canvas.dataset.ready = "true";
-    utilities.hidden = !frame.status.ready;
-    if (frame.view && scene) {
-      scene.paintBattleFrame(frame.actors);
+    const sceneState = state.view.scene;
+    surface.render({
+      ready: sceneState.status === "ready",
+      error: sceneState.status === "error",
+      text:
+        sceneState.status === "ready"
+          ? "表示準備完了"
+          : sceneState.status === "error"
+            ? "戦闘画面を読み込めませんでした。素材の取得とWebGL対応を確認して、再読み込みしてください。"
+            : "戦闘画面を読み込んでいます…",
+    });
+    const battleInput = debugBattleInput(state, input);
+    if (sceneState.status === "ready" && scene) {
+      scene.paintBattleFrame(projectBattleActors(state.view.playback));
       view ??= createBattleView(board, scene, dispatch);
-      const measure = view.paint(frame.view);
-      if (measure) dispatch({ type: "party-measured", measure });
+      view.renderModel(state.view, battleInput);
     }
-    const utilityFocus = projectDebugBattle(state, input).utilityFocus;
-    if (appliedUtilityFocus !== utilityFocus) {
-      appliedUtilityFocus = utilityFocus;
-      if (utilityFocus) (utilityFocus === "town" ? town : editorLink).focus();
-    }
-    clock(projectDebugBattle(state, input).animate);
+    clock(
+      sceneState.status === "ready" &&
+        (state.view.playback.phase !== "finished" ||
+          (battleMarkerTarget(state.view, battleInput) !== null && !state.view.playback.reducedMotion)),
+    );
   }
   function releaseScene() {
     clock(false);
@@ -103,7 +102,7 @@ export function mountDebugBattle(app: HTMLElement, settings: BattleSettings, edi
   }
   function startScene(owner: number) {
     releaseScene();
-    const actors = projectDebugBattle(state, input).actors;
+    const actors = projectBattleActors(state.view.playback);
     const failed = (error: unknown) =>
       dispatch({ type: "scene-error", owner, reason: error instanceof Error ? error.message : String(error) });
     try {
@@ -134,11 +133,11 @@ export function mountDebugBattle(app: HTMLElement, settings: BattleSettings, edi
     if (changed) render();
     return transition.handled;
   }
-  startScene(state.view.scene.owner);
+  startScene(untrack(() => state.view.scene.owner));
   render();
   return () => {
     events.abort();
     dispatch({ type: "closed" });
-    utilities.remove();
+    void unmount(chrome);
   };
 }

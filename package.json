@@ -11,29 +11,34 @@
     "lint": "biome check .",
     "format": "biome check --write .",
     "check": "npm run lint && npm run build && vitest run --coverage --reporter=default --reporter=json --reporter=./scripts/vitest-execution-reporter.ts --outputFile.json=test-results/vitest.json && node scripts/check-test-execution.mjs vitest test-results/vitest-discovery.json test-results/vitest.json",
-    "build": "node scripts/check-assets.mjs && tsc --noEmit && vite build",
+    "build": "node scripts/check-assets.mjs && npm run typecheck && vite build",
     "test:editor": "sh scripts/run-browser-test.sh editor",
     "test:editor:inside": "COVERAGE_BROWSER=1 npm run check && COVERAGE_BROWSER=1 vite build --config vite.views.config.ts && sh scripts/run-playwright-quality.sh editor",
-    "build:debug": "node scripts/check-assets.mjs && tsc --noEmit && vite build --mode debug --outDir dist-debug",
-    "build:views": "node scripts/check-assets.mjs && tsc --noEmit && vite build --config vite.views.config.ts",
+    "build:debug": "node scripts/check-assets.mjs && npm run typecheck && vite build --mode debug --outDir dist-debug",
+    "build:views": "node scripts/check-assets.mjs && npm run typecheck && vite build --config vite.views.config.ts",
     "test:browser": "sh scripts/run-browser-test.sh browser",
     "test:browser:inside": "sh scripts/run-game-quality.sh",
     "review:party": "python3 scripts/compare-party-ui.py test-results test-results/approved-comparison",
     "test:all": "sh scripts/run-browser-test.sh all",
-    "test:all:inside": "COVERAGE_BROWSER=1 npm run check && COVERAGE_BROWSER=1 vite build --mode debug --outDir dist-debug && COVERAGE_BROWSER=1 vite build --config vite.views.config.ts && sh scripts/run-playwright-quality.sh all"
+    "test:all:inside": "COVERAGE_BROWSER=1 npm run check && COVERAGE_BROWSER=1 vite build --mode debug --outDir dist-debug && COVERAGE_BROWSER=1 vite build --config vite.views.config.ts && sh scripts/run-playwright-quality.sh all",
+    "typecheck": "svelte-check --tsgo --tsconfig ./tsconfig.json --fail-on-warnings"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.14",
     "@playwright/test": "^1.63.0",
+    "@sveltejs/vite-plugin-svelte": "^7.3.1",
     "@types/node": "^24.13.6",
+    "@typescript/native": "npm:typescript@7.0.2",
     "@vitest/coverage-v8": "5.0.1",
     "monocart-coverage-reports": "2.13.0",
-    "typescript": "^7.0.2",
+    "svelte-check": "^4.7.6",
+    "typescript": "^6.0.3",
     "vite": "^8.3.0",
     "vitest": "^5.0.1"
   },
   "dependencies": {
     "@babylonjs/core": "^9.27.1",
-    "@babylonjs/loaders": "^9.27.1"
+    "@babylonjs/loaders": "^9.27.1",
+    "svelte": "^5.57.1"
   }
 }

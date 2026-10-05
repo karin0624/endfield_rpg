@@ -14,54 +14,42 @@ const TETRA_FACES: readonly (readonly [number, number, number])[] = [
 ];
 const TETRA_FACE_COLORS = ["var(--face-top)", "var(--face-dark)", "var(--face-mid)", "var(--face-light)"];
 
-/** SVG版の実3D四面体。面を奥行き順に重ね、CSSの平面回転による裏返りを防ぐ。 */
-export function createTetraMarkup(angle: number): string {
-  const cos = Math.cos(angle);
-  const sin = Math.sin(angle);
-  const tilt = -0.18;
-  const cosTilt = Math.cos(tilt);
-  const sinTilt = Math.sin(tilt);
+/** Depth-sorted tetrahedron faces for declarative SVG rendering. */
+export function projectTetraFaces(angle: number) {
+  const cos = Math.cos(angle),
+    sin = Math.sin(angle),
+    tilt = -0.18;
   const vertices = TETRA_VERTICES.map(([x, y, z]): Point3 => {
-    const rotatedX = x * cos + z * sin;
-    const rotatedZ = -x * sin + z * cos;
-    return [rotatedX, y * cosTilt - rotatedZ * sinTilt, y * sinTilt + rotatedZ * cosTilt];
+    const rotatedX = x * cos + z * sin,
+      rotatedZ = -x * sin + z * cos;
+    return [rotatedX, y * Math.cos(tilt) - rotatedZ * Math.sin(tilt), y * Math.sin(tilt) + rotatedZ * Math.cos(tilt)];
   });
-  const projected: Point3[] = vertices.map(([x, y, z]) => [32 + x * 22, 29 + y * 24, z]);
-  const coordinates = (ids: readonly number[]) =>
-    ids.map((index) => `${projected[index][0].toFixed(3)},${projected[index][1].toFixed(3)}`).join(" ");
-  const orderedFaces = TETRA_FACES.map((indices, index) => ({
+  const projected = vertices.map(([x, y, z]): Point3 => [32 + x * 22, 29 + y * 24, z]);
+  return TETRA_FACES.map((indices, index) => ({
     indices,
     index,
     depth: indices.reduce((sum, vertex) => sum + vertices[vertex][2], 0) / 3,
-  })).sort((first, second) => first.depth - second.depth);
-  const darkFaces = orderedFaces
-    .map(
-      (face) =>
-        `<polygon points="${coordinates(face.indices)}" fill="var(--marker-body)" stroke="var(--marker-body)" stroke-width="7" stroke-linejoin="round"/>`,
-    )
-    .join("");
-  const coloredFaces = orderedFaces
-    .map((face) => {
-      const engraving =
-        face.index === 0
-          ? ""
-          : (() => {
-              const tip = projected[3];
-              const rim = face.indices.filter((index) => index !== 3).map((index) => projected[index]);
-              return [0.35, 0.58]
-                .map((amount) => {
-                  const first = rim[0].map((value, index) => value * (1 - amount) + tip[index] * amount);
-                  const second = rim[1].map((value, index) => value * (1 - amount) + tip[index] * amount);
-                  const middleX = (first[0] + second[0]) / 2;
-                  const middleY = (first[1] + second[1]) / 2;
-                  return `<path d="M${first[0]},${first[1]} Q${middleX},${middleY + 2.2} ${second[0]},${second[1]}" fill="none" stroke="var(--text-secondary)" stroke-width=".85" opacity=".4"/>`;
-                })
-                .join("");
-            })();
-      return `<polygon points="${coordinates(face.indices)}" fill="${TETRA_FACE_COLORS[face.index]}" stroke="var(--marker-edge)" stroke-width="1.8" stroke-linejoin="round"/>${engraving}`;
-    })
-    .join("");
-  return `${darkFaces}${coloredFaces}`;
+  }))
+    .sort((first, second) => first.depth - second.depth)
+    .map(({ indices, index }) => {
+      const tip = projected[3],
+        rim = indices.filter((vertex) => vertex !== 3).map((vertex) => projected[vertex]);
+      return {
+        index,
+        points: indices
+          .map((vertex) => `${projected[vertex][0].toFixed(3)},${projected[vertex][1].toFixed(3)}`)
+          .join(" "),
+        color: TETRA_FACE_COLORS[index],
+        engraving:
+          index === 0
+            ? []
+            : [0.35, 0.58].map((amount) => {
+                const first = rim[0].map((value, i) => value * (1 - amount) + tip[i] * amount);
+                const second = rim[1].map((value, i) => value * (1 - amount) + tip[i] * amount);
+                return `M${first[0]},${first[1]} Q${(first[0] + second[0]) / 2},${(first[1] + second[1]) / 2 + 2.2} ${second[0]},${second[1]}`;
+              }),
+      };
+    });
 }
 
 export function projectBattleMarkerAngle(elapsedMs: number): number {

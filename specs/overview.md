@@ -23,8 +23,8 @@
 | --- | --- |
 | ゲーム本体 | `src/game/`に状態・ルール、`src/content/`に型付きの定義データを置く |
 | 画面状態と表示投影 | `src/presentation/`に意味イベントの同期遷移、draft・focus・dialog・演出段階と純粋なframeを置く |
-| ブラウザ | `src/web/`に薄いイベント接続、確定frameの適用、Native測定・保存I/O・GPU寿命を置く |
-| 画面UI | 会話・街・戦闘コマンドはHTML/CSS。ルート図はHTMLボタンと必要に応じたSVG |
+| ブラウザ | `src/web/`にSvelte 5テンプレートと薄いイベント接続、Native測定・保存I/O・GPU寿命を置く。モデルのcommit後に表示を渡す |
+| 画面UI | 会話・街・戦闘コマンドはSvelteのHTML/CSS。ルート図はHTMLボタンとSVG。戦闘HUDの意味状態と連続marker／cue時刻は別の表示入力にする |
 
 ### ゲーム本体と表示の境界
 

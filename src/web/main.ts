@@ -6,13 +6,13 @@ if (
   new URLSearchParams(location.search).get("debug") === "1"
 ) {
   document.body.dataset.mode = "debug";
-  const badge = document.createElement("aside");
-  badge.className = "debug-mode-badge";
-  badge.innerHTML = 'デバッグモード · 通常版とは別の保存スロット <a href="?">タイトルへ</a>';
   if (
     !["battle", "dungeon", "edit", "adventureEdit"].some((key) => new URLSearchParams(location.search).get(key) === "1")
-  )
-    document.body.prepend(badge);
+  ) {
+    const { mount } = await import("svelte");
+    const { default: DebugBadge } = await import("./components/DebugBadge.svelte");
+    mount(DebugBadge, { target: document.body, anchor: document.body.firstChild ?? undefined });
+  }
   document.title = "デバッグ · ENDFIELD RPG";
   await import("./debugMain");
 } else {

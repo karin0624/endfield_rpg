@@ -69,6 +69,25 @@ export function reduceDungeonRoute(
 ) {
   const result = (next = state, handled = true, capture?: number) => ({ state: next, handled, capture });
   if (event.type === "measured") {
+    const prior = state.measure,
+      measure = event.measure;
+    if (
+      prior &&
+      prior.viewportWidth === measure.viewportWidth &&
+      prior.responsiveWorldWidth === measure.responsiveWorldWidth &&
+      prior.nodes.length === measure.nodes.length &&
+      prior.nodes.every((node, index) => {
+        const current = measure.nodes[index];
+        return (
+          node.id === current.id &&
+          node.fraction === current.fraction &&
+          node.center === current.center &&
+          node.width === current.width
+        );
+      }) &&
+      projectRouteLayout(state, accessibleIds).offset === state.offset
+    )
+      return result(state);
     const next = { ...state, measure: event.measure };
     return result({ ...next, offset: projectRouteLayout(next, accessibleIds).offset });
   }

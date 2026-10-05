@@ -122,7 +122,10 @@ export function frontmostBattleEnemy(input: BattleInput): string | null {
     .sort((first, second) => first.depth - second.depth);
   return measured[0]?.id ?? null;
 }
-export function battleCanAct(state: BattleModel, input: BattleInput): boolean {
+export function battleCanAct(
+  state: Pick<BattleModel, "scene"> & { readonly playback: Pick<BattlePlayback, "phase"> },
+  input: BattleInput,
+): boolean {
   const battle = input.battle;
   return (
     state.scene.status === "ready" &&
@@ -143,12 +146,17 @@ export function battleSkills(input: BattleInput) {
     .filter((skill) => skill.type === "active")
     .filter((skill) => skill.scenes.includes("battle"));
 }
-export function battleSelectedSkill(state: BattleModel, input: BattleInput) {
+export function battleSelectedSkill(state: Pick<BattleModel, "panel">, input: BattleInput) {
   const panel = state.panel.kind === "item" ? state.panel.returnPanel : state.panel;
   if (panel.kind !== "skills") return undefined;
   return battleSkills(input).find((skill) => skill.id === panel.skillId);
 }
-export function battleMarkerTarget(state: BattleModel, input: BattleInput): string | null {
+export function battleMarkerTarget(
+  state: Pick<BattleModel, "scene" | "panel" | "selectedEnemyId"> & {
+    readonly playback: Pick<BattlePlayback, "phase">;
+  },
+  input: BattleInput,
+): string | null {
   const skill = battleSelectedSkill(state, input);
   return battleCanAct(state, input) &&
     livingEnemy(input, state.selectedEnemyId) &&
@@ -156,7 +164,10 @@ export function battleMarkerTarget(state: BattleModel, input: BattleInput): stri
     ? state.selectedEnemyId
     : null;
 }
-export function battleItemUsable(state: BattleModel, input: BattleInput): boolean {
+export function battleItemUsable(
+  state: Pick<BattleModel, "scene" | "panel"> & { readonly playback: Pick<BattlePlayback, "phase"> },
+  input: BattleInput,
+): boolean {
   const panel = state.panel;
   return (
     panel.kind === "item" &&

@@ -1,6 +1,6 @@
 import { type CampaignModel, createCampaignModel } from "../../src/presentation/campaignModel";
 import { projectCampaign } from "../../src/presentation/campaignProjection";
-import { createCampaignView } from "../../src/web/campaignView";
+import { createCampaignView } from "../../src/web/campaignView.svelte.ts";
 import "../../src/web/style.css";
 import { returnedCampaign as returned } from "./returned-campaign";
 

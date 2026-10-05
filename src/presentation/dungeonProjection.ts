@@ -28,7 +28,7 @@ export const dungeonNames: Readonly<Record<string, string>> = {
   "slime-2": "スライム B",
   "ruin-warden": "遺跡の守り手",
 };
-function projectBranch(state: DungeonModel, input: DungeonInput) {
+function projectBranch(state: Pick<DungeonModel, "branch">, input: DungeonInput) {
   const panel = state.branch.panel,
     name = (id: string) => dungeonNames[id] ?? id;
   const targets =
@@ -90,7 +90,11 @@ function projectBranch(state: DungeonModel, input: DungeonInput) {
     focus: state.branch.focus,
   };
 }
-export function projectDungeon(state: DungeonModel, input: DungeonInput, returnLabel = "街へ戻る") {
+export type DungeonChromeState = Omit<DungeonModel, "screen"> & {
+  readonly screen: { readonly kind: DungeonModel["screen"]["kind"]; readonly outcome?: "cleared" | "failed" };
+};
+/** Route, conversation, branch and outcome do not depend on battle animation clocks. */
+export function projectDungeonChrome(state: DungeonChromeState, input: DungeonInput, returnLabel = "街へ戻る") {
   const dungeon = input.game.dungeon;
   const available = dungeon ? getAvailableDungeonNodes(dungeon, input.route) : [];
   const availableIds = new Set(available.map(({ id }) => id));
@@ -154,17 +158,6 @@ export function projectDungeon(state: DungeonModel, input: DungeonInput, returnL
           focus: null,
         })
       : null;
-  const battle = state.screen.kind === "battle" ? state.screen.battle : null;
-  const ready = battle?.scene.status === "ready",
-    error = battle?.scene.status === "error";
-  const battleView =
-    battle && ready
-      ? projectBattleView(battle, dungeonBattleInput(input), {
-          names: dungeonNames,
-          finishLabel: "ルートへ戻る",
-          finishAriaLabel: "戦闘を終えてルートへ戻る",
-        })
-      : null;
   const cleared = state.screen.kind === "outcome" && state.screen.outcome === "cleared";
   const title = cleared ? "探索を完了しました" : "探索に失敗しました";
   return {
@@ -181,27 +174,6 @@ export function projectDungeon(state: DungeonModel, input: DungeonInput, returnL
     },
     branch: projectBranch(state, input),
     conversation,
-    battle: battle
-      ? {
-          owner: battle.scene.owner,
-          definitions: battle.playback.record.before.combatants,
-          actors: projectBattleActors(battle.playback),
-          view: battleView,
-          status: {
-            ready,
-            error,
-            text: ready
-              ? "表示準備完了"
-              : error
-                ? "戦闘画面を読み込めませんでした。素材とWebGL対応を確認して、再読み込みしてください。"
-                : "戦闘画面を読み込んでいます…",
-            reason: battle.scene.reason,
-          },
-          animate:
-            ready &&
-            (battle.playback.phase !== "finished" || (battleView?.markerId !== null && !battle.playback.reducedMotion)),
-        }
-      : null,
     growth:
       state.screen.kind === "growth" && input.rules && input.game.growth
         ? projectGrowthChoice(input.game.growth, input.rules.catalog, dungeonNames)
@@ -215,4 +187,42 @@ export function projectDungeon(state: DungeonModel, input: DungeonInput, returnL
         : `現在地: ${input.route.nodes.find(({ id }) => id === dungeon?.currentNodeId)?.label ?? "不明"}`),
   };
 }
+export function projectDungeonBattle(state: DungeonModel, input: DungeonInput) {
+  const battle = state.screen.kind === "battle" ? state.screen.battle : null;
+  const ready = battle?.scene.status === "ready",
+    error = battle?.scene.status === "error";
+  const battleView =
+    battle && ready
+      ? projectBattleView(battle, dungeonBattleInput(input), {
+          names: dungeonNames,
+          finishLabel: "ルートへ戻る",
+          finishAriaLabel: "戦闘を終えてルートへ戻る",
+        })
+      : null;
+  return battle
+    ? {
+        owner: battle.scene.owner,
+        definitions: battle.playback.record.before.combatants,
+        actors: projectBattleActors(battle.playback),
+        view: battleView,
+        status: {
+          ready,
+          error,
+          text: ready
+            ? "表示準備完了"
+            : error
+              ? "戦闘画面を読み込めませんでした。素材とWebGL対応を確認して、再読み込みしてください。"
+              : "戦闘画面を読み込んでいます…",
+          reason: battle.scene.reason,
+        },
+        animate:
+          ready &&
+          (battle.playback.phase !== "finished" || (battleView?.markerId !== null && !battle.playback.reducedMotion)),
+      }
+    : null;
+}
+export function projectDungeon(state: DungeonModel, input: DungeonInput, returnLabel = "街へ戻る") {
+  return { ...projectDungeonChrome(state, input, returnLabel), battle: projectDungeonBattle(state, input) };
+}
+export type DungeonChromeFrame = ReturnType<typeof projectDungeonChrome>;
 export type DungeonFrame = ReturnType<typeof projectDungeon>;

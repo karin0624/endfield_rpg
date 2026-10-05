@@ -68,6 +68,21 @@
           }
         }
       }
+    },
+    {
+      "includes": ["**/*.html", "**/*.svg"],
+      "html": {
+        "experimentalFullSupportEnabled": false,
+        "formatter": {
+          "enabled": false
+        }
+      }
     }
-  ]
+  ],
+  "html": {
+    "experimentalFullSupportEnabled": true,
+    "formatter": {
+      "enabled": true
+    }
+  }
 }

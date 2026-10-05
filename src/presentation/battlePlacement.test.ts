@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { initialBattleCombatants } from "../content/initialBattle";
-import { projectSequencePositions } from "./battleGeometry";
+import { projectSequencePositions, projectTetraFaces } from "./battleGeometry";
 import {
   projectEnemyOverlay,
   projectMobileLabelSeparation,
@@ -13,6 +13,22 @@ const input = { combatants: initialBattleCombatants, enemyDepths: [{ id: "slime-
 const sprite = { left: 100, top: 110, width: 80, height: 90, markerX: 140, markerY: 117, spriteTop: 117 };
 
 describe("実寸からの戦闘札と演出位置の投影", () => {
+  it("SVGマーカーを奥から4面で描き、頂点と彫刻を回転しても保持する", () => {
+    const faces = projectTetraFaces(0);
+    expect(faces.map(({ index }) => index)).toEqual([2, 0, 1, 3]);
+    expect(faces.find(({ index }) => index === 0)).toMatchObject({
+      points: "32.000,19.365 51.053,12.920 12.947,12.920",
+      color: "var(--face-top)",
+      engraving: [],
+    });
+    expect(faces.filter(({ index }) => index !== 0).map(({ engraving }) => engraving.length)).toEqual([2, 2, 2]);
+    expect(
+      projectTetraFaces(Math.PI / 2)
+        .map(({ index }) => index)
+        .sort(),
+    ).toEqual([0, 1, 2, 3]);
+  });
+
   it("現在の選択に札とmarkerを結び、狭幅でも札の上へmarkerを配置する", () => {
     const state = reduceDebugBattle(createDebugBattleModel(input), input, { type: "scene-ready", owner: 0 }).state;
     const frame = projectDebugBattle(state, input).view;

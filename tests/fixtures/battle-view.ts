@@ -4,7 +4,7 @@ import { parseBattleSettings } from "../../src/presentation/battleSettings";
 import { projectBattleView } from "../../src/presentation/battleViewProjection";
 import savedSettings from "../../src/web/battle-settings.json";
 import { type BattleScene, createBattleRenderer } from "../../src/web/battleScene";
-import { createBattleView } from "../../src/web/battleView";
+import { createBattleView } from "../../src/web/battleView.svelte.ts";
 import { requiredElement } from "../../src/web/requiredElement";
 import { battlePictures } from "../battlePictures";
 import "../../src/web/style.css";

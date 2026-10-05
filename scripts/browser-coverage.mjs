@@ -1,10 +1,14 @@
 import { readFile, rm } from "node:fs/promises";
 import { basename, dirname, resolve } from "node:path";
 import { CoverageReport } from "monocart-coverage-reports";
+import { compile } from "svelte/compiler";
 import { transformWithOxc } from "vite";
 
 const ownSource = (path) =>
-  path.startsWith("src/") && path.endsWith(".ts") && !path.endsWith(".test.ts") && !path.endsWith(".d.ts");
+  path.startsWith("src/") &&
+  (path.endsWith(".ts") || path.endsWith(".svelte")) &&
+  !path.endsWith(".test.ts") &&
+  !path.endsWith(".d.ts");
 
 export function browserCoverage(project, config) {
   if (!config.projects.some((item) => item.name === project)) throw new Error(`Unknown coverage project: ${project}`);
@@ -22,9 +26,12 @@ export function browserCoverage(project, config) {
     sourceFilter: ownSource,
     all: {
       dir: resolve("src"),
-      filter: (path) => path.endsWith(".ts") && !path.endsWith(".test.ts") && !path.endsWith(".d.ts"),
+      filter: (path) =>
+        (path.endsWith(".ts") || path.endsWith(".svelte")) && !path.endsWith(".test.ts") && !path.endsWith(".d.ts"),
       async transformer(entry) {
-        const transformed = await transformWithOxc(entry.source, basename(entry.url), { sourcemap: true });
+        const transformed = entry.url.endsWith(".svelte")
+          ? compile(entry.source, { filename: entry.url, generate: "client", dev: false }).js
+          : await transformWithOxc(entry.source, basename(entry.url), { sourcemap: true });
         entry.source = transformed.code;
         entry.sourceMap = transformed.map;
       },

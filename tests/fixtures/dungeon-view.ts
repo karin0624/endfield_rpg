@@ -1,11 +1,12 @@
 import { reduceDungeon } from "../../src/presentation/dungeonModel";
 import { projectDungeon } from "../../src/presentation/dungeonProjection";
-import { createDungeonView } from "../../src/web/dungeonView";
+import { createDungeonView } from "../../src/web/dungeonView.svelte.ts";
 import { dungeonPicture } from "../dungeonPictures";
 import "../../src/web/style.css";
 import "../../src/web/debug.css";
 
-const picture = dungeonPicture(new URLSearchParams(location.search).has("progressed") ? "progressed" : "initial");
+const query = new URLSearchParams(location.search);
+const picture = dungeonPicture(query.has("items") ? "items" : query.has("progressed") ? "progressed" : "initial");
 let state = picture.state;
 const root = document.querySelector<HTMLDivElement>("#app");
 if (!root) throw new Error("Missing dungeon picture root");
@@ -15,8 +16,10 @@ const view = createDungeonView(
   (event) => {
     if (event.type !== "route" || event.event.type !== "measured") return false;
     const changed = reduceDungeon(state, picture.input, event);
-    state = changed.state;
-    view.render(projectDungeon(state, picture.input));
+    if (changed.state !== state) {
+      state = changed.state;
+      view.render(projectDungeon(state, picture.input));
+    }
     return changed.handled;
   },
   "街へ戻る",

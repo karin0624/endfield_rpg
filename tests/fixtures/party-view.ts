@@ -8,7 +8,7 @@ import { effectiveMaxHp, healthyStatus } from "../../src/game/status";
 import { reduceCharacterDetails } from "../../src/presentation/characterDetails";
 import { createPartyModel, type PartyModel } from "../../src/presentation/partyModel";
 import { projectParty } from "../../src/presentation/partyProjection";
-import { createPartyView } from "../../src/web/partyView";
+import { createPartyView } from "../../src/web/partyView.svelte.ts";
 import "../../src/web/style.css";
 
 /** Display inputs only. Rendering a candidate snapshot never runs a game action to reach it. */
