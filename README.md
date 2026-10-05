@@ -56,7 +56,7 @@ npm ci
 | `npm run build` | 通常配布を`dist/`へ生成する |
 | `npm run build:debug` | 専用debug入口を`dist-debug/`へ生成する |
 | `npm run build:views` | 直接状態fixtureを同じ標準minifier・非root baseで`dist-views/`へ生成する |
-| `npm run test:browser` | checkと必要buildに続けて、直接VRT・Native WebGL資源検証と同じ実行のcoverageを確認する |
+| `npm run test:browser` | ゲーム本体CI対象のcheck・必要build・views／rendererの直接VRT・Native WebGL資源検証と同じ実行のcoverageを確認する |
 | `npm run test:editor` | 開発者用の直接構図VRT・Native HMRを必要時に全実行する |
 | `npm run test:all` | check・必要build・既定とeditorの全ブラウザprojectを一回の直列実行で確認する |
 
@@ -70,7 +70,7 @@ npm run test:browser
 
 基準画像の比較環境を固定し、失敗時の画像・traceと実JSONは`test-results/`へ保存する。通常配布4173、debug4175、標準minifiedの直接fixture4174を使用する。任意state・phaseを直接描き、ゲームjourneyや実時間待機をテストへ残さない。ゲーム操作・focus・dialog・保存等の結果は実コアをつないだ純粋モデルで確認し、ブラウザは実外観と直接WebGL資源だけを担当する。詳しくは[テスト設計](docs/testing.md)を参照する。
 
-開発エディター・標準構図・HMR変更時は`npm run test:editor`も必要になる。この改修では`test:all`で両scopeを同じ必要build／ブラウザ実行へまとめられる。基準画像を意図的に変更するときだけ対応scopeの`--update-snapshots`を使用し、承認と画像レビューを経る。今回の責務分離で基準bytes・許容差を更新しない。CIは検証済みの通常配布artifactを再利用し、別入口のdebug／viewだけを追加buildして`scripts/run-playwright-quality.sh browser`を実行する。
+開発エディター・標準構図・HMR変更時は`npm run test:editor`も必要になる。この改修では`test:all`で両scopeを同じ必要build／ブラウザ実行へまとめられる。基準画像を意図的に変更するときだけ対応scopeの`--update-snapshots`を使用し、承認と画像レビューを経る。今回の責務分離で基準bytes・許容差を更新しない。5分目標の全工程計測は`test:browser`が対象で、設定画面の`test:editor`と両scopeの`test:all`は含めない。CIは検証済みの通常配布artifactを再利用し、別入口のdebug／viewだけを追加buildして`scripts/run-playwright-quality.sh browser`を実行する。
 
 クラウド環境で`NODE_EXTRA_CA_CERTS`が既存の`/usr/local/share/ca-certificates/environment-proxy-ca.crt`を指し、そのファイルを読み取れる場合、ブラウザテストの起動スクリプトが証明書をコンテナへ読み取り専用で渡す。コンテナ内のNode.jsだけに同じCAを追加し、TLS検証は有効のままにする。OSの信頼設定は変更せず、証明書はリポジトリに保存しない。この条件に当てはまらないローカル環境とGitHub Actionsの実行方法は変わらない。
 

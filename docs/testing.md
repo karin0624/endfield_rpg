@@ -27,7 +27,7 @@ Node.jsは `.nvmrc` の24系、ブラウザは `mcr.microsoft.com/playwright:v1.
 | コマンド | 範囲 |
 | --- | --- |
 | `npm run check` | Biome・型・素材検査・現在の通常minified build・全Vitest／V8 coverage／発見と実行の照合。ブラウザなし |
-| `npm run test:browser` | checkに続けて異なるdebug／直接view入口を各一度buildし、既定の直接VRT・Native資源検証・native V8を一回実行 |
+| `npm run test:browser` | ゲーム本体CIの全工程。checkに続けて異なるdebug／直接view入口を各一度buildし、views／rendererの直接VRT・Native資源検証・native V8を一回実行 |
 | `npm run test:editor` | checkとview build、開発者専用の直接構図VRT・Native HMRを必要時に全実行 |
 | `npm run test:all` | check・必要な3build・既定とeditorの全projectを同じ一回の直列ブラウザ実行で確認 |
 
@@ -59,7 +59,7 @@ git上の全品質spec、runnerの実collection、今回の実JSONを照合す�
 
 実装中は必要な短い検証で原因と費用を確認する。提出前はsourceを固定し、check・必要な全直接VRT・資源検証・editorをローカルで完走する。代表数件だけで全件をCIへ委ねない。source／LFS実体／CSS・素材・goldenの前後一致、正確なhead／tree、開始・終了・shutdown、実runnerのworker設定、層別時間、failure／retry別記を残す。GitHub権限・required checks・Actions固有artifact等、ローカルで不可能な条件だけを理由付き例外とする。
 
-[#102](https://github.com/karin0624/endfield_rpg/issues/102)では、品質維持した同条件・直列の全ローカル検証が起動から終了まで5分以内、または同品質で5分以内にできない明確な根拠が成立するまでPR禁止。成立後もユーザー確認まで公開を再開しない。部分成功、実描画が多い事実、未測定の推測を不可避の根拠・課題解決としない。
+[#102](https://github.com/karin0624/endfield_rpg/issues/102)では、品質維持した同条件・直列のゲーム本体CI対象（`npm run test:browser`）のローカル全工程が起動から終了まで5分以内、または同品質で5分以内にできない明確な根拠が成立するまでPR禁止。設定画面の`editor-views`／`editor-resources`はこの5分判定へ含めず、`npm run test:editor`で明示的に別実行する。`test:all`は両scopeを必要時に検証するコマンドであり、5分の判定対象ではない。成立後もユーザー確認まで公開を再開しない。部分成功、実描画が多い事実、未測定の推測を不可避の根拠・課題解決としない。
 
 実runner固有のreport生成・古いJSONの再利用拒否・list-onlyは実CLIで検証する。未登録ファイル、部分結果、coverage欠落はその実reportを入力として実行照合を検証し、同じfixtureを再実行して準備を重複させない。ケース別coverage annotationには回収のwall msを含め、ブラウザcase全体や終了時の集計費用と区別する。
 

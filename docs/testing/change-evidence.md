@@ -359,3 +359,12 @@ editor fixtureの初期2対2は、同じ設定と全4戦闘者をconstructorで�
 `bfa9b1855f527ca9993407489ec170215707e311` の `npm run test:all` は2026-10-05 07:23:53〜07:30:48 UTC、起動〜shutdownの直列414.359秒、Browser338.133秒、exit0だった。800単体／32browser／54unique基準画像・62assertion／4coverage project・全実行gateが成功し、failure／skip／retry／flaky／global error0、source451の前後変化0、保護162の変化0、三buildのmap原文不一致0だった。FXを1caseへ統合したためcase数だけ33→32となり、6枚のFXを含む画像と意味の保証は保持した。
 
 一回のwarm対照でopaque順序の減少は見られたが、二つの正式全体実行では全体高速化を実証できなかった。速度改善が未確定の製品変更を残さず、public opaque順序の候補3行を元に戻す。成功／失敗／速度の生記録は保持し、隔離診断を製品設定として採用しない。四隅・FXの地形再利用とeditor fixtureの重複draw除去だけを残し、復元した製品sourceで最終の全体検証を行う。
+
+
+## #102：5分判定対象をゲーム本体CIへ訂正
+
+ユーザーの補足により、5分以内の対象は設定画面を除くゲーム本体CIの全工程とする。上の`test:all`の389.228／384.619／414.359／423.102秒はeditorを含む全品質の証拠として保持し、ゲーム本体の5分判定やモデル側タスク分離の確定理由として使わない。editorの秒数を差し引いた推定で達成としない。
+
+既存CIは既に `scripts/run-playwright-quality.sh browser` を使い、標準`playwright.config.ts`の`views`／`renderer`が対象である。設定画面の`editor-views`／`editor-resources`は`playwright.editor.config.ts`と`npm run test:editor`に保持され、`test:all`で追加確認できる。全git specと無filter discoveryの照合はbrowser scopeだけ`tests/editor/`を明示除外し、同scopeの全project／各caseのnative V8／map／実結果を必須とする。手書きの追加分類や専用analysis buildは作らない。
+
+ゲーム本体が使う保存済みJSON設定の読込、実初期描画、PC／mobile、既知／未検証環境と同パス別bytesの元材質、DPR／resize、warm切替、遅着／失敗・退出時のGPU資源0は`views`／`renderer`に継続する。純粋な設定値・ゲーム・presentation・実HTTP等の800単体もcheckに継続する。以下は`npm run test:browser`をそのまま起動し、Docker開始、npm ci、check／単体coverage、必要な3build、本体全Native実行・coverage／実行照合、shutdownまで含めた独立の実測を記録する。
