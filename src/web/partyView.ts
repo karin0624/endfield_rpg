@@ -95,10 +95,7 @@ export function createPartyView(root: HTMLElement, send: (event: PartyEvent) => 
     if (target.kind === "candidate")
       candidateCards.get(target.characterId)?.querySelector<HTMLButtonElement>(".party-candidate")?.focus();
     if (target.kind === "detail")
-      candidateCards
-        .get(target.characterId)
-        ?.querySelector<HTMLButtonElement>(".party-detail")
-        ?.focus({ preventScroll: true });
+      candidateCards.get(target.characterId)?.querySelector<HTMLButtonElement>(".party-detail")?.focus();
     if (target.kind === "back") back.focus();
     if (target.kind === "depart") depart.focus();
     if (target.kind === "confirm") confirm.focus();

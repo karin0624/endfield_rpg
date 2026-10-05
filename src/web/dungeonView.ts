@@ -126,7 +126,7 @@ export function createDungeonView(root: HTMLDivElement, send: (event: DungeonEve
   const context = (target: EventTarget | null) =>
     target instanceof HTMLElement && (target.isContentEditable || target.matches("input,select,textarea"))
       ? ("text-entry" as const)
-      : target instanceof HTMLElement && target.matches("button,a[href]")
+      : target === routeViewport || (target instanceof HTMLElement && target.matches("button,a[href]"))
         ? ("control" as const)
         : ("screen" as const);
   window.addEventListener("focusin", (event) => send({ type: "input-context", context: context(event.target) }), {
