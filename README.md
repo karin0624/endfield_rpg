@@ -38,6 +38,8 @@
 
 ## セットアップと実行
 
+CodexでGitの取得・同期や認証を扱うときは、[endfield-git-auth skill](.agents/skills/endfield-git-auth/SKILL.md)に従う。GitHub API・公開、workspaceのGit同期、Git LFS実体取得を用途別に扱う手順をここにまとめる。
+
 新規チェックアウト後に依存関係を固定済みのlockfileからインストールする。
 
 ```sh
