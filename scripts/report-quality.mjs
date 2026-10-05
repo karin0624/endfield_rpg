@@ -3,7 +3,7 @@ import { appendFileSync, existsSync, readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
-export function renderQualitySummary({ exitCode, revision, head, base, unit, browser, coverage, comparisons }) {
+export function renderQualitySummary({ exitCode, revision, head, base, unit, browser, coverage }) {
   const lines = [
     `## Game quality: ${exitCode === 0 ? "passed" : "failed"} (exit ${exitCode})`,
     "",
@@ -66,19 +66,6 @@ export function renderQualitySummary({ exitCode, revision, head, base, unit, bro
     );
   }
   if (!coverage.length) lines.push("| none generated | — | — | — | — | — |");
-  if (comparisons.length) {
-    lines.push(
-      "",
-      "Approved concept comparisons are diagnostics for review, separate from the approved VRT gates and WCAG conformance.",
-      "",
-      "| Concept | Native resolution | Raw differing pixels |",
-      "| --- | --- | ---: |",
-    );
-    for (const item of comparisons)
-      lines.push(
-        `| ${item.name} | ${item.resolution.join(" × ")} | ${item.full.different_pixels} / ${item.full.pixels} |`,
-      );
-  }
   return `${lines.join("\n")}\n`;
 }
 
@@ -95,12 +82,6 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
   collectCoverage("unit", "coverage/unit");
   if (existsSync("coverage/browser"))
     for (const name of readdirSync("coverage/browser")) collectCoverage(name, `coverage/browser/${name}`);
-  const comparisons = [];
-  if (existsSync("test-results/approved-comparison"))
-    for (const name of readdirSync("test-results/approved-comparison")) {
-      const result = read(`test-results/approved-comparison/${name}/results.json`);
-      if (result) comparisons.push({ name, ...result });
-    }
   const summary = renderQualitySummary({
     exitCode,
     revision: execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(),
@@ -109,7 +90,6 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
     unit: read("test-results/vitest.json"),
     browser: read("test-results/playwright.json"),
     coverage,
-    comparisons,
   });
   process.stdout.write(summary);
   if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, summary);

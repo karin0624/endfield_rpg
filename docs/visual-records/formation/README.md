@@ -1,6 +1,6 @@
 # 編成・選択・キャラ詳細の実画面
 
-以下のWebPはクイック選択導入前の履歴。PR #96の現在の4状態は[固定版fixture・比較手順](../../ui-concepts/approved/README.md#再現fixtureと実画像比較)で撮影し、Actionsの`party-approval-comparison`と`campaign-flow-previews`へ保存する。旧選択画面の右側4枠を現在の仕様として参照しない。
+以下のWebPはクイック選択導入前の履歴。現在の4状態は[固定版fixture・比較手順](../../ui-concepts/approved/README.md#再現fixtureと実画像比較)で撮影し、UI変更の画像レビュー時に`npm run review:party`でraw比較・overlayをローカルへ生成する。旧選択画面の右側4枠を現在の仕様として参照しない。
 
 2026-10-03、通常起動から新規ゲーム→ホーム→編成／探索先→ダンジョン出発準備へ進んだ実画面。1920×1080、deviceScaleFactor 1、固定PlaywrightコンテナのChromium。同梱Noto Serif JP / Noto Sans JPの読込と表示画像のdecodeを待って撮影した。元のPNGスクリーンショットをlossless WebPへ変換した。背景の原画は1672×941であり、この記録の1920pxは画面の表示寸法である。
 

@@ -75,7 +75,7 @@
 
 時計は1日目・昼で固定し可視表示しない。本編のギルベルタ最大HP18は変えず、この独立fixtureだけ画像と同じ最大HP20とする。カードの仮編集中は選択順・欠番を保持し、確定とEscだけで番号順に詰める。
 
-`python3 scripts/compare-party-ui.py test-results test-results/approved-comparison`で4組を生成する。Pillowが必要。画像登録・拡大縮小・色補正・しきい値による合格判定は行わない。唯一の許可領域は資料注記 `(1510,12)–(1664,44)`。全体raw diffはその領域も含む。CIの`party-approval-comparison`には各原画、runtime、50%overlay、raw diff、注記maskのみのdiff、診断範囲、数値とSHA-256を保存する。
+UI変更の画像レビュー時は、`npm run test:browser`で撮影した後、Python／Pillow環境で`npm run review:party`を明示実行して4組を生成する。実体は`python3 scripts/compare-party-ui.py test-results test-results/approved-comparison`。画像登録・拡大縮小・色補正・しきい値による合格判定は行わない。唯一の許可領域は資料注記 `(1510,12)–(1664,44)`。全体raw diffはその領域も含む。`test-results/approved-comparison/`へ各原画、runtime、50%overlay、raw diff、注記maskのみのdiff、診断範囲、数値とSHA-256を生成する。通常CIは既存goldenとの正式VRTを実行し、手動診断の生成・Pillow導入・artifact保存を行わない。
 
 現在の実装には背景・人物の輪郭／比率・生成文字・金属材質の差が残る。矩形診断は原因の切り分け用であり許可maskではない。CI成功や操作試験の通過を、画像一致の承認として扱わない。
 

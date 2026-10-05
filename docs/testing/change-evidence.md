@@ -399,4 +399,8 @@ PR105の初回CI `37289448801` は800単体・通常build・実行gateが成功�
 
 artifact除去後の `4b20eb0` で同じ実 `npm run test:browser` を二回完走した。起動〜shutdownは368.148／369.050秒、Native runnerは242.600／238.541秒で、いずれも803単体（65ファイル）／22Native（8ファイル）／37 unique基準画像・40assertion／2project・各98source、全coverage／実行gateが成功した。失敗・skip・retry・flaky・global errorは0、固定source454／保護162の前後差と三buildのmap原文不一致も0だった。Pillow導入と承認資料診断を含む範囲は、以前の診断を含まない272.004／289.151秒と区別し、この二回は5分目標未達として保持する。初回setupのnpm cache EACCESはテスト前の失敗であり、30.106秒を品質成功に数えない。
 
-同じ実PNG入力で承認資料診断の書出し費用を分離した。従来の28PNG exportは24.190秒、exportだけを省いた候補は1.384秒で、4状態の全JSON objectが完全一致した。artifactを保存しない通常CI／全工程コマンドに `--metrics-only` を使い、従来の全画素・注記・領域別metrics、寸法・hash・診断JSONを保つ。単独手動実行の既定28画像出力は維持する。これは保存しない診断画像のencode除去であり、VRT・比較条件・raw差分の許容・WCAG判定を変更しない。省略を含む最終sourceの全工程を改めて検証する。
+同じ実PNG入力で承認資料診断の書出し費用を分離した。従来の28PNG exportは24.190秒、exportだけを省いた候補は1.384秒で、4状態の全JSON objectが完全一致した。この時点では通常CI／全工程コマンドに `--metrics-only` を使っていた。単独手動実行の既定28画像出力は維持し、VRT・比較条件・raw差分の許容・WCAG判定は変更していない。
+
+通常CIへ追加した診断費用をその後再確認した。固定 `95c9070` の全工程は365.009秒、指定された追加一回は333.064秒で、803単体／22Native／37unique基準画像・40assertion／各98sourceの2projectと全gateは成功したが、いずれも最新の5分条件は未達だった。以前の272.004／289.151秒に含まれなかったPillow導入・raw比較・summaryとnpm cache条件の違いがあり、全体差を環境変動だけへ帰属できない。Nativeの同じケース・順序・画像・coverage処理とモデルを維持したまま、同一headの365→333では準備区間が38.992秒短縮し、Nativeは6.389秒増えた。4core相当の上限は以前と同じだが、対応する365秒の資源サンプルや競合の直接証拠はなく、原因は未確定とする。
+
+raw比較は正式VRTの合否判定ではなく、UI変更時の画像レビュー資料を作る診断だった。通常CIから診断と専用Pillow導入を外し、既存撮影後の `npm run review:party` として保持する。診断コード・4状態の全画素／領域metrics・寸法・hash・既定28PNG出力は変更しない。正式VRT、全collection／実行／project／case coverageのgate、必要なcoverage変換はそのまま実行する。品質summaryは既存reportの読み取りだけで、テスト・変換・gateを反復しない。分離前の既存reportでの単独実測は0.233秒だったためrevisionと実結果・coverageのログ／job summaryを保持し、手動診断結果の読み込みだけを外した。変更後の通常全工程を固定sourceで一度検証し、結果と5分条件の成否を記録する。

@@ -15,7 +15,7 @@ jobs:
       image: mcr.microsoft.com/playwright:v1.63.0-noble
       options: --ipc=host
     steps:
-      - run: apt-get update && apt-get install -y --no-install-recommends git-lfs python3-pil
+      - run: apt-get update && apt-get install -y --no-install-recommends git-lfs
       - uses: actions/checkout@v7
         with:
           lfs: true

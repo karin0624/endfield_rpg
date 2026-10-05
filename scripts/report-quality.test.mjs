@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { renderQualitySummary } from "./report-quality.mjs";
 
-const baseline = { exitCode: 1, revision: "checkout-sha", unit: null, browser: null, coverage: [], comparisons: [] };
+const baseline = { exitCode: 1, revision: "checkout-sha", unit: null, browser: null, coverage: [] };
 const nativeCase = (status, retry = 0, collected = true) => ({
   projectName: "views",
   results: [{ status, retry }],
@@ -53,7 +53,7 @@ describe("quality evidence without stored artifacts", () => {
     expect(summary).toContain("Game quality: failed");
   });
 
-  it("retains zero-hit source counts and labels concept pixel differences as review diagnostics", () => {
+  it("retains zero-hit source counts and covered/total metrics from the existing coverage report", () => {
     const metric = { total: 10, covered: 8, pct: 80 };
     const summary = renderQualitySummary({
       ...baseline,
@@ -64,10 +64,7 @@ describe("quality evidence without stored artifacts", () => {
           summary: { total: { statements: metric, functions: metric, branches: metric, lines: metric } },
         },
       ],
-      comparisons: [{ name: "selection", resolution: [1672, 941], full: { different_pixels: 13, pixels: 1573352 } }],
     });
     expect(summary).toContain("| views | 3 | 8 / 10 (80%) | 8 / 10 (80%) | 8 / 10 (80%) | 8 / 10 (80%) |");
-    expect(summary).toContain("| selection | 1672 × 941 | 13 / 1573352 |");
-    expect(summary).toContain("diagnostics for review, separate from the approved VRT gates and WCAG conformance");
   });
 });
