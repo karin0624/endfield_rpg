@@ -37,7 +37,7 @@ Node.jsは `.nvmrc` の24系、ブラウザは `mcr.microsoft.com/playwright:v1.
 
 通常 `dist/` の初期タイトル、debug `dist-debug/` の初期戦闘を実際に描く。任意の画面状態は標準Viteの[multi-page build](https://vite.dev/guide/build.html#multi-page-app)で `dist-views/` へ生成する。同じ標準minifierを使い、通常配布へfixtureを混入しない。3出力は異なる実入口の検証であり、coverage専用の解析buildではない。通常4173、debug4175、直接view4174。viewの実 `BASE_URL=/rpg/` で素材を取得し、非root専用buildやURL書換えを重ねない。
 
-開発エディター・標準構図・HMR変更時は `tests/editor/` も必要になる。低頻度の詳細操作は純粋モデルで、構図と会話の見た目は必要時VRTで担う。単独control構図は条件ごとに独立caseとfresh rendererを生成し、default更新後の次BattleSceneへの設定引継ぎも確認する。editor-viewsの各caseは独立pageを持ち、Playwrightの標準 `fullyParallel` でcase単位に割り当てられる。worker数が1なら直列に実行する。同じsceneの内部／preview更新では既存の画面状態とviewを保持し、準備完了や初期選択をやり直さない。任意四隅・内部／previewは必要時、本編のPC／mobile・既知素材と材質fallbackは既定に残す。通常結果へskipとして混ぜない。
+開発エディター・標準構図・HMR変更時は `tests/editor/` も必要になる。低頻度の詳細操作は純粋モデルで、構図と会話の見た目は必要時VRTで担う。単独control構図は条件ごとに独立caseとfresh rendererを生成し、default更新後の次BattleSceneへの設定引継ぎも確認する。editor-viewsの各caseは独立pageを持ち、Playwrightの標準 `fullyParallel` でcase単位に割り当てられる。worker数が1なら直列に実行する。同じsceneの内部／preview更新では既存の画面状態とviewを保持し、準備完了や初期選択をやり直さない。四隅の構図VRTは最初だけrendererを生成し、次の構図は同じ地面へ設定を適用して次BattleSceneとUIを生成する。4枚の同じ基準画像を保ち、共通地形の再importとshader準備を反復しない。初期設定をconstructorへ渡す保証は独立した5つの単独control構図に残す。任意四隅・内部／previewは必要時、本編のPC／mobile・既知素材と材質fallbackは既定に残す。通常結果へskipとして混ぜない。
 
 ## Coverageと実行漏れ
 

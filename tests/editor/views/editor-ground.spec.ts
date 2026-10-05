@@ -2,10 +2,17 @@ import { test } from "../../browser/coverage";
 import type { GroundView } from "../../fixtures/ground-view";
 import { createGroundPicture, expectGroundPicture, rendererPictureEntry } from "../../views/groundPictures";
 
-test("任意の四隅の初期設定をそれぞれ実rendererへ渡し、既存構図を直接比較する", async ({ page }) => {
+test("任意の四隅を同じ実地形と次battleへ適用し、既存構図を直接比較する", async ({ page }) => {
   await page.goto(rendererPictureEntry);
-  for (const view of ["left-down", "left-up", "right-down", "right-up"]) {
-    await createGroundPicture(page, view);
+  await createGroundPicture(page, "left-down");
+  for (const [index, view] of ["left-down", "left-up", "right-down", "right-up"].entries()) {
+    if (index > 0)
+      await page.evaluate(async (view) => {
+        const native = (window as typeof window & { groundView: GroundView }).groundView;
+        await native.apply(view);
+        native.start();
+        await native.ready();
+      }, view);
     await expectGroundPicture(page, `ground-${view}`);
   }
 });

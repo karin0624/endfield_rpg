@@ -313,3 +313,31 @@ browserの未使用`data-replaying`や私的なphase属性は、省略ボタン�
 この小規模確認を最終headの全件CI成功や5分目標達成と扱わない。最終の統合commitでverify/browserの全実行結果・VRT・coverage artifactを確認する。
 
 [性能改善Issue #102](https://github.com/karin0624/endfield_rpg/issues/102) の診断には工程別・ケース別の時間を含む既存report/logを引き継ぐ。品質維持の判定は実装仕様がテストで担保されていることで行い、同じ仕様保証を実証できる統合・移動・書換え・削除を認める。assertion・ケースの件数や構造を固定せず、保証の対応はテストコードと変更の証拠で説明し、巨大な手書き台帳を追加しない。
+
+
+## #102：cold／warmの資源寿命と反復描画
+
+現head `a2b1ee2` の実canvasの `WEBGL_debug_renderer_info` とブラウザ標準CDP `SystemInfo.getInfo` の双方は、ANGLE／VulkanのSwiftShader（Subzero、SwANGLE 5.0.0）を返した。launch flagだけからbackendを推定していない。地面は78 mesh、1,085,243 vertex、5,832,240 index、1つのPBR materialと4096×4096 base color textureで、代表構図の実frameは58 draw、4,695,861 active index、1440×810 backbufferだった。Sceneのpublic instrumentation・active mesh/indexと実contextを読む隔離fixtureの観測であり、GPU elapsedは取得していない。
+
+### 同じengineで何を再利用しているか
+
+同じbrowser process内の2つのfresh contextで、初期化→同じBattleSceneへの同設定適用→同じrendererの次BattleScene→同pageでrendererを再生成、を順に観測した。各段階で元の承認済み初期画像へ完全一致し、計8比較が成功した。stock Playwright traceはoff、native V8はon、既定1worker、実素材とproduction minifierを保持した。診断のCDP trace／process CPU checkpointを加えた部分実行なので正式全体時間へ混ぜない。
+
+| 段階 | API〜実capture2回のwall（2context） | 地面／engineと新しいNative資源 |
+| --- | --- | --- |
+| fresh contextの初期化 | 8.429／8.814秒 | GLB実取得、新しいengine／Sceneと363 Buffer・7 Texture・8 Program生成 |
+| 同じBattleSceneへの同設定適用 | 3.213／3.552秒 | engine／Scene同一。新規GLB・Buffer・Texture・Programは0 |
+| 同じengine・同環境の次BattleScene | 3.207／3.187秒 | 地面とTexture／Programを保持。戦闘者の40 Bufferだけを作り直し、live数は不変 |
+| 同pageの新しいengine | 7.966／7.231秒 | engine／Sceneが変わり、GLBを再取得・再import。Texture／Programも再生成 |
+
+APIだけなら同BattleSceneは約4ms、同engineの次BattleSceneは39〜42msだった。地面mesh／material／texture、GPU buffer、environmentの準備promiseと接地cacheが保持されることは `createBattleRenderer`／`createEnvironment` の所有境界と、実生成数・HTTP・同一engine／Sceneから確認できる。これはHTTP bytesの再利用だけを根拠にした描画cacheの推定ではない。同pageの新engineでは約58.79MBの実transferを再観測した。browser／driver shader cacheの独立した命中率やGLB純decode時間は測っておらず、保持と再生成の範囲へ混ぜない。
+
+warmでも地面を更新するとfull native drawが必要で、first captureまでGPU processの累積CPU消費は9.12〜9.67秒増えた。複数threadのCPU消費であり、3秒のwallやGPU elapsedと同一ではない。ReadPixels待ちは約2.31〜2.43秒だった。同じbackbuffer／geometry／材質を保持し、標準engine scissorを診断用に1×1へ制限するとReadPixelsは2.337→0.472秒、GPU process CPU増分は9.18→1.91秒だった。fragment／raster側の費用が大きいことを支持するが、vertex／fragment exclusive時間やreadback純転送時間は測っていない。画像が異なるscissorは製品・品質テストへ採用しない。
+
+### 重複初期化を除く範囲
+
+変更前のVRTのうち3Dを使う14caseは、code上で17回renderer／engineを生成し、既知→未検証→既知の環境切替を含め21回正常GLB importを開始していた。前回正式実行の3Dを使うVRT case合計は191.610秒、資源／HMR caseは70.420秒、合計262.030秒だった。全case304.655秒、Browser314.896秒、host wrapper389.228秒の一部分であり、代表の初回3秒だけを全体389秒の説明にしない。全Native frame数・各stageのGPU時間の合計は未取得で、このcase集計へ小規模対照の数字を掛けて説明済みとしない。
+
+四隅caseは同pageでもrendererを4回作り直していた。単純な同BattleScene applyはHUD投影が残り、3枚で36,573／25,137／37,917pixel差となったため不採用。同じ実地形へ構図を適用して通常の次BattleScene／UIを生成する対照は4枚とも元の基準に一致し、GLB取得は4→1回、2〜4枚目の準備APIは29〜34msとなった。対照のcase時間はfresh-each31.2秒、次BattleScene19.9秒（各一回、cold変動を含む）。静的な四隅の構図／材質VRTをこの経路へ移し、caseごとのpage/context分離、初期control設定5caseのfresh constructorとdefault引継ぎ、退出・HMR・遅着／失敗・資源不増加の独立検証は保つ。VRTの正常importは21→18回となる。
+
+描画側はBabylonのpublic `Scene.setRenderingOrder` と標準 `RenderingGroup.frontToBackSortCompare` でopaqueを近い順にする最小候補を追加した。透明／alpha-testの標準順序、GLB／PBR／viewport／DPR／culling条件は変えない。単一warm対照で元の初期画像と再描画の4比較は成功し、ReadPixels2.949→2.375秒、span3.824→3.416秒だった。一回の小規模差を正式全体の短縮と断定せず、以下の全project検証で外観と資源保証を確認する。
