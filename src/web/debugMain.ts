@@ -3,6 +3,7 @@ import { parseBattleSettings } from "../presentation/battleSettings";
 import savedAdventureSettings from "./adventure-settings.json";
 import savedSettings from "./battle-settings.json";
 import type { createBattleScene } from "./battleScene";
+import { createBattleSurface } from "./battleSurface.svelte.ts";
 import "./style.css";
 import "./debug.css";
 
@@ -23,6 +24,7 @@ let disposeAdventureEditor: (() => void) | undefined;
 let disposeEditor: (() => void) | undefined;
 let disposeBattleUi: (() => void) | undefined;
 let disposed = false;
+let surface: ReturnType<typeof createBattleSurface> | undefined;
 const events = new AbortController();
 
 function dispose() {
@@ -33,6 +35,7 @@ function dispose() {
   disposeEditor?.();
   disposeBattleUi?.();
   battle?.dispose();
+  surface?.dispose();
 }
 
 window.addEventListener(
@@ -60,32 +63,21 @@ if (!battleMode) {
     if (!disposed) disposeAdventure = mountDebugSession(app, dungeonMode ? "dungeon" : "town", import.meta.env.DEV);
   }
 } else {
-  app.innerHTML = `
-    <main class="battle-screen">
-      <div class="game-board" data-board>
-        <section class="stage" aria-label="荒野の戦闘画面">
-          <canvas aria-label="3Dの地面に立つロッシ、ギルベルタ、青いスライム2体"></canvas>
-          <div class="loading" role="status" data-status>戦闘画面を読み込んでいます…</div>
-        </section>
-      </div>
-    </main>
-  `;
+  surface = createBattleSurface(app);
   if (!editing) {
-    const { mountDebugBattle } = await import("./debugBattleUi");
-    if (!disposed) disposeBattleUi = mountDebugBattle(app, parseBattleSettings(savedSettings), import.meta.env.DEV);
+    const { mountDebugBattle } = await import("./debugBattleUi.svelte.ts");
+    if (!disposed)
+      disposeBattleUi = mountDebugBattle(app, parseBattleSettings(savedSettings), import.meta.env.DEV, surface);
   } else {
     const { createBattleScene } = await import("./battleScene");
     const { requiredElement } = await import("./requiredElement");
     const canvas = requiredElement<HTMLCanvasElement>(app, "canvas");
-    const status = requiredElement<HTMLDivElement>(app, "[data-status]");
     try {
       const settings = parseBattleSettings(savedSettings);
       battle = createBattleScene(canvas, settings);
       await battle.ready;
       if (!disposed) {
-        canvas.dataset.ready = "true";
-        status.textContent = "表示準備完了";
-        status.classList.add("sr-only");
+        surface.render({ ready: true, error: false, text: "表示準備完了" });
         // Viteの配布ビルドでは、この分岐と設定UIのコードを含めない。
         const { mountBattleEditor } = await import("./battleEditor");
         if (!disposed) disposeEditor = mountBattleEditor(app, battle, settings);
@@ -94,9 +86,11 @@ if (!battleMode) {
       if (!disposed) {
         console.error(error);
         battle?.dispose();
-        status.textContent =
-          "戦闘画面を読み込めませんでした。素材の取得とWebGL対応を確認して、再読み込みしてください。";
-        status.dataset.error = "true";
+        surface.render({
+          ready: false,
+          error: true,
+          text: "戦闘画面を読み込めませんでした。素材の取得とWebGL対応を確認して、再読み込みしてください。",
+        });
       }
     }
   }

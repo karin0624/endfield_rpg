@@ -52,6 +52,7 @@ npm ci
 | `npm run dev` | Viteの開発サーバーを起動する |
 | `npm run lint` | Biomeで整形・import順・推奨ルールと追加ルールを確認する |
 | `npm run format` | Biomeで整形・import順・安全なlint修正を適用する |
+| `npm run typecheck` | TypeScript 7のnative checkerでTS・Svelteテンプレートを検査する |
 | `npm run check` | Biome・型・素材検査・通常minified build・全VitestとV8 coverage・発見／実行照合 |
 | `npm run build` | 通常配布を`dist/`へ生成する |
 | `npm run build:debug` | 専用debug入口を`dist-debug/`へ生成する |
@@ -89,6 +90,10 @@ GLBはGit LFS、現在の数MiBのPNG・文書・コードは通常のGitで管�
 | `src/web/` | 意味イベントへの薄いNative接続、確定frameの描画、測定・実I/O・GPU資源の寿命 |
 | `public/assets/` | ブラウザが使うGLB・背景・透過立ち絵・敵素材・ルートノード画像 |
 | `art-src/` | 元素材と素材メモ。配布物には含めない |
+
+通常UIと開発エディターは`src/web/components/*.svelte`のSvelte 5テンプレートで描く。`.svelte.ts`はmount・破棄、確定モデルの受渡し、必要な表示粒度の`$derived`を担当する。純粋な同期state／意味イベントは`src/presentation/`に保ち、canvas・実測・WAAPI・画像完了・保存・GPU資源はbrowser側で所有する。戦闘HUDは意味状態の変化で投影し、連続するmarker／cue時刻を別に描く。[採用判断](docs/adr/0007-svelte-views.md)を参照する。
+
+`svelte-check --tsgo`は`@typescript/native`のnpm aliasに置く安定版TypeScript 7を検査に使う。`typescript`名のTypeScript 6はSvelteのテンプレート変換が使うJavaScript API用であり、検査のfallbackではない。型検査は`npm run typecheck`へ一本化する。
 
 ## 現在試せる範囲
 

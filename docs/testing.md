@@ -14,7 +14,7 @@
 | 直接状態VRT | 正当な代表状態・phase・表示時刻を実view／実素材へ与え、既存画像と比較。ゲーム進行、クリック連鎖、実時間待機を使わず到達する |
 | 直接Native WebGL | 実Buffer／Texture／Programの生成・切替・解放、warm再利用、取得回数、DPR割当、失敗・遅着・pagehide・必要時HMRの資源寿命。ゲーム操作journeyは通さない |
 
-E2Eは設けない。ブラウザadapterはNative操作と意味イベントの1対1接続、測定値の通知、確定frameの適用だけを行う。click配線をなぞる追加テストやDOM上のゲーム判断を例外として残さない。入力受付とfocusはモデルで検証し、外観は実VRTで検証する。RGB、私的属性、SVGの要素数を見た目の代理にしない。
+E2Eは設けない。ブラウザadapterはNative操作と意味イベントの接続、測定値の通知、commit済みモデル／frameのSvelteへの受渡しを行う。click配線をなぞる追加テストやDOM上のゲーム判断を例外として残さない。入力受付とfocusはモデルで検証し、外観は実VRTで検証する。RGB、私的属性、SVGの要素数を見た目の代理にしない。
 
 確定したゲーム結果と演出表示を分ける。各HP・症状・疲労を確定recordから代入し、表示でルールや乱数を再実行しない。wall msと1倍相当のcue進捗は別の表示入力で、速度変更は次phaseから適用する。CSSの既存keyframes／easingを保ち、[Web AnimationsのcurrentTime](https://www.w3.org/TR/web-animations-1/#setting-the-current-time-of-an-animation)で描画時刻を与える。DOMの最新標本とcanvasが最後に描いた標本も区別する。
 
@@ -26,6 +26,7 @@ Node.jsは `.nvmrc` の24系、ブラウザは `mcr.microsoft.com/playwright:v1.
 
 | コマンド | 範囲 |
 | --- | --- |
+| `npm run typecheck` | `svelte-check --tsgo`によるTS・Svelteテンプレートの検査。TypeScript 7のnative checkerを使い、警告も失敗にする |
 | `npm run check` | Biome・型・素材検査・現在の通常minified build・全Vitest／V8 coverage／発見と実行の照合。ブラウザなし |
 | `npm run test:browser` | ゲーム本体CIの全工程。checkに続けて異なるdebug／直接view入口を各一度buildし、views／rendererの直接VRT・Native資源検証・native V8を一回実行し、既存結果から品質summaryを生成 |
 | `npm run test:editor` | checkとview build、開発者専用の直接構図VRT・Native HMRを必要時に全実行 |
@@ -48,15 +49,42 @@ CIは固定コンテナの単一jobで `npm ci` の後に `test:browser:inside` 
 
 ## Coverageと実行漏れ
 
-Vitest 5の標準 `@vitest/coverage-v8` で `src/**/*.ts` と `scripts/*.{ts,mjs}` をincludeし、未読込も分母へ含める。ゲームとpresentationは行97・文95・関数100・分岐93の閾値を適用する。率のために来ない入力・不可能状態・冗長防御を作らない。
+Vitest 5の標準 `@vitest/coverage-v8` で `src/**/*.{ts,svelte}` と `scripts/*.{ts,mjs}` をincludeし、未読込も分母へ含める。ゲームとpresentationは行97・文95・関数100・分岐93の閾値を適用する。率のために来ない入力・不可能状態・冗長防御を作らない。
 
-ブラウザは同じ必要実行へPlaywright native V8を付随させ、Monocartで自前srcへmappingする。buildの[hidden sourcemap](https://vite.dev/config/build-options.html#build-sourcemap)は実行JSへ注釈を加えない。共有fixtureが各chunkの隣接mapを渡す。実HMRのdev sourceだけはinline mapを使う。全srcの未読込を0-hitとして残し、vendor・テスト・CSSを混ぜない。`coverage/browser/<実project名>/` は由来別のreportであり、同じ分母を合算・平均したりunit率へ統合したりしない。
+ブラウザは同じ必要実行へPlaywright native V8を付随させ、Monocartで自前srcへmappingする。buildの[hidden sourcemap](https://vite.dev/config/build-options.html#build-sourcemap)は実行JSへ注釈を加えない。共有fixtureが各chunkの隣接mapを渡す。実HMRのdev sourceだけはinline mapを使う。全srcの未読込を0-hitとして残し、vendor・テスト・CSSを混ぜない。Svelteコンポーネントと`.svelte.ts`もsource集合に含め、`.svelte`の未読込分は公式Svelte compilerのJS／mapから補う。実行分は通常Vite pluginのmapを使う。`coverage/browser/<実project名>/` は由来別のreportであり、同じ分母を合算・平均したりunit率へ統合したりしない。
 
 素材照合は実GLB bytesのNative WebCrypto、利用不能／digest拒否時の未照合結果をI/O境界で検証する。未照合から元材質を選ぶ判断は純粋モデルで、既知／未検証環境と同パス別bytesの実材質はPC／mobileのNative VRTで確認する。同じ元材質画像をI/O失敗分岐ごとに再描画しない。warm資源はfull／smallそれぞれの実描画後のBuffer／Texture／Program数を記録し、再度small→fullへ切り替えた両状態の不増加と退出時0を確認する。
 
 生成JSから対応づけられた分岐の指標であり、元TSの全分岐分母を保証しない。[Monocart 2.13](https://github.com/cenfun/monocart-coverage-reports/blob/v2.13.0/lib/converter/converter.js#L620-L672)はmapping不能な分岐群を除く。`all`は未収集ファイルを追加するが、読込済みTSのtree shaking削除分・未mapping分岐は補完しない。source集合一致は欠落確認であり、全分岐維持の証明ではない。
 
 git上の全品質spec、runnerの実collection、今回の実JSONを照合する。Playwright discoveryは実行引数によるfilterを掛けずに取得する。Vitestは公開Reporterの `onTestModuleCollected` で、実行前の全ケースをprimitiveなfile／fullNameへ記録する。実CLIのname filterで未実行になるケースも残し、発見用の別起動と全test moduleの再importを省く。既定はeditorだけ明示scope除外、editor単独はそのscope、allは全specを照合する。未知のディレクトリへ置いた品質specも未発見なら失敗する。ファイル解決はnative reportの `config.rootDir`、必須projectとcoverageのproject集合は実configから導く。手書きの仕様ID／case台帳は作らない。
+
+## 表示負荷の計測
+
+Svelte移行時の前後比較、全scope／gameの実行結果と未確認事項は[検証記録](testing/view-refactor-evidence.md)を参照する。
+
+`tests/fixtures/performance-view.html`は直接状態fixtureで、通常配布へ含めない。通常戦闘の選択更新、連続marker、確定recordのcue、home／destinations／town切替を各180frameで測る。実Babylon・素材・shader・fonts・画像decodeを準備し、20rAFのwarm後にGC・profilingを開始する。通常戦闘の入力更新とclockを通し、Svelteでは実行中と同じ`renderModel`を使う。
+
+次の例は固定Docker内で現在sourceをbuildし、他の品質実行が終わってから3回ずつ測る。結果は`test-results/perf/`のJSON、CDP trace、CPU profileへ置く。品質テストやVRT合否の代用にはしない。
+
+```sh
+docker run --rm --init --ipc=host --name endfield-view-profile --user "$(id -u):$(id -g)" \
+  -v "$PWD:/work" -w /work mcr.microsoft.com/playwright:v1.63.0-noble \
+  sh -c 'npm run build && COVERAGE_BROWSER=1 npm run build:views && \
+    npx vite preview --config vite.views.config.ts --host 127.0.0.1 --port 4174 --strictPort & wait'
+```
+
+別terminalでLocal出力を確認してから`docker exec --user "$(id -u):$(id -g)" -w /work endfield-view-profile node scripts/measure-view.mjs test-results/perf http://127.0.0.1:4174 3`を実行し、終了後に`docker stop endfield-view-profile`する。CAが必要な環境では通常のブラウザwrapperと同じ読み取り専用CAを渡す。
+
+| 観測 | 意味と限界 |
+| --- | --- |
+| apply wall／phase | model、projection、Native submit、DOM／model submit、settled、layout read。Svelteの遅延projection・DOM反映はsettledまでのapplyに含む。submitだけでDOM費用と扱わない |
+| sampled CPU | 1ms設定のV8 sampleを標準build mapで元sourceへ戻し、projection、browser view、Babylonのinclusive時間を推定。カテゴリは重なり、短い関数はsampleされない。正確な呼出数や独立したCPU合計ではない |
+| main task／rAF | renderer main threadのRunTaskをframe区間へ割り当てたwall時間と実rAF間隔。ソフトウェアWebGLの待機を含み、CPU占有時間・実GPU elapsedとは異なる |
+| layout／paint／GC／割当 | CDP traceの各phase総時間と16KiB設定のHeapProfiler割当推定。GC済みobjectsもsamplingに含む。DOM mutation、強制GC前後のheapとNodesも保存する |
+| bundle／起動／資源 | 通常distの全JS raw／gzip合計、実sceneと画像までの準備時間、退出後のBuffer／Texture／Programが0であること。全chunk合計は初回転送量ではなく、warm fixture準備時間はcold network起動ではない |
+
+GPUを含む全frameの余裕は実rAF間隔とtraceを合わせて評価する。SwiftShaderでの低いDOM時間を実機60fpsの証明にせず、長い描画区間とphysical GPU未確認を明記する。採用前後は同じDocker・viewport・DPR・素材・workload・profiling条件で比較する。旧revisionへharnessを持ち込む場合はview importのファイル名を合わせるだけで、optional `renderModel`がない旧viewには同じモデルから全frameを投影して`paint`する。
 
 空／未発見ファイル、重複名、未実行、skip/todo/only、失敗・retry・期待失敗・global errorを拒否する。実CLI filterやlist-onlyに過去JSONを流用して成功としない。共有coverage fixtureを必須にし、追加context／page・遷移前回収漏れ・map欠落／不正・各caseの収集欠落を拒否する。[Playwright coverage](https://playwright.dev/docs/api/class-coverage)は `resetOnNavigation:false` でも旧documentの保持を保証しないため、必要なdocument移動前にcheckpointを置く。
 
@@ -70,4 +98,4 @@ git上の全品質spec、runnerの実collection、今回の実JSONを照合す�
 
 実runner固有のreport生成・古いJSONの再利用拒否・list-onlyは実CLIで検証する。未登録ファイル、部分結果、coverage欠落はその実reportを入力として実行照合を検証し、同じfixtureを再実行して準備を重複させない。ケース別coverage annotationには回収のwall msを含め、ブラウザcase全体や終了時の集計費用と区別する。共有fixtureは実初期viewport／DPR、標準CDPのGPU deviceと共有page fixture内のprocess CPU累積値も記録する。CPU累積値は全threadの消費量であり、GPU elapsedや排他的なcase CPU時間と扱わない。
 
-自動検査は自然言語仕様の完全性やassertionの意味を証明しない。差分レビューでは、変更対象の公開入力・独立した期待結果・担当層・旧保証の移行先・未確認事項を具体的に読む。実装と全必要ローカル検証を終えてからまとめて提出する。今回の最終独立レビューはPR後に手配するfresh reviewerが行い、実装中のsource確認・部分検証をその承認と呼ばない。main保護と最終承認の責任は[別表](testing/review-controls.md)を参照する。
+自動検査は自然言語仕様の完全性やassertionの意味を証明しない。差分レビューでは、変更対象の公開入力・独立した期待結果・担当層・旧保証の移行先・未確認事項を具体的に読む。実装と全必要ローカル検証・独立レビューと指摘修正を終えてからまとめてpush・PRする。最終独立レビューは実装担当と別のfresh reviewerが提出前に行い、実装中のsource確認・部分検証をその承認と呼ばない。main保護と最終承認の責任は[別表](testing/review-controls.md)を参照する。

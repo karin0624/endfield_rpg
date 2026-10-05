@@ -10,7 +10,7 @@ import {
 import { projectAdventure } from "../presentation/adventureProjection";
 import { type AdventureSettings, parseAdventureSettings } from "../presentation/adventureSettings";
 import savedAdventureSettings from "./adventure-settings.json";
-import { createAdventureView } from "./adventureView";
+import { createAdventureView } from "./adventureView.svelte.ts";
 
 /** A standalone conversation preview uses the conversation core, without session time, XP, or recovery. */
 export function mountAdventureUi(

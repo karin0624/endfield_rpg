@@ -10,8 +10,8 @@ import {
 } from "../../src/presentation/dungeonModel";
 import { projectDungeon } from "../../src/presentation/dungeonProjection";
 import { reduceDungeonRoute } from "../../src/presentation/dungeonRoute";
-import { createCampaignView } from "../../src/web/campaignView";
-import { createDungeonView } from "../../src/web/dungeonView";
+import { createCampaignView } from "../../src/web/campaignView.svelte.ts";
+import { createDungeonView } from "../../src/web/dungeonView.svelte.ts";
 import { requiredElement } from "../../src/web/requiredElement";
 import "../../src/web/style.css";
 import "../../src/web/debug.css";

@@ -7,3 +7,5 @@ playwright-report/
 
 dist-debug/
 dist-views/
+
+.svelte-check/

@@ -388,6 +388,8 @@ describe("探索画面の同期意味入力", () => {
       { type: "capture-pointer", pointerId: 4 },
     ]);
     expect(app.state.route.offset).toBe(-221);
+    app.send({ type: "route", event: { type: "measured", measure: structuredClone(measure) } });
+    expect(app.state.route.offset).toBe(-221);
     expect(app.send({ type: "route", event: { type: "pointer-move", pointerId: 4, x: -300 } }).effects).toEqual([]);
     expect(app.state.route.offset).toBe(-492);
     app.send({ type: "route", event: { type: "pointer-end", pointerId: 4 } });

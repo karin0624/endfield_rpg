@@ -17,7 +17,7 @@ import {
 import { parseBattleSettings } from "../../src/presentation/battleSettings";
 import savedAdventure from "../../src/web/adventure-settings.json";
 import { createAdventureEditorView } from "../../src/web/adventureEditor";
-import { createAdventureView } from "../../src/web/adventureView";
+import { createAdventureView } from "../../src/web/adventureView.svelte.ts";
 import savedBattle from "../../src/web/battle-settings.json";
 import { createBattleEditorView } from "../../src/web/battleEditor";
 import { createBattleScene } from "../../src/web/battleScene";

@@ -1,6 +1,6 @@
 import { reduceDungeon } from "../../src/presentation/dungeonModel";
 import { projectDungeon } from "../../src/presentation/dungeonProjection";
-import { createDungeonView } from "../../src/web/dungeonView";
+import { createDungeonView } from "../../src/web/dungeonView.svelte.ts";
 import { dungeonPicture } from "../dungeonPictures";
 import "../../src/web/style.css";
 import "../../src/web/debug.css";

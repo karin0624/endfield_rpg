@@ -9,7 +9,7 @@ import { applyPartyStatus, type ExpeditionGame } from "../../src/game/expedition
 import { chooseGrowthSkill, grownCharacters, rewardGrowth } from "../../src/game/growthRuntime";
 import { createParty } from "../../src/game/party";
 import { createCharacterDetailsModel, reduceCharacterDetails } from "../../src/presentation/characterDetails";
-import { createCharacterDetailsView } from "../../src/web/characterDetailsUi";
+import { createCharacterDetailsView } from "../../src/web/characterDetailsUi.svelte.ts";
 import { requiredElement } from "../../src/web/requiredElement";
 import "../../src/web/style.css";
 

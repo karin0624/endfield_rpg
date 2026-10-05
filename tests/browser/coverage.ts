@@ -97,7 +97,10 @@ export const test = base.extend<{ _coverageBoundary: undefined }>({
       for (const entry of entries) {
         if (!entry.url.startsWith("http")) continue;
         const path = new URL(entry.url).pathname;
-        if (!(path.includes("/src/") && path.endsWith(".ts")) && !(path.includes("/assets/") && path.endsWith(".js")))
+        if (
+          !(path.includes("/src/") && (path.endsWith(".ts") || path.endsWith(".svelte"))) &&
+          !(path.includes("/assets/") && path.endsWith(".js"))
+        )
           continue;
         // Vite's generated preload helper has no original application source.
         if (/\/preload-helper-[^/]+\.js$/.test(path)) continue;

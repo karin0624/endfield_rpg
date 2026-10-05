@@ -4,7 +4,7 @@ import { previewRecoveryItem } from "../game/itemUse";
 import { mentalFatigueMultiplier } from "../game/mentalFatigue";
 import { activeSkillBaseAmount, mentalFatigueAffectedQuantity, skillById } from "../game/skills";
 import { canParticipate, effectiveMaxHp } from "../game/status";
-import { createTetraMarkup, projectBattleMarkerAngle } from "./battleGeometry";
+import { projectBattleMarkerAngle } from "./battleGeometry";
 import {
   type BattleInput,
   type BattleModel,
@@ -13,7 +13,7 @@ import {
   battleMarkerTarget,
   battleSkills,
 } from "./battleModel";
-import { type ConfirmedBattleEvent, projectBattleCue } from "./battlePlayback";
+import { type BattlePlayback, type ConfirmedBattleEvent, projectBattleCue } from "./battlePlayback";
 import { battleActionText } from "./battleProjection";
 import { formatAmount, loadSymptomText, mentalFatigueText, symptomNames } from "./statusText";
 import { projectSymptoms } from "./symptomProjection";
@@ -30,7 +30,12 @@ export interface BattleAppearance {
   readonly finishAriaLabel?: string;
 }
 
-export function projectBattleView(state: BattleModel, input: BattleInput, appearance: BattleAppearance = {}) {
+export type BattleHudState = Omit<BattleModel, "markerElapsedMs" | "playback"> & {
+  readonly playback: Omit<BattlePlayback, "phaseElapsedMs" | "cue">;
+};
+
+/** Semantic HUD projection has no dependency on continuous animation clocks. */
+export function projectBattleHud(state: BattleHudState, input: BattleInput, appearance: BattleAppearance = {}) {
   const playback = state.playback;
   const name = (id: string) => {
     const label = appearance.names?.[id] ?? appearances[id]?.name ?? id;
@@ -162,7 +167,6 @@ export function projectBattleView(state: BattleModel, input: BattleInput, appear
     focus: state.focus,
     partyAnchor: state.partyAnchor,
     markerId: marker,
-    markerMarkup: marker ? createTetraMarkup(projectBattleMarkerAngle(state.markerElapsedMs)) : "",
     skillBattle: input.rules !== undefined,
     queue: getBattleUpcomingActions(playback.display, 6).map((action, index) => {
       const member = playback.display.combatants.find((entry) => entry.id === action.id);
@@ -283,7 +287,19 @@ export function projectBattleView(state: BattleModel, input: BattleInput, appear
       text: toastEvent ? eventText(toastEvent) : "",
       kind: toastEvent?.type ?? "",
     },
-    sequence: { ...projectBattleCue(playback), ...battleActionText(playback, input.rules?.catalog) },
   };
 }
+export function projectBattleMotion(state: BattleModel, input: BattleInput) {
+  return {
+    markerAngle: battleMarkerTarget(state, input) ? projectBattleMarkerAngle(state.markerElapsedMs) : null,
+    sequence: { ...projectBattleCue(state.playback), ...battleActionText(state.playback, input.rules?.catalog) },
+  };
+}
+
+/** Complete explicit frame for direct-state tests and one-off projections. */
+export function projectBattleView(state: BattleModel, input: BattleInput, appearance: BattleAppearance = {}) {
+  return { ...projectBattleHud(state, input, appearance), ...projectBattleMotion(state, input) };
+}
+export type BattleHudFrame = ReturnType<typeof projectBattleHud>;
+export type BattleMotionFrame = ReturnType<typeof projectBattleMotion>;
 export type BattleViewFrame = ReturnType<typeof projectBattleView>;

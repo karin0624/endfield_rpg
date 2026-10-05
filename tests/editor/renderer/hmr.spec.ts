@@ -1,6 +1,7 @@
 import { cp, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { svelte } from "@sveltejs/vite-plugin-svelte";
 import { createServer } from "vite";
 import { collectCoverage, expect, test } from "../../browser/coverage";
 import { observeWebGLResources, webGLResources } from "../../browser/webglResources";
@@ -21,6 +22,7 @@ test("実debug入口のHMRは旧WebGL資源を解放してfresh初期sceneを生
       root,
       cacheDir: join(root, ".vite"),
       configFile: false,
+      plugins: [svelte({ configFile: false })],
       server: { host: "127.0.0.1", port: 0, fs: { allow: [root, project] } },
       logLevel: "error",
     });

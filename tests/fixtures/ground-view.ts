@@ -6,7 +6,7 @@ import { parseBattleSettings } from "../../src/presentation/battleSettings";
 import { projectBattleView } from "../../src/presentation/battleViewProjection";
 import savedSettings from "../../src/web/battle-settings.json";
 import { type BattleScene, createBattleRenderer, initialBattleEnvironment } from "../../src/web/battleScene";
-import { createBattleView } from "../../src/web/battleView";
+import { createBattleView } from "../../src/web/battleView.svelte.ts";
 import { requiredElement } from "../../src/web/requiredElement";
 import { groundCullingViews } from "./ground-culling-views";
 import "../../src/web/style.css";

@@ -4,7 +4,7 @@ import { createInitialGameState } from "../../src/game/createInitialGameState";
 import { projectAdventure } from "../../src/presentation/adventureProjection";
 import { parseAdventureSettings } from "../../src/presentation/adventureSettings";
 import savedAdventureSettings from "../../src/web/adventure-settings.json";
-import { createAdventureView } from "../../src/web/adventureView";
+import { createAdventureView } from "../../src/web/adventureView.svelte.ts";
 import "../../src/web/style.css";
 import "../../src/web/debug.css";
 
