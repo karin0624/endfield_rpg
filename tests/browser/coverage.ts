@@ -67,6 +67,7 @@ export const test = base.extend<{ _coverageBoundary: undefined }>({
     let needsCheckpoint = false;
     let documentNavigations = 0;
     let mappedEntries = 0;
+    let collectionMs = 0;
     const missedNavigations: string[] = [];
     const onRequest = (request: Request) => {
       if (!request.isNavigationRequest() || request.frame() !== page.mainFrame() || request.redirectedFrom()) return;
@@ -77,6 +78,7 @@ export const test = base.extend<{ _coverageBoundary: undefined }>({
     page.on("request", onRequest);
     const report = browserCoverage(testInfo.project.name, testInfo.config);
     async function collect(restart = true) {
+      const started = performance.now();
       if (page.isClosed()) throw new Error("Page closed before browser coverage collection");
       const entries = await page.coverage.stopJSCoverage();
       const mapped = [];
@@ -127,6 +129,7 @@ export const test = base.extend<{ _coverageBoundary: undefined }>({
       }
       needsCheckpoint = false;
       if (restart) await page.coverage.startJSCoverage({ resetOnNavigation: false });
+      collectionMs += performance.now() - started;
     }
     await page.coverage.startJSCoverage({ resetOnNavigation: false });
     collectors.set(page, () => collect());
@@ -137,7 +140,7 @@ export const test = base.extend<{ _coverageBoundary: undefined }>({
     await collect(false);
     testInfo.annotations.push({
       type: "browser-coverage",
-      description: `documents=${documentNavigations}, mappedEntries=${mappedEntries}`,
+      description: `documents=${documentNavigations}, mappedEntries=${mappedEntries}, collectionMs=${collectionMs.toFixed(3)}`,
     });
     if (documentNavigations && !mappedEntries) throw new Error("No mapped application execution for this browser case");
     if (missedNavigations.length)

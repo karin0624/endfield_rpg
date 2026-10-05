@@ -70,6 +70,14 @@ Vitestは従前の標準forks・file parallelism、実コンテナではmaxWorke
 
 全品質検証は成功したが、300秒まで **113.243秒不足**している。今回確認した標準候補では必要短縮を実証できず、同品質のあらゆる実装で5分以内が物理的に不可能だという証明も成立していない。**#102の時間条件は未解決で、公開停止を継続する。** 生log／JSON、source固定とmap／54基準照合、Native CPU profile、候補の失敗・不採用根拠はローカル証跡へ保存した。旧参考30枚の取得48.365秒と失敗反復は全体wallとは別費用であり、54基準の成功でその残差まで一致したとは扱わない。
 
+## 再開後の準備削減と撮影条件の確認
+
+実CLIの8回のwrapper実行を4回へ整理した。browser／editorの実report生成、古いJSONを置いたfiltered実行のreporter置換拒否、native list-onlyの未実行拒否は実CLIに残す。未登録ファイル、coverage欠落、editor部分結果とall scopeのinventoryは実CLI生成済みreportに必要な差を与え、実Git inventoryと照合する。単独検証は8.41秒、全`npm run check`は63ファイル・795ケース成功、Vitest表示durationは11.64秒だった。これはhost wrapper全体のwallではない。Browserのcollector／詳細粒度／minification／VRT／全projectは変えていない。
+
+旧参考の未解明6差分のうち編成5枚は、旧Native sourceの隔離再現で元rawと全pixel一致した。現行の直接snapshotではdevelopment配信へ替えても同じ微小差が残ったが、元のNative詳細dialog開閉履歴を与え、clickで変わった実grid scrollをモデルsnapshotへ戻すと5枚とも全pixel一致した。最初の隔離試行はscroll通知をclickの前に採ったため候補領域が異なり、後の通知で条件を揃えた。これは一回の参考条件の診断であり、ゲームjourneyを品質suiteへ戻したり、完成画像や基準PNGを追加したりしていない。標準minified配信の追加照合とショップ390pxのcorner差はこの区切りでは未確認。旧参考30枚の既存計測と正式54画像VRTの保証は分ける。
+
+停止前の工程別診断は全stage成功・402.472秒で完了していた。npm ci 16.113秒、unit discovery 4.535秒、unit実行／coverage 21.723秒、三build計5.222秒、Browser実行334.048秒、終了時global teardown 4.485秒だった。expanded commandsの診断であり、既存の正式host wrapper 413.243秒とは起動方法が違う。残るcase費用をcoverage集計やGPUだけへ帰属させない。今回のcollector annotationで実回収費用を分離し、準備削減後の直列全体を先に測る。並列化はその後に同一runnerの2workers、2shard、独立工程を比較し、Actions上の性能をローカル測定から断定しない。
+
 ## 現在の保証対応
 
 | 公開結果 | 主な検証 |

@@ -57,4 +57,6 @@ git上の全品質spec、無filterのrunner discovery、今回の実JSONを照�
 
 [#102](https://github.com/karin0624/endfield_rpg/issues/102)では、品質維持した同条件・直列の全ローカル検証が起動から終了まで5分以内、または同品質で5分以内にできない明確な根拠が成立するまでPR禁止。成立後もユーザー確認まで公開を再開しない。部分成功、実描画が多い事実、未測定の推測を不可避の根拠・課題解決としない。
 
+実runner固有のreport生成・古いJSONの再利用拒否・list-onlyは実CLIで検証する。未登録ファイル、部分結果、coverage欠落はその実reportを入力として実行照合を検証し、同じfixtureを再実行して準備を重複させない。ケース別coverage annotationには回収のwall msを含め、ブラウザcase全体や終了時の集計費用と区別する。
+
 自動検査は自然言語仕様の完全性やassertionの意味を証明しない。差分レビューでは、変更対象の公開入力・独立した期待結果・担当層・旧保証の移行先・未確認事項を具体的に読む。実装と全必要ローカル検証を終えてからまとめて提出する。今回の最終独立レビューはPR後に手配するfresh reviewerが行い、実装中のsource確認・部分検証をその承認と呼ばない。main保護と最終承認の責任は[別表](testing/review-controls.md)を参照する。
