@@ -11,7 +11,7 @@
 - runtimeはSvelte 5.57.1、開発時はVite plugin 7.3.1／svelte-check 4.7.6。`svelte-check --tsgo`はTypeScript 7.0.2を使い、`typescript`名の6.0.3は変換用JavaScript API、`@typescript/native` aliasの7系は実checkerを提供する。
 - 最終計測ではswitch fixtureに `app.replaceChildren()` を明示した。旧factoryが暗黙に除去していたcanvasを新fixtureも除去し、両方の物理条件を合わせるためで、製品コードの変更ではない。この一行を含めて既定game全工程を検証した。
 
-製品CSS、素材、既存golden PNG、VRT許容差、`.github`は比較元から変更していない。地形LFS実体は59,790,396 bytes、SHA256 `0bad77901554e56495e34844a5e63e66380b30d48c732c5c7fbc152c9b976ef9`。Babylon rendererの実資源処理も変更していない。
+製品CSS、素材、既存golden PNG、VRT許容差、`.github`は比較元から変更していない。地形LFS実体は58,790,396 bytes、SHA256 `0bad77901554e56495e34844a5e63e66380b30d48c732c5c7fbc152c9b976ef9`。Babylon rendererの実資源処理も変更していない。
 
 ## 品質検証
 
@@ -101,4 +101,4 @@ warm fixtureのscene準備は旧1964.7–3082.0ms／新2276.3–3999.8ms、font�
 | 同解像度の撮影／raw diff／overlay | `test-results/approved-comparison/` |
 | 全scope／game／性能ログ | `/tmp/endfield-svelte-all-final.log`、`/tmp/endfield-svelte-game-quality.log`、`/tmp/endfield-svelte-perf.log` |
 
-実装と必要なローカル検証は完了した。独立レビュー・指摘修正の完了前にpush・PR・CI起動を行っていない。実装担当の確認を独立承認とは呼ばず、製品commitと計測fixture／記録のみの後続commitを区別して引き継ぐ。
+ローカル実装と必要な検証の完了時点では未公開だった。その後、GitHubコネクタで[PR #106](https://github.com/karin0624/endfield_rpg/pull/106)を公開した。初回公開head `8b40afd1a191a9517f57fbf663a6f92a7859b13c`とローカル完成head `46017e5949fb56e69c928b8f158a8dc7f4c5e4ed`のtreeは `a918d3cc8189ee59f4b1955b474f5aa8753e069b`で一致する。実装担当の確認を独立承認とは呼ばず、完成したPRをdot側でレビューする。現在の提出・レビュー手順は[テスト設計](../testing.md#外観と提出前検証)に従う。
