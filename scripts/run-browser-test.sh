@@ -18,7 +18,8 @@ if [ "$inside_script" = test:browser:inside ]; then
     sh -c 'apt-get update && apt-get install -y --no-install-recommends python3-pil && \
       run_uid=$1 && run_gid=$2 && shift 2 && \
       exec setpriv --reuid "$run_uid" --regid "$run_gid" --clear-groups \
-        sh -c '\''npm ci && inside_script=$1 && shift && npm run "$inside_script" -- "$@"'\'' sh "$@"' \
+        sh -c '\''npm --cache /tmp/endfield-rpg-npm-cache ci && inside_script=$1 && shift && \
+          npm --cache /tmp/endfield-rpg-npm-cache run "$inside_script" -- "$@"'\'' sh "$@"' \
     sh "$(id -u)" "$(id -g)" "$inside_script" "$@"
   container_user=0:0
 else
