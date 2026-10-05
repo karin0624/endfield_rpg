@@ -12,7 +12,12 @@ export const viewServer = {
 };
 export const editorProjects = [
   { name: "editor-views", testDir: "./tests/editor/views", testMatch: "**/*.spec.ts", fullyParallel: true },
-  { name: "editor-resources", testDir: "./tests/editor/renderer", testMatch: "**/*.spec.ts" },
+  {
+    name: "editor-resources",
+    testDir: "./tests/editor/renderer",
+    testMatch: "**/*.spec.ts",
+    use: { viewport: { width: 800, height: 900 } },
+  },
 ];
 
 export default defineConfig({
@@ -43,7 +48,12 @@ export default defineConfig({
   },
   projects: [
     { name: "views", testDir: "./tests/views", testMatch: "**/*.spec.ts" },
-    { name: "renderer", testDir: "./tests/renderer", testMatch: "**/*.spec.ts" },
+    {
+      name: "renderer",
+      testDir: "./tests/renderer",
+      testMatch: "**/*.spec.ts",
+      use: { viewport: { width: 800, height: 900 } },
+    },
   ],
   webServer: [
     {

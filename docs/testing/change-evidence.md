@@ -96,6 +96,12 @@ Vitestのcollectionを既存公開Reporterへ統合した。実行前の全ケ�
 
 素材照合の利用不能／拒否を実WebCrypto I/O境界へ移した。実LFS GLBの既知SHA-256、subtleなし／cryptoなし、digest拒否を検証し、未照合から元材質の純粋判断と、既知・未検証・同パス別bytesの実PBR画像／HTTP一回はNativeに残す。重複していた元材質PNG二回を省くためで、基準54画像のpath／bytes／許容差は変えない。この区切りの変更後の全検証と正式直列wallは未完了である。
 
+固定head `0e4c5c9`の正式直列全体は379.923秒で、単体800件／Browser33件／54画像／4coverage projectと全実行gateが成功した。Browser wallは308.698秒、case回収8.167秒、source451／保護162の前後変化とmap原文不一致は0。warmは17.104秒となり、同じ素材・失敗・旧owner・両状態の資源非増加・退出0を実行した。時間条件はまだ79.923秒超過している。
+
+GPU描画submeshを増やさずNative rayを分割する標準Mesh.clone／SubMesh.CreateFromIndicesの隔離候補も比較した。同じ6ケース・10画像assertion・元のwarm三往復・GPU 0で基準90.279秒、候補86.293秒、全成功だったが、cold単発で分散未評価・一部条件は遅化し、必要短縮を支持しないため製品へ採用しない。
+
+画像比較のないrenderer／editor-resourcesのviewportを既存DPR条件800×900へ揃えた。変更するのは資源観測の描画面積で、全実素材・shader・三角形・Native初期draw・切替／失敗／遅着／HMR／解放とDPR両条件は残す。VRTのviewport／DPR／PNG／許容差は変更しない。この変更の全実行・正式wall比較はこの区切りでは未完了である。
+
 ## 現在の保証対応
 
 | 公開結果 | 主な検証 |
