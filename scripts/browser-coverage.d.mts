@@ -1,5 +1,5 @@
+import type { FullConfig } from "@playwright/test";
 import { CoverageReport } from "monocart-coverage-reports";
-export function browserCoverage(project: string): CoverageReport;
-export const coverageProjects: string[];
+export function browserCoverage(project: string, config: FullConfig): CoverageReport;
 export function setupBrowserCoverage(): Promise<void>;
-export function finishBrowserCoverage(): Promise<void>;
+export function finishBrowserCoverage(config: FullConfig): Promise<void>;

@@ -5,47 +5,8 @@
   <title>承認済み編成画像の比較条件</title>
   <section class="party-editor" id="fixture" aria-label="出撃編成"></section>
   <script type="module">
-    import { characters } from "/src/content/characters.ts";
-    import { initialGameOptions } from "/src/content/initialGameOptions.ts";
-    import { createInitialGameState } from "/src/game/createInitialGameState.ts";
-    import { applyPartyStatus, confirmExpeditionParty } from "/src/game/expedition.ts";
-    import { createParty } from "/src/game/party.ts";
-    import { deserializeGame, serializeGame } from "/src/game/save.ts";
-    import { mountPartyUi } from "/src/web/partyUi.ts";
-    import "/src/web/style.css";
+    import { mountPartyFixture } from "./party-view.ts";
 
-    const mode = new URLSearchParams(location.search).get("mode");
-    // Approved comparison data only; production Gilberta remains max HP 18.
-    const definitions = characters.map((character) => ({ ...character, maxHp: 20 }));
-    if (mode === "hp-levels") definitions.push(
-      { id: "empty-hp", name: "HPが空の仲間", maxHp: 20, speed: 100, attackPower: 8 },
-      { id: "symptom-hp", name: "最大HP低下中の仲間", maxHp: 20, speed: 100, attackPower: 8 },
-    );
-    let game = { adventure: createInitialGameState(initialGameOptions), party: createParty(definitions, definitions.map(({ id }) => id)), dungeon: null };
-    game = confirmExpeditionParty(game, ["player", "gilberta", null, null]).state;
-    if (mode === "symptoms") {
-      game = applyPartyStatus(game, "player", { kind: "physicalFatigue", amount: 50 }, definitions);
-      game = applyPartyStatus(game, "player", { kind: "haze", amount: 75 }, definitions);
-    }
-    if (mode === "hp-levels") {
-      game = confirmExpeditionParty(game, ["player", "gilberta", "empty-hp", "symptom-hp"]).state;
-      game = applyPartyStatus(game, "symptom-hp", { kind: "physicalFatigue", amount: 50 }, definitions);
-      // These are legal initial display inputs, validated through the public save boundary
-      // before mounting the UI. No gameplay result or active UI state is injected.
-      const hp = [20, 10, 0, 6.5];
-      game = { ...game, party: { ...game.party, members: game.party.members.map((member, index) => ({ ...member, hp: hp[index] })) } };
-      const saveDefinitions = { characters: definitions, placeIds: [game.adventure.currentPlaceId] };
-      const saved = serializeGame(game, saveDefinitions);
-      if (!saved.accepted) throw new Error("Invalid initial HP display fixture");
-      const restored = deserializeGame(saved.data, saveDefinitions);
-      if (!restored.accepted) throw new Error("HP display fixture cannot be restored");
-      game = restored.state;
-    }
-    if (mode === "disabled") game = { ...game, party: { ...game.party, members: game.party.members.map((member) => ({...member, hp: 0})) } };
-    mountPartyUi(document.querySelector("#fixture"), {
-      characters: definitions, getParty: () => game.party, getCalendarLabel: () => "1日目 · 昼",
-      confirm: (slots) => { const result = confirmExpeditionParty(game, slots); game = result.state; return result; },
-      depart: () => ({ accepted: false, state: game, reason: "action-in-progress" }),
-    }, () => {});
+    mountPartyFixture(document.querySelector("#fixture"), "approved");
   </script>
 </html>

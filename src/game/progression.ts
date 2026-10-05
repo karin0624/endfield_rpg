@@ -25,11 +25,8 @@ export interface CharacterGrowth extends InitialCharacterGrowth {
 }
 export interface ExplorationGrowth {
   readonly characters: readonly CharacterGrowth[];
-  readonly appliedRewardIds: readonly string[];
 }
 export interface ExperienceReward {
-  /** Unique within this growth session, including distinct visits to a node. */
-  readonly id: string;
   /** Explicit recipient allocations; the core does not infer eligibility. */
   readonly allocations: readonly { readonly characterId: string; readonly experience: number }[];
 }
@@ -38,8 +35,6 @@ export interface LevelReached {
   readonly level: number;
 }
 export type GrowthRejection =
-  | "invalid-reward-id"
-  | "reward-already-applied"
   | "unknown-character"
   | "duplicate-character"
   | "invalid-experience"
@@ -99,7 +94,6 @@ export function createExplorationGrowth(definition: ProgressionDefinition): Expl
       bonus: { ...initial.bonus },
       pendingChoiceLevels: [],
     })),
-    appliedRewardIds: [],
   };
 }
 
@@ -113,8 +107,6 @@ export function grantExperience(
 ): GrowthResult {
   validateProgressionDefinition(definition);
   const reject = (reason: GrowthRejection): GrowthResult => ({ accepted: false, state, reason });
-  if (!reward.id.trim()) return reject("invalid-reward-id");
-  if (state.appliedRewardIds.includes(reward.id)) return reject("reward-already-applied");
   const ids = reward.allocations.map(({ characterId }) => characterId);
   if (new Set(ids).size !== ids.length) return reject("duplicate-character");
   if (ids.some((id) => !state.characters.some(({ characterId }) => characterId === id)))
@@ -150,15 +142,12 @@ export function grantExperience(
   }
   return {
     accepted: true,
-    state: { characters, appliedRewardIds: [...state.appliedRewardIds, reward.id] },
+    state: { characters },
     levelsReached,
   };
 }
 
-/** Reset only explicitly selected growth records. Reward receipts remain consumed
- * within this session; a new session starts via createExplorationGrowth.
- * Choosing return recipients and resetting learned skills belong to callers.
- */
+/** Reset selected temporary growth. Return recipients and learned skills belong to callers. */
 export function resetCharacterGrowth(
   state: ExplorationGrowth,
   characterIds: readonly string[],

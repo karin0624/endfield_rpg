@@ -66,33 +66,21 @@ function withGear(): ExpeditionGame {
 describe("本編の物品・装備接続", () => {
   it("市場で買物を複数回しても完了まで時間を進めず、持帰り・保存・持込み・途中帰還が一度だけ反映される", () => {
     let game = beginTownExploration(initial(), "market", initialAdventure).state;
-    const actionId = game.clock?.pendingAction?.id ?? -1;
     for (let i = 0; i < 3; i++) {
       if (!game.inventory) throw new Error("inventory");
-      const bought = purchaseItem(
-        game.inventory.items,
-        game.inventory.balance,
-        recoveryItemOffer,
-        {
-          quantity: 1,
-          explorationId: actionId,
-          expectedVersion: game.inventory.items.version,
-          transactionId: String(i),
-        },
-        itemCatalog,
-      );
+      const bought = purchaseItem(game.inventory.items, game.inventory.balance, recoveryItemOffer, 1, itemCatalog);
       expect(bought.accepted).toBe(true);
       game = { ...game, inventory: { ...game.inventory, items: bought.items, balance: bought.balance } };
       expect(game.clock?.elapsedHalfDays).toBe(0);
       expect(serializeGame(game, saveDefinitions).accepted).toBe(false);
     }
-    const completed = actInTown(game, actionId, { type: "advance" }, characters, initialAdventure);
+    const completed = actInTown(game, { type: "advance" }, characters, initialAdventure);
     expect(completed.accepted).toBe(true);
     game = roundTrip(completed.state);
     expect(game.clock?.elapsedHalfDays).toBe(1);
     expect(game.inventory?.balance).toBe(0);
     expect(game.inventory?.items.home).toEqual([{ itemId: recoveryItemId, quantity: 3 }]);
-    expect(actInTown(game, actionId, { type: "advance" }, characters, initialAdventure).accepted).toBe(false);
+    expect(actInTown(game, { type: "advance" }, characters, initialAdventure).accepted).toBe(false);
     game = departOnExpedition(game, characters, initialDungeon, initialAdventure, undefined, [
       { itemId: recoveryItemId, quantity: 2 },
     ]).state;
@@ -105,7 +93,7 @@ describe("本編の物品・装備接続", () => {
     expect(game.clock?.elapsedHalfDays).toBe(2);
     expect(leaveExpedition(game).accepted).toBe(false);
   });
-  it("戦闘使用は敵行動まで進め、名簿とバッグを確定し、前ノード・同じ入力の再送を拒否する", () => {
+  it("戦闘使用は敵行動まで進め、現在のHP・名簿とバッグから次の使用も判定する", () => {
     let game = initial();
     game = {
       ...game,
@@ -131,14 +119,7 @@ describe("本編の物品・装備接続", () => {
       actorId: "player",
       targetId: "player",
       itemId: recoveryItemId,
-      expectedActionTime: battle.state.logicalTime,
-      expectedNodeId: "battle-a",
-      expectedVersion: game.inventory.items.version,
-      explorationId: game.dungeon?.expeditionActionId ?? -1,
     };
-    expect(
-      actInExpedition(game, { ...input, expectedNodeId: "entrance" }, initialDungeon, initialAdventure).result.accepted,
-    ).toBe(false);
     const used = actInExpedition(game, input, initialDungeon, initialAdventure);
     expect(used.result.accepted).toBe(true);
     if (used.result.accepted) {
@@ -148,6 +129,8 @@ describe("本編の物品・装備接続", () => {
         actorId: "player",
         targetId: "player",
         amount: 7,
+        targetHpBefore: 13,
+        targetHpAfter: 20,
       });
       expect(used.result.events).toEqual([
         { type: "attack", actorId: "slime", targetId: "player", damage: 4, targetHpBefore: 20, targetHpAfter: 16 },
@@ -159,7 +142,10 @@ describe("本編の物品・装備接続", () => {
     expect(used.state.randomState).toBe(1);
     expect(used.state.inventory && bagItemQuantity(used.state.inventory.items, recoveryItemId)).toBe(1);
     expect(used.state.party.members[0].mentalFatigue ?? 0).toBe(0);
-    expect(actInExpedition(used.state, input, initialDungeon, initialAdventure).result.accepted).toBe(false);
+    const second = actInExpedition(used.state, input, initialDungeon, initialAdventure);
+    expect(second.result.accepted).toBe(true);
+    expect(second.state.party.members[0].hp).toBe(16);
+    expect(second.state.inventory && bagItemQuantity(second.state.inventory.items, recoveryItemId)).toBe(0);
   });
   it("共有実物は同時装備不可で、装着で回復せず、解除時はHP上限へ収める", () => {
     let game = editHomeEquipment(withGear(), "home", "player", "armor", "a1", characters, rules).state;
@@ -169,7 +155,7 @@ describe("本編の物品・装備接続", () => {
     expect(editHomeEquipment(game, "exploration", "player", "armor", null, characters, rules).accepted).toBe(false);
     game = departOnExpedition(game, characters, initialDungeon, initialAdventure, rules).state;
     expect(editHomeEquipment(game, "home", "player", "armor", null, characters, rules).accepted).toBe(false);
-    game = leaveExpedition(game, undefined, rules).state;
+    game = leaveExpedition(game, rules).state;
     expect(game.party.members[0].hp).toBe(24);
     expect(game.inventory?.equipment.owned).toHaveLength(2);
     game = roundTrip(game);
@@ -181,7 +167,7 @@ describe("本編の物品・装備接続", () => {
     let game = editHomeEquipment(withGear(), "home", "player", "weapon", "w1", characters, rules).state;
     game = departOnExpedition(game, characters, initialDungeon, initialAdventure, rules).state;
     expect(game.dungeon?.party[0].attackPower).toBe(9);
-    game = leaveExpedition(game, undefined, rules).state;
+    game = leaveExpedition(game, rules).state;
     game = roundTrip(game);
     expect(grownCharacters(game, rules)[0].attackPower).toBe(9);
     game = departOnExpedition(game, characters, initialDungeon, initialAdventure, rules).state;
@@ -300,7 +286,7 @@ describe("物品・装備の保存契約", () => {
     const loaded = roundTrip(game);
     expect(loaded.inventory).toEqual({
       balance: 0,
-      items: { version: 0, home: [], importantIds: [], exploration: null },
+      items: { home: [], importantIds: [], exploration: null },
       equipment: { owned: [], assignments: [] },
     });
   });
@@ -310,7 +296,7 @@ describe("本編在庫の初期値・保存境界・装備制約", () => {
   it("初回だけ所持金30と装備2組を配布し、消耗品と割当ては空で開始する", () => {
     expect(createInventory()).toEqual({
       balance: 30,
-      items: { version: 0, home: [], importantIds: [], exploration: null },
+      items: { home: [], importantIds: [], exploration: null },
       equipment: {
         owned: [
           { instanceId: "weapon-1", definitionId: "trial-weapon" },
@@ -322,13 +308,12 @@ describe("本編在庫の初期値・保存境界・装備制約", () => {
       },
     });
   });
-  it("所持金・物品版・保管数量・未定義品と探索バッグの外部保存を拒否する", () => {
+  it("所持金・保管数量・未定義品と探索バッグの外部保存を拒否する", () => {
     const saved = serializeGame(initial(), saveDefinitions);
     if (!saved.accepted) throw new Error(saved.reason);
     const cases: [string[], unknown][] = [
       ...[-1, 1.5, Number.MAX_SAFE_INTEGER + 1, null, "1"].flatMap((value): [string[], unknown][] => [
         [["balance"], value],
-        [["items", "version"], value],
         [["items", "home"], [{ itemId: recoveryItemId, quantity: value }]],
       ]),
       [["items", "exploration"], { id: 1, destination: "dungeon", bag: [], rewardIds: [] }],
@@ -404,7 +389,6 @@ describe("本編在庫の初期値・保存境界・装備制約", () => {
     if (!saved.accepted) throw new Error(saved.reason);
     const payload = JSON.parse(saved.data);
     payload.party.members[0].hp = 7;
-    payload.inventory.items.version = 9;
     payload.inventory.items.home = [{ itemId: recoveryItemId, quantity: 3 }];
     payload.inventory.balance = 4;
     payload.randomState = 1234;
@@ -413,7 +397,7 @@ describe("本編在庫の初期値・保存境界・装備制約", () => {
     game = roundTrip(read.state);
     expect(game.inventory).toEqual({
       balance: 4,
-      items: { version: 9, home: [{ itemId: recoveryItemId, quantity: 3 }], importantIds: [], exploration: null },
+      items: { home: [{ itemId: recoveryItemId, quantity: 3 }], importantIds: [], exploration: null },
       equipment: {
         owned: [
           { instanceId: "w1", definitionId: "trial-weapon" },
@@ -446,20 +430,12 @@ describe("本編在庫の初期値・保存境界・装備制約", () => {
 });
 
 function gainOneLevel(game: ExpeditionGame) {
-  const reward = rewardGrowth(
-    game,
-    { id: "item-integration-xp", allocations: [{ characterId: "player", experience: 10 }] },
-    rules,
-  );
+  const reward = rewardGrowth(game, { allocations: [{ characterId: "player", experience: 10 }] }, rules);
   if (!reward.accepted) throw new Error(reward.reason);
   const choice = reward.state.growth?.choice;
   const skillId = choice?.candidateIds.find((id) => id !== "test-vitality" && id !== "test-power");
   if (!choice || !skillId || !reward.state.growth) throw new Error("choice missing");
-  const selected = chooseGrowthSkill(
-    reward.state,
-    { explorationId: reward.state.growth.explorationId, characterId: "player", level: 2, skillId },
-    rules,
-  );
+  const selected = chooseGrowthSkill(reward.state, skillId, rules);
   if (!selected.accepted) throw new Error(selected.reason);
   return selected.state;
 }
@@ -505,7 +481,7 @@ describe("装備・成長・物品の複合状態", () => {
       initialAdventure,
       rules,
     ).state;
-    returning = leaveExpedition(returning, undefined, rules).state;
+    returning = leaveExpedition(returning, rules).state;
     expect(returning.party.members[0]).toMatchObject({ hp: 12, status: { physicalFatigue: 100 } });
     expect(grownCharacters(roundTrip(returning), rules)[0]).toMatchObject({ maxHp: 24, attackPower: 9 });
   });
@@ -521,11 +497,7 @@ describe("装備・成長・物品の複合状態", () => {
     game = departOnExpedition(game, characters, initialDungeon, initialAdventure, rules, [
       { itemId: recoveryItemId, quantity: 2 },
     ]).state;
-    const reward = rewardGrowth(
-      game,
-      { id: "pending-item-test", allocations: [{ characterId: "player", experience: 10 }] },
-      rules,
-    );
+    const reward = rewardGrowth(game, { allocations: [{ characterId: "player", experience: 10 }] }, rules);
     if (!reward.accepted) throw new Error(reward.reason);
     game = reward.state;
     const snapshot = structuredClone(game);
@@ -533,9 +505,7 @@ describe("装備・成長・物品の複合状態", () => {
       game,
       {
         type: "branch-item",
-        expectedNodeId: "entrance",
-        expectedVersion: 1,
-        explorationId: 1,
+
         itemId: recoveryItemId,
         targetId: "player",
       },
@@ -546,11 +516,7 @@ describe("装備・成長・物品の複合状態", () => {
     expect(result.result).toMatchObject({ accepted: false, reason: "pending-growth-choice" });
     expect(result.state).toEqual(snapshot);
     // A public growth reward at home also leaves a choice pending, without dungeon/location guards.
-    const homeReward = rewardGrowth(
-      withGear(),
-      { id: "home-pending", allocations: [{ characterId: "player", experience: 10 }] },
-      rules,
-    );
+    const homeReward = rewardGrowth(withGear(), { allocations: [{ characterId: "player", experience: 10 }] }, rules);
     if (!homeReward.accepted) throw new Error(homeReward.reason);
     expect(editHomeEquipment(homeReward.state, "home", "player", "weapon", "w1", characters, rules)).toEqual({
       accepted: false,
@@ -575,7 +541,7 @@ it("公開物品APIで受理した最大安全整数の金額と数量を保存�
 
 it("分岐物品と装備操作は非ゼロの生活時計・成長・控えの療養・フラグを進めない", () => {
   let game = beginTownExploration(withGear(), "market", initialAdventure).state;
-  game = actInTown(game, 1, { type: "advance" }, characters, initialAdventure).state;
+  game = actInTown(game, { type: "advance" }, characters, initialAdventure).state;
   game = applyPartyStatus(game, "gilberta", { kind: "incapacity" }, characters);
   const saved = serializeGame(game, saveDefinitions);
   if (!saved.accepted) throw new Error(saved.reason);
@@ -589,7 +555,7 @@ it("分岐物品と装備操作は非ゼロの生活時計・成長・控えの�
   const homeBefore = structuredClone(game);
   game = editHomeEquipment(game, "home", "player", "weapon", "w1", characters, rules).state;
   expect(game.party).toEqual(homeBefore.party);
-  expect(game.clock).toEqual({ elapsedHalfDays: 1, recoverySteps: 1, nextActionId: 2, pendingAction: null });
+  expect(game.clock).toEqual({ elapsedHalfDays: 1, recoverySteps: 1, pendingAction: null });
   game = departOnExpedition(game, characters, initialDungeon, initialAdventure, rules, [
     { itemId: recoveryItemId, quantity: 2 },
   ]).state;
@@ -600,9 +566,6 @@ it("分岐物品と装備操作は非ゼロの生活時計・成長・控えの�
       type: "branch-item",
       itemId: recoveryItemId,
       targetId: "player",
-      expectedVersion: 3,
-      explorationId: 2,
-      expectedNodeId: "entrance",
     },
     initialDungeon,
     initialAdventure,
@@ -616,15 +579,15 @@ it("分岐物品と装備操作は非ゼロの生活時計・成長・控えの�
   expect(used.state.clock).toEqual({
     elapsedHalfDays: 1,
     recoverySteps: 1,
-    nextActionId: 3,
-    pendingAction: { id: 2, kind: "dungeon-expedition" },
+
+    pendingAction: { kind: "dungeon-expedition" },
   });
   expect(used.state.adventure.flags).toEqual(["found-path"]);
   expect(used.state.dungeon).toEqual({ ...before.dungeon, party: [{ ...before.dungeon?.party[0], hp: 17 }] });
   expect(used.state.randomState).toBe(before.randomState);
   expect(used.state.inventory?.items).toEqual({
     ...inventoryOf(before).items,
-    version: 4,
+
     exploration: {
       ...inventoryOf(before).items.exploration,
       bag: [{ itemId: recoveryItemId, quantity: 1, origin: "carried" }],
@@ -660,13 +623,7 @@ it.each(["cleared", "defeat"] as const)("%sは非空バッグ・装備・成長�
   game = departOnExpedition(game, characters, route, initialAdventure, rules, [
     { itemId: recoveryItemId, quantity: 3 },
   ]).state;
-  const reward = receiveItems(
-    inventoryOf(game).items,
-    1,
-    "event-loot",
-    [{ itemId: recoveryItemId, quantity: 2 }],
-    itemCatalog,
-  );
+  const reward = receiveItems(inventoryOf(game).items, [{ itemId: recoveryItemId, quantity: 2 }], itemCatalog);
   if (!reward.accepted) throw new Error(reward.reason);
   game = { ...game, inventory: { ...inventoryOf(game), items: reward.state } };
   game = actInExpedition(game, { type: "enter", nodeId: "boss" }, route, initialAdventure, rules).state;
@@ -687,9 +644,6 @@ it.each(["cleared", "defeat"] as const)("%sは非空バッグ・装備・成長�
         type: "branch-item",
         itemId: recoveryItemId,
         targetId: "player",
-        expectedVersion: 2,
-        explorationId: 1,
-        expectedNodeId: "boss",
       },
       route,
       initialAdventure,
@@ -697,7 +651,7 @@ it.each(["cleared", "defeat"] as const)("%sは非空バッグ・装備・成長�
     );
     expect(branch.result.accepted).toBe(false);
     expect(branch.state).toEqual(game);
-    const returned = leaveExpedition(game, undefined, rules);
+    const returned = leaveExpedition(game, rules);
     expect(returned.accepted).toBe(true);
     if (!returned.accepted) throw new Error(returned.reason);
     expect(returned.completion?.lostItems).toEqual([]);
@@ -710,7 +664,6 @@ it.each(["cleared", "defeat"] as const)("%sは非空バッグ・装備・成長�
   }
   expect(game.dungeon).toBeNull();
   expect(game.inventory?.items).toEqual({
-    version: 3,
     home: [{ itemId: recoveryItemId, quantity: outcome === "cleared" ? 7 : 5 }],
     importantIds: [],
     exploration: null,
@@ -723,14 +676,14 @@ it.each(["cleared", "defeat"] as const)("%sは非空バッグ・装備・成長�
     experience: 0,
     bonus: { maxHp: 0, attackPower: 0 },
   });
-  expect(game.clock).toEqual({ elapsedHalfDays: 1, recoverySteps: 0, nextActionId: 2, pendingAction: null });
-  expect(leaveExpedition(game, undefined, rules)).toMatchObject({ accepted: false, state: game });
+  expect(game.clock).toEqual({ elapsedHalfDays: 1, recoverySteps: 0, pendingAction: null });
+  expect(leaveExpedition(game, rules)).toMatchObject({ accepted: false, state: game });
   expect(roundTrip(game).inventory).toEqual(game.inventory);
 });
 
-it("別戦闘と再出発の同じ論理時刻でも前の物品入力を再利用できない", () => {
+it("別戦闘と再出発でも現在の手番・HP・在庫なら同じ物品入力を受理する", () => {
   const route = {
-    id: "item-stale-battle",
+    id: "item-current-battle",
     entryNodeId: "start",
     nodes: [
       { id: "start", label: "入口", type: "start" as const, nextNodeIds: ["first"] },
@@ -739,14 +692,14 @@ it("別戦闘と再出発の同じ論理時刻でも前の物品入力を再利�
         label: "第一戦",
         type: "battle" as const,
         nextNodeIds: ["second"],
-        enemies: [{ id: "enemy", team: "enemy" as const, speed: 90, hp: 1, attackPower: 1 }],
+        enemies: [{ id: "enemy", team: "enemy" as const, speed: 200, hp: 1, attackPower: 1 }],
       },
       {
         id: "second",
         label: "最終戦",
         type: "boss" as const,
         nextNodeIds: [],
-        enemies: [{ id: "enemy", team: "enemy" as const, speed: 90, hp: 1, attackPower: 1 }],
+        enemies: [{ id: "enemy", team: "enemy" as const, speed: 200, hp: 1, attackPower: 1 }],
       },
     ],
   };
@@ -754,7 +707,7 @@ it("別戦闘と再出発の同じ論理時刻でも前の物品入力を再利�
   if (!saved.accepted) throw new Error(saved.reason);
   const payload = JSON.parse(saved.data);
   payload.party.members[0].hp = 5;
-  payload.inventory.items.home = [{ itemId: recoveryItemId, quantity: 2 }];
+  payload.inventory.items.home = [{ itemId: recoveryItemId, quantity: 3 }];
   const read = deserializeGame(JSON.stringify(payload), saveDefinitions);
   if (!read.accepted) throw new Error(read.reason);
   let game = departOnExpedition(read.state, characters, route, initialAdventure, undefined, [
@@ -766,20 +719,19 @@ it("別戦闘と再出発の同じ論理時刻でも前の物品入力を再利�
     itemId: recoveryItemId,
     targetId: "player",
     actorId: "player",
-    expectedVersion: 1,
-    explorationId: 1,
-    expectedNodeId: "first",
-    expectedActionTime: 100,
   };
   game = actInExpedition(game, { type: "attack", actorId: "player", targetId: "enemy" }, route, initialAdventure).state;
   game = actInExpedition(game, { type: "enter", nodeId: "second" }, route, initialAdventure).state;
   if (game.dungeon?.activity?.type !== "battle") throw new Error("battle missing");
   expect(game.dungeon.activity.state.logicalTime).toBe(100);
-  expect(game.party.members[0].hp).toBe(5);
-  let before = structuredClone(game);
+  expect(game.party.members[0].hp).toBe(3);
+  const before = structuredClone(game);
   const otherBattle = actInExpedition(game, command, route, initialAdventure);
-  expect(otherBattle.result.accepted).toBe(false);
-  expect(otherBattle.state).toEqual(before);
+  expect(otherBattle.result.accepted).toBe(true);
+  expect(otherBattle.state.party.members[0].hp).toBe(9);
+  expect(bagItemQuantity(inventoryOf(otherBattle.state).items, recoveryItemId)).toBe(1);
+  expect(game).toEqual(before);
+  game = otherBattle.state;
   game = actInExpedition(game, { type: "attack", actorId: "player", targetId: "enemy" }, route, initialAdventure).state;
   game = leaveExpedition(game).state;
   game = departOnExpedition(game, characters, route, initialAdventure, undefined, [
@@ -788,10 +740,10 @@ it("別戦闘と再出発の同じ論理時刻でも前の物品入力を再利�
   game = actInExpedition(game, { type: "enter", nodeId: "first" }, route, initialAdventure).state;
   if (game.dungeon?.activity?.type !== "battle") throw new Error("battle missing");
   expect(game.dungeon.activity.state.logicalTime).toBe(100);
-  before = structuredClone(game);
-  for (const stale of [command, { ...command, expectedVersion: inventoryOf(game).items.version }]) {
-    const replay = actInExpedition(game, stale, route, initialAdventure);
-    expect(replay.result.accepted).toBe(false);
-    expect(replay.state).toEqual(before);
-  }
+  const beforeNext = structuredClone(game);
+  const nextUse = actInExpedition(game, command, route, initialAdventure);
+  expect(nextUse.result.accepted).toBe(true);
+  expect(nextUse.state.party.members[0].hp).toBe(18);
+  expect(bagItemQuantity(inventoryOf(nextUse.state).items, recoveryItemId)).toBe(1);
+  expect(game).toEqual(beforeNext);
 });

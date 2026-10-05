@@ -4,8 +4,8 @@
 
 | 監査ID | 担保と限界 | 証拠／担当 |
 | --- | --- | --- |
-| WF-B01 | Biome・TypeScript・Vitest・両buildの終了コードをCIが検査する。型や整形成功をruntime仕様の網羅としない | `.github/workflows/ci.yml` のverify/browser。同一PR head SHAのrunをマージ担当が確認 |
-| WF-B06 | mainの保護とrequired checksは未設定。成功チェックを強制するGitHub権限／プラン変更は本PRに含めない | 最終headのverify/browserをマージ担当が確認。強制済みとは報告しない |
+| WF-B01 | Biome・TypeScript・Vitest、通常／debug／直接view build、全game Nativeとcoverage・実行gateの終了コードをCIが検査する。型や整形成功をruntime仕様の網羅としない | `.github/workflows/ci.yml` の単一verify job。同一PR head SHAのrunをマージ担当が確認 |
+| WF-B06 | mainの保護とrequired checksは未設定。成功チェックを強制するGitHub権限／プラン変更は本PRに含めない | 最終headのverifyと同job内の全project結果をマージ担当が確認。強制済みとは報告しない |
 | WF-B09 | 古いv4、編成取消、ショップ対象外、debug URLの文書を現行の正本へ整合。新仕様の未登録・assertionの十分性は差分レビューの責任 | `specs/`・実装・テストを同じPRで比較。自然言語仕様の自動証明ではない |
 | WF-B11 | CIは更新なしのVRT比較。基準画像は更新理由・対象の受入条件・画像自体をレビューし、生成だけで正当化しない | PR本文・基準差分・固定コンテナでの更新なし比較。人の承認をテストと呼ばない |
 

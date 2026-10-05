@@ -86,9 +86,9 @@ describe("Lv15・20をまたぐスキル習得", () => {
     "$initialLevel→$finalLevel で途中の$tier と通常の権利を順に解決し、再入力でも再抽選・重複取得しない",
     ({ initialLevel, milestone, finalLevel, tier }) => {
       const { progression, catalog } = fixture(initialLevel);
-      const initial = createExplorationSkills("boundary-run", createGameRandom(1), progression, catalog);
-      const reward = { id: "cross-boundary", allocations: [{ characterId: "player", experience: 20 }] };
-      let state = accepted(grantSkillExperience(initial, "boundary-run", reward, progression, catalog));
+      const initial = createExplorationSkills(createGameRandom(1), progression, catalog);
+      const reward = { allocations: [{ characterId: "player", experience: 20 }] };
+      let state = accepted(grantSkillExperience(initial, reward, progression, catalog));
       expect(state.growth.characters[0]).toMatchObject({
         level: finalLevel,
         experience: 0,
@@ -108,19 +108,15 @@ describe("Lv15・20をまたぐスキル習得", () => {
         acquisition: "guaranteed",
       });
       expect(state.randomState).toBe(2165703038);
-      expect(prepareSkillChoice(state, catalog)).toEqual(state);
+      const beforeFirstChoice = structuredClone(state);
+      expect(prepareSkillChoice(state, catalog)).toEqual(beforeFirstChoice);
+      expect(state).toEqual(beforeFirstChoice);
       const firstInput = {
-        explorationId: "boundary-run",
         characterId: "player",
         level: milestone,
         skillId: `${tier}-a`,
       };
-      expect(chooseSkill(state, { ...firstInput, level: finalLevel }, catalog)).toMatchObject({
-        accepted: false,
-        reason: "wrong-choice",
-        state,
-      });
-      state = accepted(chooseSkill(state, firstInput, catalog));
+      state = accepted(chooseSkill(state, firstInput.skillId, catalog));
       expect(state.growth.characters[0].pendingChoiceLevels).toEqual([finalLevel]);
       expect(state.choice).toEqual({
         characterId: "player",
@@ -129,10 +125,17 @@ describe("Lv15・20をまたぐスキル習得", () => {
         candidateIds: ["normal-c", "normal-a", "normal-b"],
       });
       expect(state.randomState).toBe(1587069247);
-      expect(chooseSkill(state, firstInput, catalog)).toMatchObject({ accepted: false, reason: "wrong-choice", state });
-      expect(prepareSkillChoice(state, catalog)).toEqual(state);
+      const beforeSecondChoice = structuredClone(state);
+      expect(chooseSkill(state, firstInput.skillId, catalog)).toMatchObject({
+        accepted: false,
+        reason: "candidate-not-offered",
+        state: beforeSecondChoice,
+      });
+      expect(state).toEqual(beforeSecondChoice);
+      expect(prepareSkillChoice(state, catalog)).toEqual(beforeSecondChoice);
+      expect(state).toEqual(beforeSecondChoice);
       const secondInput = { ...firstInput, level: finalLevel, skillId: "normal-c" };
-      state = accepted(chooseSkill(state, secondInput, catalog));
+      state = accepted(chooseSkill(state, secondInput.skillId, catalog));
       expect(state.choice).toBeNull();
       expect(state.growth.characters[0].pendingChoiceLevels).toEqual([]);
       expect(state.characters[0].learned.filter(({ acquisition }) => acquisition === "choice")).toEqual([
@@ -140,16 +143,13 @@ describe("Lv15・20をまたぐスキル習得", () => {
         { skillId: "normal-c", type: "active", origin: "expedition", acquisition: "choice" },
       ]);
       expect(state.characters[0].learned.some(({ skillId }) => skillId === "normal-guaranteed")).toBe(false);
-      expect(chooseSkill(state, secondInput, catalog)).toMatchObject({
+      const beforeReplay = structuredClone(state);
+      expect(chooseSkill(state, secondInput.skillId, catalog)).toMatchObject({
         accepted: false,
         reason: "wrong-choice",
-        state,
+        state: beforeReplay,
       });
-      expect(grantSkillExperience(state, "boundary-run", reward, progression, catalog)).toMatchObject({
-        accepted: false,
-        reason: "reward-already-applied",
-        state,
-      });
+      expect(state).toEqual(beforeReplay);
     },
   );
 
@@ -157,12 +157,11 @@ describe("Lv15・20をまたぐスキル習得", () => {
     "$milestone のraw候補が7件でも有効候補2件なら、途中と次レベルの権利・乱数を保持する [%#]",
     ({ initialLevel, milestone, finalLevel, tier }) => {
       const { progression, catalog } = fixture(initialLevel, tier);
-      const initial = createExplorationSkills("boundary-run", createGameRandom(1), progression, catalog);
+      const initial = createExplorationSkills(createGameRandom(1), progression, catalog);
       const state = accepted(
         grantSkillExperience(
           initial,
-          "boundary-run",
-          { id: "cross-boundary", allocations: [{ characterId: "player", experience: 20 }] },
+          { allocations: [{ characterId: "player", experience: 20 }] },
           progression,
           catalog,
         ),
@@ -178,13 +177,13 @@ describe("Lv15・20をまたぐスキル習得", () => {
         pendingChoiceLevels: [milestone, finalLevel],
       });
       expect(state.randomState).toBe(1);
-      expect(
-        chooseSkill(
-          state,
-          { explorationId: "boundary-run", characterId: "player", level: milestone, skillId: `${tier}-c` },
-          catalog,
-        ),
-      ).toMatchObject({ accepted: false, reason: "wrong-choice", state });
+      const before = structuredClone(state);
+      expect(chooseSkill(state, `${tier}-c`, catalog)).toMatchObject({
+        accepted: false,
+        reason: "wrong-choice",
+        state: before,
+      });
+      expect(state).toEqual(before);
     },
   );
 });

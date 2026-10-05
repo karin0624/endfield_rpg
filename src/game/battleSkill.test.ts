@@ -35,19 +35,29 @@ function use(
   target = "enemy",
   id = "test-strike",
   catalog: SkillCatalog = skillCatalog,
-  time = state.logicalTime,
 ) {
-  return performBattleSkillAndAdvanceToAllyInput(state, "player", target, id, time, catalog, tuning);
+  return performBattleSkillAndAdvanceToAllyInput(state, "player", target, id, catalog, tuning);
 }
 describe("公開スキル使用操作", () => {
   it("使用前100の倍率で16を8に減衰し、次の使用から104を参照する", () => {
     const first = use(start());
     if (!first.accepted) throw new Error(first.reason);
-    expect(first.events[0]).toMatchObject({ type: "skill", amount: 8, fatigueBefore: 100, fatigueAfter: 104 });
+    expect(first.events[0]).toMatchObject({ type: "skill", amount: 8, targetHpBefore: 200, targetHpAfter: 192 });
+    expect(first.events).toContainEqual({
+      type: "skill-cost",
+      actorId: "player",
+      fatigueBefore: 100,
+      fatigueAfter: 104,
+    });
     expect(first.state.combatants.find((member) => member.id === "enemy")?.hp).toBe(192);
     const second = use(first.state);
     if (!second.accepted) throw new Error(second.reason);
-    expect(second.events[0]).toMatchObject({ fatigueBefore: 104, fatigueAfter: 108 });
+    expect(second.events).toContainEqual({
+      type: "skill-cost",
+      actorId: "player",
+      fatigueBefore: 104,
+      fatigueAfter: 108,
+    });
     expect(second.state.combatants.find((member) => member.id === "enemy")?.hp).toBeCloseTo(184.15686274509804, 12);
     expect(first.state.combatants.find((member) => member.id === "player")?.status).toEqual({
       ...healthyStatus(),
@@ -60,7 +70,13 @@ describe("公開スキル使用操作", () => {
     expect(ally.state.combatants.find((member) => member.id === "friend")?.hp).toBe(14);
     const self = use(start(), "player", "test-heal");
     if (!self.accepted) throw new Error(self.reason);
-    expect(self.events[0]).toMatchObject({ amount: 0, fatigueAfter: 103 });
+    expect(self.events[0]).toMatchObject({ amount: 0, targetHpBefore: 20, targetHpAfter: 20 });
+    expect(self.events).toContainEqual({
+      type: "skill-cost",
+      actorId: "player",
+      fatigueBefore: 100,
+      fatigueAfter: 103,
+    });
     expect(self.state.combatants.find((member) => member.id === "player")?.hp).toBe(19);
     expect(use(start(), "dead", "test-heal")).toMatchObject({ accepted: false, reason: "target-is-defeated" });
   });
@@ -68,18 +84,26 @@ describe("公開スキル使用操作", () => {
     const state = start({ hitRate: 0, status: { ...healthyStatus(), haze: 20 } });
     const result = use(state);
     if (!result.accepted) throw new Error(result.reason);
-    expect(result.events[0]).toMatchObject({ hit: false, amount: 0, fatigueAfter: 104 });
-    expect(result.state.randomState).toBe(1586005467);
+    expect(result.events[0]).toMatchObject({ hit: false, amount: 0 });
     expect(result.events).toContainEqual({
-      type: "symptom",
+      type: "skill-cost",
       actorId: "player",
-      kind: "physicalFatigue",
-      before: 0,
-      after: 4,
+      fatigueBefore: 100,
+      fatigueAfter: 104,
     });
+    expect(result.state.randomState).toBe(1586005467);
+    expect(result.events).toContainEqual(
+      expect.objectContaining({
+        type: "symptom",
+        actorId: "player",
+        kind: "physicalFatigue",
+        before: 0,
+        after: 4,
+      }),
+    );
     expect(result.state.logicalTime).toBeGreaterThan(state.logicalTime);
   });
-  it("対象違い・未習得・旧行動時刻・使用場面違いを拒否し、HP・疲労・時計・乱数を保持する", () => {
+  it("対象違い・未習得・使用場面違いを拒否し、HP・疲労・時計・乱数を保持する", () => {
     const state = start();
     const branchOnly: SkillCatalog = {
       ...skillCatalog,
@@ -92,7 +116,6 @@ describe("公開スキル使用操作", () => {
       () => use(state, "enemy", "test-heal"),
       () => use(state, "enemy", "test-strike-advanced"),
       () => use(state, "enemy", "test-strike", branchOnly),
-      () => use(state, "enemy", "test-strike", skillCatalog, -1),
     ]) {
       const before = structuredClone(state);
       const result = invoke();
@@ -100,31 +123,40 @@ describe("公開スキル使用操作", () => {
       expect(state).toEqual(before);
       expect(result.state).toEqual(before);
     }
-    const accepted = use(state);
-    if (!accepted.accepted) throw new Error(accepted.reason);
-    const beforeReplay = structuredClone(accepted.state);
-    expect(use(accepted.state, "enemy", "test-strike", skillCatalog, state.logicalTime)).toMatchObject({
-      accepted: false,
-      reason: "action-not-current",
-      state: beforeReplay,
-    });
-    expect(accepted.state).toEqual(beforeReplay);
   });
   it("攻撃スキルもseed1の既知値で命中・外れを決め、拒否では乱数を進めない", () => {
     let state = start({ hitRate: 0.5, status: { ...healthyStatus(), haze: 10 } });
     const first = use(state);
     if (!first.accepted) throw new Error(first.reason);
     expect(first.state.randomState).toBe(2165703038);
-    expect(first.events[0]).toMatchObject({ hit: true, amount: 8, fatigueAfter: 104 });
+    expect(first.events[0]).toMatchObject({ hit: true, amount: 8 });
+    expect(first.events).toContainEqual({
+      type: "skill-cost",
+      actorId: "player",
+      fatigueBefore: 100,
+      fatigueAfter: 104,
+    });
     state = first.state;
     const second = use(state);
     if (!second.accepted) throw new Error(second.reason);
     expect(second.state.randomState).toBe(1587069247);
-    expect(second.events[0]).toMatchObject({ hit: false, amount: 0, fatigueAfter: 108 });
+    expect(second.events[0]).toMatchObject({ hit: false, amount: 0 });
+    expect(second.events).toContainEqual({
+      type: "skill-cost",
+      actorId: "player",
+      fatigueBefore: 104,
+      fatigueAfter: 108,
+    });
     const third = use(second.state);
     if (!third.accepted) throw new Error(third.reason);
     expect(third.state.randomState).toBe(2388811721);
-    expect(third.events[0]).toMatchObject({ hit: false, amount: 0, fatigueAfter: 112 });
+    expect(third.events[0]).toMatchObject({ hit: false, amount: 0 });
+    expect(third.events).toContainEqual({
+      type: "skill-cost",
+      actorId: "player",
+      fatigueBefore: 108,
+      fatigueAfter: 112,
+    });
     expect(use(third.state, "missing")).toMatchObject({ accepted: false, state: third.state });
   });
   it("疲労増加0のアクティブと通常攻撃は疲労倍率対象外", () => {
@@ -136,7 +168,13 @@ describe("公開スキル使用操作", () => {
     };
     const result = use(start(), "enemy", "test-strike", zero);
     if (!result.accepted) throw new Error(result.reason);
-    expect(result.events[0]).toMatchObject({ amount: 16, fatigueAfter: 100 });
+    expect(result.events[0]).toMatchObject({ amount: 16 });
+    expect(result.events).toContainEqual({
+      type: "skill-cost",
+      actorId: "player",
+      fatigueBefore: 100,
+      fatigueAfter: 100,
+    });
     const basic = performBasicAttackAndAdvanceToAllyInput(start(), "player", "enemy");
     if (!basic.accepted) throw new Error(basic.reason);
     expect(basic.events[0]).toMatchObject({ type: "attack", damage: 8 });

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { completeMarketVisit } from "../../tests/helpers/completeMarketVisit";
 import { characters } from "../content/characters";
 import { growthRules } from "../content/growthRules";
 import { initialAdventure } from "../content/initialAdventure";
@@ -14,8 +15,8 @@ import {
   performBattleSkill,
 } from "./battle";
 import { createInitialGameState } from "./createInitialGameState";
-import { actInExpedition, departOnExpedition, type ExpeditionGame, receiveTownRecoverySignal } from "./expedition";
-import { rewardGrowth } from "./growthRuntime";
+import { actInExpedition, actInTown, departOnExpedition, type ExpeditionGame } from "./expedition";
+import { chooseGrowthSkill, grownCharacters, rewardGrowth } from "./growthRuntime";
 import { createParty } from "./party";
 import { deserializeGame, serializeGame } from "./save";
 import { initialLearnedSkills } from "./skills";
@@ -49,7 +50,7 @@ function use(state: ReturnType<typeof battle>, load = 20, skillId = "test-strike
       skill.type === "active" ? { ...skill, mentalFatigueIncrease: load } : skill,
     ),
   };
-  return performBattleSkill(state, "player", targetId, skillId, state.logicalTime, catalog, mentalFatigueDefinition);
+  return performBattleSkill(state, "player", targetId, skillId, catalog, mentalFatigueDefinition);
 }
 
 describe("追加発症を含む有効使用の確定順序", () => {
@@ -58,17 +59,18 @@ describe("追加発症を含む有効使用の確定順序", () => {
     expect(result.accepted).toBe(true);
     expect(result.events[0]).toMatchObject({
       type: "skill",
-      amount: 13.333333333333343,
-      fatigueBefore: 20,
-      fatigueAfter: 40,
     });
+    expect(result.events[1]).toEqual({ type: "skill-cost", actorId: "player", fatigueBefore: 20, fatigueAfter: 40 });
+    expect(result.events[0]).toMatchObject({ amount: expect.closeTo(40 / 3, 12) });
     // Seed1's first draw is 0.23645: greater than p(20)=1/6, less than p(40)=2/7.
-    expect(result.events[1]).toEqual({
+    expect(result.events[2]).toEqual({
       type: "symptom",
       actorId: "player",
       kind: "physicalFatigue",
       before: 80,
       after: 100,
+      actorHpAfter: 100,
+      statusAfter: { ...healthyStatus(), physicalFatigue: 100 },
     });
     expect(result.state.combatants[0]).toMatchObject({ hp: 100, mentalFatigue: 40, status: { physicalFatigue: 100 } });
     expect(result.state.combatants[1].hp).toBeCloseTo(186.66666666666666, 12);
@@ -81,7 +83,17 @@ describe("追加発症を含む有効使用の確定順序", () => {
       "test-heal",
       "player",
     );
-    expect(result.events[0]).toMatchObject({ type: "skill", fatigueBefore: 20, fatigueAfter: 40 });
+    expect(result.events[0]).toMatchObject({
+      type: "skill",
+      targetHpBefore: 50,
+      targetHpAfter: expect.closeTo(98.33333333333334, 12),
+    });
+    expect(result.events[1]).toEqual({ type: "skill-cost", actorId: "player", fatigueBefore: 20, fatigueAfter: 40 });
+    expect(result.events[2]).toMatchObject({
+      type: "symptom",
+      actorHpAfter: 90,
+      statusAfter: { physicalFatigue: 120 },
+    });
     if (result.events[0].type !== "skill") throw new Error("skill event missing");
     expect(result.events[0].amount).toBeCloseTo(48.333333333333336, 12); // (8 + 100*0.5) / 1.2
     expect(result.state.combatants[0]).toMatchObject({ hp: 90, status: { physicalFatigue: 120 } });
@@ -94,13 +106,16 @@ describe("追加発症を含む有効使用の確定順序", () => {
       "player",
     );
     expect(result.accepted).toBe(true);
-    expect(result.events).toHaveLength(1);
+    expect(result.events.map((event) => event.type)).toEqual(["skill", "skill-cost"]);
     expect(result.state.randomState).toBe(1);
     expect(result.state.combatants[0].mentalFatigue).toBe(40);
   });
   it("ゼロ負荷は疲労減衰・追加発症を行わず、大負荷でも有限の症状上限で止める", () => {
     const zero = use(battle(), 0);
-    expect(zero.events).toMatchObject([{ type: "skill", amount: 16, fatigueAfter: 20 }]);
+    expect(zero.events).toMatchObject([
+      { type: "skill", amount: 16 },
+      { type: "skill-cost", actorId: "player", fatigueBefore: 20, fatigueAfter: 20 },
+    ]);
     expect(zero.state.randomState).toBe(1);
     const huge = use(battle({ mentalFatigue: 0 }), Number.MAX_VALUE);
     expect(huge.state.combatants[0]).toMatchObject({ hp: 66, status: { physicalFatigue: 200 } });
@@ -112,7 +127,7 @@ describe("追加発症を含む有効使用の確定順序", () => {
 });
 
 describe("成長・街回復・現行保存との境界", () => {
-  it("症状補正後の成長増分だけHPへ加え、回復通知はHPを増やさず時計も進めない", () => {
+  it("症状補正後の成長増分だけHPへ加え、権利解決後の実街完了はHPを増やさず回復する", () => {
     const initial: ExpeditionGame = {
       adventure: createInitialGameState(initialGameOptions),
       party: {
@@ -126,7 +141,7 @@ describe("成長・街回復・現行保存との境界", () => {
     };
     const grown = rewardGrowth(
       initial,
-      { id: "after-onset", allocations: [{ characterId: "player", experience: 10 }] },
+      { allocations: [{ characterId: "player", experience: 10 }] },
       { catalog: skillCatalog, fatigue: mentalFatigueDefinition, growth: growthRules },
     );
     expect(grown.accepted).toBe(true);
@@ -135,21 +150,31 @@ describe("成長・街回復・現行保存との境界", () => {
       mentalFatigue: 40,
       status: { physicalFatigue: 100, haze: 75 },
     });
-    // No growth rules passed to recovery: pass the already grown max HP as its public contract requires.
-    const recovered = receiveTownRecoverySignal(
-      grown.state,
-      0,
-      characters.map((c) => (c.id === "player" ? { ...c, maxHp: 24 } : c)),
+    const choice = grown.state.growth?.choice;
+    if (!choice || !grown.state.growth) throw new Error("choice");
+    const settled = chooseGrowthSkill(grown.state, "test-vitality", {
+      catalog: skillCatalog,
+      fatigue: mentalFatigueDefinition,
+      growth: growthRules,
+    });
+    expect(settled.accepted).toBe(true);
+    expect(settled.state.party.members[0].hp).toBe(12);
+    // Recovery uses the confirmed grown maximum HP; it does not grant further growth.
+    const recovered = completeMarketVisit(
+      settled.state,
+      grownCharacters(settled.state, { catalog: skillCatalog, fatigue: mentalFatigueDefinition, growth: growthRules }),
       mentalFatigueDefinition,
     );
     expect(recovered.party.members[0]).toMatchObject({
-      hp: 10,
+      hp: 12,
       mentalFatigue: 30,
       status: { physicalFatigue: 90, haze: 65 },
     });
-    expect(recovered.clock).toBeUndefined();
-    expect(recovered.randomState).toBe(grown.state.randomState);
-    expect(receiveTownRecoverySignal(recovered, 0, characters, mentalFatigueDefinition)).toEqual(recovered);
+    expect(recovered.clock).toMatchObject({ elapsedHalfDays: 1, recoverySteps: 1, pendingAction: null });
+    expect(recovered.randomState).toBe(settled.state.randomState);
+    expect(
+      actInTown(recovered, { type: "advance" }, characters, initialAdventure, mentalFatigueDefinition),
+    ).toMatchObject({ accepted: false, state: recovered });
   });
   it("現行版は端数症状と乱数を保持し、旧版・不正な数値を変換しない", () => {
     const game: ExpeditionGame = {

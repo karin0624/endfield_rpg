@@ -20,10 +20,11 @@
     "src",
     "scripts",
     "vite.config.ts",
+    "vite.views.config.ts",
     "vitest.config.ts",
     "playwright.config.ts",
     "tests",
-    "playwright.evidence.config.ts",
-    "playwright.long.config.ts"
+    "playwright.editor.config.ts",
+    "playwright.all.config.ts"
   ]
 }

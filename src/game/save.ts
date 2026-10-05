@@ -71,8 +71,7 @@ function parseInventory(value: unknown): Inventory | undefined {
   const items = value.items;
   if (
     !record(items) ||
-    !keys(items, ["version", "home", "importantIds", "exploration"]) ||
-    !counter(items.version) ||
+    !keys(items, ["home", "importantIds", "exploration"]) ||
     items.exploration !== null ||
     !Array.isArray(items.home) ||
     !Array.isArray(items.importantIds)
@@ -97,7 +96,7 @@ function parseInventory(value: unknown): Inventory | undefined {
   return {
     balance: value.balance,
     equipment,
-    items: { version: items.version, home, importantIds: [], exploration: null },
+    items: { home, importantIds: [], exploration: null },
   };
 }
 
@@ -112,20 +111,8 @@ export function deserializeGame(data: string, definitions: SaveDefinitions): Sav
   }
   if (!record(value)) return invalid;
   if (value.version !== 5) return { accepted: false, reason: "unsupported-version" };
-  if (
-    !keys(value, [
-      "version",
-      "adventure",
-      "party",
-      "clock",
-      "randomState",
-      "lastTownRecoverySignal",
-      "growth",
-      "inventory",
-    ])
-  )
-    return invalid;
-  const { adventure, party, clock, randomState, lastTownRecoverySignal } = value;
+  if (!keys(value, ["version", "adventure", "party", "clock", "randomState", "growth", "inventory"])) return invalid;
+  const { adventure, party, clock, randomState } = value;
   const inventory = parseInventory(value.inventory);
   if (!inventory) return invalid;
   if (
@@ -196,19 +183,14 @@ export function deserializeGame(data: string, definitions: SaveDefinitions): Sav
   }
   if (
     !record(clock) ||
-    !keys(clock, ["elapsedHalfDays", "recoverySteps", "nextActionId"]) ||
+    !keys(clock, ["elapsedHalfDays", "recoverySteps"]) ||
     !counter(clock.elapsedHalfDays) ||
     !counter(clock.recoverySteps) ||
-    !counter(clock.nextActionId) ||
-    clock.nextActionId < 1 ||
-    clock.elapsedHalfDays !== (clock.nextActionId - 1) * ACTION_HALF_DAYS ||
-    clock.recoverySteps > clock.nextActionId - 1 ||
+    clock.recoverySteps * ACTION_HALF_DAYS > clock.elapsedHalfDays ||
     typeof randomState !== "number" ||
     !Number.isInteger(randomState) ||
     randomState < 0 ||
-    randomState > 0xffffffff ||
-    !(lastTownRecoverySignal === null || counter(lastTownRecoverySignal)) ||
-    (clock.recoverySteps > 0 && (lastTownRecoverySignal === null || lastTownRecoverySignal < clock.recoverySteps - 1))
+    randomState > 0xffffffff
   )
     return invalid;
   return {
@@ -228,11 +210,9 @@ export function deserializeGame(data: string, definitions: SaveDefinitions): Sav
       clock: {
         elapsedHalfDays: clock.elapsedHalfDays,
         recoverySteps: clock.recoverySteps,
-        nextActionId: clock.nextActionId,
         pendingAction: null,
       },
       randomState,
-      ...(lastTownRecoverySignal === null ? {} : { lastTownRecoverySignal }),
     },
   };
 }
@@ -263,10 +243,8 @@ export function serializeGame(
     clock: {
       elapsedHalfDays: clock.elapsedHalfDays,
       recoverySteps: clock.recoverySteps,
-      nextActionId: clock.nextActionId,
     },
     randomState: game.randomState ?? 1,
-    lastTownRecoverySignal: game.lastTownRecoverySignal ?? null,
   });
   return deserializeGame(data, definitions).accepted
     ? { accepted: true, data }

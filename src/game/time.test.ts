@@ -8,11 +8,9 @@ import {
   actInTown,
   applyPartyStatus,
   beginTownExploration,
-  completeTownExploration,
   departOnExpedition,
   type ExpeditionGame,
   leaveExpedition,
-  receiveTownRecoverySignal,
   type TownActionResult,
 } from "./expedition";
 import { createParty } from "./party";
@@ -37,9 +35,8 @@ function accepted(result: TownActionResult): ExpeditionGame {
 }
 function town(state: ExpeditionGame): TownActionResult {
   const started = accepted(beginTownExploration(state, "market", initialAdventure));
-  const id = started.clock?.pendingAction?.id;
-  if (id === undefined) throw new Error("action");
-  return actInTown(started, id, { type: "advance" }, characters, initialAdventure);
+
+  return actInTown(started, { type: "advance" }, characters, initialAdventure);
 }
 function dungeon(state: ExpeditionGame): ExpeditionGame {
   const departed = departOnExpedition(state, characters, initialDungeon, initialAdventure);
@@ -60,12 +57,11 @@ describe("生活時計と街回復", () => {
     let state = accepted(beginTownExploration(game(), "guild", initialAdventure));
     expect(getCalendar(state.clock ?? createActionClock())).toEqual({ day: 1, period: "day" });
     expect(state.clock).toMatchObject({ elapsedHalfDays: 0, recoverySteps: 0 });
-    const id = state.clock?.pendingAction?.id ?? 0;
     for (let i = 0; i < 2; i++) {
-      state = accepted(actInTown(state, id, { type: "advance" }, characters, initialAdventure));
+      state = accepted(actInTown(state, { type: "advance" }, characters, initialAdventure));
       expect(state.clock).toMatchObject({ elapsedHalfDays: 0, recoverySteps: 0 });
     }
-    const end = actInTown(state, id, { type: "choose", optionId: "leave" }, characters, initialAdventure);
+    const end = actInTown(state, { type: "choose", optionId: "leave" }, characters, initialAdventure);
     state = accepted(end);
     expect(getCalendar(state.clock ?? createActionClock())).toEqual({ day: 1, period: "night" });
     state = accepted(town(state));
@@ -147,24 +143,29 @@ describe("生活時計と街回復", () => {
     expect(state.party.members[0].hp).toBe(200);
     expect(state.clock).toMatchObject({ elapsedHalfDays: 6, recoverySteps: 6 });
   });
-  it("完了再送・古い完了ID・無効な街操作は時間も回復も増やさない", () => {
+  it("完了済み・無効な街操作は計上せず、次の探索では同じ文章送りを受理する", () => {
     let state = accepted(beginTownExploration(game(), "market", initialAdventure));
-    const old = state.clock?.pendingAction;
-    if (!old) throw new Error("action");
-    expect(completeTownExploration(state, old, characters).accepted).toBe(false);
-    expect(
-      actInTown(state, old.id, { type: "choose", optionId: "missing" }, characters, initialAdventure),
-    ).toMatchObject({ accepted: false, reason: "not-a-choice" });
-    state = accepted(actInTown(state, old.id, { type: "advance" }, characters, initialAdventure));
-    expect(completeTownExploration(state, old, characters)).toMatchObject({
+    expect(state.clock).toMatchObject({ elapsedHalfDays: 0, recoverySteps: 0 });
+    expect(actInTown(state, { type: "choose", optionId: "missing" }, characters, initialAdventure)).toMatchObject({
       accepted: false,
-      state: { clock: { elapsedHalfDays: 1, recoverySteps: 1 } },
+      reason: "not-a-choice",
+    });
+    state = accepted(actInTown(state, { type: "advance" }, characters, initialAdventure));
+    expect(state.clock).toMatchObject({ elapsedHalfDays: 1, recoverySteps: 1 });
+    expect(actInTown(state, { type: "advance" }, characters, initialAdventure)).toMatchObject({
+      accepted: false,
+      state,
     });
     state = accepted(beginTownExploration(state, "market", initialAdventure));
-    expect(actInTown(state, old.id, { type: "advance" }, characters, initialAdventure).accepted).toBe(false);
     expect(beginTownExploration(state, "guild", initialAdventure)).toMatchObject({
       accepted: false,
       reason: "action-in-progress",
+    });
+    state = accepted(actInTown(state, { type: "advance" }, characters, initialAdventure));
+    expect(state.clock).toMatchObject({ elapsedHalfDays: 2, recoverySteps: 2 });
+    expect(actInTown(state, { type: "advance" }, characters, initialAdventure)).toMatchObject({
+      accepted: false,
+      state,
     });
     expect(beginTownExploration(game(), "missing", initialAdventure).accepted).toBe(false);
   });
@@ -173,7 +174,6 @@ describe("生活時計と街回復", () => {
     const departed = departOnExpedition(state, characters, initialDungeon, initialAdventure);
     if (!departed.accepted) throw new Error(departed.reason);
     state = departed.state;
-    const oldId = state.clock?.pendingAction?.id;
     for (const command of [
       { type: "enter", nodeId: "conversation-b" },
       { type: "advance" },
@@ -186,36 +186,36 @@ describe("生活時計と街回復", () => {
       state = result.state;
       expect(state.clock).toMatchObject({ elapsedHalfDays: 0, recoverySteps: 0 });
     }
-    const returned = leaveExpedition(state, oldId);
+    const returned = leaveExpedition(state);
     if (!returned.accepted) throw new Error(returned.reason);
     state = returned.state;
     expect(state.clock).toMatchObject({ elapsedHalfDays: 1, recoverySteps: 0 });
-    expect(leaveExpedition(state, oldId).accepted).toBe(false);
+    expect(leaveExpedition(state).accepted).toBe(false);
     const next = departOnExpedition(state, characters, initialDungeon, initialAdventure);
     if (!next.accepted) throw new Error(next.reason);
-    expect(leaveExpedition(next.state, oldId)).toMatchObject({
-      accepted: false,
-      state: { clock: { elapsedHalfDays: 1, recoverySteps: 0 } },
+    expect(leaveExpedition(next.state)).toMatchObject({
+      accepted: true,
+      state: { clock: { elapsedHalfDays: 2, recoverySteps: 0 } },
     });
   });
-  it("既存の回復signalが先行していても、最初の街完了を抑止しない", () => {
+  it("各街探索の完了で回復を一段階進める", () => {
     let state = game();
     for (let i = 0; i < 3; i++) state = applyPartyStatus(state, "player", { kind: "haze", amount: 10 }, characters);
-    state = receiveTownRecoverySignal(state, 10, characters);
+    state = accepted(town(state));
     expect(state.party.members[0].status?.haze).toBe(20);
     const completed = town(state);
     state = accepted(completed);
-    expect(state.clock).toMatchObject({ elapsedHalfDays: 1, recoverySteps: 1 });
+    expect(state.clock).toMatchObject({ elapsedHalfDays: 2, recoverySteps: 2 });
     expect(state.party.members[0].status?.haze).toBe(10);
-    expect(state.lastTownRecoverySignal).toBe(11);
   });
-  it("時計の完了tokenは種類とIDを検査し、再送で二重計上しない", () => {
+  it("現在の活動を完了し、活動が無ければ計上せず、次の活動は完了できる", () => {
     const started = beginTimedAction(createActionClock(), "dungeon-expedition");
-    const action = started.pendingAction;
-    if (!action) throw new Error("action");
-    expect(completeTimedAction(started, { ...action, kind: "town-exploration" }).completion).toBeUndefined();
-    const completed = completeTimedAction(started, action);
+    const completed = completeTimedAction(started);
     expect(completed.clock).toMatchObject({ elapsedHalfDays: 1, recoverySteps: 0 });
-    expect(completeTimedAction(completed.clock, action).completion).toBeUndefined();
+    expect(completeTimedAction(completed.clock)).toEqual({ clock: completed.clock });
+    const next = beginTimedAction(completed.clock, "town-exploration");
+    expect(completeTimedAction(next)).toMatchObject({
+      clock: { elapsedHalfDays: 2, recoverySteps: 1, pendingAction: null },
+    });
   });
 });

@@ -5,6 +5,7 @@ import type { LoadSymptomKind } from "../game/loadSymptoms";
 import { createParty } from "../game/party";
 import { deserializeGame, serializeGame } from "../game/save";
 import { createExplorationSkills } from "../game/skillAcquisition";
+import { skillById } from "../game/skills";
 import { type ContentDefinitions, contentDefinitions, validateContent } from "./validateContent";
 
 function fixture(): ContentDefinitions {
@@ -14,7 +15,7 @@ function fixture(): ContentDefinitions {
 function addedContent(flag = "joined-new"): ContentDefinitions {
   const c = fixture();
   const character = { ...c.characters[1], id: "new-companion", name: "追加の仲間" };
-  const newSkill = { ...c.skills.skills[0], id: "new-strike" };
+  const newSkill = { ...skillById(c.skills, "test-strike"), id: "new-strike" };
   const roster = [...c.characters, character];
   const conversation = {
     id: "new-recruitment",
@@ -69,17 +70,11 @@ function recruitAdded(content: ContentDefinitions): ExpeditionGame {
     adventure: createInitialGameState(content.initial),
     party: createParty(content.characters, ["player"]),
     dungeon: null,
-    growth: createExplorationSkills("growth:1", 1, content.growth.progression, content.skills),
+    growth: createExplorationSkills(1, content.growth.progression, content.skills),
   };
   const start = beginTownExploration(game, "new-place", content.adventure);
   if (!start.accepted) throw new Error(start.reason);
-  const end = actInTown(
-    start.state,
-    start.state.clock?.pendingAction?.id ?? -1,
-    { type: "advance" },
-    content.characters,
-    content.adventure,
-  );
+  const end = actInTown(start.state, { type: "advance" }, content.characters, content.adventure);
   if (!end.accepted) throw new Error(end.reason);
   return end.state;
 }

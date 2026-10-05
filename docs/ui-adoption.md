@@ -25,10 +25,10 @@
 
 ## 実画面の確認
 
-`tests/e2e/ui/party-ui.spec.ts`は固定版fixtureで承認4状態を1672×941で撮影する。`scripts/compare-party-ui.py`は50%overlay・無マスクraw diff・領域診断・数値を生成し、CIの`party-approval-comparison`に保存する。唯一の許可領域は右上の文書注記「検討用・未実装」。背景や人物・文字を許可maskに含めない。画素差を意味ある意図しない差、説明済みの素材微差、全画面共通タイポグラフィ等の後続課題に分け、差分ゼロを合否条件にしない。2候補、12/24候補、長名、症状、画像未提供、320/390/900/901/1024/1150/1151px、1920×500、Tab/Space/Enter/Esc、詳細復帰と連打を確認する。マウス保持とSpace押下中の主操作、キーボードfocus、disabledを状態ごとのVRTとfocus/ARIAのassertionで確認し、CIの`campaign-flow-previews`へ保存する。通常版の持込み経路では詳細・候補・出発準備のEscapeと戻るクリックで二重遷移せず、持込み個数・保管数・時刻を保持することを確認する。
+`tests/views/party.spec.ts`は明示した直接snapshotで承認4状態を1672×941に描き、通常CIで既存goldenとの正式VRTを行う。UI変更の画像レビュー時には撮影後に`npm run review:party`を明示実行する。`scripts/compare-party-ui.py`が50%overlay・無マスクraw diff・領域診断・数値を`test-results/approved-comparison/`へ生成する。診断とPillow導入は通常CIへ含めない。唯一の許可領域は右上の文書注記「検討用・未実装」。背景・人物・文字をmaskへ含めない。意味ある意図しない差、説明済みの素材微差、全画面タイポグラフィ等の後続課題を区別する。Native hover／mouse保持／Space押下中の主操作は直接描画の撮影条件として確認し、候補・欠番・取消・詳細復帰・focus・所持と時刻保持は実コアをつないだ純粋モデルで確認する。直接VRTと旧実行参考画像の比較を、ゲームjourneyの実行や新たな画像承認と扱わない。
 
 実画面の記録は[編成の画面記録](visual-records/formation/README.md)。概念図の生成成功と、実画面の表示・操作成功は別の証拠として扱う。画像の出典と原画・採用版の関係は[素材メモ](../art-src/README.md)を参照する。
 
-実画面の撮影前は表示中の人物画像を`decode()`し、自然寸法が正であること、同梱フォントがloadedであること、タイトルの描画にNoto Serif JPが実際に使われたことを確認する。JSONのreadiness記録とPNGを同じCI artifactへ保存し、画像取得失敗を待機で隠さない。
+実画面の撮影前は表示中の人物画像を`decode()`し、自然寸法が正であること、同梱フォントがloadedであること、タイトルの描画にNoto Serif JPが実際に使われたことを確認する。JSONのreadiness記録とPNGは同じローカル実行のレビュー資料として確認し、画像取得失敗を待機で隠さない。
 
 可視要素は文字・画像・数値を含め、追加される判断情報で採否を決める。候補カードのHP・詳細・選択番号・発生中の症状名を残し、右側の重複人物・常時の操作説明は置かない。後続画面にも同じ基準を適用する。

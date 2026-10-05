@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { completeMarketVisit } from "../../tests/helpers/completeMarketVisit";
 import { characters } from "../content/characters";
 import { initialAdventure } from "../content/initialAdventure";
 import { initialDungeon } from "../content/initialDungeon";
@@ -15,7 +16,6 @@ import {
   departOnExpedition,
   type ExpeditionGame,
   leaveExpedition,
-  receiveTownRecoverySignal,
 } from "./expedition";
 import { createParty } from "./party";
 import { deserializeGame, serializeGame } from "./save";
@@ -40,9 +40,6 @@ function input(game: ExpeditionGame, targetId: string, skillId = "test-strike"):
     actorId: "player",
     targetId,
     skillId,
-    expectedNodeId: game.dungeon.activeNodeId ?? "",
-    expectedActionTime: game.dungeon.activity.state.logicalTime,
-    expeditionActionId: game.dungeon.expeditionActionId ?? -1,
   };
 }
 function fatigue(game: ExpeditionGame) {
@@ -66,7 +63,7 @@ describe("通常探索から街保存までのスキルループ", () => {
     game = act(game, oldInput);
     expect(fatigue(game)).toBe(4);
     const resent = actInExpedition(game, oldInput, initialDungeon, initialAdventure, rules);
-    expect(resent.result).toMatchObject({ accepted: false, reason: "battle:action-not-current" });
+    expect(resent.result).toMatchObject({ accepted: false, reason: "battle:target-is-defeated" });
     expect(resent.state).toEqual(game);
     game = act(game, input(game, "player", "test-heal"));
     expect(fatigue(game)).toBe(7);
@@ -74,7 +71,7 @@ describe("通常探索から街保存までのスキルループ", () => {
     expect(fatigue(game)).toBe(11);
     game = act(game, { type: "enter", nodeId: "boss-c" });
     const staleNode = actInExpedition(game, oldInput, initialDungeon, initialAdventure, rules);
-    expect(staleNode.result).toMatchObject({ accepted: false, reason: "battle:action-not-current" });
+    expect(staleNode.result).toMatchObject({ accepted: false, reason: "battle:target-does-not-exist" });
     expect(staleNode.state).toEqual(game);
     game = act(game, input(game, "ruin-warden"));
     expect(game.dungeon?.activity).toMatchObject({
@@ -98,10 +95,8 @@ describe("通常探索から街保存までのスキルループ", () => {
     expect(fatigue(game)).toBe(19);
     const begun = beginTownExploration(game, "market", initialAdventure);
     if (!begun.accepted) throw new Error(begun.reason);
-    const actionId = begun.state.clock?.pendingAction?.id ?? -1;
     const completed = actInTown(
       begun.state,
-      actionId,
       { type: "advance" },
       characters,
       initialAdventure,
@@ -111,23 +106,13 @@ describe("通常探索から街保存までのスキルループ", () => {
     expect(fatigue(completed.state)).toBe(9);
     expect(completed.state.clock).toMatchObject({ elapsedHalfDays: 2, recoverySteps: 1 });
     expect(
-      actInTown(completed.state, actionId, { type: "advance" }, characters, initialAdventure, mentalFatigueDefinition),
+      actInTown(completed.state, { type: "advance" }, characters, initialAdventure, mentalFatigueDefinition),
     ).toMatchObject({ accepted: false, state: completed.state });
-    expect(
-      fatigue(
-        receiveTownRecoverySignal(
-          completed.state,
-          completed.state.lastTownRecoverySignal ?? -1,
-          characters,
-          mentalFatigueDefinition,
-        ),
-      ),
-    ).toBe(9);
     const next = departOnExpedition(completed.state, characters, initialDungeon, initialAdventure, rules).state;
     expect(actInExpedition(next, oldInput, initialDungeon, initialAdventure, rules).state).toEqual(next);
     expect(next.dungeon?.party[0].mentalFatigue).toBe(9);
   });
-  it("控えも回復し、探索中の通知は帰還後の再配送でも無料回復しない", () => {
+  it("街の完了は控えの端数疲労も回復し、探索中・帰還では街回復を進めない", () => {
     const original = initial();
     const party = createParty(characters, ["player", "gilberta"]);
     let game: ExpeditionGame = {
@@ -137,13 +122,13 @@ describe("通常探索から街保存までのスキルループ", () => {
         members: party.members.map((member) => ({ ...member, mentalFatigue: member.id === "player" ? 35.5 : 8.25 })),
       },
     };
-    game = receiveTownRecoverySignal(game, 0, characters, mentalFatigueDefinition);
+    game = completeMarketVisit(game, characters, mentalFatigueDefinition);
     expect(game.party.members.map((member) => member.mentalFatigue)).toEqual([25.5, 0]);
     game = departOnExpedition(game, characters, initialDungeon, initialAdventure, rules).state;
-    game = receiveTownRecoverySignal(game, 1, characters, mentalFatigueDefinition);
+    expect(beginTownExploration(game, "market", initialAdventure)).toMatchObject({ accepted: false, state: game });
     expect(fatigue(game)).toBe(25.5);
     game = leaveExpedition(game).state;
-    expect(fatigue(receiveTownRecoverySignal(game, 1, characters, mentalFatigueDefinition))).toBe(25.5);
+    expect(fatigue(game)).toBe(25.5);
   });
   it("旧版を移行せず拒否し、現行版の端数疲労を精度保持する", () => {
     const restored = initial();

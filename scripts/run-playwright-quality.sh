@@ -3,26 +3,23 @@ set -eu
 
 mode=${1:-}
 case "$mode" in
-  e2e|coverage) report=playwright; gate_mode=coverage; export COVERAGE_BROWSER=1 ;;
-  long) report=playwright-long; gate_mode=long ;;
-  *) echo "Usage: $0 {e2e|coverage|long} [Playwright options]" >&2; exit 2 ;;
+  browser) report=playwright; config=playwright.config.ts ;;
+  all) report=playwright; config=playwright.all.config.ts ;;
+  editor) report=playwright-editor; config=playwright.editor.config.ts ;;
+  *) echo "Usage: $0 {browser|all|editor} [Playwright options]" >&2; exit 2 ;;
 esac
 shift
+export COVERAGE_BROWSER=1
 
-# Reports must come from this invocation, including when CLI options replace configured reporters.
+# Reports must come from this invocation, even if CLI options replace configured reporters.
 rm -f "test-results/$report-discovery.json" "test-results/$report.json"
-# Always collect the whole quality suite. CLI filters cannot turn a partial run into a full pass.
-if [ "$mode" = long ]; then
-  PLAYWRIGHT_JSON_OUTPUT_FILE="test-results/$report-discovery.json" \
-    playwright test --config playwright.long.config.ts --list --reporter=json
-  playwright test --config playwright.long.config.ts "$@"
-else
-  PLAYWRIGHT_JSON_OUTPUT_FILE="test-results/$report-discovery.json" playwright test --list --reporter=json
-  playwright test "$@"
-fi
+# Discovery is unfiltered. A partial/list-only run cannot claim completion of this scope.
+PLAYWRIGHT_JSON_OUTPUT_FILE="test-results/$report-discovery.json" \
+  playwright test --config "$config" --list --reporter=json
+playwright test --config "$config" "$@"
 if [ ! -s "test-results/$report.json" ]; then
   echo "Playwright did not generate this run's result JSON: test-results/$report.json" >&2
   exit 1
 fi
 node scripts/check-test-execution.mjs playwright \
-  "test-results/$report-discovery.json" "test-results/$report.json" $gate_mode
+  "test-results/$report-discovery.json" "test-results/$report.json" "$mode"

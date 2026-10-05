@@ -12,6 +12,7 @@ from PIL import Image, ImageChops, ImageDraw, ImageStat, __version__ as pillow_v
 parser = argparse.ArgumentParser()
 parser.add_argument("runtime", type=Path)
 parser.add_argument("output", type=Path)
+parser.add_argument("--metrics-only", action="store_true", help="Keep the same metrics without encoding diagnostic PNG exports")
 args = parser.parse_args()
 repo = Path(__file__).resolve().parent.parent
 references = {
@@ -44,19 +45,24 @@ for state, file in references.items():
         raise ValueError(f"Same native resolution required: {state}: {approved.size}, {actual.size}")
     out = args.output / state
     out.mkdir(parents=True, exist_ok=True)
-    approved.save(out / "approved.png")
-    actual.save(out / "runtime.png")
-    Image.blend(approved, actual, .5).save(out / "overlay-50.png")
+    if not args.metrics_only:
+        approved.save(out / "approved.png")
+        actual.save(out / "runtime.png")
+        Image.blend(approved, actual, .5).save(out / "overlay-50.png")
     diff = ImageChops.difference(approved, actual)
-    diff.save(out / "raw-diff.png")
+    if not args.metrics_only:
+        diff.save(out / "raw-diff.png")
     note = Image.new("L", approved.size)
     ImageDraw.Draw(note).rectangle((1510, 12, 1664, 44), fill=255)
-    note.save(out / "allowed-annotation-mask.png")
+    if not args.metrics_only:
+        note.save(out / "allowed-annotation-mask.png")
     invariant = ImageChops.invert(note)
-    ImageChops.multiply(diff, invariant.convert("RGB")).save(out / "invariant-ui-diff.png")
-    map_image = actual.copy()
-    draw = ImageDraw.Draw(map_image)
-    draw.rectangle((1510, 12, 1664, 44), outline="#ffcc00", width=2)
+    if not args.metrics_only:
+        ImageChops.multiply(diff, invariant.convert("RGB")).save(out / "invariant-ui-diff.png")
+    if not args.metrics_only:
+        map_image = actual.copy()
+        draw = ImageDraw.Draw(map_image)
+        draw.rectangle((1510, 12, 1664, 44), outline="#ffcc00", width=2)
     diagnostics = ([("title", (145, 140, 445, 204)), ("card-frames", (165, 263, 770, 733)),
                     ("portraits", (184, 279, 750, 609)), ("name-hp-detail", (184, 610, 750, 720)),
                     ("panel-right", (780, 218, 1574, 785)), ("footer", (70, 787, 1600, 890))]
@@ -69,9 +75,11 @@ for state, file in references.items():
         region = Image.new("L", approved.size)
         ImageDraw.Draw(region).rectangle(box, fill=255)
         records.append({"label": label, "rectangle": box, "metrics": metrics(diff, region)})
-        draw.rectangle(box, outline="#ff50c0", width=2)
-        draw.text((box[0] + 3, box[1] + 3), label, fill="#ffffff", stroke_width=1, stroke_fill="#000000")
-    map_image.save(out / "diagnostic-regions.png")
+        if not args.metrics_only:
+            draw.rectangle(box, outline="#ff50c0", width=2)
+            draw.text((box[0] + 3, box[1] + 3), label, fill="#ffffff", stroke_width=1, stroke_fill="#000000")
+    if not args.metrics_only:
+        map_image.save(out / "diagnostic-regions.png")
     (out / "results.json").write_text(json.dumps({
         "status": "REVIEW_REQUIRED: diagnostic differences, no zero-diff acceptance threshold", "resolution": approved.size,
         "tool": "Pillow " + pillow_version, "threshold": 0, "transforms": [],

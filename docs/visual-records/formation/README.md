@@ -1,6 +1,6 @@
 # 編成・選択・キャラ詳細の実画面
 
-以下のWebPはクイック選択導入前の履歴。PR #96の現在の4状態は[固定版fixture・比較手順](../../ui-concepts/approved/README.md#再現fixtureと実画像比較)で撮影し、Actionsの`party-approval-comparison`と`campaign-flow-previews`へ保存する。旧選択画面の右側4枠を現在の仕様として参照しない。
+以下のWebPはクイック選択導入前の履歴。現在の4状態は[固定版fixture・比較手順](../../ui-concepts/approved/README.md#再現fixtureと実画像比較)で撮影し、UI変更の画像レビュー時に`npm run review:party`でraw比較・overlayをローカルへ生成する。旧選択画面の右側4枠を現在の仕様として参照しない。
 
 2026-10-03、通常起動から新規ゲーム→ホーム→編成／探索先→ダンジョン出発準備へ進んだ実画面。1920×1080、deviceScaleFactor 1、固定PlaywrightコンテナのChromium。同梱Noto Serif JP / Noto Sans JPの読込と表示画像のdecodeを待って撮影した。元のPNGスクリーンショットをlossless WebPへ変換した。背景の原画は1672×941であり、この記録の1920pxは画面の表示寸法である。
 
@@ -14,7 +14,7 @@
 
 [位置計測](geometry.json)は通常画面のDOM bboxと主操作24px・戻る16pxの角落ちのcomputed style。pageerrorは0件。[読込確認](readiness.json)には顔PNGのHTTP 200・自然寸法256×320、使用フォントのCDP記録を残す。概念図は[別の資料](../../ui-concepts/README.md)であり、この記録は画像を一枚貼りした画面ではない。
 
-多数候補・長文・症状・非活性の検証は`tests/e2e/ui/party-ui.spec.ts`の隔離fixtureを使い、実ゲームへ仲間や症状を追加しない。固定Playwrightコンテナの画面はテスト出力に残る。背景・人物の取得を失敗させた追加確認では暗い下地と名前・HP・操作を保持する。配布ビルドと実素材の通しE2EはPRのActions結果を参照する。
+この記録の当時は旧headの`tests/e2e/ui/party-ui.spec.ts`で多数候補・長文・症状・非活性を撮影した。現在のモデルと直接VRTは[テスト設計](../../testing.md)に従い、実ゲームへ架空の仲間や症状を追加しない。固定Playwrightコンテナの画面はテスト出力に残る。背景・人物の取得を失敗させた追加確認では暗い下地と名前・HP・操作を保持する。当時の実素材E2E結果は過去PRのActions記録であり、現在の最終headを検証した結果ではない。
 
 新しいUIへ変更した際は、古い画面を現在の表示例として流用せず、本記録と共通仕様・適用一覧の整合を確認する。
 

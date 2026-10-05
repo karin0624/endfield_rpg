@@ -51,18 +51,12 @@ function start(seed = 1, actor: Partial<BattleCombatantDefinition> = {}, firstHp
     ),
   ).state;
 }
-function use(
-  state: BattleState,
-  skill: ActiveSkillDefinition = attack,
-  target: string | null = "z",
-  time = state.logicalTime,
-) {
+function use(state: BattleState, skill: ActiveSkillDefinition = attack, target: string | null = "z") {
   return performBattleSkillAndAdvanceToAllyInput(
     state,
     "user",
     target,
     skill.id,
-    time,
     catalog(skill),
     mentalFatigueDefinition,
   );
@@ -170,6 +164,7 @@ describe("多段・複数対象の公開runtime", () => {
       "combatant-defeated",
       "skill",
       "combatant-defeated",
+      "skill-cost",
       "symptom",
       "battle-ended",
     ]);
@@ -208,7 +203,7 @@ describe("多段・複数対象の公開runtime", () => {
     expect(member(single.state, "user").status.haze).toBe(100);
     expect(single.state.randomState).toBe(1586005467); // selection remains required with one candidate
   });
-  it("不正対象・死体・対象形式・未習得・古い入力・再送は副作用なし", () => {
+  it("不正対象・死体・対象形式・未習得は副作用なし、次の有効な同じ入力は受理する", () => {
     const state = start();
     const all = { ...attack, target: "all-enemies" as const };
     for (const invoke of [
@@ -220,7 +215,6 @@ describe("多段・複数対象の公開runtime", () => {
       () => use(state, all, "dead"),
       () => use(state, all, "missing"),
       () => use(state, { ...attack, id: "unknown" }),
-      () => use(state, attack, "z", -1),
     ]) {
       const before = structuredClone(state);
       expect(invoke()).toMatchObject({ accepted: false, state: before, events: [] });
@@ -228,12 +222,8 @@ describe("多段・複数対象の公開runtime", () => {
     }
     const result = accepted(use(state));
     const beforeReplay = structuredClone(result.state);
-    expect(use(result.state, attack, "z", state.logicalTime)).toMatchObject({
-      accepted: false,
-      reason: "action-not-current",
-      state: beforeReplay,
-      events: [],
-    });
+    const next = accepted(use(result.state, attack, "z"));
+    expect(member(next.state, "z").hp).toBe(79);
     expect(result.state).toEqual(beforeReplay);
   });
   it.each([0, -1, 1.5, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1])(

@@ -27,13 +27,14 @@ import {
   type PassiveSkillDefinition,
   passiveSkillAmount,
   type SkillCatalog,
+  skillById,
   validateSkillCatalog,
 } from "./skills";
 import { healthyStatus } from "./status";
 import { multidayFixture } from "./testing/multidayFixture";
 
-const strike = skillCatalog.skills[0];
-const heal = skillCatalog.skills[1];
+const strike = skillById(skillCatalog, "test-strike") as ActiveSkillDefinition;
+const heal = skillById(skillCatalog, "test-heal") as ActiveSkillDefinition;
 const definitions: BattleCombatantDefinition[] = [
   {
     id: "hero",
@@ -58,7 +59,7 @@ const use = (
   id = "test-strike",
   catalog: SkillCatalog = skillCatalog,
   actor = "hero",
-) => performBattleSkill(state, actor, target, id, state.logicalTime, catalog, fatigue);
+) => performBattleSkill(state, actor, target, id, catalog, fatigue);
 
 describe("戦闘公開契約の監査境界", () => {
   it("入力待ち・行動完了・不能化は時計を勝手に進めず入力も変更しない", () => {
@@ -236,7 +237,14 @@ describe("戦闘公開契約の監査境界", () => {
     const before = structuredClone(state);
     const result = use(state, "friend", "test-heal");
     expect(result.accepted).toBe(true);
-    expect(result.events[0]).toMatchObject({ type: "skill", hit: true, amount: 2, fatigueBefore: 0, fatigueAfter: 3 });
+    expect(result.events[0]).toMatchObject({
+      type: "skill",
+      hit: true,
+      amount: 2,
+      targetHpBefore: 18,
+      targetHpAfter: 20,
+    });
+    expect(result.events).toContainEqual({ type: "skill-cost", actorId: "hero", fatigueBefore: 0, fatigueAfter: 3 });
     expect(result.state.combatants[1].hp).toBe(20);
     expect(result.state.randomState).toBe(1015568748);
     expect(state).toEqual(before);
@@ -275,7 +283,8 @@ describe("戦闘公開契約の監査境界", () => {
     };
     const result = use(start({ hitRate: 0.5, attackPower: 0 }), "enemy", strike.id, catalog);
     expect(result.accepted).toBe(true);
-    expect(result.events[0]).toMatchObject({ type: "skill", amount: 0, fatigueAfter: 0 });
+    expect(result.events[0]).toMatchObject({ type: "skill", amount: 0 });
+    expect(result.events).toContainEqual({ type: "skill-cost", actorId: "hero", fatigueBefore: 0, fatigueAfter: 0 });
     expect(result.state.randomState).toBe(1);
     expect(result.state.combatants[2].hp).toBe(30);
   });
@@ -300,7 +309,9 @@ describe("戦闘公開契約の監査境界", () => {
       ).toThrow();
   });
   it.each([0, -1, 1.5, Number.NaN, Infinity, 3])("パッシブrank%sは個別上限の外なら拒否する", (rank) => {
-    expect(() => passiveSkillAmount(skillCatalog.skills[2] as PassiveSkillDefinition, rank)).toThrow();
+    expect(() =>
+      passiveSkillAmount(skillById(skillCatalog, "test-strength") as PassiveSkillDefinition, rank),
+    ).toThrow();
   });
 });
 
@@ -314,21 +325,13 @@ it("レベルとパッシブを得ても速度123と基礎命中率0.73は変わ
     dungeon: null,
     randomState: 1,
   };
-  const rewarded = rewardGrowth(
-    game,
-    { id: "growth", allocations: [{ characterId: "player", experience: 30 }] },
-    rules,
-  );
+  const rewarded = rewardGrowth(game, { allocations: [{ characterId: "player", experience: 30 }] }, rules);
   if (!rewarded.accepted) throw new Error(rewarded.reason);
   game = rewarded.state;
   for (const skillId of ["test-strength", "test-power", "test-vitality"]) {
     const growth = game.growth;
     if (!growth?.choice) throw new Error("選択がありません");
-    const selected = chooseGrowthSkill(
-      game,
-      { explorationId: growth.explorationId, characterId: "player", level: growth.choice.level, skillId },
-      rules,
-    );
+    const selected = chooseGrowthSkill(game, skillId, rules);
     if (!selected.accepted) throw new Error(selected.reason);
     game = selected.state;
     const character = grownCharacters(game, rules).find((entry) => entry.id === "player");

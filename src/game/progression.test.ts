@@ -25,8 +25,8 @@ function accepted(result: GrowthResult) {
   if (!result.accepted) throw new Error(result.reason);
   return result;
 }
-function reward(id: string, experience: number): ExperienceReward {
-  return { id, allocations: [{ characterId: "player", experience }] };
+function reward(experience: number): ExperienceReward {
+  return { allocations: [{ characterId: "player", experience }] };
 }
 
 describe("探索内成長コア", () => {
@@ -48,7 +48,6 @@ describe("探索内成長コア", () => {
           pendingChoiceLevels: [],
         },
       ],
-      appliedRewardIds: [],
     });
   });
   it.each([
@@ -60,9 +59,7 @@ describe("探索内成長コア", () => {
       ...definition,
       initial: [{ ...definition.initial[0], experience: 0 }],
     };
-    const result = accepted(
-      grantExperience(createExplorationGrowth(zeroXpDefinition), reward("battle:1", xp), zeroXpDefinition),
-    );
+    const result = accepted(grantExperience(createExplorationGrowth(zeroXpDefinition), reward(xp), zeroXpDefinition));
     expect(result.state.characters[0]).toMatchObject({
       level,
       experience: surplus,
@@ -75,7 +72,6 @@ describe("探索内成長コア", () => {
       grantExperience(
         createExplorationGrowth(definition),
         {
-          id: "battle:multi",
           allocations: [
             { characterId: "player", experience: 17 },
             { characterId: "gilberta", experience: 25 },
@@ -108,8 +104,8 @@ describe("探索内成長コア", () => {
     ]);
   });
   it("報酬源を決めず次の報酬へ引継ぎ、対象外キャラの成長を維持する", () => {
-    const first = accepted(grantExperience(createExplorationGrowth(definition), reward("battle:1", 3), definition));
-    const next = accepted(grantExperience(first.state, reward("event:1", 9), definition));
+    const first = accepted(grantExperience(createExplorationGrowth(definition), reward(3), definition));
+    const next = accepted(grantExperience(first.state, reward(9), definition));
     expect(next.state.characters[0]).toMatchObject({
       level: 6,
       experience: 0,
@@ -119,18 +115,18 @@ describe("探索内成長コア", () => {
     expect(next.state.characters[1]).toMatchObject({ level: 9, experience: 0, pendingChoiceLevels: [] });
     expect(next.levelsReached).toEqual([{ characterId: "player", level: 6 }]);
   });
-  it("報酬再送ではXP・権利を増やさず、元状態も変更しない", () => {
+  it("次のXP配分も現在の余剰へ加算し、元状態を変更しない", () => {
     const original = createExplorationGrowth(definition);
-    const first = accepted(grantExperience(original, reward("battle:once", 17), definition));
-    const duplicate = grantExperience(first.state, reward("battle:once", 100), definition);
-    expect(duplicate).toEqual({ accepted: false, state: first.state, reason: "reward-already-applied" });
+    const first = accepted(grantExperience(original, reward(17), definition));
+    const beforeNext = structuredClone(first.state);
+    const next = accepted(grantExperience(first.state, reward(17), definition));
+    expect(next.state.characters[0]).toMatchObject({ level: 8, experience: 2, pendingChoiceLevels: [5, 6, 7, 8] });
+    expect(first.state).toEqual(beforeNext);
     expect(original.characters[0]).toMatchObject({ level: 4, experience: 8, pendingChoiceLevels: [] });
   });
   it.each([
-    { id: " ", allocations: [], reason: "invalid-reward-id" },
-    { id: "bad", allocations: [{ characterId: "missing", experience: 1 }], reason: "unknown-character" },
+    { allocations: [{ characterId: "missing", experience: 1 }], reason: "unknown-character" },
     {
-      id: "bad",
       allocations: [
         { characterId: "player", experience: 1 },
         { characterId: "player", experience: 2 },
@@ -138,31 +134,28 @@ describe("探索内成長コア", () => {
       reason: "duplicate-character",
     },
     ...[-1, 0.3, Number.MAX_SAFE_INTEGER + 1, Number.NaN, Number.POSITIVE_INFINITY].map((experience) => ({
-      id: "bad",
       allocations: [{ characterId: "gilberta", experience }],
       reason: "invalid-experience",
     })),
-  ])("無効報酬は全体を拒否し、IDも消費しない: [%#] $reason", ({ id, allocations, reason }) => {
+  ])("無効なXP配分は全体を拒否し、元の成長を変更しない: [%#] $reason", ({ allocations, reason }) => {
     const state = createExplorationGrowth(definition);
     const result = grantExperience(
       state,
       {
-        id,
         allocations: [{ characterId: "player", experience: 17 }, ...allocations],
       },
       definition,
     );
     expect(result).toEqual({ accepted: false, state, reason });
-    const retry = accepted(grantExperience(state, reward("bad", 2), definition));
+    const retry = accepted(grantExperience(state, reward(2), definition));
     expect(retry.state.characters[0]).toMatchObject({ level: 5, experience: 0, pendingChoiceLevels: [5] });
   });
   it("経験値なしと0配分を許容し、選択権利や成長を作らない", () => {
     const state = createExplorationGrowth(definition);
-    const none = accepted(grantExperience(state, { id: "no-xp", allocations: [] }, definition));
-    const zero = accepted(grantExperience(none.state, reward("zero", 0), definition));
+    const none = accepted(grantExperience(state, { allocations: [] }, definition));
+    const zero = accepted(grantExperience(none.state, reward(0), definition));
     expect(zero.state.characters).toEqual(state.characters);
     expect(zero.levelsReached).toEqual([]);
-    expect(zero.state.appliedRewardIds).toEqual(["no-xp", "zero"]);
   });
   it("不足ルールはXPを捨てず全体を拒否し、最終到達の余剰0は扱える", () => {
     const shortDefinition = {
@@ -170,15 +163,15 @@ describe("探索内成長コア", () => {
       rules: definition.rules.filter(({ fromLevel }) => fromLevel === 4),
     };
     const state = createExplorationGrowth(shortDefinition);
-    const exact = accepted(grantExperience(state, reward("exact", 2), shortDefinition));
+    const exact = accepted(grantExperience(state, reward(2), shortDefinition));
     expect(exact.state.characters[0]).toMatchObject({ level: 5, experience: 0, pendingChoiceLevels: [5] });
-    expect(grantExperience(state, reward("overflow", 3), shortDefinition)).toEqual({
+    expect(grantExperience(state, reward(3), shortDefinition)).toEqual({
       accepted: false,
       state,
       reason: "missing-level-rule",
     });
   });
-  it("数値オーバーフローはIDを消費せず拒否する", () => {
+  it("数値オーバーフローは成長を変更せず拒否する", () => {
     const largeDefinition: ProgressionDefinition = {
       initial: [
         { characterId: "a", level: 1, experience: Number.MAX_SAFE_INTEGER - 1, bonus: { maxHp: 0, attackPower: 0 } },
@@ -190,7 +183,6 @@ describe("探索内成長コア", () => {
       grantExperience(
         state,
         {
-          id: "large",
           allocations: [{ characterId: "a", experience: 2 }],
         },
         largeDefinition,
@@ -205,19 +197,17 @@ describe("探索内成長コア", () => {
       grantExperience(
         bonusState,
         {
-          id: "large",
           allocations: [{ characterId: "a", experience: 1 }],
         },
         bonusDefinition,
       ),
     ).toEqual({ accepted: false, state: bonusState, reason: "numeric-overflow" });
   });
-  it("成長だけを明示的に初期化し、余剰・補正・権利を戻し、報酬再送を防ぐ", () => {
+  it("成長だけを明示的に初期化し、余剰・補正・未消費の選択権利を戻す", () => {
     const grown = accepted(
       grantExperience(
         createExplorationGrowth(definition),
         {
-          id: "battle:1",
           allocations: [
             { characterId: "player", experience: 17 },
             { characterId: "gilberta", experience: 25 },
@@ -235,16 +225,16 @@ describe("探索内成長コア", () => {
       pendingChoiceLevels: [],
     });
     expect(reset.state.characters[1]).toMatchObject({ level: 11, experience: 5, pendingChoiceLevels: [10, 11] });
-    expect(grantExperience(reset.state, reward("battle:1", 17), definition)).toMatchObject({
-      accepted: false,
-      reason: "reward-already-applied",
+    expect(accepted(grantExperience(reset.state, reward(17), definition)).state.characters[0]).toMatchObject({
+      level: 6,
+      experience: 5,
+      pendingChoiceLevels: [5, 6],
     });
     expect(accepted(resetCharacterGrowth(reset.state, ["player"], definition)).state.characters[0]).toMatchObject({
       level: 4,
       experience: 8,
       pendingChoiceLevels: [],
     });
-    expect(createExplorationGrowth(definition).appliedRewardIds).toEqual([]);
   });
   it.each([["missing"], ["player", "player"]])("未知・重複初期化対象を拒否する: %j", (...ids) => {
     const state = createExplorationGrowth(definition);

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { completeMarketVisit } from "../../tests/helpers/completeMarketVisit";
 import { characters } from "../content/characters";
 import { growthRules } from "../content/growthRules";
 import { initialAdventure } from "../content/initialAdventure";
@@ -19,7 +20,6 @@ import {
   type ExpeditionGame,
   editExpeditionParty,
   leaveExpedition,
-  receiveTownRecoverySignal,
 } from "./expedition";
 import { chooseGrowthSkill, ensureGrowth, rewardGrowth } from "./growthRuntime";
 import { createParty } from "./party";
@@ -60,9 +60,6 @@ function strike(game: ExpeditionGame, targetId: string) {
     actorId: "player",
     targetId,
     skillId: "test-strike",
-    expectedNodeId: dungeon.activeNodeId ?? "",
-    expectedActionTime: dungeon.activity.state.logicalTime,
-    expeditionActionId: dungeon.expeditionActionId ?? -1,
   });
 }
 function selection(game: ExpeditionGame, preferred?: string) {
@@ -70,7 +67,6 @@ function selection(game: ExpeditionGame, preferred?: string) {
   const choice = state?.choice;
   if (!choice || !state) throw new Error("選択がありません");
   return {
-    explorationId: state.explorationId,
     characterId: choice.characterId,
     level: choice.level,
     skillId: preferred && choice.candidateIds.includes(preferred) ? preferred : choice.candidateIds[0],
@@ -78,22 +74,13 @@ function selection(game: ExpeditionGame, preferred?: string) {
 }
 function resolve(game: ExpeditionGame): ExpeditionGame {
   let current = game;
-  while (current.growth?.choice) current = accept(chooseGrowthSkill(current, selection(current, "test-power"), rules));
+  while (current.growth?.choice)
+    current = accept(chooseGrowthSkill(current, selection(current, "test-power").skillId, rules));
   return current;
 }
 function town(game: ExpeditionGame) {
   const begun = accept(beginTownExploration(game, "market", initialAdventure));
-  return accept(
-    actInTown(
-      begun,
-      begun.clock?.pendingAction?.id ?? -1,
-      { type: "advance" },
-      characters,
-      initialAdventure,
-      mentalFatigueDefinition,
-      rules,
-    ),
-  );
+  return accept(actInTown(begun, { type: "advance" }, characters, initialAdventure, mentalFatigueDefinition, rules));
 }
 function roundTrip(game: ExpeditionGame) {
   const saved = serializeGame(game, saveDefinitions);
@@ -124,13 +111,13 @@ describe("通常操作の成長と取得・帰還", () => {
     expect(
       actInExpedition(game, { type: "enter", nodeId: "boss-c" }, initialDungeon, initialAdventure, rules).result,
     ).toMatchObject({ accepted: false, reason: "pending-growth-choice" });
-    expect(leaveExpedition(game, undefined, rules).accepted).toBe(false);
+    expect(leaveExpedition(game, rules).accepted).toBe(false);
     expect(editExpeditionParty(game, 0, null).accepted).toBe(false);
     expect(beginTownExploration(game, "market", initialAdventure).accepted).toBe(false);
     expect(serializeGame(game, saveDefinitions).accepted).toBe(false);
     expect(prepareSkillChoice(game.growth as ExplorationSkills, skillCatalog)).toEqual(game.growth);
     game = resolve(game);
-    expect(chooseGrowthSkill(game, stale, rules).accepted).toBe(false);
+    expect(chooseGrowthSkill(game, stale.skillId, rules).accepted).toBe(false);
     const power = game.dungeon?.party[0].attackPower;
     expect(power).toBeGreaterThanOrEqual(11);
     game = act(game, { type: "enter", nodeId: "boss-c" });
@@ -145,7 +132,7 @@ describe("通常操作の成長と取得・帰還", () => {
     expect(game.growth?.growth.characters[0].experience).toBe(xp);
     expect(game.growth?.choice).toBeNull();
     const fatigue = game.party.members[0].mentalFatigue;
-    game = accept(leaveExpedition(game, undefined, rules));
+    game = accept(leaveExpedition(game, rules));
     expect(game.party.members[0]).toMatchObject({ hp: 20, mentalFatigue: fatigue });
     expect(game.growth?.growth.characters[0]).toMatchObject({
       level: 1,
@@ -154,26 +141,21 @@ describe("通常操作の成長と取得・帰還", () => {
     });
     expect(game.growth?.characters[0].learned.map(({ skillId }) => skillId)).toEqual(["test-strike", "test-heal"]);
     game = roundTrip(game);
-    expect(chooseGrowthSkill(game, stale, rules).accepted).toBe(false);
+    expect(chooseGrowthSkill(game, stale.skillId, rules).accepted).toBe(false);
     game = depart(game);
-    expect(chooseGrowthSkill(game, stale, rules).accepted).toBe(false);
+    expect(chooseGrowthSkill(game, stale.skillId, rules).accepted).toBe(false);
     expect(game.dungeon?.party[0]).toMatchObject({ maxHp: 20, attackPower: 8 });
   });
-  it("余剰XP・報酬再送・HP差分を保持し、控えの育成も帰還で消す", () => {
+  it("余剰XP・HP差分を保持し、控えの育成も帰還で消す", () => {
     let game = ensureGrowth(initial(["player", "gilberta"]), rules);
     game = applyPartyStatus(game, "gilberta", { kind: "haze", amount: 10 }, characters);
-    const reward = { id: "event:reserve", allocations: [{ characterId: "gilberta", experience: 25 }] };
+    const reward = { allocations: [{ characterId: "gilberta", experience: 25 }] };
     game = accept(rewardGrowth(game, reward, rules));
     expect(game.growth?.growth.characters[1]).toMatchObject({ level: 3, experience: 5 });
     game = resolve(game);
-    expect(rewardGrowth(game, reward, rules)).toMatchObject({
-      accepted: false,
-      state: game,
-      reason: "reward-already-applied",
-    });
     game = roundTrip(game);
     game = depart(game);
-    game = accept(leaveExpedition(game, undefined, rules));
+    game = accept(leaveExpedition(game, rules));
     expect(game.growth?.growth.characters[1]).toMatchObject({ level: 1, experience: 0 });
     expect(game.party.members[1]).toMatchObject({ hp: 18, status: { haze: 10 } });
   });
@@ -222,26 +204,16 @@ describe("通常操作の成長と取得・帰還", () => {
       expect(choice.status).toBe("offered");
       expect(new Set(choice.candidateIds).size).toBe(3);
       for (const skillId of choice.candidateIds) {
-        visit(
-          accept(
-            chooseSkill(
-              state,
-              { explorationId: "trial", characterId: "player", level: choice.level, skillId },
-              skillCatalog,
-            ),
-          ),
-          [...path, skillId],
-        );
+        visit(accept(chooseSkill(state, skillId, skillCatalog)), [...path, skillId]);
       }
     }
     for (let seed = 0; seed < 1024; seed++) {
-      const start = createExplorationSkills("trial", seed, growthRules.progression, skillCatalog);
+      const start = createExplorationSkills(seed, growthRules.progression, skillCatalog);
       visit(
         accept(
           grantSkillExperience(
             start,
-            "trial",
-            { id: "budget", allocations: [{ characterId: "player", experience: 30 }] },
+            { allocations: [{ characterId: "player", experience: 30 }] },
             growthRules.progression,
             skillCatalog,
           ),
@@ -267,13 +239,11 @@ type MutableSaveFixture = {
 
 describe("成長保存の入力検証", () => {
   it.each([
-    ["無効なセッションID", "explorationId", "growth:0"],
+    ["初回街XP権利の型", "townExperienceClaimed", 1],
     ["未解決候補", "choice", { characterId: "player", level: 2, candidateIds: ["test-power"] }],
     ["ゲーム乱数との不一致", "randomState", 42],
     ["名簿の欠落", "growth.characters", []],
     ["習得名簿の欠落", "characters", []],
-    ["重複受領記録", "growth.appliedRewardIds", ["town", "town"]],
-    ["空の受領記録", "growth.appliedRewardIds", [" "]],
     ["未知の成長対象", "growth.characters.0.characterId", "missing"],
     ["定義外レベル", "growth.characters.0.level", 6],
     ["初期未満レベル", "growth.characters.0.level", 0],
@@ -377,28 +347,28 @@ describe("生存条件とパッシブ効果", () => {
 describe("HP上限の差分", () => {
   it("体力の習得とランク増加だけ現在HPへ加え、症状・疲労を維持する", () => {
     let injured = applyPartyStatus(initial(), "player", { kind: "physicalFatigue", amount: 10 }, characters);
-    injured = receiveTownRecoverySignal(injured, 0, characters, mentalFatigueDefinition);
+    injured = completeMarketVisit(injured, characters, mentalFatigueDefinition);
     injured = applyPartyStatus(injured, "player", { kind: "haze", amount: 10 }, characters);
     let verified = false;
     for (let seed = 0; seed < 128 && !verified; seed++) {
       let game = accept(
         rewardGrowth(
           { ...injured, randomState: seed },
-          { id: "event", allocations: [{ characterId: "player", experience: 25 }] },
+          { allocations: [{ characterId: "player", experience: 25 }] },
           rules,
         ),
       );
       expect(game.party.members[0].hp).toBe(26); // 18 injured HP + 8 level growth, not full28.
       if (!game.growth?.choice?.candidateIds.includes("test-vitality")) continue;
-      game = accept(chooseGrowthSkill(game, selection(game, "test-vitality"), rules));
+      game = accept(chooseGrowthSkill(game, selection(game, "test-vitality").skillId, rules));
       expect(game.party.members[0].hp).toBe(30);
       if (!game.growth?.choice?.candidateIds.includes("test-vitality")) continue;
-      game = accept(chooseGrowthSkill(game, selection(game, "test-vitality"), rules));
+      game = accept(chooseGrowthSkill(game, selection(game, "test-vitality").skillId, rules));
       expect(game.party.members[0]).toMatchObject({ hp: 33, status: { haze: 10 }, mentalFatigue: 0 });
       game = roundTrip(game);
       game = depart(game);
       expect(game.dungeon?.party[0]).toMatchObject({ hp: 33, maxHp: 35 });
-      game = accept(leaveExpedition(game, undefined, rules));
+      game = accept(leaveExpedition(game, rules));
       expect(game.party.members[0]).toMatchObject({ hp: 20, status: { haze: 10 } });
       verified = true;
     }
@@ -421,27 +391,18 @@ describe("HP上限の差分", () => {
         members: [{ id: fallen.id, hp: fallen.hp, status: fallen.status, mentalFatigue: fallen.mentalFatigue }],
       },
     };
-    const growth = accept(
-      rewardGrowth(
-        game,
-        { id: "explicit-core-fixture", allocations: [{ characterId: "player", experience: 10 }] },
-        rules,
-      ),
-    );
+    const growth = accept(rewardGrowth(game, { allocations: [{ characterId: "player", experience: 10 }] }, rules));
     expect(growth.party.members[0]).toMatchObject({ hp: 0, status: { incapacityRecoverySteps: 6 } });
   });
 });
 
-it("分岐回復は必須選択を省略せず、時計・成長・控えを保持して古い操作を拒否する", () => {
+it("分岐回復は必須選択を省略せず、時計・成長・控えを保持して現在の操作を受理する", () => {
   let game = depart(initial(["player", "gilberta"]));
   const command = () => ({
     type: "branch-skill" as const,
     actorId: "player",
     targetId: "player",
     skillId: "test-heal",
-    expectedVersion: game.dungeon?.branchSkillVersion ?? -1,
-    expectedNodeId: game.dungeon?.currentNodeId ?? "",
-    expeditionActionId: game.dungeon?.expeditionActionId ?? -1,
   });
   const entryInput = command();
   game = act(game, { type: "enter", nodeId: "battle-a" });
@@ -450,15 +411,12 @@ it("分岐回復は必須選択を省略せず、時計・成長・控えを保�
   const blocked = actInExpedition(game, command(), initialDungeon, initialAdventure, rules);
   expect(blocked).toMatchObject({ state: game, result: { accepted: false, reason: "pending-growth-choice" } });
   game = resolve(game);
-  expect(actInExpedition(game, entryInput, initialDungeon, initialAdventure, rules)).toMatchObject({
-    state: game,
-    result: { accepted: false },
-  });
-  const before = game;
-  const valid = command();
-  game = act(game, valid);
+  const before = structuredClone(game);
+  game = act(game, entryInput);
+  expect(game.party.members.find(({ id }) => id === "player")?.mentalFatigue).toBe(
+    (before.party.members.find(({ id }) => id === "player")?.mentalFatigue ?? 0) + 3,
+  );
   expect(game.clock).toEqual(before.clock);
-  expect(game.lastTownRecoverySignal).toEqual(before.lastTownRecoverySignal);
   expect(game.growth).toEqual(before.growth);
   expect(game.party.members.find(({ id }) => id === "gilberta")).toEqual(
     before.party.members.find(({ id }) => id === "gilberta"),
@@ -468,46 +426,40 @@ it("分岐回復は必須選択を省略せず、時計・成長・控えを保�
     resolvedNodeIds: before.dungeon?.resolvedNodeIds,
     flags: before.dungeon?.flags,
   });
-  expect(actInExpedition(game, valid, initialDungeon, initialAdventure, rules)).toMatchObject({
-    state: game,
-    result: { accepted: false },
-  });
+  const beforeRepeat = structuredClone(game);
+  game = act(game, entryInput);
+  expect(game.party.members.find(({ id }) => id === "player")?.mentalFatigue).toBe(
+    (beforeRepeat.party.members.find(({ id }) => id === "player")?.mentalFatigue ?? 0) + 3,
+  );
+  expect(game.clock).toEqual(beforeRepeat.clock);
+  expect(game.growth).toEqual(beforeRepeat.growth);
   const last = command();
-  game = accept(leaveExpedition(game, undefined, rules));
+  game = accept(leaveExpedition(game, rules));
   expect(actInExpedition(game, last, initialDungeon, initialAdventure, rules)).toMatchObject({
     state: game,
     result: { accepted: false, reason: "dungeon-ended" },
   });
   game = depart(roundTrip(game));
-  expect(actInExpedition(game, entryInput, initialDungeon, initialAdventure, rules)).toMatchObject({
-    state: game,
-    result: { accepted: false },
-  });
-  game = act(game, command());
   expect(game.party.members[0].mentalFatigue).toBe(14);
+  game = act(game, entryInput);
+  expect(game.party.members[0].mentalFatigue).toBe(17);
 });
 
 it("必須選択中は各公開入力を拒否し候補・HP・バッグ・時計・乱数を保持する", () => {
-  const state = accept(
-    rewardGrowth(initial(), { id: "explicit-level", allocations: [{ characterId: "player", experience: 10 }] }, rules),
-  );
+  const state = accept(rewardGrowth(initial(), { allocations: [{ characterId: "player", experience: 10 }] }, rules));
   const before = structuredClone(state);
   for (const operation of [
     () => editExpeditionParty(state, 0, null),
     () => confirmExpeditionParty(state, [null, null, null, null]),
     () => departOnExpedition(state, characters, initialDungeon, initialAdventure, rules),
     () => beginTownExploration(state, "market", initialAdventure),
-    () => leaveExpedition(state, undefined, rules),
+    () => leaveExpedition(state, rules),
   ]) {
     expect(operation()).toMatchObject({ accepted: false, reason: "action-in-progress", state: before });
     expect(state).toEqual(before);
   }
   const expedition = accept(
-    rewardGrowth(
-      depart(initial()),
-      { id: "route-level", allocations: [{ characterId: "player", experience: 10 }] },
-      rules,
-    ),
+    rewardGrowth(depart(initial()), { allocations: [{ characterId: "player", experience: 10 }] }, rules),
   );
   const expeditionBefore = structuredClone(expedition);
   for (const command of [
@@ -520,10 +472,6 @@ it("必須選択中は各公開入力を拒否し候補・HP・バッグ・時�
       actorId: "player",
       targetId: "player",
       itemId: "hp-recovery",
-      expectedActionTime: 0,
-      expectedNodeId: "battle-a",
-      expectedVersion: 0,
-      explorationId: 1,
     },
   ] as const) {
     expect(actInExpedition(expedition, command, initialDungeon, initialAdventure, rules)).toMatchObject({
@@ -534,23 +482,11 @@ it("必須選択中は各公開入力を拒否し候補・HP・バッグ・時�
   }
   const conversation = accept(beginTownExploration(initial(), "market", initialAdventure));
   const pending = accept(
-    rewardGrowth(
-      conversation,
-      { id: "pending-event", allocations: [{ characterId: "player", experience: 10 }] },
-      rules,
-    ),
+    rewardGrowth(conversation, { allocations: [{ characterId: "player", experience: 10 }] }, rules),
   );
   const pendingBefore = structuredClone(pending);
   expect(
-    actInTown(
-      pending,
-      pending.clock?.pendingAction?.id ?? -1,
-      { type: "advance" },
-      characters,
-      initialAdventure,
-      mentalFatigueDefinition,
-      rules,
-    ),
+    actInTown(pending, { type: "advance" }, characters, initialAdventure, mentalFatigueDefinition, rules),
   ).toMatchObject({ accepted: false, reason: "action-in-progress", state: pendingBefore });
   expect(serializeGame(state, saveDefinitions)).toEqual({ accepted: false, reason: "not-in-town" });
 });
@@ -568,14 +504,10 @@ it("街の初回5XPは参加可能な加入済みだけで後から加入して�
     [1, 0],
   ]);
   later = accept(beginTownExploration(later, "find-companion", initialAdventure));
-  const id = later.clock?.pendingAction?.id ?? -1;
-  later = accept(
-    actInTown(later, id, { type: "advance" }, characters, initialAdventure, mentalFatigueDefinition, rules),
-  );
+  later = accept(actInTown(later, { type: "advance" }, characters, initialAdventure, mentalFatigueDefinition, rules));
   later = accept(
     actInTown(
       later,
-      id,
       { type: "choose", optionId: "invite-gilberta" },
       characters,
       initialAdventure,
@@ -619,11 +551,9 @@ it("保存からの負傷控えは帰還初期化で回復せずHP0だけでは�
   const loaded = deserializeGame(JSON.stringify(payload), saveDefinitions);
   if (!loaded.accepted) throw new Error(loaded.reason);
   let state = resolve(
-    accept(
-      rewardGrowth(loaded.state, { id: "reserve", allocations: [{ characterId: "gilberta", experience: 10 }] }, rules),
-    ),
+    accept(rewardGrowth(loaded.state, { allocations: [{ characterId: "gilberta", experience: 10 }] }, rules)),
   );
-  state = accept(leaveExpedition(depart(state), undefined, rules));
+  state = accept(leaveExpedition(depart(state), rules));
   expect(state.party.members[1].hp).toBe(5);
   expect(state.growth?.growth.characters[1]).toMatchObject({
     level: 1,
@@ -653,14 +583,14 @@ it("保存の保証技・初期技・取得経路・分類権利とランク上�
   const customRules = { ...rules, catalog };
   const definitions = { ...saveDefinitions, skills: customRules };
   let state = accept(
-    rewardGrowth(initial(), { id: "level", allocations: [{ characterId: "player", experience: 10 }] }, customRules),
+    rewardGrowth(initial(), { allocations: [{ characterId: "player", experience: 10 }] }, customRules),
   );
   const choice = state.growth?.choice;
   const passive = choice?.candidateIds.find(
     (id) => catalog.skills.find((skill) => skill.id === id)?.type === "passive",
   );
   if (!passive) throw new Error("passive candidate missing");
-  state = accept(chooseGrowthSkill(state, { ...selection(state), skillId: passive }, customRules));
+  state = accept(chooseGrowthSkill(state, passive, customRules));
   const written = serializeGame(state, definitions);
   if (!written.accepted) throw new Error(written.reason);
   expect(deserializeGame(written.data, definitions).accepted).toBe(true);

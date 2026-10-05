@@ -23,7 +23,10 @@ const strike: ActiveSkillDefinition = {
   target: "single-enemy",
 };
 function replaceStrike(skill: SkillDefinition): SkillCatalog {
-  return { ...skillCatalog, skills: [skill, ...skillCatalog.skills.slice(1)] };
+  return {
+    ...skillCatalog,
+    skills: skillCatalog.skills.map((candidate) => (candidate.id === "test-strike" ? skill : candidate)),
+  };
 }
 
 describe("スキル定義", () => {
@@ -162,9 +165,9 @@ describe("スキル定義", () => {
     { ...strike, scenes: ["branch"] },
     { ...strike, effect: { type: "hp-recovery", amount: 8, scaling: { stat: "attackPower", coefficient: 0.5 } } },
     { ...strike, effect: { type: "fatigue-recovery", amount: 8 } },
-    { ...skillCatalog.skills[2], mentalFatigueIncrease: 0 },
-    { ...skillCatalog.skills[2], scenes: ["battle"] },
-    { ...skillCatalog.skills[2], target: "single-ally" },
+    { ...skillById(skillCatalog, "test-strength"), mentalFatigueIncrease: 0 },
+    { ...skillById(skillCatalog, "test-strength"), scenes: ["battle"] },
+    { ...skillById(skillCatalog, "test-strength"), target: "single-ally" },
   ])("不正な分類・場面・対象・パッシブ操作を拒否する: %j", (badSkill) => {
     // Deliberately corrupt typed authored data to exercise validation.
     const catalog =

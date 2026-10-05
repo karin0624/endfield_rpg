@@ -126,8 +126,8 @@ describe("固定ダンジョンの進行", () => {
       currentNodeId: "conversation-b",
       activeNodeId: null,
       outcome: "ongoing",
-      flags: ["marked-ruins-route", "scouted-ruins"],
     });
+    expect([...conversationRoute.flags].sort()).toEqual(["marked-ruins-route", "scouted-ruins"]);
     expect(conversationRoute.resolvedNodeIds).toContain("conversation-b");
     expect(getAvailableDungeonNodes(conversationRoute, initialDungeon).map(({ id }) => id)).toEqual(["boss-c"]);
     const bossStartFromConversation = enterNextDungeonNode(

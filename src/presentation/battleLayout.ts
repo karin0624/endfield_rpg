@@ -1,0 +1,168 @@
+import { initialBattleCombatants } from "../content/initialBattle";
+import type { BattleCombatantDefinition, BattleTeam } from "../game/battle";
+import type { BattleSettings } from "./battleSettings";
+
+// 描画専用の配置。ゲーム状態・戦闘ルールには持ち込まない。
+export interface FormationPosition {
+  readonly x: number;
+  readonly z: number;
+}
+export interface BattleEnvironment {
+  readonly ground: string;
+  readonly background: string;
+}
+export interface BattleActorPlacement {
+  readonly id: string;
+  readonly visible: boolean;
+  readonly x: number;
+  readonly z: number;
+  readonly validationX: number;
+  readonly validationZ: number;
+}
+export interface GroundingSample {
+  readonly id: string;
+  readonly groundY: number | null;
+}
+
+/** Preview counts alter appearance only; grounding still checks every authored formation slot. */
+export function projectActorPlacements(
+  actors: readonly Pick<BattleActorLayout, "id" | "team">[],
+  settings: BattleSettings,
+  counts?: Readonly<Record<BattleTeam, number>>,
+): readonly BattleActorPlacement[] {
+  const fullCounts = {
+    ally: actors.filter((actor) => actor.team === "ally").length,
+    enemy: actors.filter((actor) => actor.team === "enemy").length,
+  };
+  const visibleCounts = counts ?? fullCounts;
+  const full = {
+    ally: getFormationPositions(settings, "ally", fullCounts.ally),
+    enemy: getFormationPositions(settings, "enemy", fullCounts.enemy),
+  };
+  const shown = {
+    ally: getFormationPositions(settings, "ally", visibleCounts.ally),
+    enemy: getFormationPositions(settings, "enemy", visibleCounts.enemy),
+  };
+  const order = { ally: 0, enemy: 0 };
+  return actors.map(({ id, team }) => {
+    const index = order[team]++;
+    const visible = index < visibleCounts[team],
+      display = visible ? shown[team][index] : full[team][index];
+    return {
+      id,
+      visible,
+      x: display.x * settings.groundScale,
+      z: display.z * settings.groundScale,
+      validationX: full[team][index].x * settings.groundScale,
+      validationZ: full[team][index].z * settings.groundScale,
+    };
+  });
+}
+
+/** 中心を固定した隊列のXZ位置を返す。人数0は空配列として扱う。 */
+export function calculateFormationPositions(
+  count: number,
+  centerX: number,
+  centerZ: number,
+  stepX: number,
+  stepZ: number,
+): FormationPosition[] {
+  if (!Number.isInteger(count) || count < 0) {
+    throw new RangeError("隊列の人数は0以上の整数で指定してください");
+  }
+  return Array.from({ length: count }, (_, index) => {
+    const offset = index - (count - 1) / 2;
+    return {
+      x: centerX + offset * stepX,
+      z: centerZ + offset * stepZ,
+    };
+  });
+}
+
+export function getFormationPositions(settings: BattleSettings, team: BattleTeam, count: number): FormationPosition[] {
+  return team === "ally"
+    ? calculateFormationPositions(
+        count,
+        settings.allyCenterX,
+        settings.allyCenterZ,
+        settings.allyStepX,
+        settings.allyStepZ,
+      )
+    : calculateFormationPositions(
+        count,
+        settings.enemyCenterX,
+        settings.enemyCenterZ,
+        settings.enemyStepX,
+        settings.enemyStepZ,
+      );
+}
+
+export interface BattleActorLayout {
+  readonly id: string;
+  readonly team: BattleTeam;
+  readonly image: string;
+  readonly pixels: readonly [number, number];
+  readonly foot: readonly [number, number];
+  readonly height: number;
+  readonly flipX: boolean;
+  readonly shadow: readonly [number, number];
+}
+
+const actorVisuals: Record<string, Omit<BattleActorLayout, "id" | "team">> = {
+  player: {
+    image: "characters/rossi/front-left.png",
+    pixels: [1024, 1536],
+    foot: [512, 1508],
+    height: 3.3,
+    flipX: false,
+    shadow: [0.65, 0.28],
+  },
+  gilberta: {
+    image: "characters/gilberta/front-left.png",
+    pixels: [1024, 1536],
+    foot: [512, 1508],
+    height: 3.3,
+    flipX: false,
+    shadow: [0.65, 0.28],
+  },
+  slime: {
+    image: "enemies/slime-blue.png",
+    pixels: [49, 34],
+    foot: [24.5, 34],
+    height: 1.3,
+    flipX: true,
+    shadow: [0.8, 0.35],
+  },
+  "slime-2": {
+    image: "enemies/slime-blue.png",
+    pixels: [49, 34],
+    foot: [24.5, 34],
+    height: 1.3,
+    flipX: true,
+    shadow: [0.8, 0.35],
+  },
+};
+
+// 通常画面の人数・順序はゲーム側の固定編成から導出し、描画側に重複して持たない。
+export interface BattleLayout {
+  readonly ground: { readonly scale: number };
+  readonly backdrop: { readonly width: number; readonly height: number };
+  readonly actors: readonly BattleActorLayout[];
+}
+
+const ground = { scale: 26 } as const;
+const backdrop = { width: 50, height: (50 * 736) / 2138 } as const;
+
+/** Unprovided characters use an existing sprite as a provisional visual; the UI labels it as such. */
+export function createBattleLayout(combatants: readonly BattleCombatantDefinition[]): BattleLayout {
+  return {
+    ground,
+    backdrop,
+    actors: combatants.map((combatant) => {
+      const visual = actorVisuals[combatant.id] ?? actorVisuals.slime;
+      return { id: combatant.id, team: combatant.team, ...visual } satisfies BattleActorLayout;
+    }),
+  };
+}
+
+export const battleLayout = createBattleLayout(initialBattleCombatants);

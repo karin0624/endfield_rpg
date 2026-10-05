@@ -2,16 +2,15 @@
 set -eu
 
 case "${1:-}" in
-  e2e) inside_script=test:e2e:inside ;;
-  ui) inside_script=test:ui:inside ;;
+  browser) inside_script=test:browser:inside ;;
   editor) inside_script=test:editor:inside ;;
-  coverage) inside_script=test:coverage:inside ;;
-  long) inside_script=test:long:inside ;;
-  *) echo "Usage: $0 {e2e|ui|editor|coverage|long} [Playwright options]" >&2; exit 2 ;;
+  all) inside_script=test:all:inside ;;
+  *) echo "Usage: $0 {browser|editor|all} [Playwright options]" >&2; exit 2 ;;
 esac
 shift
 
 repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+container_user="$(id -u):$(id -g)"
 set -- mcr.microsoft.com/playwright:v1.63.0-noble \
   sh -c 'npm ci && inside_script=$1 && shift && npm run "$inside_script" -- "$@"' \
   sh "$inside_script" "$@"
@@ -24,5 +23,5 @@ if [ "${NODE_EXTRA_CA_CERTS:-}" = "$environment_ca" ] && [ -r "$environment_ca" 
 fi
 
 docker run --rm --init --ipc=host \
-  --user "$(id -u):$(id -g)" \
+  --user "$container_user" \
   -v "$repo_root:/work" -w /work "$@"

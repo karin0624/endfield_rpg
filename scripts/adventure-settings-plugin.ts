@@ -1,7 +1,7 @@
 import { rename, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import type { Plugin } from "vite";
-import { type AdventureSettings, parseAdventureSettings } from "../src/web/adventureSettings.ts";
+import { type AdventureSettings, parseAdventureSettings } from "../src/presentation/adventureSettings.ts";
 
 // 開発サーバー専用。保存先を会話画面の標準設定に固定する。
 export function adventureSettingsPlugin(): Plugin {

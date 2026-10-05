@@ -84,7 +84,7 @@
 
 `performBattleSkill` は習得済みアクティブを現在行動者が使用する。使用前疲労で効果を評価し、実HP変化、疲労更新、勝敗を一度に返す。`performBattleSkillAndAdvanceToAllyInput` は同じ敵行動ループへ接続する。通常攻撃と同じ行動間隔を使い、通常攻撃の効果量・疲労を変更しない。
 
-確定結果は `{ type: "skill", actorId, targetId, skillId, effect, hitIndex, amount, fatigueBefore, fatigueAfter, hit }`。`amount` は実HP変化量で、外れ・HP上限なら予測量と異なる。`hitIndex` は対象内の1始まりの発番号。実行した各発にイベントを返し、撃破した発の直後に戦闘不能を返す。全発の後に追加発症、勝敗、必要な敵行動を返す。[スキル](skills.md)と[精神疲労](status.md)の試用規則を共有する。
+各発の確定結果は `{ type: "skill", actorId, targetId, skillId, effect, hitIndex, amount, targetHpBefore, targetHpAfter, hit }`。`amount` は実HP変化量で、外れ・HP上限なら予測量と異なる。`hitIndex` は対象内の1始まりの発番号。実行した各発にイベントを返し、撃破した発の直後に戦闘不能を返す。全発の後に一回の `skill-cost` と疲労前後値、追加発症と確定HP／症状、勝敗、必要な敵行動を返す。[スキル](skills.md)と[精神疲労](status.md)の試用規則を共有する。
 
 ## 受入例
 
@@ -125,6 +125,6 @@ HPが0にならない攻撃は`attack`だけを返す。戦闘不能になった
 戦闘中の速度変更、遅延・割込・追加ターン、ラウンド、実時間ATB、防御、
 逃走、装備、報酬、敵AI、演出はこの仕様に含めない。
 
-状態異常の暫定係数・回復signal・基礎命中率と乱数消費の境界は[状態異常](status.md)を参照する。アクティブ使用の対象・効果・命中・再送拒否と表示は[スキル](skills.md)を参照する。
+状態異常の暫定係数・街完了回復・基礎命中率と乱数消費の境界は[状態異常](status.md)を参照する。アクティブ使用の対象・効果・命中・現在入力の受理と表示は[スキル](skills.md)を参照する。
 
 多段・全体攻撃の順序と使用前状態の扱いは[スキル仕様](skills.md#多段全体攻撃の定義と解決)に従う。`performBattleSkill` の `targetId` は単体なら生存対象ID、全体なら `null`。全体へIDを付けた入力や単体へ `null` を渡した入力は、状態・イベント・乱数を変えず拒否する。対象範囲はカタログの定義から解決し、入力側が任意の対象配列を指定することはできない。

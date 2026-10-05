@@ -37,17 +37,13 @@ function initial(fatigue = 100, seed = 1, status = healthyStatus()): DungeonStat
       [],
       seed,
     ),
-    expeditionActionId: 7,
   };
 }
-function input(state: DungeonState) {
+function input() {
   return {
     actorId: "healer",
     targetId: "target",
     skillId: "test-heal",
-    expectedVersion: state.branchSkillVersion,
-    expectedNodeId: state.currentNodeId,
-    expeditionActionId: 7,
   };
 }
 function accepted(result: DungeonActionResult): Extract<DungeonActionResult, { accepted: true }> {
@@ -55,19 +51,19 @@ function accepted(result: DungeonActionResult): Extract<DungeonActionResult, { a
   return result;
 }
 function use(state: DungeonState) {
-  return accepted(performDungeonBranchSkill(state, input(state), initialDungeon, rules));
+  return accepted(performDungeonBranchSkill(state, input(), initialDungeon, rules));
 }
 describe("分岐でのHP回復", () => {
-  it("今回と次回は別々の使用前疲労で計算し、再送は乱数も含めて不変", () => {
+  it("同じ回復操作も現在の分岐で受理し、各使用前の疲労で計算する", () => {
     const start = initial(100, 1000, { ...healthyStatus(), physicalFatigue: 200, haze: 200 });
     const first = use(start);
     expect(first.accepted).toBe(true);
     // maxHP floor(200/3)=66; base 8+33=41; fatigue 100 => 20.5.
     expect(first.state.party[1].hp).toBe(21.5);
     expect(first.state.party[0].mentalFatigue).toBe(103);
-    const replay = performDungeonBranchSkill(first.state, input(start), initialDungeon, rules);
-    expect(replay).toMatchObject({ accepted: false, state: first.state, events: [] });
-    const second = use(first.state);
+    const beforeSecond = structuredClone(first.state);
+    const second = accepted(performDungeonBranchSkill(first.state, input(), initialDungeon, rules));
+    expect(first.state).toEqual(beforeSecond);
     expect(second.accepted).toBe(true);
     expect(second.state.party[1].hp).toBeCloseTo(41.69704433497537, 10);
     expect(second.state.party[0].mentalFatigue).toBe(106);
@@ -88,9 +84,7 @@ describe("分岐でのHP回復", () => {
     expect(first.state.randomState).toBe(1586005467);
     const self = initial(100, 1);
     const full = { ...self, party: self.party.map((member) => ({ ...member, hp: 190 })) };
-    const result = accepted(
-      performDungeonBranchSkill(full, { ...input(full), targetId: "healer" }, initialDungeon, rules),
-    );
+    const result = accepted(performDungeonBranchSkill(full, { ...input(), targetId: "healer" }, initialDungeon, rules));
     expect(result.events[0]).toMatchObject({ type: "skill", amount: 10 });
     expect(result.state.party[0].hp).toBe(194);
   });
@@ -101,22 +95,19 @@ describe("分岐でのHP回復", () => {
     const capped = use(initial(100, 1, { ...healthyStatus(), physicalFatigue: 200 }));
     expect(capped.state.party[0].status).toEqual({ ...healthyStatus(), physicalFatigue: 200, haze: 3 });
   });
-  it.each([
-    { actorId: "reserve" },
-    { targetId: "reserve" },
-    { skillId: "test-mend" },
-    { skillId: "test-strike" },
-    { expectedVersion: -1 },
-    { expectedNodeId: "battle-a" },
-    { expeditionActionId: 6 },
-  ])("不正入力 %j はHP・疲労・症状・乱数を変えない", (patch) => {
-    const start = initial();
-    expect(performDungeonBranchSkill(start, { ...input(start), ...patch }, initialDungeon, rules)).toMatchObject({
-      accepted: false,
-      state: start,
-      events: [],
-    });
-  });
+  it.each([{ actorId: "reserve" }, { targetId: "reserve" }, { skillId: "test-mend" }, { skillId: "test-strike" }])(
+    "不正入力 %j はHP・疲労・症状・乱数を変えない",
+    (patch) => {
+      const start = initial();
+      const before = structuredClone(start);
+      expect(performDungeonBranchSkill(start, { ...input(), ...patch }, initialDungeon, rules)).toMatchObject({
+        accepted: false,
+        state: before,
+        events: [],
+      });
+      expect(start).toEqual(before);
+    },
+  );
   it.each(["healer", "target"])("HP0・参加不能の%sを拒否する", (id) => {
     for (const patch of [{ hp: 0 }, { status: { ...healthyStatus(), incapacityRecoverySteps: 6 } }]) {
       const state = initial();
@@ -124,30 +115,34 @@ describe("分岐でのHP回復", () => {
         ...state,
         party: state.party.map((member) => (member.id === id ? { ...member, ...patch } : member)),
       };
-      expect(performDungeonBranchSkill(blocked, input(blocked), initialDungeon, rules)).toMatchObject({
+      const before = structuredClone(blocked);
+      expect(performDungeonBranchSkill(blocked, input(), initialDungeon, rules)).toMatchObject({
         accepted: false,
-        state: blocked,
+        state: before,
         events: [],
       });
+      expect(blocked).toEqual(before);
     }
   });
-  it("戦闘・会話・探索終了・別探索の古い入力を拒否する", () => {
+  it("戦闘・会話・探索終了では分岐の回復操作を受理しない", () => {
     const start = initial();
     for (const node of ["battle-a", "conversation-b"]) {
       const entered = accepted(enterNextDungeonNode(start, node, initialDungeon, initialAdventure)).state;
-      expect(performDungeonBranchSkill(entered, input(start), initialDungeon, rules)).toMatchObject({
+      const before = structuredClone(entered);
+      expect(performDungeonBranchSkill(entered, input(), initialDungeon, rules)).toMatchObject({
         accepted: false,
-        state: entered,
+        state: before,
       });
+      expect(entered).toEqual(before);
     }
-    for (const changed of [
-      { ...start, outcome: "cleared" as const },
-      { ...start, expeditionActionId: 8 },
-    ])
-      expect(performDungeonBranchSkill(changed, input(start), initialDungeon, rules)).toMatchObject({
+    for (const changed of [{ ...start, outcome: "cleared" as const }]) {
+      const before = structuredClone(changed);
+      expect(performDungeonBranchSkill(changed, input(), initialDungeon, rules)).toMatchObject({
         accepted: false,
-        state: changed,
+        state: before,
       });
+      expect(changed).toEqual(before);
+    }
   });
 });
 
@@ -169,7 +164,7 @@ it("習得済み応急回復は既存定義を使い、負荷0の回復は減衰
     })),
   };
   const mend = accepted(
-    performDungeonBranchSkill(learned, { ...input(learned), skillId: "test-mend" }, initialDungeon, rules),
+    performDungeonBranchSkill(learned, { ...input(), skillId: "test-mend" }, initialDungeon, rules),
   );
   expect(mend.state.party[1].hp).toBe(32);
   expect(mend.state.party[0].mentalFatigue).toBe(101);
@@ -183,7 +178,7 @@ it("習得済み応急回復は既存定義を使い、負荷0の回復は減衰
       ),
     },
   };
-  const free = accepted(performDungeonBranchSkill(start, input(start), initialDungeon, noLoadRules));
+  const free = accepted(performDungeonBranchSkill(start, input(), initialDungeon, noLoadRules));
   expect(free.state.party[1].hp).toBe(109);
   expect(free.state.party[0].mentalFatigue).toBe(100);
   expect(free.state.randomState).toBe(1);

@@ -49,14 +49,14 @@ export function vitestCases(report, discovery = false, root = process.cwd()) {
   );
 }
 
-export function playwrightCases(report, _discovery = false, root = "tests/e2e") {
+export function playwrightCases(report, _discovery = false, root = process.cwd()) {
   const cases = [];
   function visit(suites) {
     for (const suite of suites) {
       for (const spec of suite.specs ?? [])
         for (const test of spec.tests) {
           cases.push({
-            file: `${root}/${spec.file}`,
+            file: relative(root, resolve(report.config.rootDir, spec.file)),
             key: JSON.stringify([test.projectName, spec.id]),
             passed:
               test.expectedStatus === "passed" &&
@@ -73,15 +73,31 @@ export function playwrightCases(report, _discovery = false, root = "tests/e2e") 
   return cases;
 }
 
+export function checkPlaywrightProjects(discovery, result) {
+  const configured = discovery.config.projects.map((project) => project.name);
+  const reported = result.config.projects.map((project) => project.name);
+  const errors = [];
+  if (!configured.length) errors.push("Empty project configuration");
+  if (new Set(configured).size !== configured.length) errors.push("Duplicate configured project names");
+  if (JSON.stringify([...configured].sort()) !== JSON.stringify([...reported].sort()))
+    errors.push("Executed project configuration differs from discovery");
+  const cases = playwrightCases(result);
+  for (const name of configured)
+    if (!cases.some((item) => JSON.parse(item.key)[0] === name)) errors.push(`Missing required project: ${name}`);
+  return errors;
+}
+
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   const [runner, discoveryPath, resultPath, mode] = process.argv.slice(2);
   if (
     !["vitest", "playwright"].includes(runner) ||
     !discoveryPath ||
     !resultPath ||
-    (mode && !["coverage", "long"].includes(mode))
+    (mode && !["browser", "all", "editor"].includes(mode))
   ) {
-    throw new Error("Usage: check-test-execution.mjs {vitest|playwright} discovery.json result.json [coverage|long]");
+    throw new Error(
+      "Usage: check-test-execution.mjs {vitest|playwright} discovery.json result.json [browser|all|editor]",
+    );
   }
   const read = (path) => JSON.parse(readFileSync(path, "utf8"));
   const inventory = execFileSync("git", ["ls-files", "-z", "--cached", "--others", "--exclude-standard"], {
@@ -95,26 +111,20 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
           pattern.test(file) &&
           existsSync(file) &&
           (runner === "vitest" ||
-            (mode === "long"
-              ? file.startsWith("tests/long/")
-              : !file.startsWith("tests/long/") && !file.startsWith("tests/evidence/"))),
+            (mode === "editor"
+              ? file.startsWith("tests/editor/")
+              : mode === "all" || !file.startsWith("tests/editor/"))),
       ),
     ),
   ];
-  const convert =
-    runner === "vitest"
-      ? vitestCases
-      : (report) => playwrightCases(report, false, mode === "long" ? "tests/long" : "tests/e2e");
+  const convert = runner === "vitest" ? vitestCases : playwrightCases;
   const discovery = read(discoveryPath);
   const result = read(resultPath);
   const errors = checkExecution(files, convert(discovery, true), convert(result));
   if (runner === "playwright") {
-    for (const project of mode === "long" ? ["built"] : ["built", "debug", "ui", "settings"]) {
-      if (!playwrightCases(result).some((item) => JSON.parse(item.key)[0] === project))
-        errors.push(`Missing required project: ${project}`);
-    }
+    errors.push(...checkPlaywrightProjects(discovery, result));
     if (result.errors?.length) errors.push("Playwright reported global errors");
-    if (mode === "coverage") {
+    if (mode) {
       for (const test of playwrightCases(result))
         if (!test.coverageRecorded) errors.push(`Missing per-case browser coverage collection: ${test.key}`);
     }

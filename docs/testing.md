@@ -1,111 +1,73 @@
-# テスト設計
+# テスト設計と実行
 
-## 基本方針
+仕様の正本は `specs/`。デザインガイドラインは設計指針であり、実装仕様・必須テスト・マージ条件とは区別する。品質維持とは必要な実装仕様の保証を保つことで、assertion・ケース件数・ファイル構造の不変を意味しない。同じ保証を実証できる統合・移動・書換え・削除を認める。
 
-実装済みの仕様はすべてテストする。仕様の正本は `specs/`、公開の入力・前提・独立した期待結果はテストコードに置く。仕様やassertionを巨大な別台帳へ転記しない。目視確認は開発中のデバッグ・デザインレビューであり、テストではない。撮影・録画・overlayの生成も、自動VRTの成功とは区別する。
+## 責務と観測結果
 
-`docs/design-guidelines.md` は設計指針であり、`specs/`への配置だけで実装仕様・必須テスト・マージ条件に昇格させない。外観回帰の期待結果は承認された画面仕様とVRT基準に基づく。
+ゲーム規則と画面の状態・入力・focus・dialog・演出はブラウザ非依存の明示状態と意味イベントで扱う。イベントを現在状態へ同期適用してから次のイベントを受ける。A→B→Aと戻った後の有効入力も受理し、クリック回数・時間窓・直前履歴・汎用ID台帳で抑止しない。外部I/Oは状態確定後に開始し、完了結果を意味イベントとして適用する。
 
-型検査、coverage率、似た名前のテスト、成功件数だけでは仕様の充足を証明できない。受入条件に対して、何を入力し、どの結果をどこでassertするかをレビューする。未対応・未監査・仕様矛盾・将来未実装を区別し、実装に合わせて期待を狭めたり、テストの不足を目視で埋め合わせたりしない。
-
-「品質を維持する」とは、実装仕様がテストで担保されていることを維持することであり、assertion・ケースの件数や構造の不変を要件としない。同じ仕様保証を実証できる統合・移動・書換え・削除は認める。保証の対応と検証結果は具体的なテストコードと変更の証拠で説明し、巨大な手書き台帳は作らない。
-
-同じ保証は、必要な境界を通る最も低コストの層で担う。規則の全組合せをブラウザへ複製しない。VRTはブラウザテストに置く**視覚assertion**であり、操作やゲーム状態を一括で保証する独立層ではない。
-
-## 保証対象からテストを選ぶ
-
-層は使用する通信方式やファイルの置き場ではなく、保証する責務で分ける。必要な境界を実際に通し、同じ保証をより低コストで検証できる層を優先する。
-
-### 1. 静的な整合性
-
-型・構文・依存・コード規約の整合性を保証する。実行時の振る舞いを保証する層ではない。TypeScriptとBiomeを使う。
-
-### 2. 個々の規則
-
-独立した規則について、公開入力に対する結果と境界条件を保証する。複数機能の接続が必要な条件は次の層で担う。Vitestを使い、仕様から決めた期待値をassertする。
-
-### 3. ロジックの結合とゲームの内部状態のテスト
-
-実際の複数機能を接続し、状態遷移と副作用の整合性を保証する。モデルや表示用ロジックも、DOMや描画なしで検証できる接続はここで担う。UI入力や描画の正しさはブラウザ側に委ねる。
-
-Vitestを使う。公開I/Oを通す必要がある場合は実Vite/Node HTTPも使う。HTTPは接続を再現する技術であり、保証対象を分ける独立した分類ではない。
-
-### 4. 入力から画面・状態への接続
-
-実際の入力経路を通じて、操作に応じた表示・状態の変化を検証する。実UIと必要な実ロジックを接続し、規則の全組合せや実描画固有の責務は他の層へ委ねる。描画を必要としない条件では描画だけを代替する。
-
-Playwrightを使う。実表示の比較にはVRTを視覚assertionとして使う。
-
-### 5. 実描画と資源の接続
-
-実描画の結果と、その準備・更新・解放に関する契約を保証する。描画代替では検証できない境界をここで担い、ゲームの規則を重複して検証しない。
-
-Playwrightと実Babylon.js/WebGLを使う。実表示の比較にはVRTを使う。
-
-### 6. 通常配布の境界と代表経路
-
-配布されたアプリの起動・接続と、利用者が辿る代表経路を保証する。実配布を通す必要がある境界に絞り、詳細な規則・組合せは低い層へ委ねる。
-
-通常buildとPlaywrightを使う。実表示の比較が必要な状態にはVRTを使う。
-
-## 代表例
-
-以下は各責務を具体化した例であり、全仕様を転記したcatalogではない。方針の定義は上の節で独立して示す。今回の既存保証・追加・削除代替・残件は [変更の検証記録](testing/change-evidence.md) を参照する。
-
-| 責務 | 受入条件と具体的な検出方法 |
+| 層 | 保証する結果 |
 | --- | --- |
-| 個々の規則 | 命中率0.5では乱数0.5が外れるとVitestでassert。両分岐のcoverageが100%でも `<` と `<=` の違いは保証できない |
-| 個々の規則 | 持込みを消費ごとに2→1→0、その次に獲得分が減るとassert。4回後の最終値だけで済ませない |
-| ロジックの結合と内部状態 | 実探索・成長・装備・疲労・帰還・保存復元を接続し、操作ごとの実状態と副作用をassert |
-| ロジックの結合と内部状態 | 実 `actInExpedition` の回復7→敵被弾4→3、最終HP13・RNG1・バッグ1を独立期待でassert |
-| ロジックの結合と内部状態 | 保存APIに409の並行処理、413の上限入力、500の書込み失敗を実HTTPで渡し、応答と旧保存bytes保持をassert。mock呼出回数だけで保存成功としない |
-| 入力から画面・状態への接続 | campaignの親capture／bubbleを通す候補の押し直しで、各入力直後の選択状態をassert。dialogを閉じた後のfocus、ARIA、保存結果も実入力から確認 |
-| 入力から画面・状態への接続 | Playwright Clockで表示時刻を制御し、各着弾のHPと、速度・省略・退出後の実論理状態／RNGをassert |
-| 入力から画面・状態への接続 | 構図全controlの同期・draft・JSON出力は実エディターと描画代替を接続。重い地面計算を各入力で繰り返さない |
-| 入力・実表示 | 編成の選択／解除、押下／focus／disabled、狭幅、保存後の実会話をVRT比較。RGB／outline／CSS変数だけの比較を見た目の保証にしない |
-| 実描画と資源 | 実投影・素材・DPR・非rootのasset URL・cullingを確認。退出・pagehide・HMRでの資源解放、仕様化されたWebGL資源数／HTTP取得回数をassert |
-| 通常配布 | 通常buildの起動・入力・保存導線と、デバッグ機能・開発API・fixtureの混入禁止を確認 |
+| `src/game/` のVitest | HP・症状・疲労・論理時刻・乱数・所持・権利・公開保存形式。実データと独立した具体的期待値 |
+| `src/presentation/` と親子結合のVitest | 実コアへ意味入力を順に適用した画面遷移、draft、選択、focus移動／復元、dialog、保存成功／失敗、各演出時点の確定表示。純粋投影の文言・入力可否・位置 |
+| 実HTTP／ファイル／Storage境界 | 開発設定APIの保存と失敗時旧bytes保持、通常配布への開発機能・fixture混入禁止、確定済み保存bytesのI/O |
+| 直接状態VRT | 正当な代表状態・phase・表示時刻を実view／実素材へ与え、既存画像と比較。ゲーム進行、クリック連鎖、実時間待機を使わず到達する |
+| 直接Native WebGL | 実Buffer／Texture／Programの生成・切替・解放、warm再利用、取得回数、DPR割当、失敗・遅着・pagehide・必要時HMRの資源寿命。ゲーム操作journeyは通さない |
 
-描画代替fixtureでは途中のHP・勝敗・RNGを注入して成功とせず、実コアの操作から到達させる。代替rendererの座標は実投影の正しさを保証しない。ARIA、focus、公開保存形式、仕様化された資源／取得数は意味ある観測結果として維持する。
+E2Eは設けない。ブラウザadapterはNative操作と意味イベントの1対1接続、測定値の通知、確定frameの適用だけを行う。click配線をなぞる追加テストやDOM上のゲーム判断を例外として残さない。入力受付とfocusはモデルで検証し、外観は実VRTで検証する。RGB、私的属性、SVGの要素数を見た目の代理にしない。
 
-## 実行と速度
+確定したゲーム結果と演出表示を分ける。各HP・症状・疲労を確定recordから代入し、表示でルールや乱数を再実行しない。wall msと1倍相当のcue進捗は別の表示入力で、速度変更は次phaseから適用する。CSSの既存keyframes／easingを保ち、[Web AnimationsのcurrentTime](https://www.w3.org/TR/web-animations-1/#setting-the-current-time-of-an-animation)で描画時刻を与える。DOMの最新標本とcanvasが最後に描いた標本も区別する。
 
-Node.jsは `.nvmrc` の24系を使う。ブラウザは固定した `mcr.microsoft.com/playwright:v1.63.0-noble` と実LFS素材を使い、基準生成と比較の環境を揃える。ホストからは以下のscriptを使う。CIはコンテナ内の `:inside` を実行する。
+必要な検証層は境界と費用から選ぶ。[GoogleのTesting Pyramid](https://testing.googleblog.com/2015/04/just-say-no-to-more-end-to-end-tests.html)と[Testing Trophy](https://kentcdodds.com/blog/the-testing-trophy-and-testing-classifications)も参考にするが、件数の割合を合否目標にしない。公開入力・結果・非変更・実I/O資源を検証し、内部関数、呼出順、配列の偶然の位置、非仕様のJSONキー順や診断文言を固定しない。検証対象自体から期待値・負例一覧を作らない。
 
-| コマンド | 担当 |
+## 実行方法
+
+Node.jsは `.nvmrc` の24系、ブラウザは `mcr.microsoft.com/playwright:v1.63.0-noble` と実LFS素材を使う。ホストのscriptは同じ固定Dockerを `--init --ipc=host` で起動する。
+
+| コマンド | 範囲 |
 | --- | --- |
-| `npm run check` | Biome・型・Vitest・V8 coverage・発見／実行結果照合。ブラウザなし |
-| `npm run test:e2e` | 既定の `built`・`debug`・`ui`・`settings` 全projectを一回実行し、合否・VRT・native V8 coverageを確認 |
-| `npm run test:ui` / `npm run test:editor` | 変更箇所の短い確認。全projectの最終チェックは代替しない |
-| `npm run test:coverage` | `test:e2e`と同じ全件実行・coverage生成の別名。CIでは二重実行しない |
-| `npm run test:long` | 明示実行する長い通常campaign経路と10状態VRT |
+| `npm run check` | Biome・型・素材検査・現在の通常minified build・全Vitest／V8 coverage／発見と実行の照合。ブラウザなし |
+| `npm run test:browser` | ゲーム本体CIの全工程。checkに続けて異なるdebug／直接view入口を各一度buildし、views／rendererの直接VRT・Native資源検証・native V8を一回実行し、既存結果から品質summaryを生成 |
+| `npm run test:editor` | checkとview build、開発者専用の直接構図VRT・Native HMRを必要時に全実行 |
+| `npm run test:all` | check・必要な3build・既定とeditorの全projectを同じ一回の直列ブラウザ実行で確認 |
+| `npm run review:party` | UI変更時の画像レビュー用。直近の4状態の実撮影と承認資料を同解像度で直接比較し、raw diff・overlay・数値を明示生成（Python／Pillowが必要） |
 
-長いタイトル→導入→街→編成→戦闘→帰還→保存再開と10状態VRTは `tests/long/campaign.spec.ts` に内容と基準bytesを保持し、明示実行する。再編する場合もこの仕様保証を維持する。短い通常配布・入力・VRT境界、renderer/HMR/settingsは既定CIに残す。
+CIは固定コンテナの単一jobで `npm ci` の後に `test:browser:inside` を実行する。checkで作った通常配布を同じworkspaceから使い、job間の配布受渡し・結果保存artifactは設けない。ローカルの `test:browser` も同じ `run-game-quality.sh` をworkspace所有者で実行する。従来の単体coverage閾値、全git spec／無filter collection／実行・全project・各case coverage照合を維持する。結果とrevision、失敗・skip・retry・global error、0-hit込みのsource数とcoverageをログへ出し、Actionsではjob summaryにも残す。summaryは既存JSONを読み取るだけで、テスト・coverage変換・実行gateを再実行しない。生成JSON・画像・trace・mapは同じローカルworkspaceで確認できる。失敗前に未生成のreportを成功に数えず、旧runner reportを消してから開始し、summary処理の成否で元の品質失敗を成功へ変えない。
 
-本番の通常buildは4173、専用debug buildは4175、一時ソースコピーのfixture／エディターは4174で起動する。エディターの保存テストは本来の標準設定を上書きしない。`built`等のproject名はテストの所属を表し、取得元buildを厳密に限定するものではない。例えば通常配布テストも保存key隔離のためdebug originへ移動し、`settings`には独立buildやHMRもある。
+承認資料のraw比較は人が評価する診断であり、既存goldenとの正式VRT合否やWCAG適合とは区別する。UI変更時に必要な画像レビューは[UI開発の必須ゲート](ui-asset-production.md#ui開発の必須ゲート)を満たす。通常CIにはこの診断と専用のPillow導入を含めず、撮影後にPython／Pillow環境で `npm run review:party` を明示実行する。既定で28枚の原画・実画面・overlay／差分・領域PNGと4状態のJSONを `test-results/approved-comparison/` へ生成する。数値だけが必要な診断では `npm run review:party -- --metrics-only` を使える。全画素・注記領域・診断領域の差分、寸法、hashと診断コードは保持する。
 
-待機は対象の完了条件を再試行付きassertionやイベントで待つ。準備完了と無関係なボタン、固定sleep、操作間のcooldownを同期条件にしない。表示時間はPlaywright Clockで制御し、実ネットワークの保留は解放可能なgateを使う。リサイズは最終ステージ寸法と札／マーカーの位置関係を同時に確認し、途中の寸法を成功にしない。画像不一致をsleep、許容差増加、無審査のbaseline更新で隠さない。
+コンテナ内では対応する `:inside` scriptを使う。`test:browser`／`test:all` はcheckが作った通常配布を共用し、素材・型の前処理を後続buildで反復しない。単独の `build`／`build:debug`／`build:views` は前処理を含む。Vitestのfile並列設定は変更しない。check・必要build・Native・終了時集計の工程順を保ち、gameのNativeだけ共有entryで既定 `--workers=2` を渡す。Playwrightのfile単位の標準配分を使い、gameへ `fullyParallel` は追加しない。`test:editor`／`test:all`の既定はconfigの1workerを保持する。`npm run test:browser -- --workers=1` は後続CLI引数として優先され、直列条件を再現できる。
 
-CIを直列実行して5分未満にすることを目指すが、超過だけをPR却下やtimeoutの理由にしない。品質を先に担保し、低コスト層への移動、重複除去、時計制御、明示実行の範囲を検討する。同じ保証で目標へ収まらない場合は、実測と残る保証をIssueへ示し、次の最適化で相談する。同じ仕様保証を欠く削除やassertionの弱化で時間を合わせない。実測と受入条件は [性能改善Issue #102](https://github.com/karin0624/endfield_rpg/issues/102) へ記録する。診断への引継ぎでは工程別・ケース別の時間とログを保全し、件数や構造の固定ではなく同じ仕様保証を実証できる再編を検討する。
+2workersは準備・再import／draw・手動診断の重複を整理した後に採用した。並行するcaseはそれぞれcontext／pageと出力先を持ち、coverageは全worker終了後に一度集計する。固定sourceの比較では全品質成功・起動〜shutdown287.611秒だったが、5分までの余裕は12.389秒に限られ、19/22caseの時間は増えた。共有cgroupのCPU／memory／throttle観測はgameの専有消費やGPU elapsedではない。これを安定したCI時間のSLA、直列で5分以内が不可能という証明、Actions runner上の実測と扱わない。直列272.004／289.151／335.542秒等の結果も[検証記録](testing/change-evidence.md)に保持する。
 
-録画・承認画像とのoverlayは `playwright.evidence.config.ts` 等のレビュー資料であり、品質ケースのskipとして混ぜない。失敗時の画像・trace・JSON、coverageのHTML/LCOVをartifactへ保存する。基準画像の更新は差分理由と実画像をレビューし、自動生成したから正しいとは扱わない。
+画像比較を持たないrenderer／editor-resourcesは既存DPR検証と同じ800×900 viewportを使う。実GLB・PNG・PBR・shaderを準備して実drawを行い、viewportを変えてもcanvasの16:9比率とカメラ構図は保つ。DPR1／3と800→640のresize、資源生成・warm切替・遅着／失敗・HMR・退出時0の保証を維持する。VRTのviewport・DPR・基準画像・許容差をこの費用整理で変えない。
 
-## Coverageと差分レビュー
+通常 `dist/` の初期タイトル、debug `dist-debug/` の初期戦闘を実際に描く。attack／healのFXは同じrendererの実地形を保持し、実コアから別々の直接snapshot・BattleScene・UIを生成して既存6画像を比較する。editorの初期2対2はconstructorの準備済み構図を使い、人数変更とresizeだけを再描画する。任意の画面状態は標準Viteの[multi-page build](https://vite.dev/guide/build.html#multi-page-app)で `dist-views/` へ生成する。同じ標準minifierを使い、通常配布へfixtureを混入しない。3出力は異なる実入口の検証であり、coverage専用の解析buildではない。通常4173、debug4175、直接view4174。viewの実 `BASE_URL=/rpg/` で素材を取得し、非root専用buildやURL書換えを重ねない。
 
-Vitest 5の標準 `@vitest/coverage-v8` で `src/**/*.ts` と `scripts/*.{ts,mjs}` をincludeし、未読込ファイルも分母へ含める。`coverage/unit/` を責務に照らして確認する。率を上げるだけのテストは追加しない。
+開発エディター・標準構図・HMR変更時は `tests/editor/` も必要になる。低頻度の詳細操作は純粋モデルで、構図と会話の見た目は必要時VRTで担う。単独control構図は条件ごとに独立caseとfresh rendererを生成し、default更新後の次BattleSceneへの設定引継ぎも確認する。editor-viewsの各caseは独立pageを持ち、Playwrightの標準 `fullyParallel` でcase単位に割り当てられる。worker数が1なら直列に実行する。同じsceneの内部／preview更新では既存の画面状態とviewを保持し、準備完了や初期選択をやり直さない。四隅の構図VRTは最初だけrendererを生成し、次の構図は同じ地面へ設定を適用して次BattleSceneとUIを生成する。4枚の同じ基準画像を保ち、共通地形の再importとshader準備を反復しない。初期設定をconstructorへ渡す保証は独立した5つの単独control構図に残す。任意四隅・内部／previewは必要時、本編のPC／mobile・既知素材と材質fallbackは既定に残す。通常結果へskipとして混ぜない。
 
-ブラウザはPlaywright native V8とMonocartを使い、自前のsrc TSをsourcemapで正規化する。全srcの未読込も含め、vendor・テスト・CSSを混ぜない。`coverage/browser/{built,debug,ui,settings}/` はprojectごとの実行由来のレポートであり、同じ分母を平均・合算したり、unit率と統合したりしない。通常配布と同じminification・tree shakingのbuildを`dist/`・`dist-debug/`へ一度生成し、hidden sourcemapだけを付加する。共有fixtureが実行中のV8データへ隣接する外部mapを渡す。fixture／エディターのdevソースはViteのinline mapを使う。専用の非minify解析buildは作らない。配布・操作・VRTの合否とcoverageは同じ実行から得る。全srcの未読込ファイルは分母から除外しない。minification後のV8データを再mappingするため、counterや率は旧非minify解析buildと同じになるとは限らない。旧レポートとの率の単純比較を品質の判定に使わない。
+## Coverageと実行漏れ
 
-ブラウザの分岐指標は生成JSから元TSへ対応づけられた範囲を表し、元TSの全分岐分母を保証しない。[Monocart 2.13の変換処理](https://github.com/cenfun/monocart-coverage-reports/blob/v2.13.0/lib/converter/converter.js#L620-L672)はmapping不能な分岐群を除く。`all`は未収集ファイルを追加するが、読込済みTSのtree shakingで削除された部分や未mapping分岐を補完しない。今回の69src集合の一致はsource欠落の確認であり、全分岐維持の証明ではない。
+Vitest 5の標準 `@vitest/coverage-v8` で `src/**/*.ts` と `scripts/*.{ts,mjs}` をincludeし、未読込も分母へ含める。ゲームとpresentationは行97・文95・関数100・分岐93の閾値を適用する。率のために来ない入力・不可能状態・冗長防御を作らない。
 
-CIはgit上の品質テストファイル、runnerの `--list`、実JSON結果を照合し、空／未発見ファイル、重複名、未実行、skip/todo/only、失敗・retry・期待失敗を拒否する。Vitestの標準Reporter APIで個別retryと期待失敗も確認する。全件ブラウザ実行は共有fixtureを必須にし、追加context/pageや遷移前回収漏れ、map欠落・不正、ケースごとの収集欠落を拒否する。手書きの仕様ID・テストID台帳や独自runnerは増やさない。
+ブラウザは同じ必要実行へPlaywright native V8を付随させ、Monocartで自前srcへmappingする。buildの[hidden sourcemap](https://vite.dev/config/build-options.html#build-sourcemap)は実行JSへ注釈を加えない。共有fixtureが各chunkの隣接mapを渡す。実HMRのdev sourceだけはinline mapを使う。全srcの未読込を0-hitとして残し、vendor・テスト・CSSを混ぜない。`coverage/browser/<実project名>/` は由来別のreportであり、同じ分母を合算・平均したりunit率へ統合したりしない。
 
-自動検査は登録漏れや未実行を検出するが、assertionの意味や自然言語仕様の完全性は証明しない。PRでは次を確認する。
+素材照合は実GLB bytesのNative WebCrypto、利用不能／digest拒否時の未照合結果をI/O境界で検証する。未照合から元材質を選ぶ判断は純粋モデルで、既知／未検証環境と同パス別bytesの実材質はPC／mobileのNative VRTで確認する。同じ元材質画像をI/O失敗分岐ごとに再描画しない。warm資源はfull／smallそれぞれの実描画後のBuffer／Texture／Program数を記録し、再度small→fullへ切り替えた両状態の不増加と退出時0を確認する。
 
-- 変更する仕様参照、公開入力、期待結果、具体的なテスト名とassertion、担当する保証責務を示す。
-- テストが実際に通す入力経路と、観測結果が受入条件を満たす根拠を読む。実装による制限が通常操作を損なわないことを確認する。
-- 修正前や妥当な一時的破壊で回帰テストが失敗することを確認し、復元後結果を記録する。全テストへ機械的な変異試験を足すという意味ではない。
-- 既存仕様の不足・未監査・矛盾が判明したら明記する。将来未実装を混ぜず、目視やCI成功で不足を消さない。
-- 正確な最終headとbaseの統合commitで全既定project、実行JSON、coverage、VRT差分を確認する。基準画像の承認とテスト成功は別に確認する。
+生成JSから対応づけられた分岐の指標であり、元TSの全分岐分母を保証しない。[Monocart 2.13](https://github.com/cenfun/monocart-coverage-reports/blob/v2.13.0/lib/converter/converter.js#L620-L672)はmapping不能な分岐群を除く。`all`は未収集ファイルを追加するが、読込済みTSのtree shaking削除分・未mapping分岐は補完しない。source集合一致は欠落確認であり、全分岐維持の証明ではない。
 
-mainの保護・required checksが未設定のため、CIを実装しただけでマージを強制的に止めたとは報告しない。最終チェックと承認は [マージ実施側の確認](testing/review-controls.md) が担う。
+git上の全品質spec、runnerの実collection、今回の実JSONを照合する。Playwright discoveryは実行引数によるfilterを掛けずに取得する。Vitestは公開Reporterの `onTestModuleCollected` で、実行前の全ケースをprimitiveなfile／fullNameへ記録する。実CLIのname filterで未実行になるケースも残し、発見用の別起動と全test moduleの再importを省く。既定はeditorだけ明示scope除外、editor単独はそのscope、allは全specを照合する。未知のディレクトリへ置いた品質specも未発見なら失敗する。ファイル解決はnative reportの `config.rootDir`、必須projectとcoverageのproject集合は実configから導く。手書きの仕様ID／case台帳は作らない。
+
+空／未発見ファイル、重複名、未実行、skip/todo/only、失敗・retry・期待失敗・global errorを拒否する。実CLI filterやlist-onlyに過去JSONを流用して成功としない。共有coverage fixtureを必須にし、追加context／page・遷移前回収漏れ・map欠落／不正・各caseの収集欠落を拒否する。[Playwright coverage](https://playwright.dev/docs/api/class-coverage)は `resetOnNavigation:false` でも旧documentの保持を保証しないため、必要なdocument移動前にcheckpointを置く。
+
+## 外観と提出前検証
+
+[Playwright画像比較](https://playwright.dev/docs/test-snapshots)の固定環境、既存baselineのpath／bytes／許容差を保つ。画像不一致をsleep・許容差増加・無審査baseline生成で隠さない。必要な字体・画像decode・pointer／keyboard modality・viewport・scrollを撮影前に揃える。レビュー資料の撮影やoverlayはVRT成功を代替せず、旧実行参考画像を新たな承認済みgoldenと扱わない。
+
+実装中は必要な短い検証で原因と費用を確認する。提出前はsourceを固定し、check・必要な全直接VRT・資源検証・editorをローカルで完走する。代表数件だけで全件をCIへ委ねない。source／LFS実体／CSS・素材・goldenの前後一致、正確なhead／tree、開始・終了・shutdown、実runnerのworker設定、層別時間、failure／retry別記を残す。GitHub権限・required checks・Actions固有のrunner条件等、ローカルで不可能な条件だけを理由付き例外とする。
+
+[#102](https://github.com/karin0624/endfield_rpg/issues/102)では、品質維持したゲーム本体CI対象（`npm run test:browser`）のローカル全工程が起動から終了まで5分以内、または同品質で5分以内にできない明確な根拠が成立することを公開条件とする。直列側の費用整理を先に検討し、ユーザー確認を経てgameの既定2workersを採用する。設定画面の`editor-views`／`editor-resources`はこの5分判定へ含めず、`npm run test:editor`で明示的に別実行する。`test:all`は両scopeを必要時に検証するコマンドであり、5分の判定対象ではない。公開・マージはユーザー判断に従う。部分成功、実描画が多い事実、未測定の推測を不可避の根拠・課題解決としない。
+
+実runner固有のreport生成・古いJSONの再利用拒否・list-onlyは実CLIで検証する。未登録ファイル、部分結果、coverage欠落はその実reportを入力として実行照合を検証し、同じfixtureを再実行して準備を重複させない。ケース別coverage annotationには回収のwall msを含め、ブラウザcase全体や終了時の集計費用と区別する。共有fixtureは実初期viewport／DPR、標準CDPのGPU deviceと共有page fixture内のprocess CPU累積値も記録する。CPU累積値は全threadの消費量であり、GPU elapsedや排他的なcase CPU時間と扱わない。
+
+自動検査は自然言語仕様の完全性やassertionの意味を証明しない。差分レビューでは、変更対象の公開入力・独立した期待結果・担当層・旧保証の移行先・未確認事項を具体的に読む。実装と全必要ローカル検証を終えてからまとめて提出する。今回の最終独立レビューはPR後に手配するfresh reviewerが行い、実装中のsource確認・部分検証をその承認と呼ばない。main保護と最終承認の責任は[別表](testing/review-controls.md)を参照する。

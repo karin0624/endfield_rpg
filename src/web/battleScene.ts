@@ -19,9 +19,21 @@ import { Scene } from "@babylonjs/core/scene";
 import "@babylonjs/loaders/glTF/2.0/glTFLoader";
 import { initialBattleCombatants } from "../content/initialBattle";
 import type { BattleCombatantDefinition } from "../game/battle";
-import { type BattleActorLayout, createBattleLayout, getFormationPositions } from "./battleLayout";
-import type { BattleSettings } from "./battleSettings";
-import { canCullGround, hasGroundCullingProfile } from "./groundCulling";
+import {
+  type BattleActorLayout,
+  type BattleActorPlacement,
+  type BattleEnvironment,
+  createBattleLayout,
+  type GroundingSample,
+  projectActorPlacements,
+} from "../presentation/battleLayout";
+import { type BattleActorFrame, projectInitialBattleActors } from "../presentation/battleProjection";
+
+export type { BattleEnvironment } from "../presentation/battleLayout";
+
+import type { BattleSettings } from "../presentation/battleSettings";
+import { canCullGround, hasGroundCullingProfile } from "../presentation/groundCulling";
+import { assetFingerprint } from "./assetFingerprint";
 
 const assetUrl = (path: string) => `${import.meta.env.BASE_URL}assets/${path}`;
 const CONTACT_OFFSET = 0.01;
@@ -29,29 +41,15 @@ const SHADOW_OFFSET = 0.005;
 const GROUND_RAY_ORIGIN_Y = 100;
 const GROUND_RAY_LENGTH = 300;
 
-interface PreviewCounts {
-  ally: number;
-  enemy: number;
-}
-
 interface SceneActor {
   readonly layout: BattleActorLayout;
-  readonly order: number;
   readonly anchor: TransformNode;
   readonly plane: Mesh;
   readonly shadow: Mesh;
   readonly material: StandardMaterial;
   readonly texture: Texture;
   readonly shadowMaterial: StandardMaterial;
-  readonly basePlaneX: number;
-  readonly basePlaneY: number;
-  alive: boolean;
-  effect?: {
-    readonly type: "attack" | "hit" | "defeat";
-    readonly startedAt: number;
-    readonly durationMs: number;
-    readonly onComplete?: () => void;
-  };
+  paintedFrame?: BattleActorFrame;
   screenRect?: ScreenRect;
   groundY: number | undefined;
 }
@@ -68,30 +66,18 @@ export interface ScreenRect {
 
 export interface BattleScene {
   readonly ready: Promise<void>;
-  applySettings(next: BattleSettings): void;
-  previewSettings(next: BattleSettings): boolean;
-  setPreviewCounts(next: PreviewCounts): void;
+  applySettings(next: BattleSettings, placements?: readonly BattleActorPlacement[]): void;
+  previewSettings(next: BattleSettings, placements?: readonly BattleActorPlacement[]): boolean;
   getCombatantScreenRect(id: string): ScreenRect | undefined;
-  getFrontmostEnemyId(candidateIds: readonly string[]): string | undefined;
+  getCombatantDepths(): readonly { readonly id: string; readonly depth: number }[];
   refreshCombatantScreenPositions(): void;
-  playCombatantEffect(
-    id: string,
-    type: "attack" | "hit" | "defeat",
-    animate?: boolean,
-    onComplete?: () => void,
-    durationMs?: number,
-  ): void;
-  resetCombatantPresentation(): void;
-  getPlacementWarnings(): string[];
+  /** Apply a confirmed display sample and paint it; no rules or effect clocks are run here. */
+  paintBattleFrame(frame: readonly BattleActorFrame[]): void;
+  getGroundingMeasurements(): readonly GroundingSample[];
   dispose(): void;
 }
 
 /** Asset paths select an environment; node/floor selection belongs to the caller. */
-export interface BattleEnvironment {
-  readonly ground: string;
-  readonly background: string;
-}
-
 export const initialBattleEnvironment: BattleEnvironment = {
   ground: "ground/ground1.glb",
   background: "backgrounds/landscape1.png",
@@ -103,6 +89,8 @@ export function createBattleRenderer(canvas: HTMLCanvasElement, initialSettings:
   // 高DPIの端末でも地面の描画負荷を際限なく増やさない。
   engine.setHardwareScalingLevel(1 / Math.min(window.devicePixelRatio, 1.5));
   const scene = new Scene(engine);
+  // glTF PBR materials share a scene-owned BRDF texture whose RGBD decode is asynchronous.
+  scene.addIsReadyCheck({ isReady: () => !scene.environmentBRDFTexture || scene.environmentBRDFTexture.isReady() });
   scene.useRightHandedSystem = true;
   scene.clearColor = new Color4(0.19, 0.29, 0.38, 1);
   const camera = new FreeCamera("battle-camera", Vector3.Zero(), scene);
@@ -118,7 +106,11 @@ export function createBattleRenderer(canvas: HTMLCanvasElement, initialSettings:
   const settings = { current: initialSettings };
   let environment: { definition: BattleEnvironment; resources: ReturnType<typeof createEnvironment> } | undefined;
   return {
-    beginBattle(combatants: readonly BattleCombatantDefinition[], definition = initialBattleEnvironment): BattleScene {
+    beginBattle(
+      combatants: readonly BattleCombatantDefinition[],
+      definition = initialBattleEnvironment,
+      initialFrame = projectInitialBattleActors(combatants),
+    ): BattleScene {
       if (disposed) throw new Error("破棄済みの戦闘描画は再利用できません");
       if (
         environment?.definition.ground !== definition.ground ||
@@ -131,15 +123,21 @@ export function createBattleRenderer(canvas: HTMLCanvasElement, initialSettings:
           resources: createEnvironment(canvas, engine, scene, camera, settings, selected),
         };
       }
-      return environment.resources.beginBattle(combatants);
+      return environment.resources.beginBattle(combatants, initialFrame);
     },
     dispose() {
       if (disposed) return;
       disposed = true;
       environment?.resources.dispose();
       environment = undefined;
-      scene.dispose();
-      engine.dispose();
+      const release = () => {
+        scene.dispose();
+        engine.dispose();
+      };
+      // Close input and rendering now; already-started imports and BRDF decode still belong to this engine.
+      // This readiness boundary belongs only to final renderer disposal, not to the next battle's ready().
+      if (scene.isReady(false)) release();
+      else void scene.whenReadyAsync().then(release);
     },
   };
 }
@@ -204,54 +202,48 @@ function createEnvironment(
   };
 
   const loadGround = async () => {
-    if (!hasGroundCullingProfile(definition)) return LoadAssetContainerAsync(assetUrl(definition.ground), scene);
     // Verify the same bytes imported by Babylon; do not issue another model request.
     const url = new URL(assetUrl(definition.ground), location.href);
     const response = await fetch(url);
     if (!response.ok) throw new Error(`モデルを読み込めません: ${definition.ground} (${response.status})`);
     const bytes = await response.arrayBuffer();
     if (environmentDisposed || scene.isDisposed) return undefined;
-    const fingerprint = globalThis.crypto?.subtle
-      ?.digest("SHA-256", bytes)
-      .then((digest) => Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join(""))
-      .catch(() => undefined);
-    const [assets, digest] = await Promise.all([
-      LoadAssetContainerAsync(new Uint8Array(bytes), scene, {
-        rootUrl: new URL(".", url).href,
-        pluginExtension: ".glb",
-        name: "ground1.glb",
-      }),
-      fingerprint,
-    ]);
+    const fingerprint = hasGroundCullingProfile(definition) ? assetFingerprint(bytes) : undefined;
+    // LoadAssetContainerAsync registers its own pending data with the scene until import completes.
+    const preparation = LoadAssetContainerAsync(new Uint8Array(bytes), scene, {
+      rootUrl: new URL(".", url).href,
+      pluginExtension: ".glb",
+      name: "ground1.glb",
+    }).then((assets) => {
+      // Acquire native handles before waiting for independent identity metadata.
+      if (environmentDisposed) {
+        assets.dispose();
+        return undefined;
+      }
+      groundAssets = assets;
+      return assets;
+    });
+    const [assets, digest] = await Promise.all([preparation, fingerprint]);
     groundFingerprint = digest;
     return assets;
   };
 
   const loadEnvironment = () => {
     environmentReady ??= (async () => {
-      const preparation = [
-        loadGround().then((assets) => {
-          if (!assets) return;
-          if (environmentDisposed) {
-            assets.dispose();
-            return;
-          }
-          groundAssets = assets;
-          assets.addAllToScene();
-          for (const material of assets.materials) groundMaterialFaces.set(material, material.backFaceCulling);
-          for (const mesh of assets.meshes) {
-            if (!mesh.parent) mesh.parent = groundRoot;
-            mesh.isPickable = true;
-            groundMeshes.push(mesh);
-          }
-        }),
-        loadTexture(definition.background),
-      ] as const;
+      const preparation = [loadGround(), loadTexture(definition.background)] as const;
       // A failed image must not report completion while a model import can still allocate GPU resources.
       const results = await Promise.allSettled(preparation);
       for (const result of results) if (result.status === "rejected") throw result.reason;
       const backgroundResult = results[1];
       if (backgroundResult.status !== "fulfilled" || environmentDisposed) return;
+      // Own prepared materials before attaching meshes; failed environments never enter the rendered scene.
+      groundAssets?.addAllToScene();
+      for (const material of groundAssets?.materials ?? []) groundMaterialFaces.set(material, material.backFaceCulling);
+      for (const mesh of groundAssets?.meshes ?? []) {
+        if (!mesh.parent) mesh.parent = groundRoot;
+        mesh.isPickable = true;
+        groundMeshes.push(mesh);
+      }
       const background = backgroundResult.value;
       backdrop = CreatePlane(
         "backdrop",
@@ -263,22 +255,18 @@ function createEnvironment(
     return environmentReady;
   };
 
-  function beginBattle(combatants: readonly BattleCombatantDefinition[]): BattleScene {
+  function beginBattle(
+    combatants: readonly BattleCombatantDefinition[],
+    initialFrame: readonly BattleActorFrame[],
+  ): BattleScene {
     if (environmentDisposed) throw new Error("破棄済みの戦闘描画は再利用できません");
     currentBattle?.dispose();
     const layout = createBattleLayout(combatants);
     let needsRender = true;
     let settings = sharedSettings.current;
     const actors: SceneActor[] = [];
-    const actorCounts = layout.actors.reduce<PreviewCounts>(
-      (counts, actor) => {
-        counts[actor.team] += 1;
-        return counts;
-      },
-      { ally: 0, enemy: 0 },
-    );
-    let previewCounts: PreviewCounts = { ...actorCounts };
-    let placementWarnings: string[] = [];
+    let placements = projectActorPlacements(layout.actors, settings);
+    let groundingMeasurements: GroundingSample[] = [];
     let groundedPlacement = "";
 
     const findActor = (id: string) => actors.find((actor) => actor.layout.id === id);
@@ -362,53 +350,23 @@ function createEnvironment(
       return height;
     };
 
-    const updateActorVisibility = () => {
-      for (const actor of actors) {
-        const visible = actor.order < previewCounts[actor.layout.team];
-        actor.anchor.setEnabled(visible);
-        actor.shadow.setEnabled(visible && actor.alive);
-      }
-    };
-
     const updateActorPositions = (updateGroundHeight: boolean) => {
-      if (updateGroundHeight) placementWarnings = [];
+      if (updateGroundHeight) groundingMeasurements = [];
       if (actors.length === 0) return;
       if (updateGroundHeight) {
         groundRoot.computeWorldMatrix(true);
         for (const mesh of groundMeshes) mesh.computeWorldMatrix(true);
       }
-      const validationPositions = {
-        ally: getFormationPositions(settings, "ally", actorCounts.ally),
-        enemy: getFormationPositions(settings, "enemy", actorCounts.enemy),
-      };
-      const previewPositions = {
-        ally: getFormationPositions(settings, "ally", previewCounts.ally),
-        enemy: getFormationPositions(settings, "enemy", previewCounts.enemy),
-      };
-
-      // 保存可否は固定編成の全配置枠で検査する。確認人数1のときの表示だけは
-      // 同じルールを1人へ再適用し、可視キャラが隊列の中心へ移るようにする。
       for (const actor of actors) {
-        const position = validationPositions[actor.layout.team][actor.order];
-        if (position === undefined) {
-          throw new Error(`隊列の配置枠が不足しています: ${actor.layout.id}`);
-        }
-        const validationX = position.x * settings.groundScale;
-        const validationZ = position.z * settings.groundScale;
-        const validationY = updateGroundHeight ? getGroundHeight(validationX, validationZ) : undefined;
-        if (updateGroundHeight && validationY === undefined) {
-          placementWarnings.push(`${actor.layout.id}の足元が地面の範囲外です。配置を調整してください。`);
-        }
-
-        const displayPosition =
-          actor.order < previewCounts[actor.layout.team] ? previewPositions[actor.layout.team][actor.order] : position;
-        if (displayPosition === undefined) {
-          throw new Error(`確認人数の配置枠が不足しています: ${actor.layout.id}`);
-        }
-        const worldX = displayPosition.x * settings.groundScale;
-        const worldZ = displayPosition.z * settings.groundScale;
+        const placement = placements.find(({ id }) => id === actor.layout.id) as BattleActorPlacement;
+        const validationY = updateGroundHeight
+          ? getGroundHeight(placement.validationX, placement.validationZ)
+          : undefined;
+        if (updateGroundHeight) groundingMeasurements.push({ id: actor.layout.id, groundY: validationY ?? null });
+        const worldX = placement.x;
+        const worldZ = placement.z;
         const groundY = updateGroundHeight
-          ? displayPosition === position
+          ? worldX === placement.validationX && worldZ === placement.validationZ
             ? validationY
             : getGroundHeight(worldX, worldZ)
           : actor.groundY;
@@ -426,19 +384,24 @@ function createEnvironment(
           actor.shadow.position.y = actor.groundY + SHADOW_OFFSET;
         }
       }
-      updateActorVisibility();
     };
 
     // 通常画面には操作を接続せず、保存済みの初期構図をそのまま使う。
-    const applySettings = (next: BattleSettings, updateGroundHeight = true) => {
+    const applySettings = (
+      next: BattleSettings,
+      updateGroundHeight = true,
+      nextPlacements = projectActorPlacements(layout.actors, next),
+    ) => {
       if (disposed) return;
       const nextPlacement = placementKey(next);
       if (nextPlacement !== cachedPlacement) {
         groundHeightCache.clear();
         cachedPlacement = nextPlacement;
       }
-      const displayPlacementChanged = nextPlacement !== placementKey(settings);
-      const groundingRequired = nextPlacement !== groundedPlacement;
+      const positionsChanged = JSON.stringify(placements) !== JSON.stringify(nextPlacements);
+      placements = nextPlacements;
+      const displayPlacementChanged = nextPlacement !== placementKey(settings) || positionsChanged;
+      const groundingRequired = nextPlacement !== groundedPlacement || positionsChanged;
       settings = next;
       sharedSettings.current = next;
       applyCameraAndBackdrop(next);
@@ -472,13 +435,15 @@ function createEnvironment(
       const [, ...portraits] = loaded;
 
       layout.actors.forEach((actor, index) => {
-        const order = actors.filter((candidate) => candidate.layout.team === actor.team).length;
+        const sampled = initialFrame.find((frame) => frame.id === actor.id) as BattleActorFrame;
         const anchor = new TransformNode(`${actor.id}-feet`, scene);
+        anchor.setEnabled(sampled.visible);
         const height = actor.height;
         const width = (height * actor.pixels[0]) / actor.pixels[1];
         const plane = CreatePlane(actor.id, { width, height }, scene);
         plane.parent = anchor;
-        plane.setEnabled(combatants[index].hp > 0);
+        plane.setEnabled(sampled.visible);
+        plane.visibility = sampled.opacity;
         // 画像の下端ではなく、実際の靴底・接地位置を原点にする。
         plane.position.x = width * (0.5 - actor.foot[0] / actor.pixels[0]);
         plane.position.y = height * (actor.foot[1] / actor.pixels[1] - 0.5);
@@ -491,6 +456,7 @@ function createEnvironment(
           portrait.uOffset = 1;
         }
         const portraitMaterial = imageMaterial(`${actor.id}-portrait`, portrait, true);
+        portraitMaterial.emissiveColor.set(...sampled.emissive);
         plane.material = portraitMaterial;
 
         const shadow = CreateDisc(`${actor.id}-shadow`, { radius: 1, tessellation: 48 }, scene);
@@ -502,19 +468,17 @@ function createEnvironment(
         shadowMaterial.alpha = 0.25;
         shadowMaterial.backFaceCulling = false;
         shadow.material = shadowMaterial;
+        shadow.setEnabled(sampled.visible);
 
         actors.push({
           layout: actor,
-          order,
           anchor,
           plane,
           shadow,
           material: portraitMaterial,
           texture: portrait,
           shadowMaterial,
-          basePlaneX: plane.position.x,
-          basePlaneY: plane.position.y,
-          alive: combatants[index].hp > 0,
+          paintedFrame: sampled,
           groundY: undefined,
         });
       });
@@ -551,45 +515,10 @@ function createEnvironment(
     })();
 
     function renderBattle() {
-      if (disposed) return;
-      const now = performance.now();
-      let hasActiveEffects = false;
-      const completedCallbacks: (() => void)[] = [];
-      for (const actor of actors) {
-        const effect = actor.effect;
-        if (effect === undefined) continue;
-        const progress = Math.min(1, (now - effect.startedAt) / effect.durationMs);
-        const pulse = Math.sin(Math.PI * progress);
-        if (effect.type === "attack") {
-          actor.material.emissiveColor = Color3.Lerp(Color3.White(), new Color3(1, 0.72, 0.28), pulse * 0.5);
-        } else if (effect.type === "hit") {
-          actor.material.emissiveColor = Color3.Lerp(Color3.White(), new Color3(1, 0.42, 0.32), pulse * 0.8);
-        } else {
-          actor.plane.visibility = 1 - progress;
-        }
-        if (progress >= 1) {
-          actor.effect = undefined;
-          actor.plane.position.x = actor.basePlaneX;
-          actor.plane.position.y = actor.basePlaneY;
-          actor.plane.scaling.set(1, 1, 1);
-          actor.plane.visibility = actor.alive ? 1 : 0;
-          actor.material.emissiveColor = Color3.White();
-          if (effect.type === "defeat") {
-            actor.plane.setEnabled(false);
-            actor.shadow.setEnabled(false);
-            actor.screenRect = undefined;
-          }
-          if (effect.onComplete !== undefined) completedCallbacks.push(effect.onComplete);
-          needsRender = true;
-        } else {
-          hasActiveEffects = true;
-        }
-      }
-      if (!needsRender && !hasActiveEffects) return;
+      if (disposed || !needsRender) return;
       scene.render();
       updateCombatantScreenPositions();
       needsRender = false;
-      for (const callback of completedCallbacks) callback();
     }
 
     const resizeEngine = () => {
@@ -606,28 +535,15 @@ function createEnvironment(
     resizeObserver.observe(canvas);
     const battle: BattleScene = {
       ready,
-      applySettings,
-      previewSettings(next: BattleSettings) {
-        if (disposed) return false;
-        const groundingRequired = placementKey(next) !== groundedPlacement;
-        applySettings(next, false);
-        return groundingRequired;
+      applySettings(next, nextPlacements) {
+        applySettings(next, true, nextPlacements);
       },
-      setPreviewCounts(next: PreviewCounts) {
-        if (disposed) return;
-        if (
-          !Number.isInteger(next.ally) ||
-          next.ally < 1 ||
-          next.ally > actorCounts.ally ||
-          !Number.isInteger(next.enemy) ||
-          next.enemy < 1 ||
-          next.enemy > actorCounts.enemy
-        ) {
-          throw new RangeError("確認人数は1人以上で固定編成の人数以下にしてください");
-        }
-        previewCounts = { ...next };
-        updateActorPositions(true);
-        needsRender = true;
+      previewSettings(next, nextPlacements = projectActorPlacements(layout.actors, next)) {
+        if (disposed) return false;
+        const pending =
+          placementKey(next) !== groundedPlacement || JSON.stringify(placements) !== JSON.stringify(nextPlacements);
+        applySettings(next, false, nextPlacements);
+        return pending;
       },
       /** キャッシュした全戦闘者の画面範囲。味方への演出も実投影を使う。 */
       getCombatantScreenRect(id: string): ScreenRect | undefined {
@@ -635,24 +551,16 @@ function createEnvironment(
         if (actor === undefined) return undefined;
         return actor.screenRect;
       },
-      /** カメラの前方へ最も近い敵を、現在の3D配置から選ぶ。 */
-      getFrontmostEnemyId(candidateIds: readonly string[]): string | undefined {
-        if (disposed || candidateIds.length === 0) return undefined;
+      getCombatantDepths() {
         camera.computeWorldMatrix();
-        const cameraRay = camera.getForwardRay();
-        let frontmostId: string | undefined;
-        let frontmostDepth = Number.POSITIVE_INFINITY;
-        for (const id of candidateIds) {
-          const actor = findActor(id);
-          if (actor === undefined || actor.layout.team !== "enemy") continue;
+        const ray = camera.getForwardRay();
+        return actors.map((actor) => {
           actor.anchor.computeWorldMatrix(true);
-          const depth = Vector3.Dot(actor.anchor.getAbsolutePosition().subtract(cameraRay.origin), cameraRay.direction);
-          if (depth >= 0 && depth < frontmostDepth) {
-            frontmostId = id;
-            frontmostDepth = depth;
-          }
-        }
-        return frontmostId;
+          return {
+            id: actor.layout.id,
+            depth: Vector3.Dot(actor.anchor.getAbsolutePosition().subtract(ray.origin), ray.direction),
+          };
+        });
       },
       /** 現在の寸法・変換から投影を更新する。実寸法の変更だけ次の描画へまとめる。 */
       refreshCombatantScreenPositions() {
@@ -661,60 +569,34 @@ function createEnvironment(
         scene.updateTransformMatrix();
         updateCombatantScreenPositions();
       },
-      playCombatantEffect(
-        id: string,
-        type: "attack" | "hit" | "defeat",
-        animate = true,
-        onComplete?: () => void,
-        durationMs = 240,
-      ) {
-        const actor = findActor(id);
-        if (actor === undefined) return;
-        if (type === "defeat") {
-          actor.alive = false;
-          actor.plane.isPickable = false;
-        }
-        if (!animate) {
-          actor.effect = undefined;
-          actor.plane.position.x = actor.basePlaneX;
-          actor.plane.position.y = actor.basePlaneY;
-          actor.plane.scaling.set(1, 1, 1);
-          actor.plane.visibility = actor.alive ? 1 : 0;
-          actor.material.emissiveColor = Color3.White();
-          if (type === "defeat") {
-            actor.plane.setEnabled(false);
-            actor.shadow.setEnabled(false);
-            actor.screenRect = undefined;
-          }
-          needsRender = true;
-          onComplete?.();
-          return;
-        }
-        actor.effect = { type, startedAt: performance.now(), onComplete, durationMs };
-        needsRender = true;
-      },
-      resetCombatantPresentation() {
+      paintBattleFrame(frame) {
         if (disposed) return;
-        for (const actor of actors) {
-          actor.alive = true;
-          actor.effect = undefined;
-          actor.plane.setEnabled(true);
-          actor.shadow.setEnabled(true);
-          actor.plane.isPickable = false;
-          actor.plane.position.x = actor.basePlaneX;
-          actor.plane.position.y = actor.basePlaneY;
-          actor.plane.scaling.set(1, 1, 1);
-          actor.plane.visibility = 1;
-          actor.material.emissiveColor = Color3.White();
+        for (const sampled of frame) {
+          const actor = findActor(sampled.id);
+          if (!actor) continue;
+          const previous = actor.paintedFrame;
+          if (
+            previous?.visible === sampled.visible &&
+            previous.opacity === sampled.opacity &&
+            previous.emissive.every((value, index) => value === sampled.emissive[index])
+          )
+            continue;
+          actor.paintedFrame = sampled;
+          actor.anchor.setEnabled(sampled.visible);
+          actor.plane.setEnabled(sampled.visible);
+          actor.shadow.setEnabled(sampled.visible);
+          actor.plane.visibility = sampled.opacity;
+          actor.material.emissiveColor.set(...sampled.emissive);
+          if (!sampled.visible) actor.screenRect = undefined;
+          needsRender = true;
         }
-        updateActorVisibility();
-        engine.resize();
+        if (!needsRender) return;
         scene.render();
         updateCombatantScreenPositions();
         needsRender = false;
       },
-      getPlacementWarnings() {
-        return [...placementWarnings];
+      getGroundingMeasurements() {
+        return groundingMeasurements;
       },
       dispose() {
         if (disposed) return;
@@ -726,7 +608,6 @@ function createEnvironment(
         resizeObserver.disconnect();
         engine.stopRenderLoop(renderBattle);
         for (const actor of actors) {
-          actor.effect = undefined;
           actor.anchor.dispose();
           actor.shadow.dispose();
           actor.material.dispose(false, false);
@@ -766,8 +647,9 @@ export function createBattleScene(
   canvas: HTMLCanvasElement,
   initialSettings: BattleSettings,
   combatants: readonly BattleCombatantDefinition[] = initialBattleCombatants,
+  initialFrame: readonly BattleActorFrame[] = projectInitialBattleActors(combatants),
 ): BattleScene {
   const renderer = createBattleRenderer(canvas, initialSettings);
-  const battle = renderer.beginBattle(combatants);
+  const battle = renderer.beginBattle(combatants, initialBattleEnvironment, initialFrame);
   return { ...battle, dispose: () => renderer.dispose() };
 }

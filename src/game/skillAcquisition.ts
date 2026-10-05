@@ -31,7 +31,8 @@ export interface SkillChoice {
  * The single retained offer belongs to its first entry, never a second queue.
  */
 export interface ExplorationSkills {
-  readonly explorationId: string;
+  /** The first completed town exploration grants XP once before return resets temporary growth. */
+  readonly townExperienceClaimed: boolean;
   readonly closed: boolean;
   readonly growth: ExplorationGrowth;
   readonly characters: readonly CharacterSkills[];
@@ -45,7 +46,6 @@ export type AcquisitionResult =
       readonly state: ExplorationSkills;
       readonly reason:
         | GrowthRejection
-        | "wrong-exploration"
         | "closed-exploration"
         | "pending-choice"
         | "wrong-choice"
@@ -69,12 +69,10 @@ function initialSkills(catalog: SkillCatalog, characterId: string): CharacterSki
 
 /** No product defaults: callers supply resolved initial skills and unlock tables. */
 export function createExplorationSkills(
-  explorationId: string,
   randomState: number,
   progression: ProgressionDefinition,
   catalog: SkillCatalog,
 ): ExplorationSkills {
-  if (!explorationId.trim()) throw new Error("探索IDが空です");
   if (!Number.isInteger(randomState) || randomState < 0 || randomState > 0xffffffff)
     throw new RangeError("乱数状態はuint32です");
   const growth = createExplorationGrowth(progression);
@@ -89,7 +87,7 @@ export function createExplorationSkills(
       throw new Error("保証解禁レベルは初期レベルより後です");
   }
   return {
-    explorationId,
+    townExperienceClaimed: false,
     closed: false,
     growth,
     characters: growth.characters.map(({ characterId }) => initialSkills(catalog, characterId)),
@@ -104,11 +102,6 @@ function reject(
 ): AcquisitionResult {
   return { accepted: false, state, reason };
 }
-function sessionRejection(state: ExplorationSkills, explorationId: string): AcquisitionResult | null {
-  if (explorationId !== state.explorationId) return reject(state, "wrong-exploration");
-  return state.closed ? reject(state, "closed-exploration") : null;
-}
-
 /** Generate once, only for the first right in definition character order, then level order.
  * Shortage consumes neither RNG nor the right. Repeated calls retain an existing offer.
  */
@@ -156,13 +149,11 @@ export function prepareSkillChoice(state: ExplorationSkills, catalog: SkillCatal
  */
 export function grantSkillExperience(
   state: ExplorationSkills,
-  explorationId: string,
   reward: ExperienceReward,
   progression: ProgressionDefinition,
   catalog: SkillCatalog,
 ): AcquisitionResult {
-  const invalid = sessionRejection(state, explorationId);
-  if (invalid) return invalid;
+  if (state.closed) return reject(state, "closed-exploration");
   if (state.growth.characters.some(({ pendingChoiceLevels }) => pendingChoiceLevels.length))
     return reject(state, "pending-choice");
   const growth = grantExperience(state.growth, reward, progression);
@@ -182,26 +173,15 @@ export function grantSkillExperience(
   return { accepted: true, state: prepareSkillChoice({ ...state, growth: growth.state, characters }, catalog) };
 }
 
-export function chooseSkill(
-  state: ExplorationSkills,
-  input: {
-    readonly explorationId: string;
-    readonly characterId: string;
-    readonly level: number;
-    readonly skillId: string;
-  },
-  catalog: SkillCatalog,
-): AcquisitionResult {
-  const invalid = sessionRejection(state, input.explorationId);
-  if (invalid) return invalid;
+export function chooseSkill(state: ExplorationSkills, skillId: string, catalog: SkillCatalog): AcquisitionResult {
+  if (state.closed) return reject(state, "closed-exploration");
   const choice = state.choice;
-  if (choice?.status !== "offered" || choice.characterId !== input.characterId || choice.level !== input.level)
-    return reject(state, "wrong-choice");
-  if (!choice.candidateIds.includes(input.skillId)) return reject(state, "candidate-not-offered");
-  const selected = skillById(catalog, input.skillId);
+  if (choice?.status !== "offered") return reject(state, "wrong-choice");
+  if (!choice.candidateIds.includes(skillId)) return reject(state, "candidate-not-offered");
+  const selected = skillById(catalog, skillId);
   const knownSelection = state.characters
-    .find(({ characterId }) => characterId === input.characterId)
-    ?.learned.find(({ skillId }) => skillId === input.skillId);
+    .find(({ characterId }) => characterId === choice.characterId)
+    ?.learned.find((entry) => entry.skillId === skillId);
   if (
     knownSelection &&
     (knownSelection.type !== "passive" ||
@@ -210,19 +190,19 @@ export function chooseSkill(
   )
     return reject(state, "ineligible-candidate");
   const characters = state.characters.map((character) => {
-    if (character.characterId !== input.characterId) return character;
-    const known = character.learned.find(({ skillId }) => skillId === input.skillId);
+    if (character.characterId !== choice.characterId) return character;
+    const known = character.learned.find((entry) => entry.skillId === skillId);
     const learned = known
       ? character.learned.map((entry) =>
-          entry.skillId === input.skillId && entry.type === "passive" ? { ...entry, rank: entry.rank + 1 } : entry,
+          entry.skillId === skillId && entry.type === "passive" ? { ...entry, rank: entry.rank + 1 } : entry,
         )
-      : [...character.learned, learn(catalog, input.skillId, "expedition", "choice")];
+      : [...character.learned, learn(catalog, skillId, "expedition", "choice")];
     return { ...character, learned };
   });
   const growth = {
     ...state.growth,
     characters: state.growth.characters.map((character) =>
-      character.characterId === input.characterId
+      character.characterId === choice.characterId
         ? { ...character, pendingChoiceLevels: character.pendingChoiceLevels.slice(1) }
         : character,
     ),
@@ -230,17 +210,13 @@ export function chooseSkill(
   return { accepted: true, state: prepareSkillChoice({ ...state, characters, growth, choice: null }, catalog) };
 }
 
-/** Closes this session; new exploration IDs must be unique at the caller boundary.
- * Keep RNG and reward receipts. This core owns no HP, symptoms, clocks or roster.
- */
+/** End temporary growth on return, keeping the confirmed RNG. */
 export function resetExplorationSkills(
   state: ExplorationSkills,
-  explorationId: string,
   progression: ProgressionDefinition,
   catalog: SkillCatalog,
 ): AcquisitionResult {
-  const invalid = sessionRejection(state, explorationId);
-  if (invalid) return invalid;
+  if (state.closed) return reject(state, "closed-exploration");
   const growth = resetCharacterGrowth(
     state.growth,
     state.characters.map(({ characterId }) => characterId),
