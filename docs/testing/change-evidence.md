@@ -108,6 +108,67 @@ GPU描画submeshを増やさずNative rayを分割する標準Mesh.clone／SubMe
 
 既定1workerは維持する。2workersの全品質285.429秒は同一マシンの標準並列比較であり、直列5分やActions複数runnerの性能の証明ではない。2shardは以前のdiscovery配分だけで実行／merge未測定、独立工程並列も未実測のまま。今回の2workers cgroup読取りは終了・container自動削除後になり、CPU／memory値を取得できなかった。前headの途中peak3.17GiBを今回の値に流用しない。直列は300秒を89.228秒超過し、同品質で直列5分が不可能という証明も未成立なので、#102の公開停止を継続する。
 
+## 代表ケースの時間軸と描画待ちの対照実験
+
+固定head `a04880c`、同じ標準minified build・実GLB・fixture・1workerで `only-ground-scale` 一件を調べた。品質ゲートの全体再実行ではなく、既存の初期画像とdefault更新後画像の2assertionを保った部分診断である。標準Reporterのstepを終了時に保存し、別の実行では初期化区間だけをCDP Tracing／ProfilerとResourceTimingで観測した。製品・通常テストへ常時計測や分岐を追加していない。
+
+計測traceを外した代表一回の、Native stepの相互に重ならない時間軸は次の通り。fixture/API/expectの子stepは各行の内数である。
+
+| test開始からの秒 | 区間 | wall秒 |
+| --- | --- | ---: |
+| 0.026～0.342 | Before Hooks（browser／context／page／coverage開始） | 0.316 |
+| 0.342～0.629 | 通常fixtureへのnavigation | 0.287 |
+| 0.629～4.514 | fresh create→start→ready、一つの通常API呼出し | 3.885 |
+| 4.515～8.628 | 初期承認画像の取得・安定待ち・比較 | 4.113 |
+| 8.628～10.222 | default適用→同じrendererの次scene→ready | 1.594 |
+| 10.224～12.523 | 次scene承認画像の取得・安定待ち・比較 | 2.299 |
+| 12.524～12.536 | ResourceTimingの終了時観測 | 0.012 |
+| 12.537～15.600 | After Hooks（coverage回収、page/context終了） | 3.063 |
+
+step和は15.569秒、開始から最後のhook終了まで15.600秒、和の外は0.031秒だった。回収annotationの2.700秒はAfter Hooksの内数で、再加算しない。stock `TestResult.duration` の15.333秒はtimeout slotのelapsed合計であり、全stepのwallと同一の時計区間ではない。installed Playwrightの算式を確認し、差を負のoverheadやGPU費用と解釈しない。起動／server終了まで含む全CLI wallとはさらに区別する。
+
+隔離コピーへPromise区間とBabylonの公開render／shader observableを加えた細分化では、初期GLBのResourceTimingは0.349～0.944秒（実転送58,790,696 bytes）、fetch応答待ち0.082秒、bodyのarrayBuffer待ち0.564秒、GLB import・mesh/material/texture準備0.691秒だった。actor準備0.013秒、初期ground設定1.632秒（4ray合計1.629秒を含む）、mesh/shader readiness待ち2.480秒、scene renderコマンド発行0.046秒を観測した。texture準備・HTTP・import・readinessには重なりがあり、純粋なGLB/image decodeやshader compilationへ分解できたとは扱わない。source観測付きコピーと通常sourceの条件差もあるため、この数値を上の一回のwallへ足し合わせない。
+
+通常sourceの標準Chromium traceでは、初期canvas Commitに `GLES2::ReadPixels` の3.418～3.698秒が含まれ、同時刻にGPUプロセスのWebGL command処理が進んでいた。`scene.render()` やdraw APIが返る時刻はこの完了時刻ではない。ReadPixelsは先行描画の待ちを含むので、純粋なreadback／PNG／shader／GPU経過時間とは呼ばない。backendはANGLE Vulkan SwiftShader、GPU timer extensionは利用不能で、GPU経過時間・利用率は未計測である。Profilerのsample weightや `(program)` もCPU消費・GPU時間の測定値ではない。
+
+同じsource・fixtureの計測あり／なしを比較した。各条件はfresh process/contextのcold一回で、分散は未評価。trace停止が先行canvas Commitの待ちを吸収するため、停止のwall全体を計測overheadとしない。
+
+| 条件 | 初期API＋trace停止＋初期画像比較の秒 | 次scene API＋画像比較の秒 |
+| --- | ---: | ---: |
+| 追加traceなし、precise coverageあり、通常trace off | 8.219 | 4.042 |
+| 追加traceあり、precise coverageあり、通常trace off | 9.251 | 3.317 |
+| 追加traceあり、precise coverageなし、通常trace off | 8.421 | 3.236 |
+| 追加traceあり、precise coverageあり、通常trace retain-on-failure | 8.694 | 3.236 |
+
+通常traceの有無でAPI／画像検証への費用の現れ方が変わるが、合算区間の大幅短縮は実証していない。coverageなしは原因調査の対照であり、正式な品質成功へ数えない。coldの約2秒区間もJS callbackやNative uniform-block待ち等へ現れる位置が異なり、一回の関数self sampleだけから純粋なshader JS処理を支配原因と断定しない。
+
+読み込みと描画を切り分けるため、初期の通常画像を通してGLB・texture・buffer・shaderを準備した後、次sceneの描画直前にBabylonの公開 `mesh.isVisible` だけで実PBR地面78meshを表示／非表示にした。両条件で製品bundleのSHAは一致し、変更は隔離fixtureの公開observable callbackだけである。actorのground rayと通常のapply→start→readyを保ち、同じ実canvas取得を二回行った。
+
+| 対照組 | 地面表示：次scene API＋2画像取得の秒 | 地面非表示：同区間の秒 | ReadPixels wall（表示／非表示）の秒 |
+| --- | ---: | ---: | ---: |
+| 1 | 4.150 | 2.106 | 1.813／0.060 |
+| 2 | 4.254 | 2.218 | 1.855／0.074 |
+
+各実行はfresh process/contextで初期GLBの実HTTP取得が一回あり、warm区間の追加GLB取得は0。表示条件のdefault画像は両方とも既存基準との差0、各条件の二画像も完全一致した。非表示条件は543,030画素が意図的に異なり、品質実装への採用候補ではない。この対照で、準備済みの次sceneにも地面描画／Native command完了が画像取得の遅延へ大きく寄与することを確認した。初期化の全費用が描画だけであることや、純粋なGPU所要時間を証明していない。
+
+初回にも、同じ準備・mesh/material readinessを通した後の地面表示だけを切り替えた。ReadPixelsは表示3.884／3.478秒から非表示1.113／0.987秒へ減り、最初の実画像取得は4.410／3.981秒から1.562／1.370秒になった。初期APIは表示5.353／4.234秒、非表示4.140／5.240秒と逆方向に動き、読込時間だけで取得区間の減少を説明できない。表示2条件は元の初期基準と差0、非表示は570,306画素差で、各条件の二画像は一致した。初期の約3.5秒にも地面描画の寄与を示すが、driverがshader/pipeline準備を実描画へ遅延できるため、純粋なraster時間を取り出したとは扱わない。
+
+さらに地面を非表示にしたまま背景・actor等9meshの表示だけを切り替えたが、残る初回ReadPixelsは一貫して減らなかった。API内の待ちと画像取得の待ちが移り、非表示側のcold変動も大きいため、残り約1秒をactor描画と断定しない。GLB・texture等の準備は両方で通っており、残る準備／driver pipeline／転送の分離は未了である。
+
+通常sourceの代表一回で標準CDP `SystemInfo.getProcessInfo` も使った。これはprocess内の全threadの累積CPU使用秒である。初期API後から既存画像検証終了まで5.004秒の間にGPU processは12.380 CPU秒、rendererは0.560 CPU秒、browserは0.360 CPU秒増えた。次scene API後から画像検証終了まで2.514秒では、それぞれ7.120／0.140／0.290 CPU秒だった。SwiftShaderを動かすprocessで相当のCPU処理が進む証拠であり、GPU経過時間・利用率ではない。複数threadのCPU秒はwallより大きくなり得る。Node側の画像比較／collector CPUはこのprocess集合に含まない。5checkpointのAPI呼出しwall計約13msを別記録し、task schedulingへの影響とcold分散は未評価とする。
+
+installed Playwrightでは `Frame.evaluateExpression` にtrace snapshotが付き、serverは応答送信前にafter-callのsnapshot captureを待ち、snapshotは既存renderer main contextで評価される。このsourceとtrace有無の対照から、GPU command完了を待つcanvas Commitへsnapshot要求が連鎖し、ready以後の費用がNode API応答へ現れる経路が説明できる。待ち全量をsnapshot作成CPUやPlaywrightだけの費用と解釈しない。
+
+同じ1worker・source・画像比較でCPU affinityを5 CPUから4 CPUへ絞る標準実行環境の対照も二組調べた。初期合算は5 CPUで8.825／8.641秒、4 CPUで8.673／10.126秒、warm合算は3.186／3.201秒から3.394／3.485秒となり、一貫した短縮はなく採用しない。container自身のquotaは無制限だが祖先の4 core相当quotaは維持されており、自身のthrottled=0を祖先の無制限と取り違えない。Nativeコマンド全体のCPU使用量約32～34 core秒は、renderer/GPUだけの使用量ではない。
+
+これらは重い一件の原因調査であり、全体5分の達成や不可能性の証明ではない。正式全体の直列389.228秒、既定1worker、全54基準画像、全project／coverage gate、公開停止を維持する。新しい製品最適化・test削減・既定並列化はこの診断から採用していない。
+
+### 旧raw shop画像の追加対照
+
+390pxの旧rawとの差13画素（左下角、最大channel差2）は、同じ現在sourceのfresh process/context六回でも5回が差0、1回が同じ13画素となった。320pxの前回撮影でpointerを先に移す／後に移す一条件対照では後者の中でも0／13が変わり、pointerだけを原因とは確定できない。dialog矩形 `x=19, y=317.3125, width=352, height=445.359375`、最終focus／hoverは六回で一致した。旧Native UIを元のlazy stylesheet読込順で読み、旧公開headless coreのmarket開始・購入処理と二回の実Native購入を通した別対照でも、旧側13／現在側0が現れた。最初のstatic import試行は元とCSS挿入順が違い、font／geometryも違ったため、外観回帰の証拠へ使わない。
+
+これは同じsource／観測されたgeometryでも単発raw出力が変わる観測であり、13画素の内部描画原因まで解明していない。AAと断定せず、旧rawを正式54基準の合否やWCAGへ読み替えず、基準・許容差・CSS・製品sourceを変更しない。
+
 ## 現在の保証対応
 
 | 公開結果 | 主な検証 |
