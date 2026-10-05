@@ -79,10 +79,13 @@ docker run --rm --init --ipc=host --name endfield-view-profile --user "$(id -u):
 | 観測 | 意味と限界 |
 | --- | --- |
 | apply wall／phase | model、projection、Native submit、DOM／model submit、settled、layout read。Svelteの遅延projection・DOM反映はsettledまでのapplyに含む。submitだけでDOM費用と扱わない |
-| sampled CPU | 1ms設定のV8 sampleを標準build mapで元sourceへ戻し、projection、browser view、Babylonのinclusive時間を推定。カテゴリは重なり、短い関数はsampleされない。正確な呼出数や独立したCPU合計ではない |
-| main task／rAF | renderer main threadのRunTaskをframe区間へ割り当てたwall時間と実rAF間隔。ソフトウェアWebGLの待機を含み、CPU占有時間・実GPU elapsedとは異なる |
-| layout／paint／GC／割当 | CDP traceの各phase総時間と16KiB設定のHeapProfiler割当推定。GC済みobjectsもsamplingに含む。DOM mutation、強制GC前後のheapとNodesも保存する |
+| sampled CPU | `Profiler.start`から`Profiler.stop`まで。180frameの負荷に加え、disposeと退出後1rAFを含む。1ms設定のV8 sampleを標準build mapで元sourceへ戻し、projection、browser view、Babylonのinclusive時間を推定。カテゴリは重なり、短い関数はsampleされない。正確な呼出数や独立したCPU合計ではない |
+| main task／rAF | traceの`view-workload-start`〜`view-workload-end`の180frame区間。renderer main threadのRunTaskをframe区間へ割り当てたwall時間と実rAF間隔。ソフトウェアWebGLの待機を含み、CPU占有時間・実GPU elapsedとは異なる |
+| layout／paint／GC | traceのworkload mark間だけのphase総時間。退出を含めない |
+| sampled allocation | `HeapProfiler.startSampling`から`HeapProfiler.stopSampling`までの16KiB設定の割当推定。180frameの負荷に加え、disposeと退出後1rAF、GC済みobjectsも含む。frameごとの割当や退出を除いた割当量ではない |
 | bundle／起動／資源 | 通常distの全JS raw／gzip合計、実sceneと画像までの準備時間、退出後のBuffer／Texture／Programが0であること。全chunk合計は初回転送量ではなく、warm fixture準備時間はcold network起動ではない |
+
+結果JSONの`measurementWindows`に各区間を記録する。CPU・割当samplingはtraceの180frame区間と一致しない。DOM mutation、強制GC前後のheapとNodesも保存するが、これらは割当samplingとは別の観測である。
 
 GPUを含む全frameの余裕は実rAF間隔とtraceを合わせて評価する。SwiftShaderでの低いDOM時間を実機60fpsの証明にせず、長い描画区間とphysical GPU未確認を明記する。採用前後は同じDocker・viewport・DPR・素材・workload・profiling条件で比較する。旧revisionへharnessを持ち込む場合はview importのファイル名を合わせるだけで、optional `renderModel`がない旧viewには同じモデルから全frameを投影して`paint`する。
 

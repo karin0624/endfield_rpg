@@ -38,6 +38,20 @@ game全工程は2026-10-05 15:14:33.310534〜15:18:33.463887 UTC。既存のbudg
 
 `npm run review:party`も明示実行し、1672×941の4状態、28 PNG／4 JSONを生成した。実装担当が実撮影とoverlayを確認したが、これは独立レビューではない。承認用コンセプト画像とのraw比較は約99.98%差であり、既存goldenとの正式VRT成功とは区別する。今回の実撮影と変更していないgoldenのraw pixel差はdeparture 10、disabled 9、selection 0、symptoms 0で、既存許容差の正式VRTは成功している。コンセプト画像との一致や残差の解消を主張しない。
 
+## 独立レビュー後の修正と再検証
+
+通常キャンペーンの`items:true`を実コアで構成し、回復品2個を持ち込んだ直接状態を390×844／1440×844で描いた。修正前はボタンが`position: static`、`z-index: auto`、左上(0, 8)となり、中心のNative hit targetはルート面だった。click trialもポインター遮蔽で失敗した。
+
+`BranchRecovery.svelte`のwrapperを除去して旧factoryと同じroute直下へ戻し、focus検索には既存のdungeon mount先を渡した。CSS・素材を変えず、両幅で`position: absolute`、`z-index: 4`、左上(16, 88)、実hit targetが回復品ボタンへ戻り、click trialが成功した。直接fixtureは同値測定通知でframeを再生成しない。モデルの既存保証を保ち、ブラウザにはゲーム入力を適用しないNative hit testを追加した。
+
+旧factoryにも同じ正当な状態を渡して直接撮影し、修正後とのraw差は390pxで0画素、1440pxで115画素／1,215,360画素だった。実撮影とoverlayを確認した。これは旧実装との診断比較であり、新しいgoldenの承認を代替しない。既存goldenと許容差は更新していない。再現・修正後・旧factoryのJSON、撮影、overlay、diffは`test-results/branch-items-review/`に保持する。
+
+修正source（local）`0cb19551ca65fe2eb1960f3153a95569dc1f334d`で`npm run test:browser`がexit 0。lint・TS7／Svelte template・素材・必要な通常／debug／直接view build、65ファイル804単体、views 13／renderer 10の23ブラウザ、全coverage・発見／実行・project／各case gateが成功した。型は0 error／0 warning、既存lint info一件のみ。失敗・skip・retry・flaky・global errorは0、23/23caseでcoverageを回収し、両projectは0-hit込み121/121 sourceだった。単体率と閾値は上表から変わらない。Native runnerは121.624秒、2workersで、Docker起動〜shutdownの時間は今回記録していない。
+
+今回の製品修正はDungeonのみで、editor・rendererは変更していない。editorを含む初回全scope検証は上記に保持する。修正後の全game JSON・discovery・coverage・ログは`test-results/svelte-review/`に保存した。最後の検証記録追記は文書だけで、検証済み製品・テストsourceを変えていない。
+
+CPU・割当samplingには退出も入っていたため、driverの`measurementWindows`と以下の表・説明に区間を明記した。既存数値と元のprofile／traceは保持し、4負荷全件の再計測はしていない。frameごとの割当や退出分の内訳はこの記録から推定しない。
+
 ## 表示負荷の前後比較
 
 `scripts/measure-view.mjs`と`tests/fixtures/performance-view.*`を使い、1440×1080／DPR1、固定Docker、実素材・Babylon、同じclock入力とprofiling設定で4負荷×3回ずつ順に測った。他の品質実行とは重ねていない。各負荷は180rAF、実scene／shader、font／画像decodeと20rAFのwarm後に開始する。
@@ -55,9 +69,9 @@ game全工程は2026-10-05 15:14:33.310534〜15:18:33.463887 UTC。既存のbudg
 
 applyはmodel／projection／Native submit、DOM更新のsettled、強制layout readまでを含む。SvelteのsubmitのみをDOM費用とせず、遅延projectionとDOM反映を含めたwallで比べる。main taskはframe区間のRunTaskのwallで、GPU待機を含み得る。CPU占有時間やGPU elapsedではない。
 
-次は各180frameの総量の最小〜最大。投影は1ms CPU sampleのinclusive推定、layout／paint／GCはtraceのphase総時間（ms）、割当は16KiB samplingによる推定（MiB）である。
+次は3回の総量の最小〜最大。投影は1ms CPU sampleのinclusive推定（ms）、割当は16KiB samplingによる推定（MiB）で、どちらも180frameの負荷に加えdisposeと退出後1rAFを含む。layout／paint／GCはtraceの`view-workload-start`〜`view-workload-end`だけのphase総時間（ms）で、退出を含めない。既存数値は保持し、区間を区別する。
 
-| 負荷 | 投影: 旧→新 | layout: 旧→新 | paint: 旧→新 | 割当MiB: 旧→新 | GC: 旧→新 |
+| 負荷 | 投影sample・退出込み: 旧→新 | layout・負荷のみ: 旧→新 | paint・負荷のみ: 旧→新 | 割当MiB・退出込み: 旧→新 | GC・負荷のみ: 旧→新 |
 | --- | --- | --- | --- | --- | --- |
 | battle | 20.01–32.80 → 8.86–19.42 | 23.98–26.49 → 23.90–30.00 | 28.53–31.14 → 33.90–42.50 | 8.90–9.15 → 8.60–9.10 | 5.78–16.19 → 10.13–22.02 |
 | marker | 25.13–29.92 → 4.06–18.88 | 12.30–18.55 → 14.81–23.84 | 24.99–30.30 → 33.52–37.89 | 6.60–7.29 → 6.46–6.94 | 6.67–11.17 → 12.09–14.90 |
@@ -68,7 +82,7 @@ CPU profileは標準build mapでprojection／browser view／Babylonへ分類し�
 
 DOMのadded／removed mutation通知は、battle 2700／2700→26／26、marker 2520／2520→26／26、cue 1220／1220→11／11だった。移動も通知へ含まれるため、DOM allocation件数ではない。属性・text更新は増えており、ノード通知減だけから描画費用全体の削減を主張しない。
 
-意味投影とノードの再生成は減ったが、通常のapply／paint／GCと毎frame画面切替は一様には改善していない。switchはcomponentの条件付き生成・破棄とreactive処理による追加割当があり、stressのrAF間隔も悪化した。CPU sample、trace、wallの変動と合わせ、全体を高速化したとは結論しない。隠れたcueのWAAPI書換えと非表示markerの幾何再投影は除去したが、数字のために画面・素材・テスト条件は変更していない。
+投影のsample推定とノードの再生成通知は減ったが、通常のapply／paint／GCと毎frame画面切替は一様には改善していない。switchでは退出込みの割当推定が増え、stressのrAF間隔も悪化した。割当samplingから各frameの費用や退出分の内訳は特定できない。CPU sample、trace、wallの変動と合わせ、全体を高速化したとは結論しない。隠れたcueのWAAPI書換えと非表示markerの幾何再投影は除去したが、数字のために画面・素材・テスト条件は変更していない。
 
 cueは両版ともソフトウェアWebGLで1秒超のframeを含む。DOM適用が16.6ms未満でも、Babylonを含む全frameの余裕・実機60fpsは保証できない。物理GPU、skillが多いHUD、多数の連続物体は未測定。必要なら実負荷で該当領域を測り、ADRの方針に従ってその領域への適切な外部描画ライブラリを比較する。
 

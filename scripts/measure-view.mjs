@@ -93,6 +93,12 @@ const output = {
   viewport: { width: 1440, height: 1080 },
   dpr: 1,
   graphics: "fixed Playwright image; SwiftShader software WebGL",
+  measurementWindows: {
+    sampledCpu: "Profiler.start to Profiler.stop; includes workload, dispose and one rAF after exit",
+    sampledAllocationBytes:
+      "HeapProfiler.startSampling to HeapProfiler.stopSampling; includes workload, dispose and one rAF after exit",
+    trace: "view-workload-start to view-workload-end; 180 frames, excludes exit",
+  },
   runs: [],
 };
 try {

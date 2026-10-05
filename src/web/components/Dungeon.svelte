@@ -251,6 +251,7 @@ onMount(() => {
     <!-- biome-ignore-end lint/a11y/noNoninteractiveTabindex lint/a11y/useSemanticElements: End of keyboard scroll region. -->
     {#if frame}
       <BranchRecovery
+        {root}
         frame={frame.branch}
         result={frame.branchResult}
         send={(event) => send({ type: "branch", event })}
