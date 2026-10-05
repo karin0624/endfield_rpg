@@ -7,6 +7,7 @@ const enabled = process.env.COVERAGE_BROWSER === "1";
 const collectors = new WeakMap<Page, () => Promise<void>>();
 const createdContexts = new WeakMap<Browser, BrowserContext[]>();
 const buildSourceMaps = new Map<string, { sources: string[] }>();
+const graphicsDevices = new WeakMap<Browser, unknown[]>();
 
 /** Collect immediately before a reload or a second document navigation. V8 can discard old document hits. */
 export async function collectCoverage(page: Page) {
@@ -58,9 +59,20 @@ export const test = base.extend<{ _coverageBoundary: undefined }>({
     },
     { auto: true },
   ],
-  page: async ({ page, context, browserName }, use, testInfo) => {
+  page: async ({ page, context, browserName, browser }, use, testInfo) => {
     if (!enabled) return use(page);
     if (browserName !== "chromium") throw new Error("Native browser coverage requires Chromium");
+    const diagnostics = await browser.newBrowserCDPSession();
+    if (!graphicsDevices.has(browser)) {
+      const { gpu } = await diagnostics.send("SystemInfo.getInfo");
+      graphicsDevices.set(browser, gpu.devices);
+    }
+    const initialContext = {
+      viewport: page.viewportSize(),
+      deviceScaleFactor: await page.evaluate(() => window.devicePixelRatio),
+      graphicsDevices: graphicsDevices.get(browser),
+    };
+    const beforeProcessCPU = await diagnostics.send("SystemInfo.getProcessInfo");
     const unexpected: Page[] = [];
     const onPage = (opened: Page) => unexpected.push(opened);
     context.on("page", onPage);
@@ -134,6 +146,13 @@ export const test = base.extend<{ _coverageBoundary: undefined }>({
     await page.coverage.startJSCoverage({ resetOnNavigation: false });
     collectors.set(page, () => collect());
     await use(page);
+    const afterProcessCPU = await diagnostics.send("SystemInfo.getProcessInfo");
+    await diagnostics.detach();
+    // Standard process CPU totals include all threads; they are not GPU elapsed time.
+    testInfo.annotations.push({
+      type: "browser-runtime",
+      description: JSON.stringify({ initialContext, beforeProcessCPU, afterProcessCPU }),
+    });
     collectors.delete(page);
     context.off("page", onPage);
     page.off("request", onRequest);
