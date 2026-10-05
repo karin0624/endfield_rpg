@@ -22,4 +22,4 @@ npm run check
 vite build --mode debug --outDir dist-debug
 vite build --config vite.views.config.ts
 sh scripts/run-playwright-quality.sh browser "$@"
-python3 scripts/compare-party-ui.py test-results test-results/approved-comparison
+python3 scripts/compare-party-ui.py test-results test-results/approved-comparison --metrics-only

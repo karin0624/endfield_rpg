@@ -31,7 +31,7 @@ Node.jsは `.nvmrc` の24系、ブラウザは `mcr.microsoft.com/playwright:v1.
 | `npm run test:editor` | checkとview build、開発者専用の直接構図VRT・Native HMRを必要時に全実行 |
 | `npm run test:all` | check・必要な3build・既定とeditorの全projectを同じ一回の直列ブラウザ実行で確認 |
 
-CIは固定コンテナの単一jobで `npm ci` の後に `test:browser:inside` を実行する。checkで作った通常配布を同じworkspaceから使い、job間の配布受渡し・結果保存artifactは設けない。ローカルの `test:browser` も同じ `run-game-quality.sh` を使い、既存の画像診断に必要なPillowをコンテナ内へ導入した後、workspace所有者で実行する。従来の単体coverage閾値、全git spec／無filter collection／実行・全project・各case coverage照合を維持する。結果とrevision、失敗・skip・retry・global error、0-hit込みのsource数とcoverage、承認資料とのraw比較をログへ出し、Actionsではjob summaryにも残す。生成JSON・画像・trace・mapは同じローカルworkspaceで確認できる。失敗前に未生成のreportを成功に数えず、旧reportを消してから開始し、summary処理の成否で元の品質失敗を成功へ変えない。承認資料のraw比較は人が評価する診断であり、既存goldenとのVRT合否やWCAG適合とは区別する。
+CIは固定コンテナの単一jobで `npm ci` の後に `test:browser:inside` を実行する。checkで作った通常配布を同じworkspaceから使い、job間の配布受渡し・結果保存artifactは設けない。ローカルの `test:browser` も同じ `run-game-quality.sh` を使い、既存の画像診断に必要なPillowをコンテナ内へ導入した後、workspace所有者で実行する。従来の単体coverage閾値、全git spec／無filter collection／実行・全project・各case coverage照合を維持する。結果とrevision、失敗・skip・retry・global error、0-hit込みのsource数とcoverage、承認資料とのraw比較をログへ出し、Actionsではjob summaryにも残す。生成JSON・画像・trace・mapは同じローカルworkspaceで確認できる。失敗前に未生成のreportを成功に数えず、旧reportを消してから開始し、summary処理の成否で元の品質失敗を成功へ変えない。承認資料のraw比較は人が評価する診断であり、既存goldenとのVRT合否やWCAG適合とは区別する。 CIと本体の全工程コマンドは `compare-party-ui.py --metrics-only` を使い、同じ全画素・注記領域・診断領域の差分、寸法、hash、JSONを保って、保存しないoverlay／差分PNGのencodeだけを省く。手動の同scriptは既定どおり28枚の診断画像も出力する。
 
 コンテナ内では対応する `:inside` scriptを使う。`test:browser`／`test:all` はcheckが作った通常配布を共用し、素材・型の前処理を後続buildで反復しない。単独の `build`／`build:debug`／`build:views` は前処理を含む。Vitestのfile並列設定を目標のために増やさず、Playwrightは1worker。工程は直列に実行する。
 
