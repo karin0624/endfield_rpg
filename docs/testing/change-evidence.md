@@ -341,3 +341,14 @@ warmでも地面を更新するとfull native drawが必要で、first capture�
 四隅caseは同pageでもrendererを4回作り直していた。単純な同BattleScene applyはHUD投影が残り、3枚で36,573／25,137／37,917pixel差となったため不採用。同じ実地形へ構図を適用して通常の次BattleScene／UIを生成する対照は4枚とも元の基準に一致し、GLB取得は4→1回、2〜4枚目の準備APIは29〜34msとなった。対照のcase時間はfresh-each31.2秒、次BattleScene19.9秒（各一回、cold変動を含む）。静的な四隅の構図／材質VRTをこの経路へ移し、caseごとのpage/context分離、初期control設定5caseのfresh constructorとdefault引継ぎ、退出・HMR・遅着／失敗・資源不増加の独立検証は保つ。VRTの正常importは21→18回となる。
 
 描画側はBabylonのpublic `Scene.setRenderingOrder` と標準 `RenderingGroup.frontToBackSortCompare` でopaqueを近い順にする最小候補を追加した。透明／alpha-testの標準順序、GLB／PBR／viewport／DPR／culling条件は変えない。単一warm対照で元の初期画像と再描画の4比較は成功し、ReadPixels2.949→2.375秒、span3.824→3.416秒だった。一回の小規模差を正式全体の短縮と断定せず、以下の全project検証で外観と資源保証を確認する。
+
+
+### 四隅・opaque順序の全体検証と追加のfixture整理
+
+`4e76143a7df729205b6f6267988e8439d3342bff` の `npm run test:all` は2026-10-05 07:10:33〜07:16:57 UTC、起動〜shutdownの直列384.619秒、Browser312.161秒、exit0だった。800単体／33browser／54unique基準画像・62assertion／4coverage project・全実行gateが成功し、failure／skip／retry／flaky／global error0、source451の前後変化0、保護162の変化0、三buildのmap原文不一致0だった。四隅caseは25.504→15.197秒となったが、他caseと工程のcold変動があり、全体の約4.6秒差をopaque順序の効果と断定しない。既定1workerと公開停止を保つ。
+
+さらにFXのattack／healは同じ地形なのに別pageでrendererを初期化していたため、1caseの同じrendererから公開 `beginBattle` で独立した実コアsnapshot・BattleScene・UIを用意する形へ統合した。攻撃の4枚と回復の2枚、各GPU／DOM表示時刻、sampleと基準画像、通常motion、HP transition抑制、stage clipと許容差は変えない。ゲーム操作を前段に実行せず、戦闘コアのcommitとsnapshotは効果ごとに新しく作る。地面／材質／texture／shader準備だけを同環境で保持する。資源／HMR／初期controlの独立contextは共有しない。正常VRT importは18→17回となる。
+
+editor fixtureの初期2対2は、同じ設定と全4戦闘者をconstructorで準備した直後に同じsettings／actor frameを適用して再描画していた。初期表示は準備済みcanvasと投影したeditor UIを使い、後の1対1→2対2とmobile resizeの実描画は保つ。これはfixtureの明示した重複drawを除く変更であり、Native browserによるviewport変更時の再描画を止めない。
+
+この追加のlint／型／800単体・実collection照合は成功した。固定コンテナでNative V8と同じminificationの2caseを実行し、元のFX6枚とeditor3枚の全9画像が完全一致した。部分実行34.9秒は最終sourceの全品質・全coverage project・5分達成を示さない。追加差分を含む全体検証を次に記録する。

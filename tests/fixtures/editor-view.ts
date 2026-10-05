@@ -93,7 +93,8 @@ if (query.has("adventure")) {
     editor.render(frame);
   }
   Object.assign(window, { paintEditorPicture: paint });
-  paint(2);
+  // The constructor already prepared this full 2-on-2 picture with state.current.
+  editor.render(projectBattleEditor(state));
   release = () => {
     editor.dispose();
     scene.dispose();

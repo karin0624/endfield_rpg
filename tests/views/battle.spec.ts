@@ -6,18 +6,25 @@ const golden = (name: string) =>
 import { expect, test } from "../browser/coverage";
 import { readyPicture } from "./appearance";
 
-for (const [effect, pictures] of [
-  ["attack", ["actor", "impact", "result", "defeat"]],
-  ["heal", ["heal-impact", "heal-result"]],
-] as const) {
-  test(`実素材の${effect}を直接表示時刻から描き、既存FX画像へ比較する`, async ({ page }) => {
-    await page.setViewportSize({ width: 900, height: 1000 });
-    await page.emulateMedia({ reducedMotion: "no-preference" });
-    await page.goto(`http://127.0.0.1:4174/rpg/tests/fixtures/battle-view.html${effect === "heal" ? "?heal=1" : ""}`);
-    await expect(page.locator("#app")).toHaveAttribute("data-picture-ready", "true", { timeout: 60_000 });
+test("実素材のattack/healを直接表示時刻から描き、同じ地形で既存FX画像へ比較する", async ({ page }) => {
+  await page.setViewportSize({ width: 900, height: 1000 });
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.goto("http://127.0.0.1:4174/rpg/tests/fixtures/battle-view.html");
+  await expect(page.locator("#app")).toHaveAttribute("data-picture-ready", "true", { timeout: 60_000 });
+  await readyPicture(page);
+  // Match the original frozen FX pictures without changing production CSS.
+  await page.addStyleTag({ content: ".hp-track > span, .enemy-world-track > span { transition: none !important; }" });
+  for (const [effect, pictures] of [
+    ["attack", ["actor", "impact", "result", "defeat"]],
+    ["heal", ["heal-impact", "heal-result"]],
+  ] as const) {
+    if (effect === "heal")
+      await page.evaluate(() =>
+        (window as typeof window & { showBattleEffect(effect: "attack" | "heal"): Promise<void> }).showBattleEffect(
+          "heal",
+        ),
+      );
     await readyPicture(page);
-    // Match the original frozen FX pictures without changing production CSS.
-    await page.addStyleTag({ content: ".hp-track > span, .enemy-world-track > span { transition: none !important; }" });
     for (const picture of pictures) {
       await page.evaluate(async (name) => {
         await (window as typeof window & { paintBattlePicture(name: string): Promise<void> }).paintBattlePicture(name);
@@ -38,5 +45,5 @@ for (const [effect, pictures] of [
         maxDiffPixels: 0,
       });
     }
-  });
-}
+  }
+});
