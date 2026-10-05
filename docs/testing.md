@@ -43,6 +43,8 @@ Vitest 5の標準 `@vitest/coverage-v8` で `src/**/*.ts` と `scripts/*.{ts,mjs
 
 ブラウザは同じ必要実行へPlaywright native V8を付随させ、Monocartで自前srcへmappingする。buildの[hidden sourcemap](https://vite.dev/config/build-options.html#build-sourcemap)は実行JSへ注釈を加えない。共有fixtureが各chunkの隣接mapを渡す。実HMRのdev sourceだけはinline mapを使う。全srcの未読込を0-hitとして残し、vendor・テスト・CSSを混ぜない。`coverage/browser/<実project名>/` は由来別のreportであり、同じ分母を合算・平均したりunit率へ統合したりしない。
 
+素材照合は実GLB bytesのNative WebCrypto、利用不能／digest拒否時の未照合結果をI/O境界で検証する。未照合から元材質を選ぶ判断は純粋モデルで、既知／未検証環境と同パス別bytesの実材質はPC／mobileのNative VRTで確認する。同じ元材質画像をI/O失敗分岐ごとに再描画しない。warm資源はfull／smallそれぞれの実描画後のBuffer／Texture／Program数を記録し、再度small→fullへ切り替えた両状態の不増加と退出時0を確認する。
+
 生成JSから対応づけられた分岐の指標であり、元TSの全分岐分母を保証しない。[Monocart 2.13](https://github.com/cenfun/monocart-coverage-reports/blob/v2.13.0/lib/converter/converter.js#L620-L672)はmapping不能な分岐群を除く。`all`は未収集ファイルを追加するが、読込済みTSのtree shaking削除分・未mapping分岐は補完しない。source集合一致は欠落確認であり、全分岐維持の証明ではない。
 
 git上の全品質spec、runnerの実collection、今回の実JSONを照合する。Playwright discoveryは実行引数によるfilterを掛けずに取得する。Vitestは公開Reporterの `onTestModuleCollected` で、実行前の全ケースをprimitiveなfile／fullNameへ記録する。実CLIのname filterで未実行になるケースも残し、発見用の別起動と全test moduleの再importを省く。既定はeditorだけ明示scope除外、editor単独はそのscope、allは全specを照合する。未知のディレクトリへ置いた品質specも未発見なら失敗する。ファイル解決はnative reportの `config.rootDir`、必須projectとcoverageのproject集合は実configから導く。手書きの仕様ID／case台帳は作らない。

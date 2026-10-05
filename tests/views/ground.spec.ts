@@ -54,17 +54,5 @@ test("同じ素材パスの別bytesは元材質で描き、実モデルを二重
   expect(requests).toBe(1);
 });
 
-for (const unavailable of ["absent", "failed"] as const) {
-  test(`素材照合が${unavailable}でも元材質を直接描く`, async ({ page }) => {
-    await page.addInitScript((unavailable) => {
-      if (unavailable === "absent") Object.defineProperty(window.crypto, "subtle", { value: undefined });
-      else
-        Object.defineProperty(window.crypto.subtle, "digest", {
-          value: () => Promise.reject(new Error("digest denied")),
-        });
-    }, unavailable);
-    await page.goto(rendererPictureEntry);
-    await createGroundPicture(page);
-    await expectGroundPicture(page, "ground-original-pc");
-  });
-}
+// WebCrypto absence/rejection is checked at its actual I/O boundary in assetFingerprint.test.ts.
+// groundCulling.test.ts checks the unverified decision; the cases above retain the real original-material images.

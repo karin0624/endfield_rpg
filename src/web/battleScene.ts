@@ -33,6 +33,7 @@ export type { BattleEnvironment } from "../presentation/battleLayout";
 
 import type { BattleSettings } from "../presentation/battleSettings";
 import { canCullGround, hasGroundCullingProfile } from "../presentation/groundCulling";
+import { assetFingerprint } from "./assetFingerprint";
 
 const assetUrl = (path: string) => `${import.meta.env.BASE_URL}assets/${path}`;
 const CONTACT_OFFSET = 0.01;
@@ -207,12 +208,7 @@ function createEnvironment(
     if (!response.ok) throw new Error(`モデルを読み込めません: ${definition.ground} (${response.status})`);
     const bytes = await response.arrayBuffer();
     if (environmentDisposed || scene.isDisposed) return undefined;
-    const fingerprint = hasGroundCullingProfile(definition)
-      ? globalThis.crypto?.subtle
-          ?.digest("SHA-256", bytes)
-          .then((digest) => Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join(""))
-          .catch(() => undefined)
-      : undefined;
+    const fingerprint = hasGroundCullingProfile(definition) ? assetFingerprint(bytes) : undefined;
     // LoadAssetContainerAsync registers its own pending data with the scene until import completes.
     const preparation = LoadAssetContainerAsync(new Uint8Array(bytes), scene, {
       rootUrl: new URL(".", url).href,

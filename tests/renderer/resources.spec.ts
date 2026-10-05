@@ -93,6 +93,8 @@ test("実rendererの同環境切替はwarm資源を増やさず、実素材を�
   );
   await start(page, "small");
   await ready(page);
+  await page.screenshot();
+  const warmSmall = await webGLResources(page);
   const before = await page.evaluate(
     () => (window as typeof window & { rendererView: RendererView }).rendererView.measure().rect,
   );
@@ -108,14 +110,16 @@ test("実rendererの同環境切替はwarm資源を増やさず、実素材を�
   await page.screenshot();
   const warm = await webGLResources(page);
   for (const kind of ["Buffer", "Texture", "Program"]) expect(warm[kind]).toBeGreaterThan(0);
-  for (let repeat = 0; repeat < 3; repeat++) {
-    await start(page, "small");
-    await ready(page);
-    await start(page);
-    await ready(page);
-    await page.screenshot();
-    expect(await webGLResources(page)).toEqual(warm);
-  }
+  // Observe both states after their first allocation, then verify a complete warm round trip.
+  // Extra identical repetitions add no distinct asset, owner or transition boundary.
+  await start(page, "small");
+  await ready(page);
+  await page.screenshot();
+  expect(await webGLResources(page)).toEqual(warmSmall);
+  await start(page);
+  await ready(page);
+  await page.screenshot();
+  expect(await webGLResources(page)).toEqual(warm);
   expect(urls.filter((url) => url.endsWith("ground1.glb"))).toHaveLength(1);
   expect(urls.some((url) => url.endsWith("front-left.png"))).toBe(true);
   for (const url of urls) expect(new URL(url).pathname).toMatch(/^\/rpg\/assets\//);

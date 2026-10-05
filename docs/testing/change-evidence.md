@@ -88,6 +88,14 @@ Vitestのcollectionを既存公開Reporterへ統合した。実行前の全ケ�
 
 旧編成5枚は標準minified配信でも元rawと全pixel一致した。ショップ390pxの13pixel corner差は元の直前320px captureを与えても残った。CSS／素材／基準／許容差の変更で消しておらず、原因は未解明のまま保持する。
 
+固定head `6af5545`の全2workers比較は302.068秒、単体796件／Browser35件／54画像／4coverage projectが全成功した。Native wallは244.337秒で、source449／保護162の前後変化とmap原文不一致は0。既定は1workerを維持し、この比較を直列5分以内や実行不可能の証拠にはしない。
+
+重いNative手順を隔離して計測した。通常と同じ呼出し単位の設定5ケースは、初回create→start→readyのNode wallが5.554～11.777秒、default適用→次scene→readyが1.967～3.498秒、各既存画像比較が0.532～0.825秒、pagehide→GPU 0が0.033～0.059秒だった。browser内の更新JSは配置3条件で1.274～1.536秒、背景／カメラでは0～0.003秒。Node wallとの差にはNative処理・protocol・task scheduling等があり、GPU時間へ一括帰属しない。別CDP呼出しへ分けた初回probeは間に余計な描画を許すため性能比較へ使わない。実backendはANGLE／Vulkan SwiftShader、GPU timer extensionは利用不能だった。
+
+元のwarm三往復caseは26.3秒、初回ready 7.923秒、各small／full準備は概ね1.5～1.6秒だった。取得・decode・shader準備・実初期drawはreadyの中で重なるため、独立測定していない内訳を推測で分割しない。責務整理ではfullだけの同じ三往復を、最初のfull／smallと一回のwarm往復で両状態の実資源数を照合する形へ変更した。旧ownerへの更新が無効、実GLB取得一回、RAF取消、退出後とresize後のGPU 0、page errorなしは維持する。
+
+素材照合の利用不能／拒否を実WebCrypto I/O境界へ移した。実LFS GLBの既知SHA-256、subtleなし／cryptoなし、digest拒否を検証し、未照合から元材質の純粋判断と、既知・未検証・同パス別bytesの実PBR画像／HTTP一回はNativeに残す。重複していた元材質PNG二回を省くためで、基準54画像のpath／bytes／許容差は変えない。この区切りの変更後の全検証と正式直列wallは未完了である。
+
 ## 現在の保証対応
 
 | 公開結果 | 主な検証 |
