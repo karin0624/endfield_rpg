@@ -102,6 +102,12 @@ GPU描画submeshを増やさずNative rayを分割する標準Mesh.clone／SubMe
 
 画像比較のないrenderer／editor-resourcesのviewportを既存DPR条件800×900へ揃えた。変更するのは資源観測の描画面積で、全実素材・shader・三角形・Native初期draw・切替／失敗／遅着／HMR／解放とDPR両条件は残す。VRTのviewport／DPR／PNG／許容差は変更しない。この変更の全実行・正式wall比較はこの区切りでは未完了である。
 
+固定head `0a63c22`の正式host wrapperは、既定1workerで389.228秒、CLI `--workers=2`で285.429秒だった。両方で単体800件／Browser33件／54 unique基準画像（62画像assertion）／4coverage projectと全実行gateが成功し、failure／skip／retry／flaky／global errorは0、source451／保護162の前後変化と三buildのmap原文不一致は0だった。Browser wallは314.896秒／214.067秒。case duration合計は304.655秒／397.052秒で、並行case latencyの増加をCPU消費へ読み替えない。資源case合計は前headの62.656秒から56.374秒へ減ったが、別caseの変動で直列全体は遅くなり、viewport変更の全体改善を実証したとは扱わない。
+
+同じ準備済みminified JSと既存Native手順6ケースで、precise coverageあり90.279秒／なし86.151秒、両方全成功だった。出力JSの前後SHAは一致し、Nativeの素材・構図・画像比較・warm三往復を変えていない。cold単発で分散未評価、coverageなしは部分性能診断で品質成功ではなく、終了時全体集計も含まない。回収timer8.167秒だけで実行中のV8費用を代表させず、この比較から残り費用をGPUだけへ帰属させない。
+
+既定1workerは維持する。2workersの全品質285.429秒は同一マシンの標準並列比較であり、直列5分やActions複数runnerの性能の証明ではない。2shardは以前のdiscovery配分だけで実行／merge未測定、独立工程並列も未実測のまま。今回の2workers cgroup読取りは終了・container自動削除後になり、CPU／memory値を取得できなかった。前headの途中peak3.17GiBを今回の値に流用しない。直列は300秒を89.228秒超過し、同品質で直列5分が不可能という証明も未成立なので、#102の公開停止を継続する。
+
 ## 現在の保証対応
 
 | 公開結果 | 主な検証 |
