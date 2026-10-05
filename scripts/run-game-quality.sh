@@ -21,4 +21,4 @@ trap finish EXIT
 npm run check
 vite build --mode debug --outDir dist-debug
 vite build --config vite.views.config.ts
-sh scripts/run-playwright-quality.sh browser "$@"
+sh scripts/run-playwright-quality.sh browser --workers=2 "$@"

@@ -36,7 +36,9 @@ CIは固定コンテナの単一jobで `npm ci` の後に `test:browser:inside` 
 
 承認資料のraw比較は人が評価する診断であり、既存goldenとの正式VRT合否やWCAG適合とは区別する。UI変更時に必要な画像レビューは[UI開発の必須ゲート](ui-asset-production.md#ui開発の必須ゲート)を満たす。通常CIにはこの診断と専用のPillow導入を含めず、撮影後にPython／Pillow環境で `npm run review:party` を明示実行する。既定で28枚の原画・実画面・overlay／差分・領域PNGと4状態のJSONを `test-results/approved-comparison/` へ生成する。数値だけが必要な診断では `npm run review:party -- --metrics-only` を使える。全画素・注記領域・診断領域の差分、寸法、hashと診断コードは保持する。
 
-コンテナ内では対応する `:inside` scriptを使う。`test:browser`／`test:all` はcheckが作った通常配布を共用し、素材・型の前処理を後続buildで反復しない。単独の `build`／`build:debug`／`build:views` は前処理を含む。Vitestのfile並列設定を目標のために増やさず、Playwrightは1worker。工程は直列に実行する。
+コンテナ内では対応する `:inside` scriptを使う。`test:browser`／`test:all` はcheckが作った通常配布を共用し、素材・型の前処理を後続buildで反復しない。単独の `build`／`build:debug`／`build:views` は前処理を含む。Vitestのfile並列設定は変更しない。check・必要build・Native・終了時集計の工程順を保ち、gameのNativeだけ共有entryで既定 `--workers=2` を渡す。Playwrightのfile単位の標準配分を使い、gameへ `fullyParallel` は追加しない。`test:editor`／`test:all`の既定はconfigの1workerを保持する。`npm run test:browser -- --workers=1` は後続CLI引数として優先され、直列条件を再現できる。
+
+2workersは準備・再import／draw・手動診断の重複を整理した後に採用した。並行するcaseはそれぞれcontext／pageと出力先を持ち、coverageは全worker終了後に一度集計する。固定sourceの比較では全品質成功・起動〜shutdown287.611秒だったが、5分までの余裕は12.389秒に限られ、19/22caseの時間は増えた。共有cgroupのCPU／memory／throttle観測はgameの専有消費やGPU elapsedではない。これを安定したCI時間のSLA、直列で5分以内が不可能という証明、Actions runner上の実測と扱わない。直列272.004／289.151／335.542秒等の結果も[検証記録](testing/change-evidence.md)に保持する。
 
 画像比較を持たないrenderer／editor-resourcesは既存DPR検証と同じ800×900 viewportを使う。実GLB・PNG・PBR・shaderを準備して実drawを行い、viewportを変えてもcanvasの16:9比率とカメラ構図は保つ。DPR1／3と800→640のresize、資源生成・warm切替・遅着／失敗・HMR・退出時0の保証を維持する。VRTのviewport・DPR・基準画像・許容差をこの費用整理で変えない。
 
@@ -64,7 +66,7 @@ git上の全品質spec、runnerの実collection、今回の実JSONを照合す�
 
 実装中は必要な短い検証で原因と費用を確認する。提出前はsourceを固定し、check・必要な全直接VRT・資源検証・editorをローカルで完走する。代表数件だけで全件をCIへ委ねない。source／LFS実体／CSS・素材・goldenの前後一致、正確なhead／tree、開始・終了・shutdown、実runnerのworker設定、層別時間、failure／retry別記を残す。GitHub権限・required checks・Actions固有のrunner条件等、ローカルで不可能な条件だけを理由付き例外とする。
 
-[#102](https://github.com/karin0624/endfield_rpg/issues/102)では、品質維持した同条件・直列のゲーム本体CI対象（`npm run test:browser`）のローカル全工程が起動から終了まで5分以内、または同品質で5分以内にできない明確な根拠が成立するまでPR禁止。設定画面の`editor-views`／`editor-resources`はこの5分判定へ含めず、`npm run test:editor`で明示的に別実行する。`test:all`は両scopeを必要時に検証するコマンドであり、5分の判定対象ではない。成立後もユーザー確認まで公開を再開しない。部分成功、実描画が多い事実、未測定の推測を不可避の根拠・課題解決としない。
+[#102](https://github.com/karin0624/endfield_rpg/issues/102)では、品質維持したゲーム本体CI対象（`npm run test:browser`）のローカル全工程が起動から終了まで5分以内、または同品質で5分以内にできない明確な根拠が成立することを公開条件とする。直列側の費用整理を先に検討し、ユーザー確認を経てgameの既定2workersを採用する。設定画面の`editor-views`／`editor-resources`はこの5分判定へ含めず、`npm run test:editor`で明示的に別実行する。`test:all`は両scopeを必要時に検証するコマンドであり、5分の判定対象ではない。公開・マージはユーザー判断に従う。部分成功、実描画が多い事実、未測定の推測を不可避の根拠・課題解決としない。
 
 実runner固有のreport生成・古いJSONの再利用拒否・list-onlyは実CLIで検証する。未登録ファイル、部分結果、coverage欠落はその実reportを入力として実行照合を検証し、同じfixtureを再実行して準備を重複させない。ケース別coverage annotationには回収のwall msを含め、ブラウザcase全体や終了時の集計費用と区別する。共有fixtureは実初期viewport／DPR、標準CDPのGPU deviceと共有page fixture内のprocess CPU累積値も記録する。CPU累積値は全threadの消費量であり、GPU elapsedや排他的なcase CPU時間と扱わない。
 

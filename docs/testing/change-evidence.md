@@ -404,3 +404,11 @@ artifact除去後の `4b20eb0` で同じ実 `npm run test:browser` を二回完�
 通常CIへ追加した診断費用をその後再確認した。固定 `95c9070` の全工程は365.009秒、指定された追加一回は333.064秒で、803単体／22Native／37unique基準画像・40assertion／各98sourceの2projectと全gateは成功したが、いずれも最新の5分条件は未達だった。以前の272.004／289.151秒に含まれなかったPillow導入・raw比較・summaryとnpm cache条件の違いがあり、全体差を環境変動だけへ帰属できない。Nativeの同じケース・順序・画像・coverage処理とモデルを維持したまま、同一headの365→333では準備区間が38.992秒短縮し、Nativeは6.389秒増えた。4core相当の上限は以前と同じだが、対応する365秒の資源サンプルや競合の直接証拠はなく、原因は未確定とする。
 
 raw比較は正式VRTの合否判定ではなく、UI変更時の画像レビュー資料を作る診断だった。通常CIから診断と専用Pillow導入を外し、既存撮影後の `npm run review:party` として保持する。診断コード・4状態の全画素／領域metrics・寸法・hash・既定28PNG出力は変更しない。正式VRT、全collection／実行／project／case coverageのgate、必要なcoverage変換はそのまま実行する。品質summaryは既存reportの読み取りだけで、テスト・変換・gateを反復しない。分離前の既存reportでの単独実測は0.233秒だったためrevisionと実結果・coverageのログ／job summaryを保持し、手動診断結果の読み込みだけを外した。変更後の通常全工程を固定sourceで一度検証し、結果と5分条件の成否を記録する。
+
+## game既定2workersの採用
+
+診断を通常経路から分離した固定 `64c1edd` の既定1worker全工程は335.542秒、Native247.153秒だった。最後の手段としてユーザーが許可した標準並列の対照を、同じheadの `npm run test:browser -- --workers=2` で一度実行した。起動〜shutdown287.611秒、Native203.758秒、exit0で、両条件とも803単体／22Native／37unique基準画像・40比較／各98sourceの2project・各case V8・全gateが成功した。source454／保護162／三buildのmap原文不一致は0だった。過去の直列272.004／289.151秒も含めて保持し、直列不可能の数学的証明としない。
+
+同時実行は最大2caseで、file内の順序は変更していない。19/22caseの時間が増え、case時間合計は236.896→321.339秒、PC地形は26.501→39.925秒、mobile地形は22.479→38.101秒だった。合計は重複するlatencyでありCPU消費ではない。共有cgroupの平均CPUは2.112→2.596core、throttle記録周期は17.4%→28.8%、memoryは両条件とも16GiB上限へ達し、OOM／OOM killは0だった。gameの専有消費、GPU elapsed、排他的な遅延原因と扱わない。5分までの余裕12.389秒と単発の比較は、安定したCI時間のSLAやActions runnerでの実測を保証しない。
+
+親の確認と採用判断に従い、game共有entryだけへ既定 `--workers=2` を加えた。比較時のNative実効引数と同じで、通常CIとローカルのgame commandへ適用される。editor／allの既定1workerは維持し、後続の明示 `--workers=1` が優先されることを実CLI parserで確認した。モデル・テスト・viewport・品質閾値・VRT基準は変えない。最終headの既定game全工程を一度検証し、速い値が出るまで反復せず、実結果を既存PR105の最終CIと合わせて報告する。

@@ -71,7 +71,7 @@ npm run test:browser
 
 基準画像の比較環境を固定し、失敗時の画像・traceと実JSONは`test-results/`へ保存する。通常配布4173、debug4175、標準minifiedの直接fixture4174を使用する。任意state・phaseを直接描き、ゲームjourneyや実時間待機をテストへ残さない。ゲーム操作・focus・dialog・保存等の結果は実コアをつないだ純粋モデルで確認し、ブラウザは実外観と直接WebGL資源だけを担当する。詳しくは[テスト設計](docs/testing.md)を参照する。
 
-開発エディター・標準構図・HMR変更時は`npm run test:editor`も必要になる。この改修では`test:all`で両scopeを同じ必要build／ブラウザ実行へまとめられる。基準画像を意図的に変更するときだけ対応scopeの`--update-snapshots`を使用し、承認と画像レビューを経る。今回の責務分離で基準bytes・許容差を更新しない。5分目標の全工程計測は`test:browser`が対象で、設定画面の`test:editor`と両scopeの`test:all`は含めない。CIは固定コンテナの一つのjob／workspaceで`test:browser:inside`を実行する。checkの通常配布をその場で再利用し、別入口のdebug／viewだけを一度ずつ追加buildする。artifactのupload／downloadや保存容量に依存せず、対象revision・全実行結果・coverageをログとjob summaryへ記録する。ローカルの`test:browser`も同じ工程をworkspace所有者として実行する。
+開発エディター・標準構図・HMR変更時は`npm run test:editor`も必要になる。この改修では`test:all`で両scopeを同じ必要build／ブラウザ実行へまとめられる。基準画像を意図的に変更するときだけ対応scopeの`--update-snapshots`を使用し、承認と画像レビューを経る。今回の責務分離で基準bytes・許容差を更新しない。5分目標の全工程計測は`test:browser`が対象で、設定画面の`test:editor`と両scopeの`test:all`は含めない。CIは固定コンテナの一つのjob／workspaceで`test:browser:inside`を実行する。checkの通常配布をその場で再利用し、別入口のdebug／viewだけを一度ずつ追加buildする。artifactのupload／downloadや保存容量に依存せず、対象revision・全実行結果・coverageをログとjob summaryへ記録する。ローカルの`test:browser`も同じ工程をworkspace所有者として実行する。gameのNative実行は既定2workers、`test:editor`／`test:all`は既定1worker。直列のgameを明示実行するには`npm run test:browser -- --workers=1`を使う。
 
 UI変更の画像レビューには、`test:browser`で撮影した4状態を使い、Pillowを用意したPython環境で`npm run review:party`を明示実行する。`test-results/approved-comparison/`へ同解像度の原画・実画面・raw diff・overlay・領域別数値を生成し、レビュー資料として確認する。この診断とPillow導入は通常CIの工程へ含めない。画像レビューの必要条件は[UI開発の必須ゲート](docs/ui-asset-production.md#ui開発の必須ゲート)を参照する。
 
