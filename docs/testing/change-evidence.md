@@ -177,7 +177,7 @@ installed Playwrightでは `Frame.evaluateExpression` にtrace snapshotが付き
 | 本編／debugの進行・帰還・保存再開・六回療養 | 親子の実コア結合、`campaignJourney.test.ts`、`campaignRecovery.test.ts`。途中のHP・乱数注入なし |
 | 各着弾・回復→発症→敵hit・多段・全体・成長・取消・速度 | 実コア結果とplayback／battle／dungeonモデルの独立HP・残数・時刻・乱数、直接FX／route VRT |
 | 設定raw・全invalid・draft障害・保存待ち／失敗／再試行 | `editorModel.test.ts`、実HTTPの固定書込先／旧bytes、必要時直接editor画像 |
-| 通常配布・素材・Native寿命 | 現行normal artifactの実HTTP／FS、直接初期VRT、実GPU・取得数・DPR・遅着・失敗・pagehide／HMR |
+| 通常配布・素材・Native寿命 | 通常配布の実HTTP／FS、直接初期VRT、実GPU・取得数・DPR・遅着・失敗・pagehide／HMR |
 
 詳細の対応はテストコードと差分で読み、巨大な仕様ID・assertion台帳は作らない。モデル結果をNative幾何の保証、VRTを状態規則の保証へ読み替えない。
 
@@ -298,7 +298,7 @@ browserの未使用`data-replaying`や私的なphase属性は、省略ボタン�
 
 ## 通常ブラウザ実行とV8 coverageの統合
 
-旧CIは同じ170ケースを通常browserで25.2分、専用解析buildのbrowser-coverageで30.3分実行していた。全件discovery・実行結果・VRTの保証を維持し、通常配布と同じminificationのbuildへhidden sourcemapだけを付加して、一回のbrowser実行から合否とproject別coverageを得る構成に統合した。browser内の先行buildも除き、通常・debugをそれぞれ一度生成する。当時はverifyの通常buildと`test:coverage`別名を残していた。現在は上記の同一normal artifact再利用へ整理し、旧コマンドを廃止した。
+旧CIは同じ170ケースを通常browserで25.2分、専用解析buildのbrowser-coverageで30.3分実行していた。全件discovery・実行結果・VRTの保証を維持し、通常配布と同じminificationのbuildへhidden sourcemapだけを付加して、一回のbrowser実行から合否とproject別coverageを得る構成に統合した。browser内の先行buildも除き、通常・debugをそれぞれ一度生成する。当時はverifyの通常buildと`test:coverage`別名を残していた。この段階では同一normal artifact再利用へ整理し、旧コマンドを廃止した。下のPR105修正でjob間artifact受渡しも廃止した。
 
 [Viteのhidden map](https://vite.dev/config/build-options.html#build-sourcemap)は外部mapを生成し、実行JSへmap参照コメントを付加しない。Playwrightのnative V8データに、そのchunkの隣接mapをMonocart標準APIの`sourceMap`として渡す。dev fixtureは既存のinline mapを使う。未読込srcの分母、project別report、追加page/contextの拒否、遷移前回収、各case annotationと全件照合は維持する。minified V8からの再mappingによりcounterや率は旧非minify解析buildと一致するとは限らず、旧率の単純比較を合格条件にしない。
 
@@ -387,3 +387,12 @@ editor fixtureの初期2対2は、同じ設定と全4戦闘者をconstructorで�
 同じ `4fe5cb5` の `npm run test:editor` も既定1workerで全実行し、起動〜shutdown232.486秒、Native runner153.551秒で成功した。単体800case、editor 10case・4ファイル、18 unique基準画像・22画像assertion、`editor-views`／`editor-resources`の各98 source・各case native V8と全実行gate、HMR／退出時の資源0を確認した。source451／保護162の前後差とこのscopeの二buildのmap原文不一致は0である。二つのscopeの実Native inventoryを前の全実行と照合すると、同じ32case／54 unique基準画像・62画像assertion／全4projectを覆い、抜け・追加は0だった（1画像は両scopeで共通）。別scopeの実測時間を合算した値を `test:all` のwall実測とは扱わない。
 
 raw shop390の13pixel変動は、同じNative条件で0／13が出る観測までで原因未確定である。基準PNG・製品CSS・仕様・許容差は変更していない。上の承認済みVRT成功を、このraw差分の解消やコントラスト基準適合の証明として扱わない。最新指示に従いCI／push／PR／merge／uploadは実施せず、ローカル証拠と既定1workerを保持する。
+
+
+## PR105の独立レビューとartifact依存の除去
+
+固定head `ba068838` の独立レビューでNative adapterのP2二点を確認した。編成の通常focus適用では詳細ボタンにも `preventScroll` を使っており、既存二人の名簿と1280×720でTab／Shift+Tab先が候補一覧の下に隠れた。通常の詳細focusを標準 `focus()` に戻し、詳細を閉じるopener復帰の `preventScroll` は保持した。ルートviewportは意味focusの直後のNative `focusin` でscreenに分類され、モデルfocusが消えて左右キーを拒否し、Tabがノードへ進まなかった。明示したroute viewportをcontrolとして通知するようにした。モデル・仕様・CSS・素材・golden・許容差は変更していない。
+
+既存モデルと実viewへ正当な状態を直接渡す隔離Native診断で修正前後を確認した。製品と同じstate変更時の描画条件では、編成の修正前はscroll14で詳細が隠れ、修正後はscroll98で順方向・逆方向の詳細ボタンが完全に表示された。詳細の開閉は元のopener・scroll98・仮編成を保持した。ルートは修正前にfocusがnullになり、ArrowRight／Leftでoffset74が変化せず、次Tabが帰還ボタンへ戻った。修正後はroute／controlを保持し、74→26→74と48pxずつ移動し、Tabが選択可能なbattle-aへ、Shift+Tabがviewportへ戻った。診断をゲームjourneyテストとして通常suiteへ加えていない。最初の隔離診断は同一stateにも再描画していたため、その結果と製品条件へ修正した結果を別々に保全した。
+
+PR105の初回CI `37289448801` は800単体・通常build・実行gateが成功した後、Actions保存容量により二つのartifact uploadが失敗し、browser jobは未実行だった。通常CIに保存必須の成果物はなく、ユーザー承認により同じPRで単一job／workspaceへ統合した。固定Playwrightコンテナ内で同じ `run-game-quality.sh` がcheck→debug build→直接view build→全ゲームNative／coverage／実行gate→承認資料診断を順に行う。通常buildはcheckの一回をその場で再利用する。upload／download・別保存先への迂回・解析専用buildを設けず、ログ／job summaryにrevisionと実結果・coverageを残す。予算・リポジトリ設定は変更しない。editorは既存の別実行を保持する。最終ローカル全工程と独立レビューを整えてから、親の判断で既存PRへまとめて反映する。途中の実験CIは行わない。

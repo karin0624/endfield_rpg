@@ -27,9 +27,11 @@ Node.jsは `.nvmrc` の24系、ブラウザは `mcr.microsoft.com/playwright:v1.
 | コマンド | 範囲 |
 | --- | --- |
 | `npm run check` | Biome・型・素材検査・現在の通常minified build・全Vitest／V8 coverage／発見と実行の照合。ブラウザなし |
-| `npm run test:browser` | ゲーム本体CIの全工程。checkに続けて異なるdebug／直接view入口を各一度buildし、views／rendererの直接VRT・Native資源検証・native V8を一回実行 |
+| `npm run test:browser` | ゲーム本体CIの全工程。checkに続けて異なるdebug／直接view入口を各一度buildし、views／rendererの直接VRT・Native資源検証・native V8を一回実行し、承認資料の同解像度診断と品質summaryを生成 |
 | `npm run test:editor` | checkとview build、開発者専用の直接構図VRT・Native HMRを必要時に全実行 |
 | `npm run test:all` | check・必要な3build・既定とeditorの全projectを同じ一回の直列ブラウザ実行で確認 |
+
+CIは固定コンテナの単一jobで `npm ci` の後に `test:browser:inside` を実行する。checkで作った通常配布を同じworkspaceから使い、job間の配布受渡し・結果保存artifactは設けない。ローカルの `test:browser` も同じ `run-game-quality.sh` を使い、既存の画像診断に必要なPillowをコンテナ内へ導入した後、workspace所有者で実行する。従来の単体coverage閾値、全git spec／無filter collection／実行・全project・各case coverage照合を維持する。結果とrevision、失敗・skip・retry・global error、0-hit込みのsource数とcoverage、承認資料とのraw比較をログへ出し、Actionsではjob summaryにも残す。生成JSON・画像・trace・mapは同じローカルworkspaceで確認できる。失敗前に未生成のreportを成功に数えず、旧reportを消してから開始し、summary処理の成否で元の品質失敗を成功へ変えない。承認資料のraw比較は人が評価する診断であり、既存goldenとのVRT合否やWCAG適合とは区別する。
 
 コンテナ内では対応する `:inside` scriptを使う。`test:browser`／`test:all` はcheckが作った通常配布を共用し、素材・型の前処理を後続buildで反復しない。単独の `build`／`build:debug`／`build:views` は前処理を含む。Vitestのfile並列設定を目標のために増やさず、Playwrightは1worker。工程は直列に実行する。
 
@@ -57,7 +59,7 @@ git上の全品質spec、runnerの実collection、今回の実JSONを照合す�
 
 [Playwright画像比較](https://playwright.dev/docs/test-snapshots)の固定環境、既存baselineのpath／bytes／許容差を保つ。画像不一致をsleep・許容差増加・無審査baseline生成で隠さない。必要な字体・画像decode・pointer／keyboard modality・viewport・scrollを撮影前に揃える。レビュー資料の撮影やoverlayはVRT成功を代替せず、旧実行参考画像を新たな承認済みgoldenと扱わない。
 
-実装中は必要な短い検証で原因と費用を確認する。提出前はsourceを固定し、check・必要な全直接VRT・資源検証・editorをローカルで完走する。代表数件だけで全件をCIへ委ねない。source／LFS実体／CSS・素材・goldenの前後一致、正確なhead／tree、開始・終了・shutdown、実runnerのworker設定、層別時間、failure／retry別記を残す。GitHub権限・required checks・Actions固有artifact等、ローカルで不可能な条件だけを理由付き例外とする。
+実装中は必要な短い検証で原因と費用を確認する。提出前はsourceを固定し、check・必要な全直接VRT・資源検証・editorをローカルで完走する。代表数件だけで全件をCIへ委ねない。source／LFS実体／CSS・素材・goldenの前後一致、正確なhead／tree、開始・終了・shutdown、実runnerのworker設定、層別時間、failure／retry別記を残す。GitHub権限・required checks・Actions固有のrunner条件等、ローカルで不可能な条件だけを理由付き例外とする。
 
 [#102](https://github.com/karin0624/endfield_rpg/issues/102)では、品質維持した同条件・直列のゲーム本体CI対象（`npm run test:browser`）のローカル全工程が起動から終了まで5分以内、または同品質で5分以内にできない明確な根拠が成立するまでPR禁止。設定画面の`editor-views`／`editor-resources`はこの5分判定へ含めず、`npm run test:editor`で明示的に別実行する。`test:all`は両scopeを必要時に検証するコマンドであり、5分の判定対象ではない。成立後もユーザー確認まで公開を再開しない。部分成功、実描画が多い事実、未測定の推測を不可避の根拠・課題解決としない。
 

@@ -11,128 +11,23 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          lfs: true
-      - uses: actions/setup-node@v7
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - name: Record tested integration revision
-        env:
-          PR_HEAD: ${{ github.event.pull_request.head.sha }}
-          PR_BASE: ${{ github.event.pull_request.base.sha }}
-        run: |
-          mkdir -p coverage
-          git rev-parse HEAD > coverage/revision.txt
-          echo "head=$PR_HEAD" >> coverage/revision.txt
-          echo "base=$PR_BASE" >> coverage/revision.txt
-      - run: npm ci
-      - run: COVERAGE_BROWSER=1 npm run check
-      - run: git rev-parse HEAD > test-results/build-revision.txt
-      - uses: actions/upload-artifact@v4
-        with:
-          name: verified-normal-distribution
-          path: |
-            dist/
-            test-results/build-revision.txt
-          if-no-files-found: error
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: vitest-results-and-coverage
-          path: |
-            test-results/vitest*.json
-            coverage/unit/
-            coverage/revision.txt
-          if-no-files-found: error
-  browser:
-    needs: verify
-    runs-on: ubuntu-latest
     container:
       image: mcr.microsoft.com/playwright:v1.63.0-noble
       options: --ipc=host
     steps:
-      - run: apt-get update && apt-get install -y git-lfs python3-pil
+      - run: apt-get update && apt-get install -y --no-install-recommends git-lfs python3-pil
       - uses: actions/checkout@v7
         with:
           lfs: true
       - name: Trust checked-out workspace for container shell
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
-      - name: Record tested integration revision
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Check, build each entry once, and run the complete game scope
         env:
           PR_HEAD: ${{ github.event.pull_request.head.sha }}
           PR_BASE: ${{ github.event.pull_request.base.sha }}
-        run: |
-          mkdir -p coverage
-          git rev-parse HEAD > coverage/revision.txt
-          echo "head=$PR_HEAD" >> coverage/revision.txt
-          echo "base=$PR_BASE" >> coverage/revision.txt
-      - run: npm ci
-      - name: Record unchanged baseline bytes for independent review
-        run: |
-          mkdir -p test-results
-          sha256sum tests/e2e/ui/party-ui.spec.ts-snapshots/approved-symptoms-ui-linux.png \
-            tests/e2e/ui/party-ui.spec.ts-snapshots/approved-disabled-ui-linux.png \
-            tests/e2e/ui/party-ui.spec.ts-snapshots/formation-primary-pressed-1920-ui-linux.png \
-            tests/e2e/settings/settings.spec.ts-snapshots/adventure-saved-dialogue-settings-linux.png \
-            > test-results/baseline-sha256.txt
-      - uses: actions/upload-artifact@v4
-        with:
-          name: fixed-ui-baselines-for-review
-          path: |
-            tests/e2e/ui/party-ui.spec.ts-snapshots/approved-symptoms-ui-linux.png
-            tests/e2e/ui/party-ui.spec.ts-snapshots/approved-disabled-ui-linux.png
-            tests/e2e/ui/party-ui.spec.ts-snapshots/formation-primary-pressed-1920-ui-linux.png
-            tests/e2e/settings/settings.spec.ts-snapshots/adventure-saved-dialogue-settings-linux.png
-            test-results/baseline-sha256.txt
-          if-no-files-found: error
-      - uses: actions/download-artifact@v4
-        with:
-          name: verified-normal-distribution
-      - name: Check the verified normal artifact belongs to this integration revision
-        run: test "$(cat test-results/build-revision.txt)" = "$(git rev-parse HEAD)"
-      - name: Build the distinct debug and direct-state entries once
-        run: |
-          COVERAGE_BROWSER=1 npx vite build --mode debug --outDir dist-debug
-          COVERAGE_BROWSER=1 npx vite build --config vite.views.config.ts
-      - name: Direct VRT and native renderer resources with coverage
-        run: sh scripts/run-playwright-quality.sh browser
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: playwright-results-and-coverage
-          path: |
-            test-results/playwright*.json
-            coverage/browser/
-            coverage/revision.txt
-            playwright-report/
-          if-no-files-found: error
-      - name: Compare approved party UI images
-        if: success() || failure()
-        run: python3 scripts/compare-party-ui.py test-results test-results/approved-comparison
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: party-approval-comparison
-          path: test-results/approved-comparison/
-          if-no-files-found: error
-          retention-days: 14
-      - uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: browser-test-results
-          path: test-results/
-          retention-days: 14
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: direct-state-previews
-          path: |
-            test-results/**/campaign-*.png
-            test-results/**/formation-*.png
-            test-results/**/party-*.png
-            test-results/**/approved-*.png
-          if-no-files-found: error
-          retention-days: 14
+        run: npm run test:browser:inside

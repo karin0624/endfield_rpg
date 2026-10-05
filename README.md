@@ -70,7 +70,7 @@ npm run test:browser
 
 基準画像の比較環境を固定し、失敗時の画像・traceと実JSONは`test-results/`へ保存する。通常配布4173、debug4175、標準minifiedの直接fixture4174を使用する。任意state・phaseを直接描き、ゲームjourneyや実時間待機をテストへ残さない。ゲーム操作・focus・dialog・保存等の結果は実コアをつないだ純粋モデルで確認し、ブラウザは実外観と直接WebGL資源だけを担当する。詳しくは[テスト設計](docs/testing.md)を参照する。
 
-開発エディター・標準構図・HMR変更時は`npm run test:editor`も必要になる。この改修では`test:all`で両scopeを同じ必要build／ブラウザ実行へまとめられる。基準画像を意図的に変更するときだけ対応scopeの`--update-snapshots`を使用し、承認と画像レビューを経る。今回の責務分離で基準bytes・許容差を更新しない。5分目標の全工程計測は`test:browser`が対象で、設定画面の`test:editor`と両scopeの`test:all`は含めない。CIは検証済みの通常配布artifactを再利用し、別入口のdebug／viewだけを追加buildして`scripts/run-playwright-quality.sh browser`を実行する。
+開発エディター・標準構図・HMR変更時は`npm run test:editor`も必要になる。この改修では`test:all`で両scopeを同じ必要build／ブラウザ実行へまとめられる。基準画像を意図的に変更するときだけ対応scopeの`--update-snapshots`を使用し、承認と画像レビューを経る。今回の責務分離で基準bytes・許容差を更新しない。5分目標の全工程計測は`test:browser`が対象で、設定画面の`test:editor`と両scopeの`test:all`は含めない。CIは固定コンテナの一つのjob／workspaceで`test:browser:inside`を実行する。checkの通常配布をその場で再利用し、別入口のdebug／viewだけを一度ずつ追加buildする。artifactのupload／downloadや保存容量に依存せず、対象revision・全実行結果・coverage・承認資料の診断差分をログとjob summaryへ記録する。ローカルの`test:browser`も同じ工程を使い、画像診断に必要なPillowをコンテナ内へ導入してからworkspace所有者として実行する。
 
 クラウド環境で`NODE_EXTRA_CA_CERTS`が既存の`/usr/local/share/ca-certificates/environment-proxy-ca.crt`を指し、そのファイルを読み取れる場合、ブラウザテストの起動スクリプトが証明書をコンテナへ読み取り専用で渡す。コンテナ内のNode.jsだけに同じCAを追加し、TLS検証は有効のままにする。OSの信頼設定は変更せず、証明書はリポジトリに保存しない。この条件に当てはまらないローカル環境とGitHub Actionsの実行方法は変わらない。
 

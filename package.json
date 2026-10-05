@@ -17,7 +17,7 @@
     "build:debug": "node scripts/check-assets.mjs && tsc --noEmit && vite build --mode debug --outDir dist-debug",
     "build:views": "node scripts/check-assets.mjs && tsc --noEmit && vite build --config vite.views.config.ts",
     "test:browser": "sh scripts/run-browser-test.sh browser",
-    "test:browser:inside": "COVERAGE_BROWSER=1 npm run check && COVERAGE_BROWSER=1 vite build --mode debug --outDir dist-debug && COVERAGE_BROWSER=1 vite build --config vite.views.config.ts && sh scripts/run-playwright-quality.sh browser",
+    "test:browser:inside": "sh scripts/run-game-quality.sh",
     "test:all": "sh scripts/run-browser-test.sh all",
     "test:all:inside": "COVERAGE_BROWSER=1 npm run check && COVERAGE_BROWSER=1 vite build --mode debug --outDir dist-debug && COVERAGE_BROWSER=1 vite build --config vite.views.config.ts && sh scripts/run-playwright-quality.sh all"
   },
