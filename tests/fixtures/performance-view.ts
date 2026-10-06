@@ -105,6 +105,13 @@ async function run(
   for (let warmup = 0; warmup < 20; warmup++) await nextFrame();
   let campaign: ReturnType<typeof createCampaignView> | undefined;
   const base = createCampaignModel();
+  // Prepare direct snapshots before profilerReady; first rendering stays in the workload.
+  const campaignSnapshots =
+    workload === "switch" || workload === "switch-paced"
+      ? (["home", "destinations", "town"] as const).map((value) =>
+          campaignMachine.resolveState({ value, context: base.context }),
+        )
+      : [];
   if (workload === "switch" || workload === "switch-paced") {
     view.dispose();
     app.replaceChildren();
@@ -141,24 +148,12 @@ async function run(
     if (campaign) {
       if (index % switchEveryFrames === 0) {
         const screenIndex = Math.floor(index / switchEveryFrames);
-        const screen =
-          screenIndex % 3 === 0
-            ? { kind: "home" as const }
-            : screenIndex % 3 === 1
-              ? { kind: "destinations" as const }
-              : { kind: "town" as const };
-        const frame = timed("projection", () =>
-          projectCampaign(
-            campaignMachine.resolveState({
-              value: screen.kind,
-              context: base.context,
-            }),
-          ),
-        );
+        const snapshot = campaignSnapshots[screenIndex % 3];
+        const frame = timed("projection", () => projectCampaign(snapshot));
         timed("dom-submit", () => campaign?.render(frame));
         await Promise.resolve();
-        switches.push({ from: previousScreen, to: screen.kind, frame: index, applyWallMs: 0 });
-        previousScreen = screen.kind;
+        switches.push({ from: previousScreen, to: snapshot.value, frame: index, applyWallMs: 0 });
+        previousScreen = snapshot.value;
       }
     } else {
       if (workload === "cue" && index % 90 === 0) state = initial;

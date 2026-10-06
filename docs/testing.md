@@ -68,6 +68,8 @@ Svelte移行時の前後比較、全scope／gameの実行結果と未確認事�
 
 `tests/fixtures/performance-view.html`は直接状態fixtureで、通常配布へ含めない。通常戦闘の選択更新、連続marker、確定recordのcue、home／destinations／town切替を各180frameで測る。実Babylon・素材・shader・fonts・画像decodeを準備し、20rAFのwarm後にGC・profilingを開始する。通常戦闘の入力更新とclockを通し、Svelteでは実行中と同じ`renderModel`を使う。
 
+本編切替用のhome／destinations／town snapshotは`profilerReady`通知前に準備し、各切替でsnapshotを選んで`projectCampaign`を実行する。初回empty→homeの描画、DOM更新とlayout readは計測区間に含む。直接状態fixtureのため、`reduceCampaign`による進行遷移の費用は測らない。
+
 次の例は固定Docker内で現在sourceをbuildし、他の品質実行が終わってから3回ずつ測る。結果は`test-results/perf/`のJSON、CDP trace、CPU profileへ置く。品質テストやVRT合否の代用にはしない。
 
 ```sh
