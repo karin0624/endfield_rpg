@@ -40,14 +40,22 @@
 
 CodexでGitの取得・同期や認証を扱うときは、[endfield-git-auth skill](.agents/skills/endfield-git-auth/SKILL.md)に従う。GitHub API・公開、workspaceのGit同期、Git LFS実体取得を用途別に扱う手順をここにまとめる。
 
-新規チェックアウト後に依存関係を固定済みのlockfileからインストールする。
+新規チェックアウト後の準備と検査は一つの入口で実行する。Node.js 24／npm 11を確認し、local Git LFS導入、lockfileからの依存導入、必要な配布LFS素材の取得・SHA-256 oid／size照合を終えてから `check` を一度実行する。準備済みの素材は再取得しない。失敗時は後続工程へ進まない。
 
 ```sh
 nvm use
-git lfs install
-git lfs pull
-npm ci
+node scripts/setup.mjs
 ```
+
+Codexの保存環境の **Install script** はrepositoryを作業ディレクトリとして、次の一行を設定する。
+
+```sh
+node scripts/setup.mjs --cache /workspace/.npm
+```
+
+Install scriptを環境起動の実行入口とする。`SessionStart`で同じ準備を重ねず、追加の `npm run build` も不要（`check` が通常buildを含む）。保存環境への設定・公開と新規taskでの実行確認は別途必要であり、repositoryのscript追加だけでは自動実行されない。同期は対象taskの取得手順で行い、setupは現在のcheckoutを変更しない。
+
+LFS失敗時の自動対照は[PR108の記録](docs/testing/git-lfs-auth-evidence.md)と一致するendpoint・groundのoid／size、Git LFS 3.6／3.8、単一のlocal `.git/config` の `basic` に限定する。対象batchの403または先行credential不足だけが候補で、空storage・command scopeの空access値による同一ref／pathの取得と実体照合が成功してから、その学習値だけをunsetする。さらに空storageからaccess上書きなしの標準取得・展開・照合を行う。対照失敗・別の拒否・複数値・別保存元・未知の条件では停止し、credential helper／remote／権限を変更しない。詳細な手動診断は[endfield-git-auth skill](.agents/skills/endfield-git-auth/SKILL.md)を参照する。
 
 | コマンド | 用途 |
 | --- | --- |

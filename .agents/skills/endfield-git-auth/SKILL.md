@@ -74,9 +74,9 @@ connectorのAPI fetchはGitのfetchではなく、LFS pointerは素材実体で�
    対象設定の除去後、必要なら空のLFS object cacheを持つ隔離checkoutで、access上書きなしの標準取得・展開とpointerのoid／size一致を確認してから恒久復旧と報告する。既存cache・作業treeを削除して検証せず、学習値が再設定される場合はその応答・理由を確認する。全面的なcredential削除、常時`access=none`固定、hookからの自動reset、すべての403への自動適用を行わない。
 5. client Authorization未送信で取得できた観測は、その条件の結果として記録する。匿名公開やproxy側の認証の有無は断定せず、command対照成功と、保存値除去後の標準取得成功を区別する。
 
-## startup hookとの関係
+## Install scriptとの関係
 
-[startup hook](../../../.codex/hooks.json)は`git pull --ff-only`の成功後に`npm ci`を実行し、認証setupを行わない。初回の必要な認証準備には上記手順を使い、hookからglobal credential設定を毎回書き換えたり、認証probe・LFS再試行を自動追加したりしない。hook失敗時は許可された範囲の原因確認を行い、自動再試行で押し通さない。
+環境準備は保存環境のInstall scriptから[setup入口](../../../README.md#セットアップと実行)を呼ぶ。setup専用のSessionStart hookは削除し、同期・依存導入を二重実行しない。setupは既存credential helperを維持し、認証setupやGit同期は行わない。必要な認証準備・同期には上記手順を使う。自動復旧はPR108の既知条件と同一対象の対照成功に限定し、判断できない状態や失敗では後続検査を停止する。
 
 ## 公式根拠
 
