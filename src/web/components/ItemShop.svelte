@@ -9,19 +9,20 @@ let dialog: HTMLDialogElement,
   quantity: HTMLInputElement,
   buy: HTMLButtonElement,
   close: HTMLButtonElement;
+let focus = $derived(frame.focus);
 $effect(() => {
   if (frame.open && !dialog.open) dialog.showModal();
   else if (!frame.open && dialog.open) dialog.close();
 });
 $effect(() => {
   const node =
-    frame.focus === "quantity"
+    focus === "quantity"
       ? quantity
-      : frame.focus === "buy"
+      : focus === "buy"
         ? buy
-        : frame.focus === "close"
+        : focus === "close"
           ? close
-          : frame.focus === "trigger"
+          : focus === "trigger"
             ? trigger
             : null;
   if (node && node !== document.activeElement) node.focus();

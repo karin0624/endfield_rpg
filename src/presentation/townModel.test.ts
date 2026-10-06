@@ -131,6 +131,7 @@ describe("実セッションに結線した街の画面状態", () => {
     expect(current.input.game.inventory?.balance).toBe(10);
     current = send(current, { type: "shop-close" });
     current = send(current, { type: "advance" });
+    expect(project(current).adventure.focus).toEqual({ kind: "place", placeId: "market" });
     expect(projectTownShop(current.state, current.input)).toMatchObject({ visible: false, open: false });
     expect(reduceTown(current.state, { type: "shop-open" }, current.input).handled).toBe(false);
     expect(current.input.game.inventory?.items.home).toEqual([{ itemId: "hp-recovery", quantity: 2 }]);
@@ -159,7 +160,6 @@ describe("実セッションに結線した街の画面状態", () => {
     expect(projectTownShop(current.state, current.input)).toMatchObject({ open: false, focus: "trigger" });
     expect(current.input.game).toEqual(before);
     current = send(current, { type: "advance" });
-    current = send(current, { type: "focused", target: { kind: "place", placeId: "market" } });
     expect(project(current).adventure.focus).toEqual({ kind: "place", placeId: "market" });
     expect(projectTownShop(current.state, current.input).focus).toBeNull();
   });
