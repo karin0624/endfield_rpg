@@ -62,6 +62,7 @@ git上の全品質spec、runnerの実collection、今回の実JSONを照合す�
 ## 表示負荷の計測
 
 Svelte移行時の前後比較、全scope／gameの実行結果と未確認事項は[検証記録](testing/view-refactor-evidence.md)を参照する。
+移行後の街生成時のCSS反映費用、疎な切替の単発費用と採用案の限界は[切替負荷の検証記録](testing/view-switch-performance-evidence.md)を参照する。
 
 `tests/fixtures/performance-view.html`は直接状態fixtureで、通常配布へ含めない。通常戦闘の選択更新、連続marker、確定recordのcue、home／destinations／town切替を各180frameで測る。実Babylon・素材・shader・fonts・画像decodeを準備し、20rAFのwarm後にGC・profilingを開始する。通常戦闘の入力更新とclockを通し、Svelteでは実行中と同じ`renderModel`を使う。
 
@@ -75,6 +76,8 @@ docker run --rm --init --ipc=host --name endfield-view-profile --user "$(id -u):
 ```
 
 別terminalでLocal出力を確認してから`docker exec --user "$(id -u):$(id -g)" -w /work endfield-view-profile node scripts/measure-view.mjs test-results/perf http://127.0.0.1:4174 3`を実行し、終了後に`docker stop endfield-view-profile`する。CAが必要な環境では通常のブラウザwrapperと同じ読み取り専用CAを渡す。
+
+末尾に`switch,switch-paced`などのcomma-separated workloadを指定すると、その負荷だけを測る。省略時の4負荷は変わらない。`switch-paced`は180frameのうち30frameごとに6回描画し、`switches`へ切替元・先・frame番号・settledとlayout readまでの単発apply wallを保存する。初回empty→homeと以後の切替を分けて読む。30frameは比較用の間隔で、ユーザーの通常操作頻度を実測した値ではない。疎な負荷の全frame p95は主にidleを表すため、切替の単発費用に使わない。CPU profile、traceに加え、source内訳を調べるためのallocation sampling profileも保存する。
 
 | 観測 | 意味と限界 |
 | --- | --- |
