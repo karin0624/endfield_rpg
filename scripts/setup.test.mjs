@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import { copyFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -14,6 +15,7 @@ const asset = {
 };
 const endpoint = "https://github.com/karin0624/endfield_rpg.git/info/lfs";
 const key = `lfs.${endpoint}.access`;
+const loginFailure = "batch response: Maximum number of login attempts exceeded. Please try again later.";
 const source = fileURLToPath(new URL(`../${asset.name}`, import.meta.url));
 const roots = [];
 afterEach(async () => {
@@ -38,6 +40,7 @@ async function fixture(options = {}) {
     calls.push([tool, ...args]);
     if (options.fail?.(tool, args)) return fail();
     if (tool === "npm") return ok(args[0] === "--version" ? (options.npmVersion ?? "11.9.0") : "");
+    if (args[0] === "worktree") return ok(`worktree ${root}\0HEAD test-ref\0\0`);
     if (args[0] === "rev-parse") return ok(args[1] === "HEAD" ? "test-ref" : ".git/config");
     if (args[0] === "remote") return ok(endpoint.replace("/info/lfs", ""));
     if (args[0] === "ls-files") return ok();
@@ -47,7 +50,7 @@ async function fixture(options = {}) {
         access = "";
         return ok();
       }
-      return ok(access);
+      return access ? ok(access) : { status: 1, stdout: "", stderr: "" };
     }
     if (args[0] === "lfs" && args[1] === "version") return ok(options.version ?? "git-lfs/3.6.1");
     if (args[0] === "lfs" && args[1] === "env") return ok(`Endpoint=${options.endpoint ?? endpoint} (auth=basic)\n`);
@@ -55,7 +58,10 @@ async function fixture(options = {}) {
       return ok(JSON.stringify({ files: [{ ...asset, ...options.pointer }] }));
     if (args.includes("fetch")) {
       const storage = args.find((arg) => arg.startsWith("lfs.storage="))?.slice("lfs.storage=".length);
-      if (options.fetchError && !storage) return fail(options.fetchError);
+      if (options.fetchError && !storage) {
+        if (options.learnOnFailure) access = `local\0file:.git/config\0${key}\nbasic\0`;
+        return fail(options.fetchError);
+      }
       if (storage) {
         const path = join(storage, "objects", "0b", "ad", asset.oid);
         mkdirSync(dirname(path), { recursive: true });
@@ -106,6 +112,7 @@ it("stops before checks when runtime, LFS install, dependencies, download, check
 
 it("proves contrast bytes before local repair and fresh standard bytes before checks", async () => {
   for (const fetchError of [
+    loginFailure,
     "batch response: unexpected status 403",
     "batch response: Git credentials for https://github.com/karin0624/endfield_rpg.git not found.",
   ]) {
@@ -127,6 +134,7 @@ it("proves contrast bytes before local repair and fresh standard bytes before ch
 it("preserves unknown or shared access settings and rejects unrelated failures without diagnostic retries", async () => {
   for (const options of [
     { access: `global\0file:/tmp/global-config\0${key}\nbasic\0` },
+    { access: `worktree\0file:.git/config.worktree\0${key}\nbasic\0` },
     { access: `local\0file:.git/config\0${key}\nbasic\0local\0file:.git/config\0${key}\nbasic\0` },
     { access: `local\0file:.git/config\0${key}\nnone\0` },
     { endpoint: "https://other.example/info/lfs" },
@@ -139,7 +147,7 @@ it("preserves unknown or shared access settings and rejects unrelated failures w
     { fetchError: "batch response: status 403 bandwidth limit exceeded" },
     { fetchError: "batch response: status 403 access denied" },
   ]) {
-    const env = await fixture({ fetchError: "batch response: unexpected status 403", ...options });
+    const env = await fixture({ fetchError: loginFailure, ...options });
     const before = env.getAccess();
     await expect(setup(env)).rejects.toThrow();
     expect(env.getAccess()).toBe(before);
@@ -157,7 +165,7 @@ it("fails closed on contrast, checksum, config change, unset or fresh verificati
     { fail: (_tool, args) => args.some((arg) => arg.startsWith("lfs.storage=") && arg.includes("standard-")) },
     { relearn: true },
   ]) {
-    const env = await fixture({ fetchError: "batch response: unexpected status 403", ...options });
+    const env = await fixture({ fetchError: loginFailure, ...options });
     await expect(setup(env)).rejects.toThrow();
     expect(env.calls).not.toContainEqual(["npm", "run", "check"]);
     if (options.corruptContrast || options.changeAccess)
@@ -170,4 +178,60 @@ it("propagates check failure and leaves the repository hook without duplicate se
   await expect(setup(env)).rejects.toThrow("npm run check failed");
   const hooks = JSON.parse(await readFile(new URL("../.codex/hooks.json", import.meta.url), "utf8"));
   expect(hooks.hooks.SessionStart).toBeUndefined();
+});
+
+it("does not retry newly learned basic or changed pre-existing access after the initial fetch fails", async () => {
+  for (const access of ["", `local\0file:.git/config\0${key}\nnone\0`]) {
+    const env = await fixture({ access, fetchError: loginFailure, learnOnFailure: true });
+    await expect(setup(env)).rejects.toThrow();
+    expect(env.calls.filter((call) => call.includes("fetch"))).toHaveLength(1);
+    expect(env.calls.some((call) => call.includes("--unset"))).toBe(false);
+    expect(env.calls).not.toContainEqual(["npm", "run", "check"]);
+    expect(env.getAccess()).toContain("basic");
+  }
+});
+
+it("preserves actual common and per-worktree configs from both main and linked checkouts", async () => {
+  const root = await mkdtemp(join(tmpdir(), "setup-shared-contract-"));
+  roots.push(root);
+  const main = join(root, "main");
+  const linked = join(root, "linked");
+  mkdirSync(main);
+  const git = (cwd, ...args) => {
+    const result = spawnSync("git", args, { cwd, encoding: "utf8" });
+    expect(result.status, result.stderr).toBe(0);
+    return result.stdout;
+  };
+  git(main, "init");
+  await writeFile(join(main, "marker"), "existing task");
+  git(main, "add", "marker");
+  git(main, "-c", "user.name=Test", "-c", "user.email=test@example.invalid", "commit", "-m", "fixture");
+  git(main, "config", "--local", key, "basic");
+  git(main, "worktree", "add", "--detach", linked);
+  for (const worktreeConfig of [false, true]) {
+    if (worktreeConfig) {
+      git(main, "config", "extensions.worktreeConfig", "true");
+      git(main, "config", "--worktree", "test.task", "main task");
+      git(linked, "config", "--worktree", key, "basic");
+    }
+    const files = [join(main, ".git/config")];
+    if (worktreeConfig) {
+      files.push(git(main, "rev-parse", "--path-format=absolute", "--git-path", "config.worktree").trim());
+      files.push(git(linked, "rev-parse", "--path-format=absolute", "--git-path", "config.worktree").trim());
+    }
+    const before = await Promise.all(files.map((path) => readFile(path)));
+    for (const cwd of [main, linked]) {
+      const calls = [];
+      const run = (tool, args) => {
+        calls.push([tool, ...args]);
+        return tool === "npm"
+          ? { status: 0, stdout: "11.9.0", stderr: "" }
+          : spawnSync(tool, args, { cwd, encoding: "utf8" });
+      };
+      await expect(setup({ root: cwd, run })).rejects.toThrow("independent checkout");
+      expect(calls.some((call) => call.includes("lfs") || call.includes("ci") || call.includes("--unset"))).toBe(false);
+      expect(await Promise.all(files.map((path) => readFile(path)))).toEqual(before);
+      expect(await readFile(join(cwd, "marker"), "utf8")).toBe("existing task");
+    }
+  }
 });

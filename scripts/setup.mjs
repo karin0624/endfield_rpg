@@ -67,6 +67,13 @@ export async function setup({
   if (nodeVersion.split(".")[0] !== "24") throw new Error("Setup requires Node.js 24.");
   const npmVersion = requireSuccess(run("npm", ["--version"], root), "npm version").trim();
   if (npmVersion.split(".")[0] !== "11") throw new Error("Setup requires npm 11.");
+  // Local filters, hooks and LFS challenge learning can mutate common config.
+  // Even worktreeConfig does not redirect LFS's SetLocal access-learning path.
+  const worktrees = requiredGit("worktree", "list", "--porcelain", "-z")
+    .split("\0")
+    .filter((field) => field.startsWith("worktree "));
+  if (worktrees.length !== 1)
+    throw new Error("Setup requires an independent checkout; shared worktree configuration is preserved.");
   requiredGit("lfs", "install", "--local");
   requireSuccess(run("npm", ["ci", ...npmArgs], root), "npm ci");
 
@@ -87,13 +94,22 @@ export async function setup({
   if (missing.length) {
     const paths = missing.map((asset) => asset.name);
     const fetchArgs = ["lfs", "fetch", `--include=${paths.join(",")}`, "--exclude=", "origin", ref];
+    const settings = git("config", "--null", "--show-origin", "--show-scope", "--get-regexp", "^lfs\\..*\\.access$");
+    if (settings.status !== 0 && settings.status !== 1) requireSuccess(settings, "Read pre-fetch LFS access");
     const fetched = git(...fetchArgs);
     if (fetched.status !== 0) {
       // Diagnose only PR108's known local learned state. A general denial,
       // quota, other endpoint, version, object or shared configuration stops here.
       const lfsVersion = requiredGit("lfs", "version");
       const lfsEnv = requiredGit("lfs", "env");
-      const settings = git("config", "--null", "--show-origin", "--show-scope", "--get-regexp", "^lfs\\..*\\.access$");
+      const afterFetch = git(
+        "config",
+        "--null",
+        "--show-origin",
+        "--show-scope",
+        "--get-regexp",
+        "^lfs\\..*\\.access$",
+      );
       const localConfig = await realpath(resolve(root, requiredGit("rev-parse", "--git-path", "config").trim()));
       const lfsConfigTracked = requiredGit("ls-files", "--", ".lfsconfig");
       const lfsConfigPresent = await stat(join(root, ".lfsconfig")).then(
@@ -114,6 +130,8 @@ export async function setup({
         !lfsConfigPresent &&
         requiredGit("remote", "get-url", "origin").trim() === endpoint.replace("/info/lfs", "") &&
         settings.status === 0 &&
+        afterFetch.status === settings.status &&
+        afterFetch.stdout === settings.stdout &&
         fields.length === 3 &&
         fields[0] === "local" &&
         fields[1].startsWith("file:") &&
@@ -125,7 +143,10 @@ export async function setup({
         missing[0].name === recordedAsset.name &&
         missing[0].oid === recordedAsset.oid &&
         missing[0].size === recordedAsset.size &&
-        (/batch response:.*403/.test(fetched.stderr || "") ||
+        ((fetched.stderr || "")
+          .split("\n")
+          .includes("batch response: Maximum number of login attempts exceeded. Please try again later.") ||
+          /batch response:.*403/.test(fetched.stderr || "") ||
           (fetched.stderr || "").includes(
             "batch response: Git credentials for https://github.com/karin0624/endfield_rpg.git not found.",
           ));
