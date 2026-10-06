@@ -19,9 +19,9 @@
 | [specs/visuals.md](specs/visuals.md) | 戦闘画面の配置・構図設定・描画 |
 | [docs/ui-screen-design.md](docs/ui-screen-design.md) | 画面の目的・情報・操作・確定点の設計票、ホーム／街／ADVの境界と棄却例 |
 | [docs/design-guidelines.md](docs/design-guidelines.md) | UIの情報表現・文字・操作状態と共通部品の設計指針 |
-| [docs/ui-asset-production.md](docs/ui-asset-production.md) | 原画像の実入力、制作・Space保存・完成画像承認・製品比較・PR審査の手順 |
+| [docs/ui-asset-production.md](docs/ui-asset-production.md) | 作業種別ごとの適用条件、原画像の実入力・制作・完成画像承認・製品比較・PR審査 |
 | [docs/testing.md](docs/testing.md) | 純粋モデル、直接VRT、Native資源検証の責務と実行環境 |
-| [docs/documentation.md](docs/documentation.md) | 文書の役割、仕様とADRの書き分け、更新規則 |
+| [docs/documentation.md](docs/documentation.md) | 文書の役割、Issue／repo／Space／チャットの使い分け、更新規則 |
 | [docs/adr/](docs/adr/) | 採用した判断とその経緯 |
 | [docs/visual-records/](docs/visual-records/) | 過去の画面記録 |
 | [素材メモ](art-src/README.md) | 使用素材の出典・透過処理・Git LFS運用 |
