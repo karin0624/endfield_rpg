@@ -14,6 +14,8 @@
 | 直接状態VRT | 正当な代表状態・phase・表示時刻を実view／実素材へ与え、既存画像と比較。ゲーム進行、クリック連鎖、実時間待機を使わず到達する |
 | 直接Native WebGL | 実Buffer／Texture／Programの生成・切替・解放、warm再利用、取得回数、DPR割当、失敗・遅着・pagehide・必要時HMRの資源寿命。ゲーム操作journeyは通さない |
 
+本編・探索のXState設定はゲームの公開入力を通して検証する。state machineやValibot自体の一般的な挙動を再検証するテストは作らない。一方、現行保存の厳密なキー集合・数値範囲、保存拒否理由、所有・権利のdomain整合、無効入力で現在gameを変えない保証は、このプロジェクトの契約として残す。snapshot内部の関数等をcloneや期待値へ含めず、モードとcontextの意味データ、外部処理へ返す確定結果を観測する。
+
 E2Eは設けない。ブラウザadapterはNative操作と意味イベントの接続、測定値の通知、commit済みモデル／frameのSvelteへの受渡しを行う。click配線をなぞる追加テストやDOM上のゲーム判断を例外として残さない。入力受付とfocusはモデルで検証し、外観は実VRTで検証する。RGB、私的属性、SVGの要素数を見た目の代理にしない。
 
 確定したゲーム結果と演出表示を分ける。各HP・症状・疲労を確定recordから代入し、表示でルールや乱数を再実行しない。wall msと1倍相当のcue進捗は別の表示入力で、速度変更は次phaseから適用する。CSSの既存keyframes／easingを保ち、[Web AnimationsのcurrentTime](https://www.w3.org/TR/web-animations-1/#setting-the-current-time-of-an-animation)で描画時刻を与える。DOMの最新標本とcanvasが最後に描いた標本も区別する。
@@ -65,6 +67,8 @@ Svelte移行時の前後比較、全scope／gameの実行結果と未確認事�
 移行後の街生成時のCSS反映費用、疎な切替の単発費用と採用案の限界は[切替負荷の検証記録](testing/view-switch-performance-evidence.md)を参照する。
 
 `tests/fixtures/performance-view.html`は直接状態fixtureで、通常配布へ含めない。通常戦闘の選択更新、連続marker、確定recordのcue、home／destinations／town切替を各180frameで測る。実Babylon・素材・shader・fonts・画像decodeを準備し、20rAFのwarm後にGC・profilingを開始する。通常戦闘の入力更新とclockを通し、Svelteでは実行中と同じ`renderModel`を使う。
+
+本編切替用のhome／destinations／town snapshotは`profilerReady`通知前に準備し、各切替でsnapshotを選んで`projectCampaign`を実行する。初回empty→homeの描画、DOM更新とlayout readは計測区間に含む。直接状態fixtureのため、`reduceCampaign`による進行遷移の費用は測らない。
 
 次の例は固定Docker内で現在sourceをbuildし、他の品質実行が終わってから3回ずつ測る。結果は`test-results/perf/`のJSON、CDP trace、CPU profileへ置く。品質テストやVRT合否の代用にはしない。
 

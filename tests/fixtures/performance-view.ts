@@ -13,7 +13,7 @@ import {
 import { projectBattleActors } from "../../src/presentation/battleProjection";
 import { parseBattleSettings } from "../../src/presentation/battleSettings";
 import { projectBattleView } from "../../src/presentation/battleViewProjection";
-import { createCampaignModel } from "../../src/presentation/campaignModel";
+import { campaignMachine, createCampaignModel } from "../../src/presentation/campaignModel";
 import { projectCampaign } from "../../src/presentation/campaignProjection";
 import settings from "../../src/web/battle-settings.json";
 import { createBattleRenderer } from "../../src/web/battleScene";
@@ -82,11 +82,12 @@ async function run(
   const scene = renderer.beginBattle(initialBattleCombatants, undefined, projectBattleActors(initial.playback));
   await scene.ready;
   const sceneReadyMs = performance.now() - preparation;
-  const view: ReturnType<typeof createBattleView> & { renderModel?: (model: BattleModel, input: BattleInput) => void } =
-    createBattleView(board, scene, (event) => {
-      state = reduceBattleModel(state, input, event).state;
-      return true;
-    });
+  const view: ReturnType<typeof createBattleView> & {
+    renderModel?: (model: BattleModel, input: BattleInput) => void;
+  } = createBattleView(board, scene, (event) => {
+    state = reduceBattleModel(state, input, event).state;
+    return true;
+  });
   state = reduceBattleModel(initial, input, { type: "playback", event: { type: "skip" } }).state;
   function applyView() {
     if (view.renderModel) timed("model-submit", () => view.renderModel?.(state, input));
@@ -104,6 +105,13 @@ async function run(
   for (let warmup = 0; warmup < 20; warmup++) await nextFrame();
   let campaign: ReturnType<typeof createCampaignView> | undefined;
   const base = createCampaignModel();
+  // Prepare direct snapshots before profilerReady; first rendering stays in the workload.
+  const campaignSnapshots =
+    workload === "switch" || workload === "switch-paced"
+      ? (["home", "destinations", "town"] as const).map((value) =>
+          campaignMachine.resolveState({ value, context: base.context }),
+        )
+      : [];
   if (workload === "switch" || workload === "switch-paced") {
     view.dispose();
     app.replaceChildren();
@@ -122,7 +130,12 @@ async function run(
   performance.mark("view-workload-start");
   const intervals: number[] = [],
     totals: number[] = [];
-  const switches: { from: string; to: string; frame: number; applyWallMs: number }[] = [];
+  const switches: {
+    from: string;
+    to: string;
+    frame: number;
+    applyWallMs: number;
+  }[] = [];
   const switchEveryFrames = workload === "switch-paced" ? 30 : 1;
   let previousScreen = "empty";
   let previous: number | undefined;
@@ -135,17 +148,12 @@ async function run(
     if (campaign) {
       if (index % switchEveryFrames === 0) {
         const screenIndex = Math.floor(index / switchEveryFrames);
-        const screen =
-          screenIndex % 3 === 0
-            ? { kind: "home" as const }
-            : screenIndex % 3 === 1
-              ? { kind: "destinations" as const }
-              : { kind: "town" as const };
-        const frame = timed("projection", () => projectCampaign({ ...base, screen }));
+        const snapshot = campaignSnapshots[screenIndex % 3];
+        const frame = timed("projection", () => projectCampaign(snapshot));
         timed("dom-submit", () => campaign?.render(frame));
         await Promise.resolve();
-        switches.push({ from: previousScreen, to: screen.kind, frame: index, applyWallMs: 0 });
-        previousScreen = screen.kind;
+        switches.push({ from: previousScreen, to: snapshot.value, frame: index, applyWallMs: 0 });
+        previousScreen = snapshot.value;
       }
     } else {
       if (workload === "cue" && index % 90 === 0) state = initial;

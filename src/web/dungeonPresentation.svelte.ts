@@ -1,22 +1,14 @@
 import type { DungeonInput, DungeonModel } from "../presentation/dungeonModel";
 import { projectDungeonChrome } from "../presentation/dungeonProjection";
 export function deriveDungeonChrome(readModel: () => DungeonModel, readInput: () => DungeonInput, returnLabel: string) {
-  let kind = $derived(readModel().screen.kind);
-  let outcome = $derived(
-    readModel().screen.kind === "outcome"
-      ? (readModel().screen as Extract<DungeonModel["screen"], { kind: "outcome" }>).outcome
-      : undefined,
-  );
-  let route = $derived(readModel().route),
-    branch = $derived(readModel().branch),
-    focus = $derived(readModel().focus),
-    growthFocus = $derived(readModel().growthFocus);
-  let inputContext = $derived(readModel().inputContext),
-    message = $derived(readModel().message),
-    branchResult = $derived(readModel().branchResult),
-    sceneOwner = $derived(readModel().sceneOwner),
-    speed = $derived(readModel().speed),
-    reducedMotion = $derived(readModel().reducedMotion);
+  let value = $derived(readModel().value);
+  let outcome = $derived(readModel().context.outcome);
+  let route = $derived(readModel().context.route),
+    branch = $derived(readModel().context.branch),
+    focus = $derived(readModel().context.focus),
+    growthFocus = $derived(readModel().context.growthFocus);
+  let message = $derived(readModel().context.message),
+    branchResult = $derived(readModel().context.branchResult);
   let game = $derived(readInput().game),
     definition = $derived(readInput().route),
     adventure = $derived(readInput().adventure),
@@ -26,17 +18,16 @@ export function deriveDungeonChrome(readModel: () => DungeonModel, readInput: ()
   let frame = $derived(
     projectDungeonChrome(
       {
-        screen: { kind, outcome },
-        route,
-        branch,
-        focus,
-        growthFocus,
-        inputContext,
-        message,
-        branchResult,
-        sceneOwner,
-        speed,
-        reducedMotion,
+        value,
+        context: {
+          outcome,
+          route,
+          branch,
+          focus,
+          growthFocus,
+          message,
+          branchResult,
+        },
       },
       { game, route: definition, adventure, rules, basicAttack, items, enemyDepths: [] },
       returnLabel,

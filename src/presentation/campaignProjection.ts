@@ -7,6 +7,7 @@ import { effectiveMaxHp, healthyStatus } from "../game/status";
 import type { BattleInput } from "./battleModel";
 import {
   type CampaignCommand,
+  type CampaignContext,
   type CampaignModel,
   campaignDungeonInput,
   campaignPartyModel,
@@ -25,7 +26,7 @@ interface CommandFrame {
   readonly label: string;
   readonly primary: boolean;
 }
-export function campaignFeedback(state: Pick<CampaignModel, "game" | "completion">): readonly string[] {
+export function campaignFeedback(state: Pick<CampaignContext, "game" | "completion">): readonly string[] {
   const { completion, game } = state;
   return [
     ...completionFeedback(completion, characters),
@@ -50,9 +51,10 @@ export function projectCampaign(state: CampaignModel, enemyDepths: BattleInput["
     label,
     primary,
   });
-  const base = { focus: state.focus, status: state.message, calendar: calendarLabel(state.game.clock) };
-  const screen = state.screen;
-  switch (screen.kind) {
+  const context = state.context;
+  const base = { focus: context.focus, status: context.message, calendar: calendarLabel(context.game.clock) };
+  const mode = state.value;
+  switch (mode) {
     case "title":
     case "loading":
       return {
@@ -62,7 +64,7 @@ export function projectCampaign(state: CampaignModel, enemyDepths: BattleInput["
         calendar: "",
         copy: [],
         commands: [command("new-game", "新規開始", true), command("load", "続きから")],
-        waiting: screen.kind === "loading",
+        waiting: mode === "loading",
       };
     case "intro":
       return {
@@ -75,7 +77,7 @@ export function projectCampaign(state: CampaignModel, enemyDepths: BattleInput["
       };
     case "confirm":
     case "saving": {
-      const action = screen.kind === "saving" ? "save" : screen.action;
+      const action = mode === "saving" ? "save" : context.confirmation;
       return {
         ...base,
         kind: "confirm" as const,
@@ -89,21 +91,21 @@ export function projectCampaign(state: CampaignModel, enemyDepths: BattleInput["
               : "同じブラウザの保存スロットを上書きします。",
         ],
         commands: [command("cancel", "取り消す"), command("accept", "実行する", true)],
-        waiting: screen.kind === "saving",
+        waiting: mode === "saving",
       };
     }
     case "home": {
-      const leadId = state.game.party.slots.find((id) => id !== null) ?? "player";
+      const leadId = context.game.party.slots.find((id) => id !== null) ?? "player";
       const lead = characterById(characters, leadId);
-      const stock = state.game.inventory?.items.home.find(({ itemId }) => itemId === recoveryItemId)?.quantity ?? 0;
+      const stock = context.game.inventory?.items.home.find(({ itemId }) => itemId === recoveryItemId)?.quantity ?? 0;
       return {
         ...base,
         kind: "home" as const,
         title: "ホーム",
-        copy: [`所持金 ${state.game.inventory?.balance ?? 0} · ホーム保管 HP回復品 ${stock}個`],
-        feedback: campaignFeedback(state),
+        copy: [`所持金 ${context.game.inventory?.balance ?? 0} · ホーム保管 HP回復品 ${stock}個`],
+        feedback: campaignFeedback(context),
         portrait: { name: lead.name, path: characterPortraitPath(leadId) },
-        carry: { quantity: state.carryQuantity, stock },
+        carry: { quantity: context.carryQuantity, stock },
         commands: [
           command("destinations", "探索先を選ぶ", true),
           command("edit-party", "出撃編成を見る"),
@@ -115,10 +117,10 @@ export function projectCampaign(state: CampaignModel, enemyDepths: BattleInput["
       };
     }
     case "equipment": {
-      const inventory = state.game.inventory;
-      const display = grownCharacters(state.game, campaignRules);
+      const inventory = context.game.inventory;
+      const display = grownCharacters(context.game, campaignRules);
       const members = inventory
-        ? state.game.party.members.map((member) => {
+        ? context.game.party.members.map((member) => {
             const base = characterById(characters, member.id);
             const stats = display.find(({ id }) => id === member.id) ?? base;
             return {
@@ -174,15 +176,18 @@ export function projectCampaign(state: CampaignModel, enemyDepths: BattleInput["
         copy: ["街探索とダンジョンは、完了時にそれぞれ半日が経過します。"],
         commands: [command("town", "街"), command("prepare-departure", "ダンジョン"), command("home", "ホームへ戻る")],
       };
-    case "party":
+    case "party": {
+      const party = context.party;
+      if (!party) throw new Error("Party mode requires its draft");
       return {
         ...base,
         kind: "party" as const,
-        title: screen.context === "departure" ? "出発準備" : "編成",
+        title: party.context === "departure" ? "出発準備" : "編成",
         copy: [],
         commands: [],
-        party: projectParty(campaignPartyModel(state, screen)),
+        party: projectParty(campaignPartyModel(state, party)),
       };
+    }
     case "town":
       return {
         ...base,
@@ -190,9 +195,9 @@ export function projectCampaign(state: CampaignModel, enemyDepths: BattleInput["
         title: "",
         copy: [],
         commands: [],
-        town: projectTown(state.town, campaignTownInput(state), {
+        town: projectTown(context.town, campaignTownInput(state), {
           calendar: base.calendar,
-          feedback: campaignFeedback(state),
+          feedback: campaignFeedback(context),
           home: true,
           debug: false,
           editorEntry: false,
@@ -206,9 +211,9 @@ export function projectCampaign(state: CampaignModel, enemyDepths: BattleInput["
         title: "",
         copy: [],
         commands: [],
-        growth: state.game.growth
+        growth: context.game.growth
           ? projectGrowthChoice(
-              state.game.growth,
+              context.game.growth,
               campaignRules.catalog,
               Object.fromEntries(characters.map(({ id, name }) => [id, name])),
             )
@@ -221,12 +226,12 @@ export function projectCampaign(state: CampaignModel, enemyDepths: BattleInput["
         title: "",
         copy: [],
         commands: [],
-        dungeon: state.expedition
-          ? projectDungeon(state.expedition, campaignDungeonInput(state, enemyDepths), "ホームへ帰還")
+        dungeon: context.expedition
+          ? projectDungeon(context.expedition, campaignDungeonInput(state, enemyDepths), "ホームへ帰還")
           : null,
       };
     case "disposed":
-      return { ...base, kind: screen.kind, title: "", copy: [], commands: [] };
+      return { ...base, kind: mode, title: "", copy: [], commands: [] };
   }
 }
 export type CampaignFrame = ReturnType<typeof projectCampaign>;

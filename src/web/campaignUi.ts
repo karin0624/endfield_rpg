@@ -9,29 +9,28 @@ import { projectCampaign } from "../presentation/campaignProjection";
 import { createCampaignView } from "./campaignView.svelte.ts";
 import { createDungeonView } from "./dungeonView.svelte.ts";
 import { readSlotData, writeSlotData } from "./saveSlot";
-
 /** Commit game/screen state before native work, including callbacks that synchronously reenter. */
 export function mountCampaign(root: HTMLDivElement): () => void {
   let state = createCampaignModel();
   let view: ReturnType<typeof createCampaignView> | undefined;
   let dungeon: ReturnType<typeof createDungeonView> | undefined;
   function prepareDungeon() {
-    if (state.screen.kind !== "dungeon" || !state.expedition || dungeon) return;
+    if (state.value !== "dungeon" || !state.context.expedition || dungeon) return;
     view?.dispose();
     view = undefined;
     dungeon = createDungeonView(root, (event) => dispatch({ type: "dungeon", event }), "ホームへ帰還");
     dispatch({ type: "dungeon", event: { type: "motion", reduced: dungeon.reducedMotion() } });
   }
   function render() {
-    if (state.screen.kind === "dungeon" && state.expedition) {
+    if (state.value === "dungeon" && state.context.expedition) {
       prepareDungeon();
-      if (state.expedition)
-        dungeon?.renderModel(state.expedition, campaignDungeonInput(state, dungeon?.getEnemyDepths()));
+      if (state.context.expedition)
+        dungeon?.renderModel(state.context.expedition, campaignDungeonInput(state, dungeon?.getEnemyDepths()));
     } else {
       const previous = dungeon;
       dungeon = undefined;
       previous?.dispose();
-      if (state.screen.kind === "disposed") {
+      if (state.value === "disposed") {
         view?.dispose();
         view = undefined;
         return;
@@ -47,7 +46,7 @@ export function mountCampaign(root: HTMLDivElement): () => void {
     for (const effect of changed.effects) {
       if (effect.type !== "dungeon") continue;
       if (effect.effect.type === "open-scene") prepareDungeon();
-      const battle = state.expedition?.screen.kind === "battle" ? state.expedition.screen.battle : null;
+      const battle = state.context.expedition?.value === "battle" ? state.context.expedition.context.battle : null;
       dungeon?.effect(
         effect.effect,
         battle

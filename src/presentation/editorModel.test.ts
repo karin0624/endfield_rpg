@@ -124,9 +124,12 @@ describe("開発設定の現在値と保存結果", () => {
     expect(state.current.cameraY).toBe(12);
     expect(state.saved.cameraY).toBe(6.6);
     expect(projectBattleEditor(state).message).toContain("復元");
-    const corrupt = reduceBattleEditor(initial, { type: "draft-read", available: true, value: "{" });
-    expect(corrupt.state.current).toEqual(battle);
-    expect(corrupt.effects).toContainEqual({ type: "delete-draft" });
+    for (const value of ["{", JSON.stringify({ ...battle, version: 1, cameraY: 7 })]) {
+      const rejected = reduceBattleEditor(initial, { type: "draft-read", available: true, value });
+      expect(rejected.state.current).toEqual(battle);
+      expect(rejected.state.saved).toEqual(battle);
+      expect(rejected.effects).toEqual([{ type: "preview-settings", settings: battle }]);
+    }
     state = reduceBattleEditor(initial, { type: "draft-read", available: false, value: null }).state;
     state = reduceBattleEditor(state, { type: "field", key: "cameraY", raw: "8" }).state;
     expect(projectBattleEditor(state).message).toContain("一時保存が使えない");

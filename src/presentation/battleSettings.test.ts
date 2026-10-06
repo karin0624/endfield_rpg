@@ -13,35 +13,13 @@ describe("構図設定の読み込み", () => {
       "離して",
     );
   });
-  it("旧v1は既存値を保ったまま隊列の既定値を移行する", () => {
-    const {
-      allyCenterX: _allyCenterX,
-      allyCenterZ: _allyCenterZ,
-      allyStepX: _allyStepX,
-      allyStepZ: _allyStepZ,
-      enemyCenterX: _enemyCenterX,
-      enemyCenterZ: _enemyCenterZ,
-      enemyStepX: _enemyStepX,
-      enemyStepZ: _enemyStepZ,
-      ...legacy
-    } = savedSettings;
-    const migrated = parseBattleSettings({ ...legacy, version: 1, cameraY: 7 });
-    expect(migrated).toEqual({
-      ...legacy,
-      version: 2,
-      cameraY: 7,
-      allyCenterX: 3.2,
-      allyCenterZ: 1.5,
-      allyStepX: -2.2,
-      allyStepZ: 0,
-      enemyCenterX: -3.2,
-      enemyCenterZ: 0.5,
-      enemyStepX: 1.8,
-      enemyStepZ: 0,
-    });
-    const explicit = { ...savedSettings, version: 1, allyCenterX: 4, enemyCenterZ: 2 };
-    expect(parseBattleSettings(explicit)).toEqual({ ...explicit, version: 2 });
-    expect(() => parseBattleSettings({ ...legacy, version: 1, allyCenterX: undefined })).toThrow();
+  it("旧v1は補完・変換せず拒否し、入力を変更しない", () => {
+    const legacy = { ...savedSettings, version: 1, cameraY: 7 };
+    const before = structuredClone(legacy);
+    expect(() => parseBattleSettings(legacy)).toThrow("形式");
+    expect(legacy).toEqual(before);
+    const { allyCenterX: _allyCenterX, ...missing } = legacy;
+    expect(() => parseBattleSettings(missing)).toThrow("形式");
   });
   it("新v2の設定で項目を欠落させた場合は補完せず拒否する", () => {
     const { allyStepX: _allyStepX, ...missing } = savedSettings;

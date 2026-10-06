@@ -8,6 +8,7 @@ import {
   type CampaignCommand,
   type CampaignEvent,
   type CampaignModel,
+  campaignMachine,
   campaignRules,
   createCampaignModel,
   reduceCampaign,
@@ -19,31 +20,33 @@ const command = (state: CampaignModel, value: CampaignCommand) => send(state, { 
 function home(): CampaignModel {
   return command(command(command(createCampaignModel(), "new-game"), "accept"), "home");
 }
-
 describe("本編の現在画面とゲーム状態", () => {
   it("開始確認の取消・確定・再確認は現在の画面で決め、保存効果を出さない", () => {
     const initial = createCampaignModel();
-    const before = structuredClone(initial.game);
+    const before = structuredClone(initial.context.game);
     const confirm = command(initial, "new-game");
     expect(projectCampaign(confirm)).toMatchObject({
       title: "新しく始めますか",
       focus: { kind: "command", command: "cancel" },
     });
     const cancelled = send(confirm, { type: "escape" });
-    expect(cancelled.screen.kind).toBe("title");
-    expect(cancelled.game).toEqual(before);
+    expect(cancelled.value).toBe("title");
+    expect(cancelled.context.game).toEqual(before);
     const accepted = reduceCampaign(command(cancelled, "new-game"), { type: "command", command: "accept" });
     expect(accepted.effects).toEqual([]);
     expect(projectCampaign(accepted.state)).toMatchObject({ title: "導入", calendar: "", copy: ["（仮テキスト）"] });
     expect(reduceCampaign(accepted.state, { type: "command", command: "accept" }).handled).toBe(false);
-    expect(command(accepted.state, "title").screen.kind).toBe("title");
-    expect(initial.game).toEqual(before);
+    expect(command(accepted.state, "title").value).toBe("title");
+    expect(initial.context.game).toEqual(before);
   });
-
   it("ホーム・探索先・確認・取消・装備の閲覧は時刻、回復、乱数とゲームを変えない", () => {
     const initial = home();
-    const before = structuredClone(initial.game);
-    let state = command(initial, "destinations");
+    const before = structuredClone(initial.context.game);
+    const focused = reduceCampaign(initial, { type: "focused", target: { kind: "carry" } });
+    expect(focused.handled).toBe(true);
+    expect(projectCampaign(focused.state).focus).toEqual({ kind: "carry" });
+    expect(focused.state.context.game).toEqual(before);
+    let state = command(focused.state, "destinations");
     expect(projectCampaign(state)).toMatchObject({ title: "探索先選択", calendar: "1日目 · 昼" });
     state = send(state, { type: "escape" });
     state = command(state, "equipment");
@@ -55,126 +58,146 @@ describe("本編の現在画面とゲーム状態", () => {
     state = command(state, "title");
     expect(projectCampaign(state).title).toBe("タイトルへ戻りますか");
     state = command(state, "cancel");
-    expect(state.game).toEqual(before);
+    expect(state.context.game).toEqual(before);
     state = command(command(state, "title"), "accept");
-    expect(state.screen.kind).toBe("title");
-    expect(state.game).toEqual(before);
+    expect(state.value).toBe("title");
+    expect(state.context.game).toEqual(before);
     expect(reduceCampaign(state, { type: "command", command: "equipment" }).handled).toBe(false);
   });
-
   it("持込みdraftは所持数内の整数だけ探索へ渡し、不正値でゲームを変えない", () => {
     const initial = home();
-    if (!initial.game.inventory) throw new Error("inventory");
-    const source: CampaignModel = {
-      ...initial,
-      game: {
-        ...initial.game,
-        inventory: {
-          ...initial.game.inventory,
-          items: { ...initial.game.inventory.items, home: [{ itemId: recoveryItemId, quantity: 2 }] },
+    if (!initial.context.game.inventory) throw new Error("inventory");
+    const source: CampaignModel = campaignMachine.resolveState({
+      value: initial.value,
+      context: {
+        ...initial.context,
+        game: {
+          ...initial.context.game,
+          inventory: {
+            ...initial.context.game.inventory,
+            items: { ...initial.context.game.inventory.items, home: [{ itemId: recoveryItemId, quantity: 2 }] },
+          },
         },
       },
-    };
-    const before = structuredClone(source.game);
+    });
+    const before = structuredClone(source.context.game);
     for (const quantity of [null, -1, 0.5, 3, Number.NaN]) {
       const draft = send(source, { type: "carry-changed", quantity });
       expect(reduceCampaign(draft, { type: "command", command: "destinations" })).toMatchObject({
         state: draft,
         effects: [{ type: "report-carry-validity" }],
       });
-      expect(draft.game).toEqual(before);
+      expect(draft.context.game).toEqual(before);
     }
     let state = send(source, { type: "carry-changed", quantity: 2 });
     expect(projectCampaign(state)).toMatchObject({ carry: { quantity: 2, stock: 2 } });
     state = command(command(state, "destinations"), "town");
     const started = reduceCampaign(state, { type: "town", event: { type: "select", placeId: "market" } });
     expect(started.townResult?.accepted).toBe(true);
-    expect(started.state.carryQuantity).toBe(0);
-    expect(started.state.game.inventory?.items).toMatchObject({
+    expect(started.state.context.carryQuantity).toBe(0);
+    expect(started.state.context.game.inventory?.items).toMatchObject({
       home: [],
       exploration: { destination: "town", bag: [{ itemId: recoveryItemId, quantity: 2, origin: "carried" }] },
     });
-    expect(started.state.game.clock).toMatchObject({ elapsedHalfDays: 0, recoverySteps: 0 });
-    expect(source.game).toEqual(before);
+    expect(started.state.context.game.clock).toMatchObject({ elapsedHalfDays: 0, recoverySteps: 0 });
+    expect(source.context.game).toEqual(before);
   });
-
   it("装備変更を実コアで確定し、上限低下だけHPを減らす", () => {
     let state = command(home(), "equipment");
-    const original = structuredClone(state.game);
-    const armor = state.game.inventory?.equipment.owned.find(
+    const original = structuredClone(state.context.game);
+    const armor = state.context.game.inventory?.equipment.owned.find(
       ({ definitionId }) => definitionId === "trial-armor",
     )?.instanceId;
-    const weapon = state.game.inventory?.equipment.owned.find(
+    const weapon = state.context.game.inventory?.equipment.owned.find(
       ({ definitionId }) => definitionId === "trial-weapon",
     )?.instanceId;
     if (!armor || !weapon) throw new Error("equipment");
     state = send(state, { type: "equip", characterId: "player", slot: "armor", instanceId: armor });
     expect(projectCampaign(state)).toMatchObject({ members: [{ summary: "ロッシ · HP 20/24 · 攻撃力 8" }] });
-    state = {
-      ...state,
-      game: { ...state.game, party: { ...state.game.party, members: [{ ...state.game.party.members[0], hp: 24 }] } },
-    };
+    state = campaignMachine.resolveState({
+      value: state.value,
+      context: {
+        ...state.context,
+        game: {
+          ...state.context.game,
+          party: { ...state.context.game.party, members: [{ ...state.context.game.party.members[0], hp: 24 }] },
+        },
+      },
+    });
     state = send(state, { type: "equip", characterId: "player", slot: "armor", instanceId: null });
-    expect(state.game.party.members[0].hp).toBe(20);
+    expect(state.context.game.party.members[0].hp).toBe(20);
     state = send(state, { type: "equip", characterId: "player", slot: "weapon", instanceId: weapon });
     expect(projectCampaign(state)).toMatchObject({ members: [{ summary: "ロッシ · HP 20/20 · 攻撃力 9" }] });
-    const beforeReject = structuredClone(state.game);
+    const beforeReject = structuredClone(state.context.game);
     state = send(state, { type: "equip", characterId: "missing", slot: "weapon", instanceId: weapon });
-    expect(state.game).toEqual(beforeReject);
-    expect(state.message).toBe("装備を変更できませんでした。");
+    expect(state.context.game).toEqual(beforeReject);
+    expect(state.context.message).toBe("装備を変更できませんでした。");
     expect(original.party.members[0].hp).toBe(20);
   });
-
   it("編成childはdraftだけを持ち、確定gameと帰り先focusを本編が所有する", () => {
     let state = command(home(), "edit-party");
-    expect(state.screen.kind).toBe("party");
-    if (state.screen.kind !== "party") throw new Error("party");
-    const before = structuredClone(state.game);
+    expect(state.value).toBe("party");
+    if (state.value !== "party") throw new Error("party");
+    const before = structuredClone(state.context.game);
     state = send(state, { type: "party", event: { type: "open-selection", slot: 0 } });
     state = send(state, { type: "party", event: { type: "toggle", characterId: "player" } });
-    expect(state.game).toEqual(before);
+    expect(state.context.game).toEqual(before);
     state = send(state, { type: "party", event: { type: "confirm" } });
-    expect(state.game.party.slots).toEqual([null, null, null, null]);
+    expect(state.context.game.party.slots).toEqual([null, null, null, null]);
     expect(before.party.slots).toEqual(["player", null, null, null]);
     state = send(state, { type: "party", event: { type: "back" } });
-    expect(state).toMatchObject({ screen: { kind: "home" }, focus: { kind: "command", command: "edit-party" } });
+    expect(state).toMatchObject({
+      value: "home",
+      context: {
+        focus: { kind: "command", command: "edit-party" },
+      },
+    });
     state = command(command(state, "destinations"), "prepare-departure");
     state = send(state, { type: "party", event: { type: "back" } });
     expect(state).toMatchObject({
-      screen: { kind: "destinations" },
-      focus: { kind: "command", command: "prepare-departure" },
+      value: "destinations",
+      context: {
+        focus: { kind: "command", command: "prepare-departure" },
+      },
     });
   });
-
   it("出発は編成から実探索へ進み、途中操作と帰還を現在の活動へ適用する", () => {
     let state = command(command(home(), "destinations"), "prepare-departure");
     state = send(state, { type: "party", event: { type: "depart" } });
     expect(state).toMatchObject({
-      screen: { kind: "dungeon" },
-      carryQuantity: 0,
-      game: { dungeon: { currentNodeId: "entrance", outcome: "ongoing" }, clock: { elapsedHalfDays: 0 } },
+      value: "dungeon",
+      context: {
+        carryQuantity: 0,
+        game: { dungeon: { currentNodeId: "entrance", outcome: "ongoing" }, clock: { elapsedHalfDays: 0 } },
+      },
+    });
+    expect(projectCampaign(state)).toMatchObject({
+      kind: "dungeon",
+      dungeon: { kind: "route", returnLabel: "ホームへ帰還", status: "現在地: 遺跡の入口" },
     });
     const moved = reduceCampaign(state, { type: "dungeon", event: { type: "enter", nodeId: "missing" } });
     expect(moved.dungeonResult?.accepted).toBe(false);
-    expect(moved.state.game).toEqual(state.game);
+    expect(moved.state.context.game).toEqual(state.context.game);
     state = send(state, { type: "dungeon", event: { type: "return" } });
     expect(state).toMatchObject({
-      screen: { kind: "home" },
-      game: { dungeon: null, clock: { elapsedHalfDays: 1, recoverySteps: 0 } },
+      value: "home",
+      context: {
+        game: { dungeon: null, clock: { elapsedHalfDays: 1, recoverySteps: 0 } },
+      },
     });
     expect(reduceCampaign(state, { type: "dungeon", event: { type: "return" } }).handled).toBe(false);
     state = command(command(state, "destinations"), "prepare-departure");
     state = send(state, { type: "party", event: { type: "depart" } });
     state = send(state, { type: "dungeon", event: { type: "return" } });
-    expect(state.game.clock).toMatchObject({ elapsedHalfDays: 2, recoverySteps: 0 });
+    expect(state.context.game.clock).toMatchObject({ elapsedHalfDays: 2, recoverySteps: 0 });
   });
-
   it("保存は確定データのI/O効果に分け、失敗はホーム、成功時だけタイトルへ戻る", () => {
     const initial = home();
-    const before = structuredClone(initial.game);
+    const before = structuredClone(initial.context.game);
     let state = command(initial, "save-title");
     const write = reduceCampaign(state, { type: "command", command: "accept" });
-    expect(write.state.screen).toEqual({ kind: "saving", returnToTitle: true });
+    expect(write.state.value).toBe("saving");
+    expect(write.state.context.returnToTitle).toBe(true);
     const effect = write.effects[0];
     if (effect?.type !== "write-save") throw new Error("save");
     expect(JSON.parse(effect.data).version).toBe(5);
@@ -185,17 +208,24 @@ describe("本編の現在画面とゲーム状態", () => {
     expect(reduceCampaign(write.state, { type: "command", command: "accept" }).handled).toBe(false);
     state = send(write.state, { type: "save-written", saved: false });
     expect(state).toMatchObject({
-      screen: { kind: "home" },
-      game: before,
-      message: "保存できませんでした。ブラウザの保存領域を確認してください。",
+      value: "home",
+      context: {
+        game: before,
+        message: "保存できませんでした。ブラウザの保存領域を確認してください。",
+      },
     });
     state = command(command(state, "save-title"), "accept");
     state = send(state, { type: "save-written", saved: true });
-    expect(state).toMatchObject({ screen: { kind: "title" }, game: before, message: "保存しました。" });
+    expect(state).toMatchObject({
+      value: "title",
+      context: {
+        game: before,
+        message: "保存しました。",
+      },
+    });
     state = command(command(initial, "save"), "accept");
-    expect(send(state, { type: "save-written", saved: true }).screen.kind).toBe("home");
+    expect(send(state, { type: "save-written", saved: true }).value).toBe("home");
   });
-
   it.each([
     [{ data: null }, "保存データがありません。"],
     [{ error: true }, "読み込めませんでした。ブラウザの保存領域を確認してください。"],
@@ -203,100 +233,126 @@ describe("本編の現在画面とゲーム状態", () => {
     [{ data: '{"version":1}' }, "対応していない保存データです。"],
   ] as const)("読込失敗は現在gameとタイトルを保持する %#", (value, message) => {
     const initial = createCampaignModel();
-    const before = structuredClone(initial.game);
+    const before = structuredClone(initial.context.game);
     const read = reduceCampaign(initial, { type: "command", command: "load" });
     expect(read.effects).toEqual([{ type: "read-save" }]);
     const state = send(read.state, { type: "save-read", result: value });
-    expect(state).toMatchObject({ screen: { kind: "title" }, game: before, message });
-    expect(initial.game).toEqual(before);
+    expect(state).toMatchObject({
+      value: "title",
+      context: {
+        game: before,
+        message,
+      },
+    });
+    expect(initial.context.game).toEqual(before);
   });
-
   it("保存再開は状態を復元し、HP・時計・回復・乱数を再実行しない", () => {
     let source = home();
-    source = {
-      ...source,
-      game: applyPartyStatus(source.game, "player", { kind: "haze", amount: 30 }, saveDefinitions.characters),
-    };
-    const before = structuredClone(source.game);
+    source = campaignMachine.resolveState({
+      value: source.value,
+      context: {
+        ...source.context,
+        game: applyPartyStatus(source.context.game, "player", { kind: "haze", amount: 30 }, saveDefinitions.characters),
+      },
+    });
+    const before = structuredClone(source.context.game);
     const saved = reduceCampaign(command(source, "save"), { type: "command", command: "accept" }).effects[0];
     if (saved?.type !== "write-save") throw new Error("save");
     const loaded = send(command(createCampaignModel(), "load"), { type: "save-read", result: { data: saved.data } });
     expect(loaded).toMatchObject({
-      screen: { kind: "home" },
-      carryQuantity: 0,
-      message: "読み込みました。",
-      game: { party: before.party, adventure: before.adventure },
+      value: "home",
+      context: {
+        carryQuantity: 0,
+        message: "読み込みました。",
+        game: { party: before.party, adventure: before.adventure },
+      },
     });
-    expect(loaded.game.party.members[0].status?.haze).toBe(30);
-    expect(source.game).toEqual(before);
+    expect(loaded.context.game.party.members[0].status?.haze).toBe(30);
+    expect(source.context.game).toEqual(before);
   });
-
   it("同じ街の次探索を受理し、会話途中は進めず完了ごとに半日と回復を確定する", () => {
     let state = command(command(home(), "destinations"), "town");
-    const initial = structuredClone(state.game);
+    const initial = structuredClone(state.context.game);
     for (let visit = 1; visit <= 2; visit++) {
       state = send(state, { type: "town", event: { type: "select", placeId: "market" } });
-      expect(state.game.clock).toMatchObject({ elapsedHalfDays: visit - 1, recoverySteps: visit - 1 });
+      expect(state.context.game.clock).toMatchObject({ elapsedHalfDays: visit - 1, recoverySteps: visit - 1 });
       expect(reduceCampaign(state, { type: "command", command: "home" }).handled).toBe(false);
       state = send(state, { type: "town", event: { type: "advance" } });
-      expect(state.game.clock).toMatchObject({ elapsedHalfDays: visit, recoverySteps: visit });
-      expect(state.focus).toEqual({ kind: "town-place", placeId: "market" });
+      expect(state.context.game.clock).toMatchObject({ elapsedHalfDays: visit, recoverySteps: visit });
+      expect(state.context.focus).toEqual({ kind: "town-place", placeId: "market" });
       const ended = reduceCampaign(state, { type: "town", event: { type: "advance" } });
       expect(ended.townResult?.accepted).toBe(false);
-      expect(ended.state.game).toEqual(state.game);
+      expect(ended.state.context.game).toEqual(state.context.game);
     }
-    expect(command(state, "home").screen.kind).toBe("home");
+    expect(command(state, "home").value).toBe("home");
     expect(initial.party.members[0].hp).toBe(20);
   });
-
   it("街XPで成立した習得を必須画面で確定し、候補・乱数を保持して元の街のfocusへ戻る", () => {
     const source = home();
     const rewarded = rewardGrowth(
-      source.game,
+      source.context.game,
       { allocations: [{ characterId: "player", experience: 5 }] },
       campaignRules,
     );
     if (!rewarded.accepted) throw new Error(rewarded.reason);
-    let state = command(command({ ...source, game: rewarded.state }, "destinations"), "town");
+    let state = command(
+      command(
+        campaignMachine.resolveState({
+          value: source.value,
+          context: {
+            ...source.context,
+            game: rewarded.state,
+          },
+        }),
+        "destinations",
+      ),
+      "town",
+    );
     state = send(state, { type: "town", event: { type: "select", placeId: "market" } });
     state = send(state, { type: "town", event: { type: "advance" } });
     expect(state).toMatchObject({
-      screen: { kind: "growth" },
-      game: {
-        clock: { elapsedHalfDays: 1, recoverySteps: 1 },
-        growth: { choice: { characterId: "player", level: 2, status: "offered" } },
+      value: "growth",
+      context: {
+        game: {
+          clock: { elapsedHalfDays: 1, recoverySteps: 1 },
+          growth: { choice: { characterId: "player", level: 2, status: "offered" } },
+        },
       },
     });
-    const before = structuredClone(state.game);
-    const choice = state.game.growth?.choice;
+    const before = structuredClone(state.context.game);
+    const choice = state.context.game.growth?.choice;
     if (!choice) throw new Error("choice");
     expect(choice.candidateIds).toHaveLength(3);
     state = send(state, { type: "growth", event: { type: "key", key: "Tab", shift: false } });
-    expect(state.focus).toEqual({ kind: "growth-candidate", skillId: choice.candidateIds[0] });
+    expect(state.context.focus).toEqual({ kind: "growth-candidate", skillId: choice.candidateIds[0] });
     state = send(state, { type: "growth", event: { type: "key", key: "Tab", shift: true } });
-    expect(state.focus).toEqual({ kind: "growth-candidate", skillId: choice.candidateIds[2] });
+    expect(state.context.focus).toEqual({ kind: "growth-candidate", skillId: choice.candidateIds[2] });
     state = send(state, { type: "growth", event: { type: "focused", target: { kind: "heading" } } });
-    expect(state.focus).toEqual({ kind: "growth-heading" });
+    expect(state.context.focus).toEqual({ kind: "growth-heading" });
     expect(reduceCampaign(state, { type: "growth", event: { type: "key", key: "Space", shift: false } }).handled).toBe(
       false,
     );
     expect(projectCampaign(state)).toMatchObject({ growth: { title: "ロッシ · Lv2 スキル選択" } });
-    expect(state.game).toEqual(before);
+    expect(state.context.game).toEqual(before);
     const rejected = send(state, { type: "growth", event: { type: "choose", skillId: "missing" } });
-    expect(rejected.game).toEqual(before);
-    expect(rejected.screen.kind).toBe("growth");
+    expect(rejected.context.game).toEqual(before);
+    expect(rejected.value).toBe("growth");
     const selected = choice.candidateIds[0];
     state = send(rejected, { type: "growth", event: { type: "choose", skillId: selected } });
     expect(state).toMatchObject({
-      screen: { kind: "town" },
-      focus: { kind: "town-place", placeId: "market" },
-      game: { clock: { elapsedHalfDays: 1, recoverySteps: 1 }, growth: { choice: null } },
+      value: "town",
+      context: {
+        focus: { kind: "town-place", placeId: "market" },
+        game: { clock: { elapsedHalfDays: 1, recoverySteps: 1 }, growth: { choice: null } },
+      },
     });
-    expect(state.game.growth?.characters.find(({ characterId }) => characterId === "player")?.learned).toContainEqual(
-      expect.objectContaining({ skillId: selected, acquisition: "choice" }),
-    );
-    expect(state.game.randomState).toBe(before.randomState);
-    expect(state.game.growth?.growth.characters.find(({ characterId }) => characterId === "player")).toMatchObject({
+    expect(
+      state.context.game.growth?.characters.find(({ characterId }) => characterId === "player")?.learned,
+    ).toContainEqual(expect.objectContaining({ skillId: selected, acquisition: "choice" }));
+    expect(state.context.game.randomState).toBe(before.randomState);
+    expect(
+      state.context.game.growth?.growth.characters.find(({ characterId }) => characterId === "player"),
+    ).toMatchObject({
       level: 2,
       experience: 0,
       pendingChoiceLevels: [],
@@ -304,7 +360,6 @@ describe("本編の現在画面とゲーム状態", () => {
     expect(reduceCampaign(state, { type: "growth", event: { type: "choose", skillId: selected } }).handled).toBe(false);
     expect(rewarded.state.clock?.elapsedHalfDays ?? 0).toBe(0);
   });
-
   it("各画面に未定義の操作はゲームを変えず、戻った現在画面の操作は再び有効になる", () => {
     const initial = createCampaignModel();
     for (const [state, expectedAccept] of [
@@ -315,29 +370,28 @@ describe("本編の現在画面とゲーム状態", () => {
       [command(home(), "equipment"), false],
       [command(home(), "destinations"), false],
     ] as const) {
-      const before = structuredClone(state.game);
+      const before = structuredClone(state.context.game);
       expect(reduceCampaign(state, { type: "command", command: "accept" }).handled).toBe(expectedAccept);
       expect(reduceCampaign(state, { type: "town", event: { type: "advance" } })).toMatchObject({
         handled: false,
         state,
       });
-      if (state.screen.kind !== "confirm" && state.screen.kind !== "destinations")
+      if (state.value !== "confirm" && state.value !== "destinations")
         expect(reduceCampaign(state, { type: "escape" })).toMatchObject({ handled: false, state });
-      expect(state.game).toEqual(before);
+      expect(state.context.game).toEqual(before);
     }
     const destinations = command(home(), "destinations");
     const returned = command(destinations, "home");
-    expect(command(returned, "destinations").screen.kind).toBe("destinations");
+    expect(command(returned, "destinations").value).toBe("destinations");
     const townState = command(destinations, "town");
-    expect(command(townState, "home").screen.kind).toBe("home");
-    expect(send(townState, { type: "town", event: { type: "home" } }).screen.kind).toBe("home");
+    expect(command(townState, "home").value).toBe("home");
+    expect(send(townState, { type: "town", event: { type: "home" } }).value).toBe("home");
     const party = command(returned, "edit-party");
     const projected = projectCampaign(party);
     expect(projected).toMatchObject({ kind: "party", title: "編成" });
     if (projected.kind !== "party") throw new Error("party");
     expect(projected.party.slots.map(({ member }) => member?.id ?? null)).toEqual(["player", null, null, null]);
   });
-
   it("破棄後のI/O・入力は現在状態で未定義になり、ゲームを変えない", () => {
     const state = send(home(), { type: "disposed" });
     expect(projectCampaign(state).kind).toBe("disposed");
@@ -354,7 +408,7 @@ describe("本編の現在画面とゲーム状態", () => {
     state = send(state, { type: "party", event: { type: "depart" } });
     const started = reduceCampaign(state, { type: "dungeon", event: { type: "enter", nodeId: "battle-a" } });
     expect(started.effects).toEqual([{ type: "dungeon", effect: { type: "open-scene", owner: 1 } }]);
-    const before = structuredClone(started.state.game);
+    const before = structuredClone(started.state.context.game);
     const closed = reduceCampaign(started.state, { type: "disposed" });
     expect(closed.effects).toEqual([{ type: "dungeon", effect: { type: "close-scene" } }]);
     expect(projectCampaign(closed.state).kind).toBe("disposed");
@@ -364,7 +418,7 @@ describe("本編の現在画面とゲーム状態", () => {
     ] as const) {
       const late = reduceCampaign(closed.state, { type: "dungeon", event: { type: "battle", event } });
       expect(late.handled).toBe(false);
-      expect(late.state.game).toEqual(before);
+      expect(late.state.context.game).toEqual(before);
       expect(late.effects).toEqual([]);
     }
   });

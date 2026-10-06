@@ -5,10 +5,14 @@ import { itemCatalog, recoveryItemId } from "../src/content/itemSettings";
 import { departOnExpedition } from "../src/game/expedition";
 import { createInventory } from "../src/game/inventory";
 import { createItemState } from "../src/game/items";
-import { campaignDungeonInput, campaignRules, createCampaignModel } from "../src/presentation/campaignModel";
+import {
+  campaignDungeonInput,
+  campaignMachine,
+  campaignRules,
+  createCampaignModel,
+} from "../src/presentation/campaignModel";
 import { createDebugSessionModel, debugDungeonInput, reduceDebugSession } from "../src/presentation/debugSessionModel";
 import { createDungeonModel } from "../src/presentation/dungeonModel";
-
 /** The core constructs these representative snapshots without any native input or elapsed browser time. */
 export function dungeonPicture(name: "initial" | "progressed" | "items") {
   if (name === "items") {
@@ -16,7 +20,7 @@ export function dungeonPicture(name: "initial" | "progressed" | "items") {
     const carried = [{ itemId: recoveryItemId, quantity: 2 }];
     const departed = departOnExpedition(
       {
-        ...app.game,
+        ...app.context.game,
         inventory: { ...createInventory(), items: createItemState(carried, itemCatalog) },
       },
       characters,
@@ -26,7 +30,15 @@ export function dungeonPicture(name: "initial" | "progressed" | "items") {
       carried,
     );
     if (!departed.accepted) throw new Error(departed.reason);
-    const input = campaignDungeonInput({ ...app, game: departed.state });
+    const input = campaignDungeonInput(
+      campaignMachine.resolveState({
+        value: app.value,
+        context: {
+          ...app.context,
+          game: departed.state,
+        },
+      }),
+    );
     return { state: createDungeonModel(input), input };
   }
   let app = createDebugSessionModel("dungeon");

@@ -1,40 +1,53 @@
+import * as v from "valibot";
 import type { BattleSkillRules } from "./battle";
 import type { CharacterGrowth } from "./progression";
+import { nonnegativeInteger, nonnegativeNumber, positiveInteger, savedRandomState } from "./saveFormat";
 import { type CharacterSkills, createExplorationSkills, type ExplorationSkills } from "./skillAcquisition";
 import { type LearnedSkill, skillTierForLevel } from "./skills";
 
-function record(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-function keys(value: Record<string, unknown>, names: string[]): boolean {
-  return Object.keys(value).length === names.length && names.every((name) => Object.hasOwn(value, name));
-}
+const learnedFields = {
+  skillId: v.string(),
+  origin: v.picklist(["initial", "expedition"]),
+  acquisition: v.picklist(["initial", "guaranteed", "choice"]),
+};
+export const savedGrowth = v.strictObject({
+  townExperienceClaimed: v.boolean(),
+  closed: v.boolean(),
+  growth: v.strictObject({
+    characters: v.array(
+      v.strictObject({
+        characterId: v.string(),
+        level: positiveInteger,
+        experience: nonnegativeInteger,
+        bonus: v.strictObject({ maxHp: nonnegativeNumber, attackPower: nonnegativeNumber }),
+        pendingChoiceLevels: v.strictTuple([]),
+      }),
+    ),
+  }),
+  characters: v.array(
+    v.strictObject({
+      characterId: v.string(),
+      learned: v.array(
+        v.variant("type", [
+          v.strictObject({ ...learnedFields, type: v.literal("active") }),
+          v.strictObject({ ...learnedFields, type: v.literal("passive"), rank: positiveInteger }),
+        ]),
+      ),
+    }),
+  ),
+  choice: v.null(),
+  randomState: savedRandomState,
+});
 /** Stable town state only. Rebuild typed records and check earned levels, bonuses,
  * ownership, caps, guarantees and consumed choice counts against current definitions. */
-export function parseSavedGrowth(
-  value: unknown,
+export function restoreSavedGrowth(
+  value: v.InferOutput<typeof savedGrowth>,
   rules: BattleSkillRules,
   randomState: number,
 ): ExplorationSkills | undefined {
-  if (
-    !Number.isInteger(randomState) ||
-    randomState < 0 ||
-    randomState > 0xffffffff ||
-    !rules.growth ||
-    !record(value) ||
-    !keys(value, ["townExperienceClaimed", "closed", "growth", "characters", "choice", "randomState"]) ||
-    typeof value.townExperienceClaimed !== "boolean" ||
-    typeof value.closed !== "boolean" ||
-    value.choice !== null ||
-    value.randomState !== randomState
-  )
-    return;
+  if (!rules.growth || value.randomState !== randomState) return;
   const initial = createExplorationSkills(randomState, rules.growth.progression, rules.catalog);
   if (
-    !record(value.growth) ||
-    !keys(value.growth, ["characters"]) ||
-    !Array.isArray(value.growth.characters) ||
-    !Array.isArray(value.characters) ||
     value.characters.length !== initial.characters.length ||
     value.growth.characters.length !== initial.characters.length
   )
@@ -42,27 +55,9 @@ export function parseSavedGrowth(
   const growth: CharacterGrowth[] = [];
   const characters: CharacterSkills[] = [];
   for (const [index, base] of initial.growth.characters.entries()) {
-    const entry: unknown = value.growth.characters[index];
-    const skills: unknown = value.characters[index];
-    if (
-      !record(entry) ||
-      !keys(entry, ["characterId", "level", "experience", "bonus", "pendingChoiceLevels"]) ||
-      entry.characterId !== base.characterId ||
-      typeof entry.level !== "number" ||
-      !Number.isSafeInteger(entry.level) ||
-      entry.level < base.level ||
-      typeof entry.experience !== "number" ||
-      !Number.isSafeInteger(entry.experience) ||
-      entry.experience < 0 ||
-      !record(entry.bonus) ||
-      !keys(entry.bonus, ["maxHp", "attackPower"]) ||
-      !Array.isArray(entry.pendingChoiceLevels) ||
-      entry.pendingChoiceLevels.length !== 0 ||
-      !record(skills) ||
-      !keys(skills, ["characterId", "learned"]) ||
-      skills.characterId !== base.characterId ||
-      !Array.isArray(skills.learned)
-    )
+    const entry = value.growth.characters[index];
+    const skills = value.characters[index];
+    if (entry.characterId !== base.characterId || entry.level < base.level || skills.characterId !== base.characterId)
       return;
     const level = entry.level;
     const bonus = { ...base.bonus };
@@ -89,30 +84,14 @@ export function parseSavedGrowth(
     const learned: LearnedSkill[] = [];
     const ids = new Set<string>();
     for (const item of skills.learned) {
-      if (!record(item) || typeof item.skillId !== "string" || ids.has(item.skillId)) return;
+      if (ids.has(item.skillId)) return;
       ids.add(item.skillId);
       const definition = rules.catalog.skills.find(({ id }) => id === item.skillId);
-      if (
-        !definition ||
-        item.type !== definition.type ||
-        !keys(
-          item,
-          definition.type === "active"
-            ? ["skillId", "type", "origin", "acquisition"]
-            : ["skillId", "type", "origin", "acquisition", "rank"],
-        )
-      )
-        return;
+      if (!definition || item.type !== definition.type) return;
       const isInitial = profile.initialSkillIds?.includes(item.skillId);
       const guarantee = profile.guaranteedUnlocks?.find(({ skillId }) => skillId === item.skillId);
-      const rank = definition.type === "passive" ? item.rank : 1;
-      if (
-        typeof rank !== "number" ||
-        !Number.isSafeInteger(rank) ||
-        rank < 1 ||
-        (definition.type === "passive" && rank > definition.effect.rankAmounts.length)
-      )
-        return;
+      const rank = item.type === "passive" ? item.rank : 1;
+      if (definition.type === "passive" && rank > definition.effect.rankAmounts.length) return;
       if (isInitial) {
         if (item.origin !== "initial" || item.acquisition !== "initial") return;
         counts[definition.tier] -= rank - 1;

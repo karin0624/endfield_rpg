@@ -175,7 +175,6 @@ export function reduceBattleEditor(state: BattleEditorModel, event: BattleEditor
         next = { ...next, current, raw: rawSettings(current), message: "前回の未保存の調整を復元しました。" };
       } catch {
         return result({ ...next, message: "前回の調整を読み取れなかったため、保存済みの標準を表示しています。" }, [
-          { type: "delete-draft" },
           { type: "preview-settings", settings: state.saved },
         ]);
       }

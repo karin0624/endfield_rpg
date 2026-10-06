@@ -6,6 +6,7 @@ import {
   type DungeonInput,
   type DungeonModel,
   dungeonAccessibleIds,
+  dungeonMachine,
   reduceDungeon,
 } from "../../src/presentation/dungeonModel";
 import { projectDungeon } from "../../src/presentation/dungeonProjection";
@@ -76,25 +77,28 @@ Object.assign(window, {
       );
       dungeon = view;
       paintDungeon = (next, nextInput) => {
-        const routeMeasure = current.route.measure;
+        const routeMeasure = current.context.route.measure;
         current = next;
         measured = nextInput;
         // The supplied game snapshot has no DOM geometry; retain this same view's real layout measurement.
-        if (current.screen.kind === "route" && routeMeasure)
-          current = {
-            ...current,
-            route: reduceDungeonRoute(
-              current.route,
-              { type: "measured", measure: routeMeasure },
-              dungeonAccessibleIds(measured),
-            ).state,
-          };
+        if (current.value === "route" && routeMeasure)
+          current = dungeonMachine.resolveState({
+            value: current.value,
+            context: {
+              ...current.context,
+              route: reduceDungeonRoute(
+                current.context.route,
+                { type: "measured", measure: routeMeasure },
+                dungeonAccessibleIds(measured),
+              ).state,
+            },
+          });
         view.render(projectDungeon(current, measured, "ホームへ帰還"));
       };
       const frame = projectDungeon(current, measured, "ホームへ帰還");
       view.render(frame);
-      if (current.screen.kind === "battle") {
-        view.effect({ type: "open-scene", owner: current.screen.battle.scene.owner }, frame.battle);
+      if (current.context.battle) {
+        view.effect({ type: "open-scene", owner: current.context.battle.scene.owner }, frame.battle);
         await complete;
       }
     },

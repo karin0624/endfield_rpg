@@ -40,6 +40,14 @@ async function serve(kind: "battle" | "adventure") {
   return { root, file, original, server, url, headers };
 }
 
+it("rejects legacy battle settings without converting or replacing the existing file", async () => {
+  const { file, original, url, headers } = await serve("battle");
+  const legacy = JSON.stringify({ ...JSON.parse(original), version: 1, cameraY: 7 });
+  expect((await fetch(url, { method: "POST", headers, body: legacy })).status).toBe(400);
+  expect(await readFile(file, "utf8")).toBe(original);
+  expect((await fetch(url, { method: "POST", headers, body: original })).status).toBe(200);
+});
+
 for (const kind of ["battle", "adventure"] as const) {
   describe(`${kind} settings HTTP contract`, () => {
     it("rejects method, foreign/missing origin, content type and malformed payload without replacing the saved file", async () => {

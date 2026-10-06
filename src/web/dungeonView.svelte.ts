@@ -16,7 +16,6 @@ import { createBattleView } from "./battleView.svelte.ts";
 import Dungeon from "./components/Dungeon.svelte";
 import { deriveDungeonChrome } from "./dungeonPresentation.svelte.ts";
 import { requiredElement } from "./requiredElement";
-
 /** Browser owns real handles; committed semantic state remains synchronous and browser-free. */
 export function createDungeonView(root: HTMLDivElement, send: (event: DungeonEvent) => boolean, returnLabel: string) {
   let frame = $state.raw<DungeonFrame | null>(null),
@@ -34,7 +33,7 @@ export function createDungeonView(root: HTMLDivElement, send: (event: DungeonEve
     returnLabel,
   );
   let chrome = $derived(model ? presentation.frame : frame);
-  let battleSceneState = $derived(model?.screen.kind === "battle" ? model.screen.battle.scene : null);
+  let battleSceneState = $derived(model?.value === "battle" ? (model.context.battle?.scene ?? null) : null);
   let status = $derived(
     model
       ? battleSceneState
@@ -144,7 +143,7 @@ export function createDungeonView(root: HTMLDivElement, send: (event: DungeonEve
     renderModel(next: DungeonModel, nextInput: DungeonInput) {
       input = nextInput;
       model = next;
-      const battle = next.screen.kind === "battle" ? next.screen.battle : null;
+      const battle = next.value === "battle" ? next.context.battle : null;
       const battleInput = dungeonBattleInput(nextInput);
       if (battle?.scene.status === "ready" && scene) {
         scene.paintBattleFrame(projectBattleActors(battle.playback));
