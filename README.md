@@ -2,7 +2,7 @@
 
 ブラウザで動くRPGの試作。街のADV、分岐ルート探索、速度で行動順が変わるタイムライン戦闘を組み合わせる。
 
-まず「街で仲間を編成 → 探索で会話・戦闘 → 帰還して療養」という生活ループを小さく接続する。実装はCodexを中心に進め、描画なしの高速なテストと必要最小限の実装を優先する。
+まず「ホームで準備・編成 → 街やダンジョンを探索 → 帰還 → 街探索で療養」という生活ループを小さく接続する。実装はCodexを中心に進め、描画なしの高速なテストと必要最小限の実装を優先する。
 
 ## 文書の入口
 
@@ -10,15 +10,16 @@
 | --- | --- |
 | [AGENTS.md](AGENTS.md) | 常時適用する短い作業規約と、必要な文書への案内 |
 | [specs/overview.md](specs/overview.md) | 現在の全体要件と責務境界 |
-| [specs/save.md](specs/save.md) | 街の1スロット保存、復元、入力検証と保存I/Oの境界 |
+| [specs/save.md](specs/save.md) | ホームの1スロット保存、復元、入力検証と保存I/Oの境界 |
 | [specs/party.md](specs/party.md) | 仲間一覧、空き枠可4枠PT、単独出撃と状態の引継ぎ |
 | [specs/dungeon.md](specs/dungeon.md) | 固定ルート、ノード進行、戦闘・会話からの復帰 |
 | [docs/milestones.md](docs/milestones.md) | 段階ごとの完了条件とタスクの依存順 |
 | [specs/adventure.md](specs/adventure.md) | 街・会話のゲーム状態、入力、条件、型付き会話データ |
 | [specs/battle.md](specs/battle.md) | タイムライン戦闘、通常攻撃、勝敗の状態・操作・受入例 |
 | [specs/visuals.md](specs/visuals.md) | 戦闘画面の配置・構図設定・描画 |
-| [docs/design-guidelines.md](docs/design-guidelines.md) | UIの配色、部品、操作状態、マーカーの設計指針 |
-| [docs/ui-asset-production.md](docs/ui-asset-production.md) | UI完成画像の承認・再承認・pixel diff・PR審査と画像制作の手順 |
+| [docs/ui-screen-design.md](docs/ui-screen-design.md) | 画面の目的・情報・操作・確定点の設計票、ホーム／街／ADVの境界と棄却例 |
+| [docs/design-guidelines.md](docs/design-guidelines.md) | UIの情報表現・文字・操作状態と共通部品の設計指針 |
+| [docs/ui-asset-production.md](docs/ui-asset-production.md) | 原画像の実入力、制作・Space保存・完成画像承認・製品比較・PR審査の手順 |
 | [docs/testing.md](docs/testing.md) | 純粋モデル、直接VRT、Native資源検証の責務と実行環境 |
 | [docs/documentation.md](docs/documentation.md) | 文書の役割、仕様とADRの書き分け、更新規則 |
 | [docs/adr/](docs/adr/) | 採用した判断とその経緯 |
