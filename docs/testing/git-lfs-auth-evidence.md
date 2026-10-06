@@ -17,3 +17,11 @@
 この最終検証ではheader traceを無効にしていたため、helper呼出しがなかったことからclient Authorizationの有無を直接観測したとは扱わない。保存済みの先行Basic送信との差が取得を阻害したことと、この条件での恒久復旧を確認した範囲に限定する。proxyの認証方式・最初の拒否の原因は未確定。キーunset後の3.6系は未試験で、systemの3.6系も変更していないため、3.8の必須性は確定していない。
 
 公式根拠は[3.8.0 config](https://github.com/git-lfs/git-lfs/blob/v3.8.0/docs/man/git-lfs-config.adoc)、[endpoint finder](https://github.com/git-lfs/git-lfs/blob/v3.8.0/lfsapi/endpoint_finder.go)、[auth](https://github.com/git-lfs/git-lfs/blob/v3.8.0/lfsapi/auth.go)。[maintainerの確認例](https://github.com/git-lfs/git-lfs/issues/6358#issuecomment-5977233607)はlock endpointの初期交渉を扱うもので、このrepoのbatch／object取得の実測とは区別する。
+
+## 2026-10-06の再発報告と自動setupの条件
+
+市場taskのGit LFS 3.6.1、接続済みofficial helper、対象endpointの単一local `access=basic`で、標準stderrは `batch response: Maximum number of login attempts exceeded. Please try again later.` だったと親から報告された。stderrにHTTP403の数字は含まれない。同endpoint／ref／pathで空access対照が成功し、対象キー修復後の空storage標準取得もbatch／object 200、上記oid／size一致だった。これはその条件の報告であり、この文書編集で再現した通信や一般的なlogin制限の解除を意味しない。
+
+自動setupはfetch前から存在し、失敗後にも同じorigin／scope／値で残る既知の単一local学習状態だけを対照候補にする。初回challengeが新規保存した値、明示的な権限拒否・quota、未知／共有設定では対照を追加しない。エラー文だけでunsetせず、同一対象の対照取得・実体照合成功後に対象キーだけを修復し、空storage標準取得と照合が成功してから検査へ進む。
+
+複数worktreeではGitのlocal configが共有される。`extensions.worktreeConfig` が有効ならGitの `--worktree` は固有の `config.worktree` を扱うが、使用中LFSのaccess学習はlocal configへ保存されるため、setupはLFS操作前に停止して共通・固有設定を保持する。自動setup用の拡張有効化・設定移行は行わず独立checkoutを使う。根拠は[Git worktree設定](https://git-scm.com/docs/git-worktree#_configuration_file)と[Git LFS 3.6.1のSetAccess](https://github.com/git-lfs/git-lfs/blob/v3.6.1/lfsapi/endpoint_finder.go)。
