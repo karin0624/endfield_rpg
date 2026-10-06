@@ -256,6 +256,15 @@ describe("成長保存の入力検証", () => {
     ["初期技を探索取得へ改竄", "characters.0.learned.0.origin", "expedition"],
     ["初期技を選択取得へ改竄", "characters.0.learned.0.acquisition", "choice"],
     ["未知の習得技", "characters.0.learned.0.skillId", "missing"],
+    [
+      "初期技の重複",
+      "characters.0.learned",
+      [
+        { skillId: "test-strike", type: "active", origin: "initial", acquisition: "initial" },
+        { skillId: "test-strike", type: "active", origin: "initial", acquisition: "initial" },
+        { skillId: "test-heal", type: "active", origin: "initial", acquisition: "initial" },
+      ],
+    ],
     ["技種別の矛盾", "characters.0.learned.0.type", "passive"],
   ])("%sを保存読込で拒否する", (_label, path, replacement) => {
     const saved = serializeGame(town(initial()), saveDefinitions);
@@ -319,6 +328,48 @@ describe("成長保存の入力検証", () => {
     const original = JSON.stringify(payload);
     expect(deserializeGame(original, saveDefinitions)).toEqual({ accepted: false, reason: "unsupported-version" });
   });
+  it("到達済みレベルのルールが不足した定義では保存を復元しない", () => {
+    const saved = serializeGame(town(initial()), saveDefinitions);
+    if (!saved.accepted) throw new Error(saved.reason);
+    const payload = JSON.parse(saved.data);
+    payload.growth.growth.characters[0].level = 3;
+    const definitions = {
+      ...saveDefinitions,
+      skills: {
+        ...rules,
+        growth: {
+          ...growthRules,
+          progression: {
+            ...growthRules.progression,
+            rules: growthRules.progression.rules.filter(({ fromLevel }) => fromLevel !== 2),
+          },
+        },
+      },
+    };
+    expect(deserializeGame(JSON.stringify(payload), definitions)).toEqual({ accepted: false, reason: "invalid-data" });
+  });
+});
+
+it("成長未接続・権利なし・不正XPの入力を拒否し、現在gameを初期化や変更しない", () => {
+  const source = initial();
+  const before = structuredClone(source);
+  const unavailable = { catalog: skillCatalog, fatigue: mentalFatigueDefinition };
+  expect(rewardGrowth(source, { allocations: [{ characterId: "player", experience: 10 }] }, unavailable)).toEqual({
+    accepted: false,
+    state: before,
+    reason: "growth-unavailable",
+  });
+  expect(chooseGrowthSkill(source, "test-power", rules)).toEqual({
+    accepted: false,
+    state: before,
+    reason: "growth-unavailable",
+  });
+  expect(rewardGrowth(source, { allocations: [{ characterId: "player", experience: -1 }] }, rules)).toEqual({
+    accepted: false,
+    state: before,
+    reason: "invalid-experience",
+  });
+  expect(source).toEqual(before);
 });
 
 describe("生存条件とパッシブ効果", () => {

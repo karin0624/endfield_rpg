@@ -1,3 +1,4 @@
+import { assign, enqueueActions, initialTransition, type SnapshotFrom, setup, transition } from "xstate";
 import { characters } from "../content/characters";
 import { growthRules } from "../content/growthRules";
 import { initialAdventure } from "../content/initialAdventure";
@@ -54,13 +55,10 @@ export function createCampaignGame(): ExpeditionGame {
   };
 }
 type Confirmation = "new-game" | "save" | "save-title" | "title";
-export type CampaignScreen =
-  | { readonly kind: "title" | "intro" | "home" | "destinations" | "equipment" | "town" | "dungeon" | "disposed" }
-  | { readonly kind: "confirm"; readonly action: Confirmation }
-  | { readonly kind: "saving"; readonly returnToTitle: boolean }
-  | { readonly kind: "loading" }
-  | { readonly kind: "party"; readonly party: Omit<PartyModel, "input">; readonly context: "edit" | "departure" }
-  | { readonly kind: "growth" };
+export interface CampaignParty {
+  readonly party: Omit<PartyModel, "input">;
+  readonly context: "edit" | "departure";
+}
 export type CampaignFocus =
   | { readonly kind: "heading" }
   | { readonly kind: "command"; readonly command: string }
@@ -69,9 +67,11 @@ export type CampaignFocus =
   | { readonly kind: "town-place"; readonly placeId: string }
   | { readonly kind: "growth-heading" }
   | { readonly kind: "growth-candidate"; readonly skillId: string };
-export interface CampaignModel {
+export interface CampaignContext {
   readonly game: ExpeditionGame;
-  readonly screen: CampaignScreen;
+  readonly confirmation: Confirmation;
+  readonly returnToTitle: boolean;
+  readonly party: CampaignParty | null;
   readonly carryQuantity: number | null;
   readonly completion?: GameActionCompletion;
   readonly message: string;
@@ -120,17 +120,21 @@ export type CampaignEffect =
   | { readonly type: "read-save" }
   | { readonly type: "report-carry-validity" }
   | { readonly type: "dungeon"; readonly effect: DungeonEffect };
-export interface CampaignTransition {
-  readonly state: CampaignModel;
+interface CampaignOutput {
   readonly effects: readonly CampaignEffect[];
   readonly handled: boolean;
   readonly townResult?: TownActionResult;
   readonly dungeonResult?: DungeonActionResult;
 }
-export function createCampaignModel(): CampaignModel {
+export interface CampaignTransition extends CampaignOutput {
+  readonly state: CampaignModel;
+}
+function initialContext(): CampaignContext {
   return {
     game: createCampaignGame(),
-    screen: { kind: "title" },
+    confirmation: "new-game",
+    returnToTitle: false,
+    party: null,
     carryQuantity: 0,
     message: "",
     focus: { kind: "heading" },
@@ -138,7 +142,7 @@ export function createCampaignModel(): CampaignModel {
     expedition: null,
   };
 }
-export function campaignCarryValid(state: CampaignModel): boolean {
+function carryValid(state: CampaignContext): boolean {
   const stock = state.game.inventory?.items.home.find(({ itemId }) => itemId === recoveryItemId)?.quantity ?? 0;
   return (
     state.carryQuantity !== null &&
@@ -147,28 +151,12 @@ export function campaignCarryValid(state: CampaignModel): boolean {
     state.carryQuantity <= stock
   );
 }
-function itemSelection(state: CampaignModel) {
+function itemSelection(state: CampaignContext) {
   return state.carryQuantity !== null && state.carryQuantity > 0
     ? [{ itemId: recoveryItemId, quantity: state.carryQuantity }]
     : [];
 }
-function enter(
-  state: CampaignModel,
-  screen: CampaignScreen,
-  message = "",
-  focus: CampaignFocus | null = { kind: "heading" },
-): CampaignModel {
-  return { ...state, screen, message, focus };
-}
-function townScreen(state: CampaignModel): CampaignModel {
-  return hasPendingGrowth(state.game)
-    ? enter(state, { kind: "growth" }, "", { kind: "growth-heading" })
-    : enter({ ...state, town: createTownState(state.game.adventure.currentPlaceId) }, { kind: "town" }, "", {
-        kind: "town-place",
-        placeId: state.game.adventure.currentPlaceId,
-      });
-}
-export function campaignTownInput(state: CampaignModel): TownInput {
+function townInput(state: CampaignContext): TownInput {
   return {
     game: state.game,
     characters,
@@ -179,7 +167,7 @@ export function campaignTownInput(state: CampaignModel): TownInput {
     shopEnabled: true,
   };
 }
-export function campaignDungeonInput(state: CampaignModel, enemyDepths: BattleInput["enemyDepths"] = []): DungeonInput {
+function dungeonInput(state: CampaignContext, enemyDepths: BattleInput["enemyDepths"] = []): DungeonInput {
   return {
     game: state.game,
     route: initialDungeon,
@@ -190,20 +178,7 @@ export function campaignDungeonInput(state: CampaignModel, enemyDepths: BattleIn
     enemyDepths,
   };
 }
-function dungeonScreen(state: CampaignModel): CampaignModel {
-  return enter(
-    {
-      ...state,
-      expedition: createDungeonModel(campaignDungeonInput(state)),
-      carryQuantity: 0,
-      completion: undefined,
-    },
-    { kind: "dungeon" },
-    "",
-    null,
-  );
-}
-function partyInput(state: CampaignModel, context: "edit" | "departure"): PartyInput {
+function partyInput(state: CampaignContext, context: "edit" | "departure"): PartyInput {
   const displayCharacters = grownCharacters(state.game, campaignRules);
   return {
     game: state.game,
@@ -227,262 +202,436 @@ function partyInput(state: CampaignModel, context: "edit" | "departure"): PartyI
         : undefined,
   };
 }
-function partyScreen(state: CampaignModel, context: "edit" | "departure"): CampaignModel {
+function prepareParty(state: CampaignContext, context: "edit" | "departure"): CampaignParty {
   const { input: _input, ...party } = createPartyModel(
     partyInput(state, context),
     context === "departure" ? "destinations" : "home",
   );
-  return enter(state, { kind: "party", party, context }, "", null);
+  return { party, context };
+}
+const heading = { message: "", focus: { kind: "heading" as const } };
+type MachineEvent =
+  | Exclude<CampaignEvent, { type: "command" | "dungeon" }>
+  | { [C in CampaignCommand]: { readonly type: `command.${C}` } }[CampaignCommand]
+  | { readonly type: "dungeon"; readonly event: DungeonEvent; readonly enemyDepths: BattleInput["enemyDepths"] }
+  | {
+      readonly type:
+        | "party-home"
+        | "party-destinations"
+        | "party-dungeon"
+        | "town-home"
+        | "town-growth"
+        | "growth-done"
+        | "expedition-returned";
+    };
+// Only pure transition() consumes these typed action descriptors; there is no actor implementation.
+const flow = setup<
+  CampaignContext,
+  MachineEvent,
+  Record<never, never>,
+  Record<never, never>,
+  { output: CampaignOutput }
+>({});
+const enterHeading = flow.assign(heading);
+const enterTown = flow.assign(({ context }) => ({
+  ...heading,
+  town: createTownState(context.game.adventure.currentPlaceId),
+  focus: { kind: "town-place" as const, placeId: context.game.adventure.currentPlaceId },
+}));
+const enterGrowth = flow.assign({ ...heading, focus: { kind: "growth-heading" } });
+const cancel = [
+  {
+    guard: ({ context }: { context: CampaignContext }) => context.confirmation === "new-game",
+    target: "title",
+    actions: enterHeading,
+  },
+  { target: "home", actions: enterHeading },
+];
+export const campaignMachine = flow.createMachine({
+  id: "campaign",
+  initial: "title",
+  context: initialContext,
+  on: {
+    focused: { actions: assign(({ event }) => ({ focus: event.target })) },
+    disposed: {
+      target: ".disposed",
+      actions: enqueueActions(({ context, enqueue }) => {
+        const closed = context.expedition
+          ? reduceDungeon(context.expedition, dungeonInput(context), { type: "closed" })
+          : null;
+        enqueue.assign({ ...heading, expedition: null, focus: null });
+        enqueue({
+          type: "output",
+          params: { handled: true, effects: closed?.effects.map((effect) => ({ type: "dungeon", effect })) ?? [] },
+        });
+      }),
+    },
+  },
+  states: {
+    title: {
+      on: {
+        "town-home": "home",
+        "command.new-game": {
+          target: "confirm",
+          actions: assign({ ...heading, confirmation: "new-game", focus: { kind: "command", command: "cancel" } }),
+        },
+        "command.load": {
+          target: "loading",
+          actions: [enterHeading, { type: "output", params: { handled: true, effects: [{ type: "read-save" }] } }],
+        },
+      },
+    },
+    intro: {
+      on: {
+        "command.home": { target: "home", actions: enterHeading },
+        "command.title": { target: "title", actions: enterHeading },
+      },
+    },
+    confirm: {
+      on: {
+        "command.cancel": cancel,
+        escape: cancel,
+        "command.accept": [
+          {
+            guard: ({ context }) => context.confirmation === "new-game",
+            target: "intro",
+            actions: assign(initialContext),
+          },
+          {
+            guard: ({ context }) => context.confirmation === "title",
+            target: "title",
+            actions: assign({ ...heading, completion: undefined }),
+          },
+          {
+            target: "saving",
+            actions: enqueueActions(({ context, enqueue }) => {
+              const saved = serializeGame(context.game, saveDefinitions);
+              if (saved.accepted) {
+                enqueue.assign({ ...heading, returnToTitle: context.confirmation === "save-title" });
+                enqueue({
+                  type: "output",
+                  params: { handled: true, effects: [{ type: "write-save", data: saved.data }] },
+                });
+              } else {
+                enqueue.assign({
+                  ...heading,
+                  message:
+                    saved.reason === "not-in-town" ? "街に戻ってから保存してください。" : "保存できませんでした。",
+                });
+                enqueue.raise({ type: "town-home" });
+              }
+            }),
+          },
+        ],
+      },
+    },
+    saving: {
+      on: {
+        "town-home": "home",
+        "save-written": [
+          {
+            guard: ({ context, event }) => event.saved && context.returnToTitle,
+            target: "title",
+            actions: assign({ ...heading, completion: undefined, message: "保存しました。" }),
+          },
+          {
+            target: "home",
+            actions: assign(({ event }) => ({
+              ...heading,
+              message: event.saved ? "保存しました。" : "保存できませんでした。ブラウザの保存領域を確認してください。",
+            })),
+          },
+        ],
+      },
+    },
+    loading: {
+      on: {
+        "save-read": {
+          target: "title",
+          actions: enqueueActions(({ event, enqueue }) => {
+            if ("error" in event.result) {
+              enqueue.assign({ ...heading, message: "読み込めませんでした。ブラウザの保存領域を確認してください。" });
+              return;
+            }
+            if (event.result.data === null) {
+              enqueue.assign({ ...heading, message: "保存データがありません。" });
+              return;
+            }
+            const loaded = deserializeGame(event.result.data, saveDefinitions);
+            if (loaded.accepted) {
+              enqueue.assign({
+                ...heading,
+                game: loaded.state,
+                carryQuantity: 0,
+                completion: undefined,
+                message: "読み込みました。",
+              });
+              enqueue.raise({ type: "town-home" });
+            } else
+              enqueue.assign({
+                ...heading,
+                message:
+                  loaded.reason === "unsupported-version"
+                    ? "対応していない保存データです。"
+                    : "保存データを読み込めませんでした。",
+              });
+          }),
+        },
+      },
+    },
+    home: {
+      on: {
+        "carry-changed": { actions: assign(({ event }) => ({ carryQuantity: event.quantity })) },
+        "command.destinations": [
+          { guard: ({ context }) => carryValid(context), target: "destinations", actions: enterHeading },
+          { actions: { type: "output", params: { handled: true, effects: [{ type: "report-carry-validity" }] } } },
+        ],
+        "command.equipment": { target: "equipment", actions: enterHeading },
+        "command.edit-party": {
+          target: "party",
+          actions: assign(({ context }) => ({ ...heading, party: prepareParty(context, "edit"), focus: null })),
+        },
+        "command.save": {
+          target: "confirm",
+          actions: assign({ ...heading, confirmation: "save", focus: { kind: "command", command: "cancel" } }),
+        },
+        "command.save-title": {
+          target: "confirm",
+          actions: assign({
+            ...heading,
+            confirmation: "save-title",
+            focus: { kind: "command", command: "cancel" },
+          }),
+        },
+        "command.title": {
+          target: "confirm",
+          actions: assign({ ...heading, confirmation: "title", focus: { kind: "command", command: "cancel" } }),
+        },
+      },
+    },
+    equipment: {
+      on: {
+        "command.home": { target: "home", actions: enterHeading },
+        equip: {
+          actions: assign(({ context, event }) => {
+            const changed = editHomeEquipment(
+              context.game,
+              "home",
+              event.characterId,
+              event.slot,
+              event.instanceId,
+              characters,
+              campaignRules,
+            );
+            return {
+              ...heading,
+              game: changed.state,
+              message: changed.accepted ? "装備を変更しました。" : "装備を変更できませんでした。",
+            };
+          }),
+        },
+      },
+    },
+    destinations: {
+      on: {
+        "command.home": { target: "home", actions: enterHeading },
+        escape: { target: "home", actions: enterHeading },
+        "command.town": [
+          { guard: ({ context }) => hasPendingGrowth(context.game), target: "growth", actions: enterGrowth },
+          { target: "town", actions: enterTown },
+        ],
+        "command.prepare-departure": {
+          target: "party",
+          actions: assign(({ context }) => ({
+            ...heading,
+            party: prepareParty(context, "departure"),
+            focus: null,
+          })),
+        },
+      },
+    },
+    party: {
+      exit: assign({ party: null }),
+      on: {
+        party: {
+          actions: enqueueActions(({ context, event, enqueue }) => {
+            if (!context.party) return;
+            const changed = reduceParty(
+              { ...context.party.party, input: partyInput(context, context.party.context) },
+              event.event,
+            );
+            const { input, ...party } = changed.state;
+            enqueue.assign({ game: input.game, party: { ...context.party, party } });
+            enqueue({ type: "output", params: { handled: changed.handled, effects: [] } });
+            for (const effect of changed.effects)
+              if (effect.type === "navigate")
+                enqueue.raise({
+                  type:
+                    effect.destination === "dungeon"
+                      ? "party-dungeon"
+                      : effect.destination === "destinations"
+                        ? "party-destinations"
+                        : "party-home",
+                });
+          }),
+        },
+        "party-home": {
+          target: "home",
+          actions: assign({ ...heading, focus: { kind: "command", command: "edit-party" } }),
+        },
+        "party-destinations": {
+          target: "destinations",
+          actions: assign({ ...heading, focus: { kind: "command", command: "prepare-departure" } }),
+        },
+        "party-dungeon": {
+          target: "dungeon",
+          actions: assign(({ context }) => ({
+            ...heading,
+            expedition: createDungeonModel(dungeonInput(context)),
+            carryQuantity: 0,
+            completion: undefined,
+            focus: null,
+          })),
+        },
+      },
+    },
+    town: {
+      on: {
+        "command.home": {
+          guard: ({ context }) => context.game.adventure.mode === "town",
+          target: "home",
+          actions: enterHeading,
+        },
+        town: {
+          actions: enqueueActions(({ context, event, enqueue }) => {
+            const changed = reduceTown(context.town, event.event, townInput(context));
+            enqueue.assign({
+              town: changed.state,
+              game: changed.game,
+              carryQuantity: changed.action?.accepted && event.event.type === "select" ? 0 : context.carryQuantity,
+              completion: changed.action?.accepted ? changed.completion : context.completion,
+              focus:
+                changed.state.focus?.kind === "place"
+                  ? { kind: "town-place", placeId: changed.state.focus.placeId }
+                  : null,
+            });
+            enqueue({ type: "output", params: { handled: changed.handled, effects: [], townResult: changed.action } });
+            if (changed.home) enqueue.raise({ type: "town-home" });
+            else if (changed.action?.accepted && hasPendingGrowth(changed.game)) enqueue.raise({ type: "town-growth" });
+          }),
+        },
+        "town-home": { target: "home", actions: enterHeading },
+        "town-growth": { target: "growth", actions: enterGrowth },
+      },
+    },
+    growth: {
+      on: {
+        growth: {
+          actions: enqueueActions(({ context, event, enqueue }) => {
+            const choice = context.game.growth?.choice;
+            if (!choice) return;
+            if (event.event.type === "choose") {
+              const changed = chooseGrowthSkill(context.game, event.event.skillId, campaignRules);
+              if (!changed.accepted) return;
+              enqueue.assign({ game: changed.state });
+              enqueue.raise({ type: "growth-done" });
+              return;
+            }
+            const moved = reduceGrowthPresentation(
+              context.focus?.kind === "growth-heading"
+                ? { kind: "heading" }
+                : context.focus?.kind === "growth-candidate"
+                  ? { kind: "candidate", skillId: context.focus.skillId }
+                  : null,
+              event.event,
+              choice,
+            );
+            if (moved.handled)
+              enqueue.assign({
+                focus:
+                  moved.focus?.kind === "heading"
+                    ? { kind: "growth-heading" }
+                    : moved.focus?.kind === "candidate"
+                      ? { kind: "growth-candidate", skillId: moved.focus.skillId }
+                      : null,
+              });
+          }),
+        },
+        "growth-done": [
+          { guard: ({ context }) => hasPendingGrowth(context.game), actions: enterGrowth },
+          { target: "town", actions: enterTown },
+        ],
+      },
+    },
+    dungeon: {
+      on: {
+        dungeon: {
+          actions: enqueueActions(({ context, event, enqueue }) => {
+            if (!context.expedition) return;
+            const input = dungeonInput(context, event.enemyDepths),
+              changed = reduceDungeon(context.expedition, input, event.event);
+            if (changed.state !== context.expedition || changed.game !== context.game)
+              enqueue.assign({
+                game: changed.game,
+                expedition: changed.state,
+                completion: changed.completion ?? context.completion,
+              });
+            let effects = changed.effects;
+            if (changed.returnRequested) {
+              const returned = changed.game.dungeon
+                ? leaveExpedition(changed.game, campaignRules)
+                : { accepted: true, state: changed.game, completion: changed.completion ?? context.completion };
+              if (returned.accepted) {
+                const closed = reduceDungeon(changed.state, { ...input, game: returned.state }, { type: "closed" });
+                enqueue.assign({ game: returned.state, expedition: null, completion: returned.completion });
+                enqueue.raise({ type: "expedition-returned" });
+                effects = [...effects, ...closed.effects];
+              }
+            }
+            enqueue({
+              type: "output",
+              params: {
+                handled: changed.handled,
+                effects: effects.map((effect) => ({ type: "dungeon", effect })),
+                dungeonResult: changed.result,
+              },
+            });
+          }),
+        },
+        "expedition-returned": { target: "home", actions: enterHeading },
+      },
+    },
+    disposed: { on: { focused: {} } },
+  },
+});
+export type CampaignModel = SnapshotFrom<typeof campaignMachine>;
+export function createCampaignModel(): CampaignModel {
+  return initialTransition(campaignMachine)[0];
+}
+export function campaignTownInput(state: CampaignModel): TownInput {
+  return townInput(state.context);
+}
+export function campaignDungeonInput(state: CampaignModel, enemyDepths: BattleInput["enemyDepths"] = []): DungeonInput {
+  return dungeonInput(state.context, enemyDepths);
 }
 /** Campaign owns the game; the child retains only its uncommitted screen state. */
-export function campaignPartyModel(
-  state: CampaignModel,
-  screen: Extract<CampaignScreen, { kind: "party" }>,
-): PartyModel {
-  return { ...screen.party, input: partyInput(state, screen.context) };
+export function campaignPartyModel(state: CampaignModel, party: CampaignParty): PartyModel {
+  return { ...party.party, input: partyInput(state.context, party.context) };
 }
 export function reduceCampaign(
   state: CampaignModel,
   event: CampaignEvent,
   enemyDepths: BattleInput["enemyDepths"] = [],
 ): CampaignTransition {
-  const result = (next = state, effects: readonly CampaignEffect[] = [], handled = true): CampaignTransition => ({
-    state: next,
-    effects,
-    handled,
-  });
-  const ignored = () => result(state, [], false);
-  if (event.type === "disposed") {
-    const closed = state.expedition
-      ? reduceDungeon(state.expedition, campaignDungeonInput(state, enemyDepths), { type: "closed" })
-      : null;
-    return result(
-      enter({ ...state, expedition: null }, { kind: "disposed" }, "", null),
-      closed?.effects.map((effect) => ({ type: "dungeon", effect })) ?? [],
-    );
-  }
-  if (state.screen.kind === "disposed") return ignored();
-  if (event.type === "focused") return result({ ...state, focus: event.target });
-  if (event.type === "save-written" && state.screen.kind === "saving") {
-    const message = event.saved ? "保存しました。" : "保存できませんでした。ブラウザの保存領域を確認してください。";
-    return result(
-      enter(
-        event.saved && state.screen.returnToTitle ? { ...state, completion: undefined } : state,
-        { kind: event.saved && state.screen.returnToTitle ? "title" : "home" },
-        message,
-      ),
-    );
-  }
-  if (event.type === "save-read" && state.screen.kind === "loading") {
-    if ("error" in event.result)
-      return result(enter(state, { kind: "title" }, "読み込めませんでした。ブラウザの保存領域を確認してください。"));
-    if (event.result.data === null) return result(enter(state, { kind: "title" }, "保存データがありません。"));
-    const loaded = deserializeGame(event.result.data, saveDefinitions);
-    return result(
-      loaded.accepted
-        ? enter(
-            { ...state, game: loaded.state, carryQuantity: 0, completion: undefined },
-            { kind: "home" },
-            "読み込みました。",
-          )
-        : enter(
-            state,
-            { kind: "title" },
-            loaded.reason === "unsupported-version"
-              ? "対応していない保存データです。"
-              : "保存データを読み込めませんでした。",
-          ),
-    );
-  }
-  if (event.type === "carry-changed" && state.screen.kind === "home")
-    return result({ ...state, carryQuantity: event.quantity });
-  if (event.type === "equip" && state.screen.kind === "equipment") {
-    const changed = editHomeEquipment(
-      state.game,
-      "home",
-      event.characterId,
-      event.slot,
-      event.instanceId,
-      characters,
-      campaignRules,
-    );
-    return result(
-      enter(
-        { ...state, game: changed.state },
-        { kind: "equipment" },
-        changed.accepted ? "装備を変更しました。" : "装備を変更できませんでした。",
-      ),
-    );
-  }
-  if (event.type === "party" && state.screen.kind === "party") {
-    const changed = reduceParty({ ...state.screen.party, input: partyInput(state, state.screen.context) }, event.event);
-    const { input, ...party } = changed.state;
-    let next: CampaignModel = {
-      ...state,
-      game: input.game,
-      screen: { ...state.screen, party },
-    };
-    for (const effect of changed.effects) {
-      if (effect.type !== "navigate") continue;
-      next =
-        effect.destination === "dungeon"
-          ? dungeonScreen(next)
-          : enter(next, { kind: effect.destination === "destinations" ? "destinations" : "home" }, "", {
-              kind: "command",
-              command: effect.destination === "destinations" ? "prepare-departure" : "edit-party",
-            });
-    }
-    return result(next, [], changed.handled);
-  }
-  if (event.type === "town" && state.screen.kind === "town") {
-    const changed = reduceTown(state.town, event.event, campaignTownInput(state));
-    const next: CampaignModel = {
-      ...state,
-      town: changed.state,
-      game: changed.game,
-      carryQuantity: changed.action?.accepted && event.event.type === "select" ? 0 : state.carryQuantity,
-      completion: changed.action?.accepted ? changed.completion : state.completion,
-      focus:
-        changed.state.focus?.kind === "place" ? { kind: "town-place", placeId: changed.state.focus.placeId } : null,
-    };
-    return {
-      ...result(
-        changed.home
-          ? enter(next, { kind: "home" })
-          : changed.action?.accepted && hasPendingGrowth(next.game)
-            ? townScreen(next)
-            : next,
-        [],
-        changed.handled,
-      ),
-      townResult: changed.action,
-    };
-  }
-  if (event.type === "growth" && state.screen.kind === "growth") {
-    const choice = state.game.growth?.choice;
-    if (!choice || !state.game.growth) return ignored();
-    if (event.event.type !== "choose") {
-      const moved = reduceGrowthPresentation(
-        state.focus?.kind === "growth-heading"
-          ? { kind: "heading" }
-          : state.focus?.kind === "growth-candidate"
-            ? { kind: "candidate", skillId: state.focus.skillId }
-            : null,
-        event.event,
-        choice,
-      );
-      return moved.handled
-        ? result({
-            ...state,
-            focus:
-              moved.focus?.kind === "heading"
-                ? { kind: "growth-heading" }
-                : moved.focus?.kind === "candidate"
-                  ? { kind: "growth-candidate", skillId: moved.focus.skillId }
-                  : null,
-          })
-        : ignored();
-    }
-    const changed = chooseGrowthSkill(state.game, event.event.skillId, campaignRules);
-    if (!changed.accepted) return ignored();
-    const next = { ...state, game: changed.state };
-    return result(townScreen(next));
-  }
-  if (event.type === "dungeon" && state.screen.kind === "dungeon" && state.expedition) {
-    const input = campaignDungeonInput(state, enemyDepths);
-    const changed = reduceDungeon(state.expedition, input, event.event);
-    let next =
-      changed.state === state.expedition && changed.game === state.game
-        ? state
-        : {
-            ...state,
-            game: changed.game,
-            expedition: changed.state,
-            completion: changed.completion ?? state.completion,
-          };
-    let effects = changed.effects;
-    if (changed.returnRequested) {
-      const returned = changed.game.dungeon
-        ? leaveExpedition(changed.game, campaignRules)
-        : { accepted: true, state: changed.game, completion: changed.completion ?? state.completion };
-      if (returned.accepted) {
-        const closed = reduceDungeon(changed.state, { ...input, game: returned.state }, { type: "closed" });
-        next = enter(
-          { ...next, game: returned.state, expedition: null, completion: returned.completion },
-          { kind: "home" },
-        );
-        effects = [...effects, ...closed.effects];
-      }
-    }
-    return {
-      ...result(
-        next,
-        effects.map((effect) => ({ type: "dungeon", effect })),
-        changed.handled,
-      ),
-      dungeonResult: changed.result,
-    };
-  }
-  if (event.type === "escape") {
-    if (state.screen.kind === "confirm") return reduceCampaign(state, { type: "command", command: "cancel" });
-    if (state.screen.kind === "destinations") return result(enter(state, { kind: "home" }));
-    return ignored();
-  }
-  if (event.type !== "command") return ignored();
-  const command = event.command;
-  switch (state.screen.kind) {
-    case "title":
-      if (command === "new-game")
-        return result(
-          enter(state, { kind: "confirm", action: "new-game" }, "", { kind: "command", command: "cancel" }),
-        );
-      if (command === "load") return result(enter(state, { kind: "loading" }), [{ type: "read-save" }]);
-      break;
-    case "intro":
-      if (command === "home") return result(enter(state, { kind: "home" }));
-      if (command === "title") return result(enter(state, { kind: "title" }));
-      break;
-    case "confirm":
-      if (command === "cancel")
-        return result(enter(state, { kind: state.screen.action === "new-game" ? "title" : "home" }));
-      if (command !== "accept") break;
-      if (state.screen.action === "new-game") return result(enter(createCampaignModel(), { kind: "intro" }));
-      if (state.screen.action === "title") return result(enter({ ...state, completion: undefined }, { kind: "title" }));
-      {
-        const saved = serializeGame(state.game, saveDefinitions);
-        return saved.accepted
-          ? result(enter(state, { kind: "saving", returnToTitle: state.screen.action === "save-title" }), [
-              { type: "write-save", data: saved.data },
-            ])
-          : result(
-              enter(
-                state,
-                { kind: "home" },
-                saved.reason === "not-in-town" ? "街に戻ってから保存してください。" : "保存できませんでした。",
-              ),
-            );
-      }
-    case "home":
-      if (command === "destinations")
-        return campaignCarryValid(state)
-          ? result(enter(state, { kind: "destinations" }))
-          : result(state, [{ type: "report-carry-validity" }]);
-      if (command === "equipment") return result(enter(state, { kind: "equipment" }));
-      if (command === "edit-party") return result(partyScreen(state, "edit"));
-      if (command === "save" || command === "save-title" || command === "title")
-        return result(enter(state, { kind: "confirm", action: command }, "", { kind: "command", command: "cancel" }));
-      break;
-    case "equipment":
-      if (command === "home") return result(enter(state, { kind: "home" }));
-      break;
-    case "destinations":
-      if (command === "home") return result(enter(state, { kind: "home" }));
-      if (command === "town") return result(townScreen(state));
-      if (command === "prepare-departure") return result(partyScreen(state, "departure"));
-      break;
-    case "town":
-      if (command === "home" && state.game.adventure.mode === "town") return result(enter(state, { kind: "home" }));
-      break;
-  }
-  return ignored();
+  const [next, actions] = transition(
+    campaignMachine,
+    state,
+    event.type === "command"
+      ? { type: `command.${event.command}` }
+      : event.type === "dungeon"
+        ? { ...event, enemyDepths }
+        : event,
+  );
+  const output = actions.find((action) => action.type === "output");
+  return { state: next, effects: [], handled: next !== state, ...output?.params };
 }

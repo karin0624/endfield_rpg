@@ -86,7 +86,6 @@ function session(input: DungeonInput) {
     },
   };
 }
-
 describe("探索画面の同期意味入力", () => {
   it("同じ戦闘命令を再生終了後の現在状態へ受理し、HP/RNGを演出から再計算しない", () => {
     const input = initial(20, directBoss),
@@ -94,7 +93,7 @@ describe("探索画面の同期意味入力", () => {
       app = session(input);
     expect(app.send({ type: "motion", reduced: true }).handled).toBe(true);
     expect(app.send({ type: "enter", nodeId: "boss" }).effects).toEqual([{ type: "open-scene", owner: 1 }]);
-    expect(app.state.screen).toMatchObject({ kind: "battle", battle: { playback: { reducedMotion: true } } });
+    expect(app.state).toMatchObject({ value: "battle", context: { battle: { playback: { reducedMotion: true } } } });
     app.send({ type: "battle", event: { type: "playback", event: { type: "advance", elapsedMs: 5000 } } });
     expect(app.send({ type: "battle", event: { type: "scene-ready", owner: 1 } }).handled).toBe(true);
     for (const [enemyHp, hp, outcome] of [
@@ -121,7 +120,8 @@ describe("探索画面の同期意味入力", () => {
       expect(app.input.game).toEqual(committed);
     }
     expect(app.send({ type: "battle", event: { type: "finish" } }).effects).toEqual([{ type: "close-scene" }]);
-    expect(app.state.screen).toEqual({ kind: "outcome", outcome: "cleared" });
+    expect(app.state.value).toBe("outcome");
+    expect(app.state.context.outcome).toBe("cleared");
     expect(projectDungeon(app.state, app.input)).toMatchObject({
       kind: "outcome",
       outcome: { title: "探索を完了しました", detail: "遺跡の守り手を倒し、探索を終えました。" },
@@ -137,7 +137,6 @@ describe("探索画面の同期意味入力", () => {
       pendingAction: { kind: "dungeon-expedition" },
     });
   });
-
   it("敗北の半日/帰還は先に確定し、不能表示と旧資源は演出終了まで保持する", () => {
     const app = session(initial(1, directBoss, true));
     app.send({ type: "enter", nodeId: "boss" });
@@ -150,17 +149,19 @@ describe("探索画面の同期意味入力", () => {
       hp: 20,
       status: { incapacityRecoverySteps: 6 },
     });
-    expect(app.state.screen).toMatchObject({
-      kind: "battle",
-      battle: {
-        scene: { status: "ready", owner: 1 },
-        playback: {
-          record: { after: { outcome: "defeat" } },
-          display: {
-            combatants: [
-              { id: "player", hp: 1 },
-              { id: "enemy", hp: 28 },
-            ],
+    expect(app.state).toMatchObject({
+      value: "battle",
+      context: {
+        battle: {
+          scene: { status: "ready", owner: 1 },
+          playback: {
+            record: { after: { outcome: "defeat" } },
+            display: {
+              combatants: [
+                { id: "player", hp: 1 },
+                { id: "enemy", hp: 28 },
+              ],
+            },
           },
         },
       },
@@ -181,7 +182,6 @@ describe("探索画面の同期意味入力", () => {
     expect(app.input.game).toEqual(returned);
     expect(app.send({ type: "battle", event: { type: "scene-ready", owner: 1 } }).handled).toBe(false);
   });
-
   it("会話のSpace/選択キーは現在の段階と入力contextで決まり、必須成長を実コアへ渡す", () => {
     const app = session(initial(20, initialDungeon, true));
     expect(projectDungeon(app.state, app.input)).toMatchObject({
@@ -211,10 +211,10 @@ describe("探索画面の同期意味入力", () => {
     expect(app.send({ type: "key", key: " ", code: "Space", shift: false }).handled).toBe(true);
     expect(app.send({ type: "advance" }).handled).toBe(false);
     expect(app.send({ type: "focused", target: { kind: "choice", id: "mark-on-map" } }).handled).toBe(true);
-    expect(app.state.focus).toEqual({ kind: "choice", id: "mark-on-map" });
+    expect(app.state.context.focus).toEqual({ kind: "choice", id: "mark-on-map" });
     expect(app.send({ type: "key", key: "1", code: "Digit1", shift: false }).handled).toBe(true);
     expect([...(app.input.game.dungeon?.flags ?? [])].sort()).toEqual(["marked-ruins-route", "scouted-ruins"].sort());
-    expect(app.state.screen.kind).toBe("growth");
+    expect(app.state.value).toBe("growth");
     expect(projectDungeon(app.state, app.input).growth?.title).toBe("ロッシ · Lv2 スキル選択");
     expect(app.input.game.growth?.choice).toMatchObject({
       level: 2,
@@ -226,9 +226,9 @@ describe("探索画面の同期意味入力", () => {
     expect(app.send({ type: "growth", event: { type: "choose", skillId: "not-offered" } }).handled).toBe(false);
     expect(app.input.game).toEqual(before);
     app.send({ type: "growth", event: { type: "key", key: "Tab", shift: true } });
-    expect(app.state.growthFocus).toEqual({ kind: "candidate", skillId: "test-light-strike" });
+    expect(app.state.context.growthFocus).toEqual({ kind: "candidate", skillId: "test-light-strike" });
     expect(app.send({ type: "growth", event: { type: "choose", skillId: "test-power" } }).handled).toBe(true);
-    expect(app.state.screen.kind).toBe("route");
+    expect(app.state.value).toBe("route");
     expect(app.input.game.growth?.choice).toBeNull();
     expect(app.input.game.clock?.elapsedHalfDays).toBe(0);
     expect(projectDungeon(app.state, app.input)).toMatchObject({
@@ -245,13 +245,12 @@ describe("探索画面の同期意味入力", () => {
       },
     });
   });
-
   it("分岐の回復dialogを取消/再開し、現在HPと実残数から確定と復帰focusを決める", () => {
     const source = initial(5),
       before = structuredClone(source.game),
       app = session(source);
     app.send({ type: "branch", event: { type: "open-skill" } });
-    expect(app.state.branch.focus).toEqual({ kind: "actor", id: "player" });
+    expect(app.state.context.branch.focus).toEqual({ kind: "actor", id: "player" });
     expect(projectDungeon(app.state, app.input).branch).toMatchObject({
       title: "使用者を選ぶ",
       panel: "skill",
@@ -259,10 +258,10 @@ describe("探索画面の同期意味入力", () => {
     });
     app.send({ type: "branch", event: { type: "focused", target: { kind: "actor", id: "player" } } });
     app.send({ type: "branch", event: { type: "key", key: "Escape", shift: false } });
-    expect(app.state.branch.focus).toEqual({ kind: "skill-trigger" });
+    expect(app.state.context.branch.focus).toEqual({ kind: "skill-trigger" });
     expect(app.send({ type: "branch", event: { type: "open-skill" } }).handled).toBe(true);
     app.send({ type: "branch", event: { type: "actor", id: "player" } });
-    expect(app.state.branch.focus).toEqual({ kind: "skill", id: "test-heal" });
+    expect(app.state.context.branch.focus).toEqual({ kind: "skill", id: "test-heal" });
     expect(projectDungeon(app.state, app.input).branch).toMatchObject({
       title: "ロッシの技を選ぶ",
       buttons: [{ label: "検証用回復 · 精神疲労 +3" }],
@@ -270,7 +269,7 @@ describe("探索画面の同期意味入力", () => {
     expect(projectDungeon(app.state, app.input).branch.buttons[0].description).toContain("現在の精神疲労 0");
     app.send({ type: "branch", event: { type: "skill", id: "test-heal" } });
     expect(app.input.game).toEqual(before);
-    expect(app.state.branch.focus).toEqual({ kind: "target", id: "player" });
+    expect(app.state.context.branch.focus).toEqual({ kind: "target", id: "player" });
     expect(projectDungeon(app.state, app.input).branch).toMatchObject({
       panel: "skill",
       title: "回復する味方を選ぶ",
@@ -278,16 +277,16 @@ describe("探索画面の同期意味入力", () => {
     });
     app.send({ type: "branch", event: { type: "target", id: "player" } });
     expect(app.input.game.party.members.find(({ id }) => id === "player")).toMatchObject({ hp: 20, mentalFatigue: 3 });
-    expect(app.state.branchResult).toBe("HPを15回復。精神疲労 0 → 3。");
-    expect(app.state.branch.focus).toEqual({ kind: "skill-trigger" });
+    expect(app.state.context.branchResult).toBe("HPを15回復。精神疲労 0 → 3。");
+    expect(app.state.context.branch.focus).toEqual({ kind: "skill-trigger" });
     app.send({ type: "key", key: "Tab", code: "Tab", shift: false });
-    expect(app.state.focus).toEqual({ kind: "branch", target: { kind: "item-trigger" } });
+    expect(app.state.context.focus).toEqual({ kind: "branch", target: { kind: "item-trigger" } });
     app.send({ type: "enter", nodeId: "conversation-b" });
-    expect(app.state.branch.focus).toBeNull();
+    expect(app.state.context.branch.focus).toBeNull();
     app.send({ type: "advance" });
     app.send({ type: "choose", optionId: "mark-on-map" });
     app.send({ type: "key", key: "Tab", code: "Tab", shift: false });
-    expect(app.state.focus).toEqual({ kind: "return" });
+    expect(app.state.context.focus).toEqual({ kind: "return" });
     expect(source.game).toEqual(before);
     const items = session(initial(5));
     for (const [hp, stock] of [
@@ -302,15 +301,15 @@ describe("探索画面の同期意味入力", () => {
         itemUsable: true,
       });
       items.send({ type: "branch", event: { type: "key", key: "Tab", shift: true } });
-      expect(items.state.branch.focus).toEqual({ kind: "cancel" });
+      expect(items.state.context.branch.focus).toEqual({ kind: "cancel" });
       items.send({ type: "branch", event: { type: "use-item" } });
       expect(items.input.game.party.members.find(({ id }) => id === "player")).toMatchObject({ hp, mentalFatigue: 0 });
       expect(items.input.game.inventory && bagItemQuantity(items.input.game.inventory.items, recoveryItemId)).toBe(
         stock,
       );
     }
-    expect(items.state.focus).toEqual({ kind: "node", id: "battle-a" });
-    expect(items.state.branch.focus).toBeNull();
+    expect(items.state.context.focus).toEqual({ kind: "node", id: "battle-a" });
+    expect(items.state.context.branch.focus).toBeNull();
     expect(items.send({ type: "branch", event: { type: "open-item" } }).handled).toBe(false);
     expect(items.input.game.clock?.elapsedHalfDays).toBe(0);
     const full = session(initial());
@@ -332,10 +331,9 @@ describe("探索画面の同期意味入力", () => {
     }
     expect(full.send({ type: "branch", event: { type: "use-item" } }).handled).toBe(false);
     full.send({ type: "branch", event: { type: "cancel" } });
-    expect(full.state.focus).toEqual({ kind: "branch", target: { kind: "item-trigger" } });
+    expect(full.state.context.focus).toEqual({ kind: "branch", target: { kind: "item-trigger" } });
     expect(full.input.game).toEqual(unchanged);
   });
-
   it("準備失敗/終了後の完了は現在の資源所有と区別し、理由を状態へ渡す", () => {
     const app = session(initial(20, directBoss));
     app.send({ type: "enter", nodeId: "boss" });
@@ -345,9 +343,9 @@ describe("探索画面の同期意味入力", () => {
     expect(
       app.send({ type: "battle", event: { type: "scene-error", owner: 1, reason: "GLB取得失敗" } }).effects,
     ).toEqual([{ type: "close-scene", releaseRenderer: true }]);
-    expect(app.state.screen).toMatchObject({
-      kind: "battle",
-      battle: { scene: { status: "error", reason: "GLB取得失敗" } },
+    expect(app.state).toMatchObject({
+      value: "battle",
+      context: { battle: { scene: { status: "error", reason: "GLB取得失敗" } } },
     });
     expect(projectDungeon(app.state, app.input).battle?.status).toMatchObject({
       ready: false,
@@ -355,15 +353,14 @@ describe("探索画面の同期意味入力", () => {
       reason: "GLB取得失敗",
     });
     expect(app.send({ type: "closed" }).effects).toEqual([{ type: "close-scene" }]);
-    const closed = structuredClone(app.state);
+    const closed = structuredClone(app.state.context);
     for (const event of [
       { type: "enter", nodeId: "boss" },
       { type: "battle", event: { type: "scene-ready", owner: 1 } },
     ] as const)
       expect(app.send(event).handled).toBe(false);
-    expect(app.state).toEqual(closed);
+    expect(app.state.context).toEqual(closed);
   });
-
   it("ルート寸法と現在位置から中心/境界を投影し、pointer captureは現在gestureだけに適用する", () => {
     const app = session(initial());
     const measure = {
@@ -376,7 +373,7 @@ describe("探索画面の同期意味入力", () => {
       ],
     };
     app.send({ type: "route", event: { type: "measured", measure } });
-    expect(projectRouteLayout(app.state.route, ["entrance", "battle-a", "conversation-b"])).toEqual({
+    expect(projectRouteLayout(app.state.context.route, ["entrance", "battle-a", "conversation-b"])).toEqual({
       width: null,
       offset: -121,
     });
@@ -387,11 +384,11 @@ describe("探索画面の同期意味入力", () => {
     expect(app.send({ type: "route", event: { type: "pointer-move", pointerId: 4, x: 100 } }).effects).toEqual([
       { type: "capture-pointer", pointerId: 4 },
     ]);
-    expect(app.state.route.offset).toBe(-221);
+    expect(app.state.context.route.offset).toBe(-221);
     app.send({ type: "route", event: { type: "measured", measure: structuredClone(measure) } });
-    expect(app.state.route.offset).toBe(-221);
+    expect(app.state.context.route.offset).toBe(-221);
     expect(app.send({ type: "route", event: { type: "pointer-move", pointerId: 4, x: -300 } }).effects).toEqual([]);
-    expect(app.state.route.offset).toBe(-492);
+    expect(app.state.context.route.offset).toBe(-492);
     app.send({ type: "route", event: { type: "pointer-end", pointerId: 4 } });
     expect(app.send({ type: "route", event: { type: "pointer-move", pointerId: 4, x: 150 } }).handled).toBe(false);
     app.send({
@@ -409,15 +406,15 @@ describe("探索画面の同期意味入力", () => {
         },
       },
     });
-    expect(app.state.route.offset).toBe(-492);
+    expect(app.state.context.route.offset).toBe(-492);
     expect(app.send({ type: "route", event: { type: "pan-key", key: "ArrowRight" } }).handled).toBe(false);
     app.send({ type: "focused", target: { kind: "route" } });
     for (let press = 0; press < 4; press++) app.send({ type: "route", event: { type: "pan-key", key: "ArrowRight" } });
-    expect(app.state.route.offset).toBe(-665);
+    expect(app.state.context.route.offset).toBe(-665);
     app.send({ type: "route", event: { type: "measured", measure } });
-    expect(app.state.route.offset).toBe(-492);
+    expect(app.state.context.route.offset).toBe(-492);
     app.send({ type: "route", event: { type: "pan-key", key: "ArrowLeft" } });
-    expect(app.state.route.offset).toBe(-444);
+    expect(app.state.context.route.offset).toBe(-444);
     const dimensions = {
       buttonWidth: 156,
       buttonHeight: 97,
@@ -440,16 +437,15 @@ describe("探索画面の同期意味入力", () => {
     expect(points[4]).toBeLessThan(points[6]);
     app.send({ type: "focused", target: { kind: "return" } });
     expect(app.send({ type: "key", key: "Tab", code: "Tab", shift: true }).handled).toBe(false);
-    expect(app.state.focus).toBeNull();
+    expect(app.state.context.focus).toBeNull();
     expect(app.send({ type: "key", key: "Tab", code: "Tab", shift: false }).handled).toBe(true);
-    expect(app.state.focus).toEqual({ kind: "return" });
+    expect(app.state.context.focus).toEqual({ kind: "return" });
     app.send({ type: "enter", nodeId: "conversation-b" });
     app.send({ type: "advance" });
     app.send({ type: "choose", optionId: "mark-on-map" });
     app.send({ type: "route", event: { type: "measured", measure } });
     expect(projectDungeon(app.state, app.input).route).toMatchObject({ width: 580, offset: -306.5 });
   });
-
   it("分岐回復の発症結果を実コアから読み、回復と負荷を一度ずつ案内する", () => {
     for (const [physicalFatigue, symptom] of [
       [0, "肉体疲労 0 → 3。"],
@@ -482,7 +478,6 @@ describe("探索画面の同期意味入力", () => {
       );
     }
   });
-
   it("戦闘中の物品は現在のバッグと確定回復へ結線し、外側Tab・省略・再使用を現在状態で扱う", () => {
     const app = session(initial(5, directBoss));
     app.send({ type: "enter", nodeId: "boss" });
@@ -493,7 +488,7 @@ describe("探索画面の同期意味入力", () => {
     app.send({ type: "battle", event: { type: "focused", target: { kind: "enemy", id: "enemy" } } });
     const untouched = structuredClone(app.input.game);
     expect(app.send({ type: "battle", event: { type: "key", key: "Tab", shift: true } }).handled).toBe(false);
-    expect(app.state.focus).toBeNull();
+    expect(app.state.context.focus).toBeNull();
     expect(app.input.game).toEqual(untouched);
     for (const [hp, stock] of [
       [8, 1],

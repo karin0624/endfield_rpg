@@ -1,4 +1,4 @@
-import { type CampaignModel, createCampaignModel } from "../../src/presentation/campaignModel";
+import { type CampaignModel, campaignMachine, createCampaignModel } from "../../src/presentation/campaignModel";
 import { projectCampaign } from "../../src/presentation/campaignProjection";
 import { createCampaignView } from "../../src/web/campaignView.svelte.ts";
 import "../../src/web/style.css";
@@ -7,29 +7,67 @@ import { returnedCampaign as returned } from "./returned-campaign";
 const initial = createCampaignModel();
 const returnedGame = returned.game;
 const snapshots: Readonly<Record<string, CampaignModel>> = {
-  confirmation: {
-    ...initial,
-    screen: { kind: "confirm", action: "new-game" },
-    focus: { kind: "command", command: "cancel" },
-  },
-  introduction: { ...initial, screen: { kind: "intro" } },
-  home: { ...initial, screen: { kind: "home" } },
-  destinations: { ...initial, screen: { kind: "destinations" } },
-  town: { ...initial, screen: { kind: "town" }, town: { ...initial.town, focus: null }, focus: null },
-  returned: {
-    ...initial,
-    game: returnedGame,
-    screen: { kind: "home" },
-    completion: returned.completion,
-  },
-  save: {
-    ...initial,
-    game: returnedGame,
-    screen: { kind: "confirm", action: "save-title" },
-    focus: { kind: "command", command: "cancel" },
-  },
-  saved: { ...initial, game: returnedGame, message: "保存しました。" },
-  resumed: { ...initial, game: returnedGame, screen: { kind: "home" }, message: "読み込みました。" },
+  confirmation: campaignMachine.resolveState({
+    value: "confirm",
+    context: {
+      ...initial.context,
+      confirmation: "new-game",
+      focus: { kind: "command", command: "cancel" },
+    },
+  }),
+  introduction: campaignMachine.resolveState({
+    value: "intro",
+    context: initial.context,
+  }),
+  home: campaignMachine.resolveState({
+    value: "home",
+    context: initial.context,
+  }),
+  destinations: campaignMachine.resolveState({
+    value: "destinations",
+    context: initial.context,
+  }),
+  town: campaignMachine.resolveState({
+    value: "town",
+    context: {
+      ...initial.context,
+      town: { ...initial.context.town, focus: null },
+      focus: null,
+    },
+  }),
+  returned: campaignMachine.resolveState({
+    value: "home",
+    context: {
+      ...initial.context,
+      game: returnedGame,
+      completion: returned.completion,
+    },
+  }),
+  save: campaignMachine.resolveState({
+    value: "confirm",
+    context: {
+      ...initial.context,
+      game: returnedGame,
+      confirmation: "save-title",
+      focus: { kind: "command", command: "cancel" },
+    },
+  }),
+  saved: campaignMachine.resolveState({
+    value: initial.value,
+    context: {
+      ...initial.context,
+      game: returnedGame,
+      message: "保存しました。",
+    },
+  }),
+  resumed: campaignMachine.resolveState({
+    value: "home",
+    context: {
+      ...initial.context,
+      game: returnedGame,
+      message: "読み込みました。",
+    },
+  }),
 };
 const key = new URLSearchParams(location.search).get("state") ?? "home";
 const snapshot = snapshots[key];

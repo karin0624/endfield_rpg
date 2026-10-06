@@ -7,7 +7,13 @@ import { projectAdventure } from "./adventureProjection";
 import { projectBattleActors } from "./battleProjection";
 import { projectBattleView } from "./battleViewProjection";
 import { branchActors, branchItemCount, branchItemUsable, branchSkills } from "./branchRecoveryModel";
-import { type DungeonInput, type DungeonModel, dungeonAccessibleIds, dungeonBattleInput } from "./dungeonModel";
+import {
+  type DungeonContext,
+  type DungeonInput,
+  type DungeonModel,
+  dungeonAccessibleIds,
+  dungeonBattleInput,
+} from "./dungeonModel";
 import { projectRouteLayout } from "./dungeonRoute";
 import { projectGrowthChoice } from "./growthProjection";
 import { calendarLabel, formatAmount } from "./statusText";
@@ -28,8 +34,8 @@ export const dungeonNames: Readonly<Record<string, string>> = {
   "slime-2": "スライム B",
   "ruin-warden": "遺跡の守り手",
 };
-function projectBranch(state: Pick<DungeonModel, "branch">, input: DungeonInput) {
-  const panel = state.branch.panel,
+function projectBranch(context: Pick<DungeonContext, "branch">, input: DungeonInput) {
+  const panel = context.branch.panel,
     name = (id: string) => dungeonNames[id] ?? id;
   const targets =
     input.game.dungeon?.party.map((member) => ({
@@ -86,15 +92,19 @@ function projectBranch(state: Pick<DungeonModel, "branch">, input: DungeonInput)
       : preview.reason === "no-recovery"
         ? "HPは満タンです。使用できません。"
         : "この対象には使用できません。",
-    itemUsable: branchItemUsable(state.branch, input),
-    focus: state.branch.focus,
+    itemUsable: branchItemUsable(context.branch, input),
+    focus: context.branch.focus,
   };
 }
-export type DungeonChromeState = Omit<DungeonModel, "screen"> & {
-  readonly screen: { readonly kind: DungeonModel["screen"]["kind"]; readonly outcome?: "cleared" | "failed" };
+export type DungeonChromeState = Pick<DungeonModel, "value"> & {
+  readonly context: Pick<
+    DungeonContext,
+    "outcome" | "route" | "branch" | "focus" | "growthFocus" | "message" | "branchResult"
+  >;
 };
 /** Route, conversation, branch and outcome do not depend on battle animation clocks. */
 export function projectDungeonChrome(state: DungeonChromeState, input: DungeonInput, returnLabel = "街へ戻る") {
+  const context = state.context;
   const dungeon = input.game.dungeon;
   const available = dungeon ? getAvailableDungeonNodes(dungeon, input.route) : [];
   const availableIds = new Set(available.map(({ id }) => id));
@@ -158,37 +168,37 @@ export function projectDungeonChrome(state: DungeonChromeState, input: DungeonIn
           focus: null,
         })
       : null;
-  const cleared = state.screen.kind === "outcome" && state.screen.outcome === "cleared";
+  const cleared = state.value === "outcome" && context.outcome === "cleared";
   const title = cleared ? "探索を完了しました" : "探索に失敗しました";
   return {
-    kind: state.screen.kind,
+    kind: state.value,
     returnLabel,
     calendar: calendarLabel(input.game.clock),
-    focus: state.focus,
-    branchResult: state.branchResult,
+    focus: context.focus,
+    branchResult: context.branchResult,
     route: {
       nodes,
       edges,
-      ...projectRouteLayout(state.route, dungeonAccessibleIds(input)),
-      dragging: state.route.gesture?.dragging ?? false,
+      ...projectRouteLayout(context.route, dungeonAccessibleIds(input)),
+      dragging: context.route.gesture?.dragging ?? false,
     },
-    branch: projectBranch(state, input),
+    branch: projectBranch(context, input),
     conversation,
     growth:
-      state.screen.kind === "growth" && input.rules && input.game.growth
+      state.value === "growth" && input.rules && input.game.growth
         ? projectGrowthChoice(input.game.growth, input.rules.catalog, dungeonNames)
         : null,
-    growthFocus: state.growthFocus,
+    growthFocus: context.growthFocus,
     outcome: { title, detail: cleared ? "遺跡の守り手を倒し、探索を終えました。" : "味方が全員戦闘不能になりました。" },
     status:
-      state.message ||
-      (state.screen.kind === "outcome"
+      context.message ||
+      (state.value === "outcome"
         ? title
         : `現在地: ${input.route.nodes.find(({ id }) => id === dungeon?.currentNodeId)?.label ?? "不明"}`),
   };
 }
 export function projectDungeonBattle(state: DungeonModel, input: DungeonInput) {
-  const battle = state.screen.kind === "battle" ? state.screen.battle : null;
+  const battle = state.value === "battle" ? state.context.battle : null;
   const ready = battle?.scene.status === "ready",
     error = battle?.scene.status === "error";
   const battleView =

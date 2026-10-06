@@ -9,7 +9,6 @@ import { projectDebugSession } from "../presentation/debugSessionProjection";
 import { createCampaignView } from "./campaignView.svelte.ts";
 import { createDungeonView } from "./dungeonView.svelte.ts";
 import { DEBUG_SAVE_KEY, readSlotData, writeSlotData } from "./saveSlot";
-
 export function mountDebugSession(root: HTMLDivElement, entry: "town" | "dungeon", editorEntry: boolean) {
   let state = createDebugSessionModel(entry, editorEntry);
   let view: ReturnType<typeof createCampaignView> | undefined;
@@ -48,7 +47,7 @@ export function mountDebugSession(root: HTMLDivElement, entry: "town" | "dungeon
         view = undefined;
       } else if (effect.type === "dungeon") {
         if (effect.effect.type === "open-scene") prepareDungeon();
-        const battle = state.expedition?.screen.kind === "battle" ? state.expedition.screen.battle : null;
+        const battle = state.expedition?.value === "battle" ? state.expedition.context.battle : null;
         dungeon?.effect(
           effect.effect,
           battle

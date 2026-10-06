@@ -39,6 +39,8 @@
   "dependencies": {
     "@babylonjs/core": "^9.27.1",
     "@babylonjs/loaders": "^9.27.1",
-    "svelte": "^5.57.1"
+    "svelte": "^5.57.1",
+    "valibot": "1.5.0",
+    "xstate": "5.33.2"
   }
 }

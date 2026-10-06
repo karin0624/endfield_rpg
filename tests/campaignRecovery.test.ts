@@ -23,7 +23,7 @@ it.each([
     { id: "slime", depth: 1 },
     { id: "slime-2", depth: 2 },
   ];
-  const game = () => (entry === "campaign" ? campaign.game : debug.game);
+  const game = () => (entry === "campaign" ? campaign.context.game : debug.game);
   const send = (event: CampaignEvent) => {
     const result =
       entry === "campaign" ? reduceCampaign(campaign, event, depths) : reduceDebugSession(debug, event, depths);
@@ -32,8 +32,14 @@ it.each([
     else debug = result.state as typeof debug;
     return result;
   };
-  const command = (command: Extract<CampaignEvent, { type: "command" }>["command"]) =>
-    send({ type: "command", command });
+  const command = (
+    command: Extract<
+      CampaignEvent,
+      {
+        type: "command";
+      }
+    >["command"],
+  ) => send({ type: "command", command });
   const load = (data: string) => {
     // Recreate the application owner as on entry/reload; only the public save crosses this boundary.
     if (entry === "campaign") {
@@ -85,7 +91,6 @@ it.each([
         ? { type: "party", event: { type: "depart" } }
         : { type: "town", event: { type: "party", event: { type: "depart" } } },
     );
-
   // Initial data only: haze lowers accuracy to 2/3; actual seeded attacks, defeat and recovery follow.
   let initial = applyPartyStatus(
     { ...createCampaignGame(), randomState: 3 },
@@ -105,11 +110,11 @@ it.each([
   expect(partyFrame().departure.disabled).toBe(false);
   depart();
   send({ type: "dungeon", event: { type: "enter", nodeId: "battle-a" } });
-  const battle = entry === "campaign" ? campaign.expedition?.screen : debug.expedition?.screen;
-  if (battle?.kind !== "battle") throw new Error("戦闘を開始すること");
+  const battle = entry === "campaign" ? campaign.context.expedition?.context.battle : debug.expedition?.context.battle;
+  if (!battle) throw new Error("戦闘を開始すること");
   send({
     type: "dungeon",
-    event: { type: "battle", event: { type: "scene-ready", owner: battle.battle.scene.owner } },
+    event: { type: "battle", event: { type: "scene-ready", owner: battle.scene.owner } },
   });
   if (entry === "campaign") {
     send({ type: "dungeon", event: { type: "battle", event: { type: "open-skills" } } });

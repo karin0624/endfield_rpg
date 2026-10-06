@@ -13,7 +13,7 @@ import {
 import { projectBattleActors } from "../../src/presentation/battleProjection";
 import { parseBattleSettings } from "../../src/presentation/battleSettings";
 import { projectBattleView } from "../../src/presentation/battleViewProjection";
-import { createCampaignModel } from "../../src/presentation/campaignModel";
+import { campaignMachine, createCampaignModel } from "../../src/presentation/campaignModel";
 import { projectCampaign } from "../../src/presentation/campaignProjection";
 import settings from "../../src/web/battle-settings.json";
 import { createBattleRenderer } from "../../src/web/battleScene";
@@ -82,11 +82,12 @@ async function run(
   const scene = renderer.beginBattle(initialBattleCombatants, undefined, projectBattleActors(initial.playback));
   await scene.ready;
   const sceneReadyMs = performance.now() - preparation;
-  const view: ReturnType<typeof createBattleView> & { renderModel?: (model: BattleModel, input: BattleInput) => void } =
-    createBattleView(board, scene, (event) => {
-      state = reduceBattleModel(state, input, event).state;
-      return true;
-    });
+  const view: ReturnType<typeof createBattleView> & {
+    renderModel?: (model: BattleModel, input: BattleInput) => void;
+  } = createBattleView(board, scene, (event) => {
+    state = reduceBattleModel(state, input, event).state;
+    return true;
+  });
   state = reduceBattleModel(initial, input, { type: "playback", event: { type: "skip" } }).state;
   function applyView() {
     if (view.renderModel) timed("model-submit", () => view.renderModel?.(state, input));
@@ -122,7 +123,12 @@ async function run(
   performance.mark("view-workload-start");
   const intervals: number[] = [],
     totals: number[] = [];
-  const switches: { from: string; to: string; frame: number; applyWallMs: number }[] = [];
+  const switches: {
+    from: string;
+    to: string;
+    frame: number;
+    applyWallMs: number;
+  }[] = [];
   const switchEveryFrames = workload === "switch-paced" ? 30 : 1;
   let previousScreen = "empty";
   let previous: number | undefined;
@@ -141,7 +147,14 @@ async function run(
             : screenIndex % 3 === 1
               ? { kind: "destinations" as const }
               : { kind: "town" as const };
-        const frame = timed("projection", () => projectCampaign({ ...base, screen }));
+        const frame = timed("projection", () =>
+          projectCampaign(
+            campaignMachine.resolveState({
+              value: screen.kind,
+              context: base.context,
+            }),
+          ),
+        );
         timed("dom-submit", () => campaign?.render(frame));
         await Promise.resolve();
         switches.push({ from: previousScreen, to: screen.kind, frame: index, applyWallMs: 0 });

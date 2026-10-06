@@ -26,52 +26,14 @@ export type SettingKey = (typeof settingsFields)[number]["key"];
 export type BattleSettings = { version: 2 } & Record<SettingKey, number>;
 export const draftStorageKey = "endfield.battle-settings.draft.v1";
 
-/** 旧形式のJSONへ追加する、今回導入した隊列ルールの既定値。 */
-export type FormationSettingKey =
-  | "allyCenterX"
-  | "allyCenterZ"
-  | "allyStepX"
-  | "allyStepZ"
-  | "enemyCenterX"
-  | "enemyCenterZ"
-  | "enemyStepX"
-  | "enemyStepZ";
-
-export const formationSettingDefaults: Record<FormationSettingKey, number> = {
-  allyCenterX: 3.2,
-  allyCenterZ: 1.5,
-  allyStepX: -2.2,
-  allyStepZ: 0,
-  enemyCenterX: -3.2,
-  enemyCenterZ: 0.5,
-  enemyStepX: 1.8,
-  enemyStepZ: 0,
-};
-
-const formationSettingKeys = Object.keys(formationSettingDefaults) as FormationSettingKey[];
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function migrateSettingsInput(value: unknown): Record<string, unknown> {
-  if (!isRecord(value)) {
-    throw new Error("構図の設定はオブジェクトで指定してください。");
-  }
-  if (value.version === 1) {
-    // 旧v1の既存値はそのまま検証し、新項目だけを明示的に補う。
-    const migrated: Record<string, unknown> = { ...value, version: 2 };
-    for (const key of formationSettingKeys) {
-      if (!(key in migrated)) migrated[key] = formationSettingDefaults[key];
-    }
-    return migrated;
-  }
-  if (value.version !== 2) throw new Error("対応していない構図設定の形式です。");
-  return value;
-}
-
 export function parseBattleSettings(value: unknown): BattleSettings {
-  const input = migrateSettingsInput(value);
+  if (!isRecord(value)) throw new Error("構図の設定はオブジェクトで指定してください。");
+  if (value.version !== 2) throw new Error("対応していない構図設定の形式です。");
+  const input = value;
   const result = { version: 2 } as BattleSettings;
   for (const field of settingsFields) {
     const number = input[field.key];
