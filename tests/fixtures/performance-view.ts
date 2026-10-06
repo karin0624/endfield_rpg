@@ -65,7 +65,11 @@ function timed<T>(name: string, work: () => T): T {
   }
 }
 const nextFrame = () => new Promise<number>((resolve) => requestAnimationFrame(resolve));
-async function run(workload: "battle" | "marker" | "cue" | "switch", frames = 180, pauseForProfiler = false) {
+async function run(
+  workload: "battle" | "marker" | "cue" | "switch" | "switch-paced",
+  frames = 180,
+  pauseForProfiler = false,
+) {
   observer.disconnect();
   app.replaceChildren();
   app.innerHTML =
@@ -100,7 +104,7 @@ async function run(workload: "battle" | "marker" | "cue" | "switch", frames = 18
   for (let warmup = 0; warmup < 20; warmup++) await nextFrame();
   let campaign: ReturnType<typeof createCampaignView> | undefined;
   const base = createCampaignModel();
-  if (workload === "switch") {
+  if (workload === "switch" || workload === "switch-paced") {
     view.dispose();
     app.replaceChildren();
     campaign = createCampaignView(app, () => false);
@@ -118,6 +122,9 @@ async function run(workload: "battle" | "marker" | "cue" | "switch", frames = 18
   performance.mark("view-workload-start");
   const intervals: number[] = [],
     totals: number[] = [];
+  const switches: { from: string; to: string; frame: number; applyWallMs: number }[] = [];
+  const switchEveryFrames = workload === "switch-paced" ? 30 : 1;
+  let previousScreen = "empty";
   let previous: number | undefined;
   for (let index = 0; index < frames; index++) {
     const timestamp = await nextFrame();
@@ -126,15 +133,20 @@ async function run(workload: "battle" | "marker" | "cue" | "switch", frames = 18
     performance.mark(`view-frame-${index}`);
     const start = performance.now();
     if (campaign) {
-      const screen =
-        index % 3 === 0
-          ? { kind: "home" as const }
-          : index % 3 === 1
-            ? { kind: "destinations" as const }
-            : { kind: "town" as const };
-      const frame = timed("projection", () => projectCampaign({ ...base, screen }));
-      timed("dom-submit", () => campaign?.render(frame));
-      await Promise.resolve();
+      if (index % switchEveryFrames === 0) {
+        const screenIndex = Math.floor(index / switchEveryFrames);
+        const screen =
+          screenIndex % 3 === 0
+            ? { kind: "home" as const }
+            : screenIndex % 3 === 1
+              ? { kind: "destinations" as const }
+              : { kind: "town" as const };
+        const frame = timed("projection", () => projectCampaign({ ...base, screen }));
+        timed("dom-submit", () => campaign?.render(frame));
+        await Promise.resolve();
+        switches.push({ from: previousScreen, to: screen.kind, frame: index, applyWallMs: 0 });
+        previousScreen = screen.kind;
+      }
     } else {
       if (workload === "cue" && index % 90 === 0) state = initial;
       state = timed(
@@ -153,7 +165,9 @@ async function run(workload: "battle" | "marker" | "cue" | "switch", frames = 18
       await view.settled();
     }
     timed("layout-read", () => app.getBoundingClientRect());
-    totals.push(performance.now() - start);
+    const duration = performance.now() - start;
+    totals.push(duration);
+    if (campaign && index % switchEveryFrames === 0) switches[switches.length - 1].applyWallMs = duration;
   }
   await nextFrame();
   performance.mark("view-workload-end");
@@ -183,6 +197,8 @@ async function run(workload: "battle" | "marker" | "cue" | "switch", frames = 18
     applyWallMs: quantiles(totals),
     frameIntervalMs: quantiles(intervals),
     intervalsOver25ms: intervals.filter((value) => value > 25).length,
+    switches,
+    switchEveryFrames: campaign ? switchEveryFrames : undefined,
   };
 }
 Object.assign(window, { measureView: run });

@@ -5,10 +5,16 @@ import { gzipSync } from "node:zlib";
 import { chromium } from "@playwright/test";
 import { observeWebGLResources, webGLResources } from "../tests/browser/webglResources.ts";
 
-if (!process.argv[2]) throw new Error("Usage: node scripts/measure-view.mjs output-directory [base-url] [repeats]");
+if (!process.argv[2])
+  throw new Error(
+    "Usage: node scripts/measure-view.mjs output-directory [base-url] [repeats] [comma-separated workloads]",
+  );
 const directory = resolve(process.argv[2]);
 const base = process.argv[3] ?? "http://127.0.0.1:4174";
 const repeats = Number(process.argv[4] ?? 3);
+const workloads = process.argv[5]?.split(",") ?? ["battle", "marker", "cue", "switch"];
+if (workloads.some((name) => !["battle", "marker", "cue", "switch", "switch-paced"].includes(name)))
+  throw new Error("Unknown view workload");
 await mkdir(directory, { recursive: true });
 const quantiles = (values) => {
   const sorted = [...values].sort((a, b) => a - b);
@@ -103,7 +109,7 @@ const output = {
 };
 try {
   for (let repeat = 0; repeat < repeats; repeat++) {
-    for (const workload of ["battle", "marker", "cue", "switch"]) {
+    for (const workload of workloads) {
       const context = await browser.newContext({
         viewport: output.viewport,
         deviceScaleFactor: 1,
@@ -172,6 +178,7 @@ try {
         throw new Error(JSON.stringify({ workload, errors, resources }));
       output.runs.push(result);
       await writeFile(resolve(directory, `${repeat}-${workload}-cpu.json`), JSON.stringify(profile));
+      await writeFile(resolve(directory, `${repeat}-${workload}-allocation.json`), JSON.stringify(sampled.profile));
       await writeFile(resolve(directory, `${repeat}-${workload}-trace.json`), JSON.stringify({ traceEvents: events }));
       await writeFile(resolve(directory, "results.json"), JSON.stringify(output, null, 2));
       process.stdout.write(

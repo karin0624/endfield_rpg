@@ -4,7 +4,7 @@ import type { AdventureEvent } from "../../presentation/adventureModel";
 import type { AdventureFrame } from "../../presentation/adventureProjection";
 import type { AdventureSettings } from "../../presentation/adventureSettings";
 import type { projectTownShop, TownEvent } from "../../presentation/townModel";
-import { applyAdventureSettings } from "../adventureSettings";
+import { adventureSettingsStyle } from "../adventureSettings";
 import Conversation from "./Conversation.svelte";
 import ItemShop from "./ItemShop.svelte";
 import Party from "./Party.svelte";
@@ -26,12 +26,9 @@ let {
   shop?: ReturnType<typeof projectTownShop>;
   shopSend?: (event: TownEvent) => boolean;
 } = $props();
-let screen = $state<HTMLDivElement>(),
-  partyRoot = $state<HTMLElement>();
+let partyRoot = $state<HTMLElement>();
 const assetUrl = (path: string) => `${import.meta.env.BASE_URL}assets/${path}`;
-$effect(() => {
-  if (screen) applyAdventureSettings(screen, settings);
-});
+let style = $derived(adventureSettingsStyle(settings));
 let focus = $derived(frame?.focus);
 $effect(() => {
   if (!focus) return;
@@ -78,7 +75,7 @@ onMount(() => {
     data-mode={frame?.mode ?? "town"}
     data-background-id={frame?.backgroundId}
     class:party-editing={frame?.party !== undefined}
-    bind:this={screen}
+    {style}
   >
     <div class="adventure-background" aria-hidden="true">
       <img src={frame ? assetUrl(frame.backgroundPath) : undefined} alt="">
