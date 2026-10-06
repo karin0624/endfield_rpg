@@ -1,5 +1,6 @@
 <script lang="ts">
 import { onMount } from "svelte";
+import { on } from "svelte/events";
 import { parseAdventureSettings } from "../../presentation/adventureSettings";
 import type { DungeonEvent } from "../../presentation/dungeonModel";
 import type { DungeonChromeFrame, DungeonFrame } from "../../presentation/dungeonProjection";
@@ -128,14 +129,11 @@ onMount(() => {
       : target === viewport || (target instanceof HTMLElement && target.matches("button,a[href]"))
         ? ("control" as const)
         : ("screen" as const);
-  window.addEventListener("focusin", (event) => send({ type: "input-context", context: context(event.target) }), {
+  on(window, "focusin", (event) => send({ type: "input-context", context: context(event.target) }), {
     signal,
   });
-  window.addEventListener(
-    "focusout",
-    (event) => send({ type: "input-context", context: context(event.relatedTarget) }),
-    { signal },
-  );
+  // A focused growth choice can emit a native event during branch teardown.
+  on(window, "focusout", (event) => send({ type: "input-context", context: context(event.relatedTarget) }), { signal });
   const observer = new ResizeObserver(measureRoute);
   observer.observe(viewport);
   return () => {

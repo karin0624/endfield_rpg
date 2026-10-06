@@ -7,13 +7,17 @@ import { observeWebGLResources, webGLResources } from "../tests/browser/webglRes
 
 if (!process.argv[2])
   throw new Error(
-    "Usage: node scripts/measure-view.mjs output-directory [base-url] [repeats] [comma-separated workloads]",
+    "Usage: node scripts/measure-view.mjs output-directory [base-url] [repeats] [comma-separated workloads] [frames] [none|native-static|canvas-hidden]",
   );
 const directory = resolve(process.argv[2]);
 const base = process.argv[3] ?? "http://127.0.0.1:4174";
 const repeats = Number(process.argv[4] ?? 3);
+const frames = Number(process.argv[6] ?? 180);
+const control = process.argv[7] ?? "none";
+if (!Number.isInteger(frames) || frames < 36 || !["none", "native-static", "canvas-hidden"].includes(control))
+  throw new Error("Invalid diagnostic frames/control");
 const workloads = process.argv[5]?.split(",") ?? ["battle", "marker", "cue", "switch"];
-if (workloads.some((name) => !["battle", "marker", "cue", "switch", "switch-paced"].includes(name)))
+if (workloads.some((name) => !["battle", "marker", "cue", "switch", "switch-paced", "battle-skills"].includes(name)))
   throw new Error("Unknown view workload");
 await mkdir(directory, { recursive: true });
 const quantiles = (values) => {
@@ -44,7 +48,7 @@ function summarizeTrace(events) {
   const markers = events
     .filter((event) => /^view-frame-\d+$/.test(event.name) && event.ts >= start && event.ts < end)
     .sort((a, b) => a.ts - b.ts);
-  if (!tasks.length || markers.length !== 180)
+  if (!tasks.length || markers.length !== frames)
     throw new Error(`Incomplete frame trace: ${tasks.length} tasks / ${markers.length} frames`);
   const frameCpu = markers.map((marker, index) => {
     const stop = markers[index + 1]?.ts ?? end;
@@ -68,10 +72,29 @@ function summarizeTrace(events) {
 // without adding product instrumentation. Sampling is an estimate, not call counting.
 const maps = new Map();
 for (const name of await readdir("dist-views/assets")) {
-  if (name.endsWith(".js.map"))
+  if (name.endsWith(".js.map")) {
+    await mkdir(resolve(directory, "build-maps"), { recursive: true });
+    await writeFile(resolve(directory, "build-maps", name), await readFile(`dist-views/assets/${name}`));
     maps.set(name.slice(0, -4), new SourceMap(JSON.parse(await readFile(`dist-views/assets/${name}`, "utf8"))));
+  }
 }
 function summarizeProfile(profile) {
+  const samples = profile.samples ?? [];
+  const deltas = profile.timeDeltas ?? [];
+  const invalidTimeDeltaCount = deltas.filter((delta) => !Number.isFinite(delta) || delta < 0).length;
+  if (!profile.samples || !profile.timeDeltas || samples.length !== deltas.length || invalidTimeDeltaCount) {
+    return {
+      valid: false,
+      reason: "Sample intervals must be finite, nonnegative and match the sample count",
+      sampleCount: samples.length,
+      timeDeltaCount: deltas.length,
+      invalidTimeDeltaCount,
+      projectionInclusiveMs: null,
+      browserViewInclusiveMs: null,
+      babylonInclusiveMs: null,
+      gcSampleMs: null,
+    };
+  }
   const nodes = new Map(profile.nodes.map((node) => [node.id, node]));
   const parents = new Map(profile.nodes.flatMap((node) => (node.children ?? []).map((child) => [child, node.id])));
   const source = (node) => {
@@ -91,7 +114,7 @@ function summarizeProfile(profile) {
     if (paths.some((path) => path.includes("@babylonjs"))) totals.babylonInclusiveMs += weight;
     if (chain.some((node) => node.callFrame.functionName === "(garbage collector)")) totals.gcSampleMs += weight;
   }
-  return totals;
+  return { valid: true, ...totals };
 }
 const browser = await chromium.launch({ headless: true, args: ["--enable-unsafe-swiftshader"] });
 const output = {
@@ -100,11 +123,14 @@ const output = {
   dpr: 1,
   graphics: "fixed Playwright image; SwiftShader software WebGL",
   measurementWindows: {
-    sampledCpu: "Profiler.start to Profiler.stop; includes workload, dispose and one rAF after exit",
+    sampledCpu:
+      "Profiler.start to Profiler.stop; includes workload, optional cue completion drain, dispose and one rAF after exit",
     sampledAllocationBytes:
-      "HeapProfiler.startSampling to HeapProfiler.stopSampling; includes workload, dispose and one rAF after exit",
-    trace: "view-workload-start to view-workload-end; 180 frames, excludes exit",
+      "HeapProfiler.startSampling to HeapProfiler.stopSampling; includes workload, optional cue completion drain, dispose and one rAF after exit",
+    trace: `view-workload-start to view-workload-end; ${frames} frames, excludes completion drain and exit`,
   },
+  frames,
+  control,
   runs: [],
 };
 try {
@@ -117,16 +143,50 @@ try {
       });
       const page = await context.newPage();
       await observeWebGLResources(page);
+      await page.addInitScript(() => {
+        const stats = { created: 0, disconnected: 0, callbacks: 0 };
+        const Original = window.ResizeObserver;
+        window.ResizeObserver = class extends Original {
+          constructor(callback) {
+            stats.created++;
+            super((entries, observer) => {
+              stats.callbacks++;
+              callback(entries, observer);
+            });
+          }
+          disconnect() {
+            stats.disconnected++;
+            super.disconnect();
+          }
+        };
+        window.resizeObserverStats = stats;
+        const draws = { drawArrays: 0, drawElements: 0 };
+        for (const prototype of [WebGLRenderingContext.prototype, WebGL2RenderingContext.prototype])
+          for (const name of Object.keys(draws)) {
+            if (!Object.hasOwn(prototype, name)) continue;
+            const original = prototype[name];
+            prototype[name] = function (...args) {
+              draws[name]++;
+              return Reflect.apply(original, this, args);
+            };
+          }
+        window.diagnosticDrawCalls = draws;
+      });
       const errors = [];
       page.on("pageerror", (error) => errors.push(error.message));
-      await page.goto(`${base}/rpg/tests/fixtures/performance-view.html`);
+      await page.goto(`${base}/rpg/tests/fixtures/performance-view.html?control=${control}`);
       await page.waitForSelector("#app[data-measure-ready]", { state: "attached" });
       const session = await context.newCDPSession(page);
       await session.send("Performance.enable");
-      const running = page.evaluate(({ workload }) => window.measureView(workload, 180, true), { workload });
+      const running = page.evaluate(({ workload, frames }) => window.measureView(workload, frames, true), {
+        workload,
+        frames,
+      });
       await page.waitForSelector("#app[data-profiler-ready]", { state: "attached", timeout: 60000 });
       await session.send("HeapProfiler.collectGarbage");
       const before = await session.send("Performance.getMetrics");
+      const observersBefore = await page.evaluate(() => ({ ...window.resizeObserverStats }));
+      const drawCallsBefore = await page.evaluate(() => ({ ...window.diagnosticDrawCalls }));
       await session.send("Profiler.enable");
       await session.send("Profiler.setSamplingInterval", { interval: 1000 });
       await session.send("Profiler.start");
@@ -165,6 +225,10 @@ try {
       const allocation = (node) => node.selfSize + node.children.reduce((sum, child) => sum + allocation(child), 0);
       const result = {
         repeat,
+        observersBefore,
+        observersAfter: await page.evaluate(() => ({ ...window.resizeObserverStats })),
+        drawCallsBefore,
+        drawCallsAfter: await page.evaluate(() => ({ ...window.diagnosticDrawCalls })),
         ...frame,
         trace: summarizeTrace(events),
         sampledCpu: summarizeProfile(profile),

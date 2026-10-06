@@ -65,6 +65,7 @@ git上の全品質spec、runnerの実collection、今回の実JSONを照合す�
 
 Svelte移行時の前後比較、全scope／gameの実行結果と未確認事項は[検証記録](testing/view-refactor-evidence.md)を参照する。
 移行後の街生成時のCSS反映費用、疎な切替の単発費用と採用案の限界は[切替負荷の検証記録](testing/view-switch-performance-evidence.md)を参照する。
+最終移行版との追加比較、Native操作のfocus退行、CPUと描画queue待機の分解、不採用対照は[追加調査記録](testing/svelte-performance-investigation-evidence.md)を参照する。
 
 `tests/fixtures/performance-view.html`は直接状態fixtureで、通常配布へ含めない。通常戦闘の選択更新、連続marker、確定recordのcue、home／destinations／town切替を各180frameで測る。実Babylon・素材・shader・fonts・画像decodeを準備し、20rAFのwarm後にGC・profilingを開始する。通常戦闘の入力更新とclockを通し、Svelteでは実行中と同じ`renderModel`を使う。
 
@@ -93,6 +94,12 @@ docker run --rm --init --ipc=host --name endfield-view-profile --user "$(id -u):
 | bundle／起動／資源 | 通常distの全JS raw／gzip合計、実sceneと画像までの準備時間、退出後のBuffer／Texture／Programが0であること。全chunk合計は初回転送量ではなく、warm fixture準備時間はcold network起動ではない |
 
 結果JSONの`measurementWindows`に各区間を記録する。CPU・割当samplingはtraceの180frame区間と一致しない。DOM mutation、強制GC前後のheapとNodesも保存するが、これらは割当samplingとは別の観測である。
+
+`battle-skills`はrules／itemsを有効にしたHUDの選択更新を測る。initialBattleにlearned skillは含まれないため、実skill選択と使用は通常配布のNative診断で分ける。workload指定の後にframe数（36以上）と`none`／`native-static`／`canvas-hidden`を指定できる。後2つは描画処理・表示の一要因対照で、製品や品質条件には適用しない。cueはframe32でcompletion fenceを挿入し、workload markの後に完了待機をdrainする。fence waitとdrainは重なり、加算しない。cueのCPU／allocation samplingはdrainも含み、trace／mutationはworkload markまでに限る。APIのGPU timerが利用不能ならelapsedはnullのまま残す。
+
+通常配布のpreviewに対して`node scripts/measure-play.mjs test-results/perf-play http://127.0.0.1:4173 3`で、Native pointer／focusを含む実adapter・coreの診断負荷を測れる。party／詳細、街の往復と市場dialog、成長、skill戦闘、return／save／resumeを通し、入力captureからpost-locator観測までのwall、準備・cue待機、全区間の非重複phase、thread CPU、Native API issueと退出時資源を保存する。各入力後はfont／画像decodeと2rAFを待ち、実clockのcueを12rAF表示してから必要時skipする。追加の製品E2E品質suiteではなく、pure model／直接VRT／直接Nativeの既存保証はそのまま別実行する。
+
+`measure-play.mjs`の末尾に`plain`を指定するとCDP CPU／allocation／traceとNative API wall wrapperを外し、同じ入力・観測mark・資源hookを保ったoverhead対照にできる。Native input-to-observed-DOMはdriver往復と定義した2 microtask／layout観測を含み、純粋なhandler CPUやGPU完了を表さない。startup resourceとscene準備後resourceを分け、通常distの隣接mapもraw profileと一緒に保存する。例外はstackとraw結果を保存して失敗を返し、正常な比較値へ混ぜない。
 
 GPUを含む全frameの余裕は実rAF間隔とtraceを合わせて評価する。SwiftShaderでの低いDOM時間を実機60fpsの証明にせず、長い描画区間とphysical GPU未確認を明記する。採用前後は同じDocker・viewport・DPR・素材・workload・profiling条件で比較する。旧revisionへharnessを持ち込む場合はview importのファイル名を合わせるだけで、optional `renderModel`がない旧viewには同じモデルから全frameを投影して`paint`する。
 

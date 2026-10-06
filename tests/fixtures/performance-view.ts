@@ -13,7 +13,7 @@ import {
 import { projectBattleActors } from "../../src/presentation/battleProjection";
 import { parseBattleSettings } from "../../src/presentation/battleSettings";
 import { projectBattleView } from "../../src/presentation/battleViewProjection";
-import { campaignMachine, createCampaignModel } from "../../src/presentation/campaignModel";
+import { campaignMachine, campaignRules, createCampaignModel } from "../../src/presentation/campaignModel";
 import { projectCampaign } from "../../src/presentation/campaignProjection";
 import settings from "../../src/web/battle-settings.json";
 import { createBattleRenderer } from "../../src/web/battleScene";
@@ -27,7 +27,7 @@ const app = root;
 const before = advanceBattleToNextAllyInput(createBattleState(initialBattleCombatants)).state;
 const action = performBasicAttackAndAdvanceToAllyInput(before, before.currentActorId ?? "player", "slime");
 if (!action.accepted) throw new Error(action.reason);
-const input = {
+const baseInput = {
   battle: action.state,
   basicAttack: true,
   items: false,
@@ -37,10 +37,14 @@ const input = {
     { id: "slime-2", depth: 6 },
   ],
 };
-const initial = reduceBattleModel(createBattleModel({ before, after: action.state, events: action.events }, 0), input, {
-  type: "scene-ready",
-  owner: 0,
-}).state;
+const initial = reduceBattleModel(
+  createBattleModel({ before, after: action.state, events: action.events }, 0),
+  baseInput,
+  {
+    type: "scene-ready",
+    owner: 0,
+  },
+).state;
 let state = initial;
 let allocations = 0,
   removals = 0,
@@ -66,10 +70,12 @@ function timed<T>(name: string, work: () => T): T {
 }
 const nextFrame = () => new Promise<number>((resolve) => requestAnimationFrame(resolve));
 async function run(
-  workload: "battle" | "marker" | "cue" | "switch" | "switch-paced",
+  workload: "battle" | "marker" | "cue" | "switch" | "switch-paced" | "battle-skills",
   frames = 180,
   pauseForProfiler = false,
 ) {
+  const input: BattleInput =
+    workload === "battle-skills" ? { ...baseInput, rules: campaignRules, items: true, itemCount: 2 } : baseInput;
   observer.disconnect();
   app.replaceChildren();
   app.innerHTML =
@@ -77,6 +83,8 @@ async function run(
   const board = app.querySelector<HTMLDivElement>(".game-board");
   const canvas = app.querySelector<HTMLCanvasElement>("canvas");
   if (!board || !canvas) throw new Error("Missing battle measurement surface");
+  const control = new URLSearchParams(location.search).get("control") ?? "none";
+  if (control === "canvas-hidden") canvas.style.visibility = "hidden";
   const preparation = performance.now();
   const renderer = createBattleRenderer(canvas, parseBattleSettings(settings));
   const scene = renderer.beginBattle(initialBattleCombatants, undefined, projectBattleActors(initial.playback));
@@ -127,6 +135,38 @@ async function run(
     });
     delete app.dataset.profilerReady;
   }
+  const gl = canvas.getContext("webgl2");
+  const timer = gl?.getExtension("EXT_disjoint_timer_query_webgl2");
+  type FenceResult = { completionWaitWallMs: number | null; status: string; polls: number };
+  const fence: FenceResult = { completionWaitWallMs: null, status: "not-issued", polls: 0 };
+  const finalFence: FenceResult = { completionWaitWallMs: null, status: "not-issued", polls: 0 };
+  function issueFence(record: FenceResult) {
+    if (!gl) return;
+    const sync = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
+    if (!sync) throw new Error("Missing diagnostic fence");
+    const start = performance.now();
+    gl.flush();
+    record.status = "pending";
+    return new Promise<void>((resolve) => {
+      const poll = () => {
+        record.polls++;
+        const status = gl.clientWaitSync(sync, 0, 0);
+        if (
+          status === gl.ALREADY_SIGNALED ||
+          status === gl.CONDITION_SATISFIED ||
+          status === gl.WAIT_FAILED ||
+          performance.now() - start > 60000
+        ) {
+          record.completionWaitWallMs = performance.now() - start;
+          record.status = status === gl.WAIT_FAILED ? "failed" : status === gl.TIMEOUT_EXPIRED ? "timeout" : "complete";
+          gl.deleteSync(sync);
+          resolve();
+        } else setTimeout(poll, 1);
+      };
+      poll();
+    });
+  }
+  let completion: Promise<void> | undefined;
   performance.mark("view-workload-start");
   const intervals: number[] = [],
     totals: number[] = [];
@@ -162,13 +202,17 @@ async function run(
         () =>
           reduceBattleModel(state, input, { type: "playback", event: { type: "advance", elapsedMs: 1000 / 60 } }).state,
       );
-      if (workload === "battle" && index % 10 === 0)
+      if ((workload === "battle" || workload === "battle-skills") && index % 10 === 0)
         state = timed(
           "model",
           () =>
             reduceBattleModel(state, input, { type: "select-enemy", id: index % 20 === 0 ? "slime" : "slime-2" }).state,
         );
-      timed("native", () => scene.paintBattleFrame(projectBattleActors(state.playback)));
+      timed("native", () => {
+        const actors = projectBattleActors(state.playback);
+        if (control !== "native-static") scene.paintBattleFrame(actors);
+      });
+      if (workload === "cue" && index === 32) completion = issueFence(fence);
       applyView();
       await view.settled();
     }
@@ -181,6 +225,12 @@ async function run(
   performance.mark("view-workload-end");
   observer.disconnect();
   const mutations = { added: allocations, removed: removals, attributes, texts };
+  const drainStart = performance.now();
+  // paintBattleFrame issues scene.render synchronously; the final rAF above also
+  // lets an outstanding normal resize renderLoop callback issue before this probe.
+  const finalCompletion = workload === "cue" ? issueFence(finalFence) : undefined;
+  await Promise.all([completion, finalCompletion]);
+  const completionDrainWallMs = performance.now() - drainStart;
   campaign?.dispose();
   if (!campaign) view.dispose();
   scene.dispose();
@@ -198,6 +248,15 @@ async function run(
   return {
     workload,
     frames,
+    suppliedClockMs: frames * (1000 / 60),
+    finalPlayback: {
+      phase: state.playback.phase,
+      eventIndex: state.playback.eventIndex,
+      phaseElapsedMs: state.playback.phaseElapsedMs,
+      cue: state.playback.cue,
+    },
+    control,
+    gpu: { timerQueryAvailable: !!timer, elapsedMs: null, fence, finalFence, completionDrainWallMs },
     sceneReadyMs,
     uiReadyMs,
     mutations,

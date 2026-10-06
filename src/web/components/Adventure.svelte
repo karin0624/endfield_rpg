@@ -1,5 +1,6 @@
 <script lang="ts">
 import { onMount } from "svelte";
+import { on } from "svelte/events";
 import type { AdventureEvent } from "../../presentation/adventureModel";
 import type { AdventureFrame } from "../../presentation/adventureProjection";
 import type { AdventureSettings } from "../../presentation/adventureSettings";
@@ -57,14 +58,11 @@ onMount(() => {
       : target instanceof HTMLElement && target.matches("button,a[href]")
         ? ("control" as const)
         : ("screen" as const);
-  window.addEventListener("focusin", (event) => send({ type: "input-context", context: context(event.target) }), {
+  // Removing a focused node can fire a native event while Svelte is patching a block.
+  on(window, "focusin", (event) => send({ type: "input-context", context: context(event.target) }), {
     signal,
   });
-  window.addEventListener(
-    "focusout",
-    (event) => send({ type: "input-context", context: context(event.relatedTarget) }),
-    { signal },
-  );
+  on(window, "focusout", (event) => send({ type: "input-context", context: context(event.relatedTarget) }), { signal });
   return () => events.abort();
 });
 </script>
