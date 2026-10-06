@@ -102,6 +102,8 @@ GPUを含む全frameの余裕は実rAF間隔とtraceを合わせて評価する�
 
 [Playwright画像比較](https://playwright.dev/docs/test-snapshots)の固定環境、既存baselineのpath／bytes／許容差を保つ。画像不一致をsleep・許容差増加・無審査baseline生成で隠さない。必要な字体・画像decode・pointer／keyboard modality・viewport・scrollを撮影前に揃える。レビュー資料の撮影やoverlayはVRT成功を代替せず、旧実行参考画像を新たな承認済みgoldenと扱わない。
 
+文書だけの変更は、変更パスが文書に限られること、リンク・見出し参照、specsと設計／制作手順の整合、実際の失敗案を棄却できることをローカルで確認する。製品source・CSS・素材・golden・テスト設定を変更しない文書整備にゲーム全suiteや新しい画像承認を要求せず、未実行の製品検証を成功と報告しない。製品変更を文書のみとして扱わない。
+
 実装中は必要な短い検証で原因と費用を確認する。提出前はsourceを固定し、check・必要な全直接VRT・資源検証・editorをローカルで完走する。代表数件だけで全件をCIへ委ねない。source／LFS実体／CSS・素材・goldenの前後一致、正確なhead／tree、開始・終了・shutdown、実runnerのworker設定、層別時間、failure／retry別記を残す。GitHub権限・required checks・Actions固有のrunner条件等、ローカルで不可能な条件だけを理由付き例外とする。
 
 [#102](https://github.com/karin0624/endfield_rpg/issues/102)では、品質維持したゲーム本体CI対象（`npm run test:browser`）のローカル全工程が起動から終了まで5分以内、または同品質で5分以内にできない明確な根拠が成立することを公開条件とする。直列側の費用整理を先に検討し、ユーザー確認を経てgameの既定2workersを採用する。設定画面の`editor-views`／`editor-resources`はこの5分判定へ含めず、`npm run test:editor`で明示的に別実行する。`test:all`は両scopeを必要時に検証するコマンドであり、5分の判定対象ではない。公開・マージはユーザー判断に従う。部分成功、実描画が多い事実、未測定の推測を不可避の根拠・課題解決としない。
