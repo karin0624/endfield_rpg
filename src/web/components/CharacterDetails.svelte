@@ -21,6 +21,7 @@ $effect(() => {
   else if (!frame && dialog.open) dialog.close();
 });
 $effect(() => {
+  if (!frame) return;
   const top = model.scrollTop;
   if (scrollOwner().scrollTop !== top) scrollOwner().scrollTop = top;
 });
