@@ -26,6 +26,29 @@ interface CommandFrame {
   readonly label: string;
   readonly primary: boolean;
 }
+const command = (id: CampaignCommand, label: string, primary = false): CommandFrame => ({
+  command: id,
+  label,
+  primary,
+});
+const commands: Readonly<
+  Record<"title" | "intro" | "confirm" | "home" | "equipment" | "destinations" | "empty", readonly CommandFrame[]>
+> = {
+  title: [command("new-game", "新規開始", true), command("load", "続きから")],
+  intro: [command("home", "ホームへ", true), command("title", "タイトルへ戻る")],
+  confirm: [command("cancel", "取り消す"), command("accept", "実行する", true)],
+  home: [
+    command("destinations", "探索先を選ぶ", true),
+    command("edit-party", "出撃編成を見る"),
+    command("equipment", "装備を整える"),
+    command("save", "保存"),
+    command("save-title", "保存してタイトルへ戻る"),
+    command("title", "タイトルへ戻る"),
+  ],
+  equipment: [command("home", "ホームへ戻る")],
+  destinations: [command("town", "街"), command("prepare-departure", "ダンジョン"), command("home", "ホームへ戻る")],
+  empty: [],
+};
 export function campaignFeedback(state: Pick<CampaignContext, "game" | "completion">): readonly string[] {
   const { completion, game } = state;
   return [
@@ -46,11 +69,6 @@ export function campaignFeedback(state: Pick<CampaignContext, "game" | "completi
   ];
 }
 export function projectCampaign(state: CampaignModel, enemyDepths: BattleInput["enemyDepths"] = []) {
-  const command = (id: CampaignCommand, label: string, primary = false): CommandFrame => ({
-    command: id,
-    label,
-    primary,
-  });
   const context = state.context;
   const base = { focus: context.focus, status: context.message, calendar: calendarLabel(context.game.clock) };
   const mode = state.value;
@@ -63,7 +81,7 @@ export function projectCampaign(state: CampaignModel, enemyDepths: BattleInput["
         title: "ENDFIELD RPG",
         calendar: "",
         copy: [],
-        commands: [command("new-game", "新規開始", true), command("load", "続きから")],
+        commands: commands.title,
         waiting: mode === "loading",
       };
     case "intro":
@@ -73,7 +91,7 @@ export function projectCampaign(state: CampaignModel, enemyDepths: BattleInput["
         title: "導入",
         calendar: "",
         copy: ["（仮テキスト）"],
-        commands: [command("home", "ホームへ", true), command("title", "タイトルへ戻る")],
+        commands: commands.intro,
       };
     case "confirm":
     case "saving": {
@@ -90,7 +108,7 @@ export function projectCampaign(state: CampaignModel, enemyDepths: BattleInput["
               ? "保存していない変更は失われます。既存の保存データは保持されます。"
               : "同じブラウザの保存スロットを上書きします。",
         ],
-        commands: [command("cancel", "取り消す"), command("accept", "実行する", true)],
+        commands: commands.confirm,
         waiting: mode === "saving",
       };
     }
@@ -106,14 +124,7 @@ export function projectCampaign(state: CampaignModel, enemyDepths: BattleInput["
         feedback: campaignFeedback(context),
         portrait: { name: lead.name, path: characterPortraitPath(leadId) },
         carry: { quantity: context.carryQuantity, stock },
-        commands: [
-          command("destinations", "探索先を選ぶ", true),
-          command("edit-party", "出撃編成を見る"),
-          command("equipment", "装備を整える"),
-          command("save", "保存"),
-          command("save-title", "保存してタイトルへ戻る"),
-          command("title", "タイトルへ戻る"),
-        ],
+        commands: commands.home,
       };
     }
     case "equipment": {
@@ -165,7 +176,7 @@ export function projectCampaign(state: CampaignModel, enemyDepths: BattleInput["
         title: "装備",
         copy: inventory && !inventory.equipment.owned.length ? ["所持している装備はありません。"] : [],
         members,
-        commands: [command("home", "ホームへ戻る")],
+        commands: commands.equipment,
       };
     }
     case "destinations":
@@ -174,7 +185,7 @@ export function projectCampaign(state: CampaignModel, enemyDepths: BattleInput["
         kind: "destinations" as const,
         title: "探索先選択",
         copy: ["街探索とダンジョンは、完了時にそれぞれ半日が経過します。"],
-        commands: [command("town", "街"), command("prepare-departure", "ダンジョン"), command("home", "ホームへ戻る")],
+        commands: commands.destinations,
       };
     case "party": {
       const party = context.party;
@@ -184,7 +195,7 @@ export function projectCampaign(state: CampaignModel, enemyDepths: BattleInput["
         kind: "party" as const,
         title: party.context === "departure" ? "出発準備" : "編成",
         copy: [],
-        commands: [],
+        commands: commands.empty,
         party: projectParty(campaignPartyModel(state, party)),
       };
     }
@@ -194,7 +205,7 @@ export function projectCampaign(state: CampaignModel, enemyDepths: BattleInput["
         kind: "town" as const,
         title: "",
         copy: [],
-        commands: [],
+        commands: commands.empty,
         town: projectTown(context.town, campaignTownInput(state), {
           calendar: base.calendar,
           feedback: campaignFeedback(context),
@@ -210,7 +221,7 @@ export function projectCampaign(state: CampaignModel, enemyDepths: BattleInput["
         kind: "growth" as const,
         title: "",
         copy: [],
-        commands: [],
+        commands: commands.empty,
         growth: context.game.growth
           ? projectGrowthChoice(
               context.game.growth,
@@ -225,13 +236,13 @@ export function projectCampaign(state: CampaignModel, enemyDepths: BattleInput["
         kind: "dungeon" as const,
         title: "",
         copy: [],
-        commands: [],
+        commands: commands.empty,
         dungeon: context.expedition
           ? projectDungeon(context.expedition, campaignDungeonInput(state, enemyDepths), "ホームへ帰還")
           : null,
       };
     case "disposed":
-      return { ...base, kind: mode, title: "", copy: [], commands: [] };
+      return { ...base, kind: mode, title: "", copy: [], commands: commands.empty };
   }
 }
 export type CampaignFrame = ReturnType<typeof projectCampaign>;
