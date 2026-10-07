@@ -1,4 +1,4 @@
-# 0010: 本編の初期contextをpure遷移のinert初期化から分ける
+# 0011: 本編の初期contextをpure遷移のinert初期化から分ける
 
 日付: 2026-10-07
 
