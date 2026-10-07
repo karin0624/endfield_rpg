@@ -446,6 +446,70 @@ describe("探索画面の同期意味入力", () => {
     app.send({ type: "route", event: { type: "measured", measure } });
     expect(projectDungeon(app.state, app.input).route).toMatchObject({ width: 580, offset: -306.5 });
   });
+  it.each(["open-skill", "open-item"] as const)(
+    "%sのdialog中も実寸法へ追従し、取消後の中央寄せと両端までの移動を保つ",
+    (open) => {
+      const wide = {
+          viewportWidth: 1440,
+          responsiveWorldWidth: 1872,
+          nodes: [
+            { id: "battle-a", fraction: 0.34, center: 636, width: 158 },
+            { id: "conversation-b", fraction: 0.34, center: 636, width: 158 },
+            { id: "boss-c", fraction: 0.74, center: 1385, width: 158 },
+          ],
+        },
+        narrow = {
+          viewportWidth: 390,
+          responsiveWorldWidth: 928,
+          nodes: [
+            { id: "battle-a", fraction: 0.34, center: 316, width: 156 },
+            { id: "conversation-b", fraction: 0.34, center: 316, width: 156 },
+            { id: "boss-c", fraction: 0.74, center: 687, width: 156 },
+          ],
+        };
+      for (const [before, resized, center, right] of [
+        [wide, narrow, -121, -492],
+        [narrow, wide, 84, -665],
+      ] as const) {
+        const app = session(initial()),
+          game = structuredClone(app.input.game);
+        app.send({ type: "route", event: { type: "measured", measure: before } });
+        app.send({ type: "branch", event: { type: open } });
+        const branch = app.state.context.branch,
+          focus = app.state.context.focus;
+        expect(app.send({ type: "route", event: { type: "measured", measure: resized } })).toMatchObject({
+          handled: true,
+          effects: [],
+        });
+        expect(projectDungeon(app.state, app.input).route).toMatchObject({ width: null, offset: center });
+        expect(app.state.context.branch).toEqual(branch);
+        expect(app.state.context.focus).toEqual(focus);
+        expect(app.input.game).toEqual(game);
+        for (const event of [
+          { type: "pan-key", key: "ArrowRight" },
+          { type: "pointer-down", pointerId: 4, x: 200, button: 0 },
+        ] as const)
+          expect(app.send({ type: "route", event })).toMatchObject({ handled: false, effects: [] });
+        expect(app.state.context.route.offset).toBe(center);
+        expect(app.state.context.route.gesture).toBeNull();
+        app.send({ type: "branch", event: { type: "key", key: "Escape", shift: false } });
+        expect(app.state.context.branch.panel.kind).toBe("closed");
+        expect(app.state.context.branch.focus).toEqual({
+          kind: open === "open-skill" ? "skill-trigger" : "item-trigger",
+        });
+        app.send({ type: "focused", target: { kind: "route" } });
+        app.send({ type: "route", event: { type: "pan-key", key: "ArrowRight" } });
+        expect(app.state.context.route.offset).toBe(center - 48);
+        for (let press = 0; press < 40; press++)
+          app.send({ type: "route", event: { type: "pan-key", key: "ArrowRight" } });
+        expect(app.state.context.route.offset).toBe(right);
+        for (let press = 0; press < 40; press++)
+          app.send({ type: "route", event: { type: "pan-key", key: "ArrowLeft" } });
+        expect(app.state.context.route.offset).toBe(center);
+        expect(app.input.game).toEqual(game);
+      }
+    },
+  );
   it("分岐回復の発症結果を実コアから読み、回復と負荷を一度ずつ案内する", () => {
     for (const [physicalFatigue, symptom] of [
       [0, "肉体疲労 0 → 3。"],
