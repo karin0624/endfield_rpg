@@ -445,7 +445,7 @@ export const dungeonMachine = flow.createMachine({
         },
         route: {
           guard: ({ context, event }) =>
-            context.branch.panel.kind === "closed" &&
+            (event.event.type === "measured" || context.branch.panel.kind === "closed") &&
             (event.event.type !== "pan-key" || context.focus?.kind === "route"),
           actions: enqueueActions(({ context, event, enqueue }) => {
             const changed = reduceDungeonRoute(context.route, event.event, dungeonAccessibleIds(event.input));

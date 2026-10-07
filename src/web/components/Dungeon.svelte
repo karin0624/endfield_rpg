@@ -1,5 +1,5 @@
 <script lang="ts">
-import { onMount } from "svelte";
+import { onMount, untrack } from "svelte";
 import { on } from "svelte/events";
 import { parseAdventureSettings } from "../../presentation/adventureSettings";
 import type { DungeonEvent } from "../../presentation/dungeonModel";
@@ -83,7 +83,8 @@ $effect(() => {
   edges;
   width;
   kind;
-  measureRoute();
+  // Native feedback reads current model state without adding it to the layout dependencies.
+  untrack(measureRoute);
 });
 $effect(() => {
   if (!focus || !frame) return;
