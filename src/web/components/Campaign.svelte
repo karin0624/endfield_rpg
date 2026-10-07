@@ -14,6 +14,7 @@ let { root, frame, send }: { root: HTMLElement; frame: CampaignFrame | null; sen
   $props();
 let partyRoot = $state<HTMLElement>();
 let focus = $derived(frame?.focus);
+let waiting = $derived(frame !== null && "waiting" in frame && frame.waiting);
 const settings = parseAdventureSettings(savedAdventureSettings);
 $effect(() => {
   if (!focus || frame?.kind === "town" || frame?.kind === "growth") return;
@@ -141,7 +142,7 @@ onMount(() => {
                 class="campaign-command"
                 class:is-primary={command.primary}
                 data-command={command.command}
-                disabled={"waiting" in frame && frame.waiting}
+                disabled={waiting}
                 onclick={() => send({ type: "command", command: command.command })}
                 onfocus={() => send({ type: "focused", target: { kind: "command", command: command.command } })}
               >
