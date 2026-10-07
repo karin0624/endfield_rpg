@@ -142,6 +142,14 @@ function initialContext(): CampaignContext {
     expedition: null,
   };
 }
+// XState's pure transitions eagerly initialize an unused actor without input.
+// Keep that context immutable; real models and new games own fresh data.
+const inertContext = initialContext();
+function freezeInertContext(data: object): void {
+  Object.freeze(data);
+  for (const value of Object.values(data)) if (value !== null && typeof value === "object") freezeInertContext(value);
+}
+freezeInertContext(inertContext);
 function carryValid(state: CampaignContext): boolean {
   const stock = state.game.inventory?.items.home.find(({ itemId }) => itemId === recoveryItemId)?.quantity ?? 0;
   return (
@@ -230,7 +238,11 @@ const flow = setup<
   MachineEvent,
   Record<never, never>,
   Record<never, never>,
-  { output: CampaignOutput }
+  { output: CampaignOutput },
+  Record<never, never>,
+  never,
+  string,
+  CampaignContext
 >({});
 const enterHeading = flow.assign(heading);
 const enterTown = flow.assign(({ context }) => ({
@@ -250,7 +262,7 @@ const cancel = [
 export const campaignMachine = flow.createMachine({
   id: "campaign",
   initial: "title",
-  context: initialContext,
+  context: ({ input }) => input ?? inertContext,
   on: {
     focused: { actions: assign(({ event }) => ({ focus: event.target })) },
     disposed: {
@@ -606,7 +618,7 @@ export const campaignMachine = flow.createMachine({
 });
 export type CampaignModel = SnapshotFrom<typeof campaignMachine>;
 export function createCampaignModel(): CampaignModel {
-  return initialTransition(campaignMachine)[0];
+  return initialTransition(campaignMachine, initialContext())[0];
 }
 export function campaignTownInput(state: CampaignModel): TownInput {
   return townInput(state.context);

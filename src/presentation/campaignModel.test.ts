@@ -21,6 +21,92 @@ function home(): CampaignModel {
   return command(command(command(createCampaignModel(), "new-game"), "accept"), "home");
 }
 describe("本編の現在画面とゲーム状態", () => {
+  it("本編ごとに初期ゲームの入れ子データと画面draftを独立して所有する", () => {
+    const first = createCampaignModel().context;
+    const second = createCampaignModel().context;
+    expect(first.game.adventure).not.toBe(second.game.adventure);
+    expect(first.game.adventure.flags).not.toBe(second.game.adventure.flags);
+    expect(first.game.party.members).not.toBe(second.game.party.members);
+    expect(first.game.party.members[0]).not.toBe(second.game.party.members[0]);
+    expect(first.game.party.slots).not.toBe(second.game.party.slots);
+    expect(first.game.inventory?.equipment.owned).not.toBe(second.game.inventory?.equipment.owned);
+    expect(first.game.inventory?.equipment.owned[0]).not.toBe(second.game.inventory?.equipment.owned[0]);
+    expect(first.game.inventory?.equipment.assignments).not.toBe(second.game.inventory?.equipment.assignments);
+    expect(first.game.inventory?.items.home).not.toBe(second.game.inventory?.items.home);
+    expect(first.game.inventory?.items.importantIds).not.toBe(second.game.inventory?.items.importantIds);
+    expect(first.town.shop).not.toBe(second.town.shop);
+    expect(first.focus).not.toBe(second.focus);
+  });
+  it("二つの本編を交互に操作し、保存の同期完了・再開・新規開始が他方と過去snapshotを変えない", () => {
+    const firstInitial = home();
+    const secondInitial = home();
+    const firstBefore = structuredClone(firstInitial.context);
+    const secondBefore = structuredClone(secondInitial.context);
+    let first = command(command(firstInitial, "destinations"), "town");
+    let second = command(secondInitial, "equipment");
+    first = send(first, { type: "town", event: { type: "select", placeId: "market" } });
+    const equipped = reduceCampaign(second, {
+      type: "equip",
+      characterId: "player",
+      slot: "weapon",
+      instanceId: "weapon-1",
+    });
+    expect(equipped.handled).toBe(true);
+    expect(equipped.effects).toEqual([]);
+    second = equipped.state;
+    first = send(first, { type: "town", event: { type: "advance" } });
+    expect(first.context.game.clock).toMatchObject({ elapsedHalfDays: 1, recoverySteps: 1 });
+    expect(second.context.game.clock).toBeUndefined();
+    expect(first.context.game.inventory?.equipment.assignments).toEqual([]);
+    expect(second.context.game.inventory?.equipment.assignments).toEqual([
+      { characterId: "player", weapon: "weapon-1", armor: null },
+    ]);
+    first = command(first, "home");
+    const saving = reduceCampaign(command(first, "save-title"), { type: "command", command: "accept" });
+    expect(saving.handled).toBe(true);
+    expect(saving.state.value).toBe("saving");
+    const effect = saving.effects[0];
+    if (effect?.type !== "write-save") throw new Error("save");
+    expect(saving.effects).toHaveLength(1);
+    // The native boundary commits saving.state before synchronously returning the I/O result.
+    const completed = reduceCampaign(saving.state, { type: "save-written", saved: true });
+    expect(completed).toMatchObject({ state: { value: "title" }, handled: true, effects: [] });
+    const firstSaved = structuredClone(completed.state.context.game);
+    const secondSaved = structuredClone(second.context.game);
+    const reset = reduceCampaign(command(completed.state, "new-game"), { type: "command", command: "accept" });
+    expect(reset).toMatchObject({
+      state: {
+        value: "intro",
+        context: {
+          game: {
+            adventure: { mode: "town", currentPlaceId: "town-square", flags: [] },
+            party: { members: [{ id: "player", hp: 20 }], slots: ["player", null, null, null] },
+            inventory: { balance: 30, equipment: { assignments: [] }, items: { home: [] } },
+          },
+          expedition: null,
+          carryQuantity: 0,
+        },
+      },
+      handled: true,
+      effects: [],
+    });
+    expect(reset.state.context.game.clock).toBeUndefined();
+    expect(reset.state.context.game.party.members[0]).not.toBe(second.context.game.party.members[0]);
+    expect(reset.state.context.game.inventory?.items.home).not.toBe(second.context.game.inventory?.items.home);
+    first = send(command(command(reset.state, "title"), "load"), { type: "save-read", result: { data: effect.data } });
+    expect(first.value).toBe("home");
+    expect(first.context.game.clock).toMatchObject({ elapsedHalfDays: 1, recoverySteps: 1 });
+    expect(first.context.game.inventory?.equipment.assignments).toEqual([]);
+    expect(first.context.game.party.members[0]).not.toBe(second.context.game.party.members[0]);
+    expect(second.context.game).toEqual(secondSaved);
+    second = command(second, "home");
+    expect(second.context.game.inventory?.equipment.assignments).toEqual([
+      { characterId: "player", weapon: "weapon-1", armor: null },
+    ]);
+    expect(firstInitial.context).toEqual(firstBefore);
+    expect(secondInitial.context).toEqual(secondBefore);
+    expect(completed.state.context.game).toEqual(firstSaved);
+  });
   it("開始確認の取消・確定・再確認は現在の画面で決め、保存効果を出さない", () => {
     const initial = createCampaignModel();
     const before = structuredClone(initial.context.game);
