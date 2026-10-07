@@ -1,6 +1,6 @@
 import { characters } from "../content/characters";
 import { itemCatalog, recoveryItemId } from "../content/itemSettings";
-import { getAvailableDungeonNodes } from "../game/dungeon";
+import { type DungeonDefinition, type DungeonState, getAvailableDungeonNodes } from "../game/dungeon";
 import { previewRecoveryItem } from "../game/itemUse";
 import { effectiveMaxHp, healthyStatus } from "../game/status";
 import { projectAdventure } from "./adventureProjection";
@@ -102,13 +102,11 @@ export type DungeonChromeState = Pick<DungeonModel, "value"> & {
     "outcome" | "route" | "branch" | "focus" | "growthFocus" | "message" | "branchResult"
   >;
 };
-/** Route, conversation, branch and outcome do not depend on battle animation clocks. */
-export function projectDungeonChrome(state: DungeonChromeState, input: DungeonInput, returnLabel = "街へ戻る") {
-  const context = state.context;
-  const dungeon = input.game.dungeon;
-  const available = dungeon ? getAvailableDungeonNodes(dungeon, input.route) : [];
+/** Node content follows game progression and the definition, independently of pan, focus and measurements. */
+export function projectDungeonRouteContent(dungeon: DungeonState | null, definition: DungeonDefinition) {
+  const available = dungeon ? getAvailableDungeonNodes(dungeon, definition) : [];
   const availableIds = new Set(available.map(({ id }) => id));
-  const nodes = input.route.nodes.flatMap((node) => {
+  const nodes = definition.nodes.flatMap((node) => {
     const position = dungeonNodePositions[node.id];
     if (node.type === "start" || !position) return [];
     const appearance = nodeAppearances[node.type];
@@ -119,7 +117,7 @@ export function projectDungeonChrome(state: DungeonChromeState, input: DungeonIn
       !current &&
       !resolved &&
       !enabled &&
-      input.route.nodes.some(
+      definition.nodes.some(
         (source) =>
           dungeon?.resolvedNodeIds.includes(source.id) &&
           source.nextNodeIds.includes(node.id) &&
@@ -145,7 +143,7 @@ export function projectDungeonChrome(state: DungeonChromeState, input: DungeonIn
       },
     ];
   });
-  const edges = input.route.nodes.flatMap((source) =>
+  const edges = definition.nodes.flatMap((source) =>
     source.nextNodeIds.map((target) => ({
       from: source.id,
       to: target,
@@ -157,6 +155,17 @@ export function projectDungeonChrome(state: DungeonChromeState, input: DungeonIn
             : "unavailable",
     })),
   );
+  return { nodes, edges };
+}
+/** Route, conversation, branch and outcome do not depend on battle animation clocks. */
+export function projectDungeonChrome(
+  state: DungeonChromeState,
+  input: DungeonInput,
+  returnLabel = "街へ戻る",
+  routeContent = projectDungeonRouteContent(input.game.dungeon, input.route),
+) {
+  const context = state.context;
+  const dungeon = input.game.dungeon;
   const conversation =
     dungeon?.activity?.type === "conversation"
       ? projectAdventure({
@@ -177,8 +186,7 @@ export function projectDungeonChrome(state: DungeonChromeState, input: DungeonIn
     focus: context.focus,
     branchResult: context.branchResult,
     route: {
-      nodes,
-      edges,
+      ...routeContent,
       ...projectRouteLayout(context.route, dungeonAccessibleIds(input)),
       dragging: context.route.gesture?.dragging ?? false,
     },

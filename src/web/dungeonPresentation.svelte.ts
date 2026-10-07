@@ -1,5 +1,5 @@
 import type { DungeonInput, DungeonModel } from "../presentation/dungeonModel";
-import { projectDungeonChrome } from "../presentation/dungeonProjection";
+import { projectDungeonChrome, projectDungeonRouteContent } from "../presentation/dungeonProjection";
 export function deriveDungeonChrome(readModel: () => DungeonModel, readInput: () => DungeonInput, returnLabel: string) {
   let value = $derived(readModel().value);
   let outcome = $derived(readModel().context.outcome);
@@ -15,6 +15,8 @@ export function deriveDungeonChrome(readModel: () => DungeonModel, readInput: ()
     rules = $derived(readInput().rules),
     basicAttack = $derived(readInput().basicAttack),
     items = $derived(readInput().items);
+  let dungeon = $derived(game.dungeon);
+  let routeContent = $derived(projectDungeonRouteContent(dungeon, definition));
   let frame = $derived(
     projectDungeonChrome(
       {
@@ -31,6 +33,7 @@ export function deriveDungeonChrome(readModel: () => DungeonModel, readInput: ()
       },
       { game, route: definition, adventure, rules, basicAttack, items, enemyDepths: [] },
       returnLabel,
+      routeContent,
     ),
   );
   return {
