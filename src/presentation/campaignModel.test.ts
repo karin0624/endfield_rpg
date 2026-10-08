@@ -393,6 +393,101 @@ describe("本編の現在画面とゲーム状態", () => {
     state = send(state, { type: "dungeon", event: { type: "return" } });
     expect(state.context.game.clock).toMatchObject({ elapsedHalfDays: 2, recoverySteps: 0 });
   });
+  it("探索の同じ入力context通知は未受理で、実変更とA→B→A後の入力を保持する", () => {
+    let state = command(command(home(), "destinations"), "prepare-departure");
+    state = send(state, { type: "party", event: { type: "depart" } });
+    const initial = state;
+    const before = structuredClone({ game: initial.context.game, dungeon: initial.context.expedition?.context });
+    const notify = (context: "screen" | "control" | "text-entry") =>
+      reduceCampaign(state, { type: "dungeon", event: { type: "input-context", context } });
+    expect(notify("screen")).toEqual({ state, effects: [], handled: false, dungeonResult: undefined });
+    state = send(state, { type: "dungeon", event: { type: "focused", target: { kind: "node", id: "battle-a" } } });
+    expect(state.context.expedition?.context).toMatchObject({
+      focus: { kind: "node", id: "battle-a" },
+      inputContext: "control",
+    });
+    expect(notify("control")).toEqual({ state, effects: [], handled: false, dungeonResult: undefined });
+    const text = notify("text-entry");
+    expect(text.handled).toBe(true);
+    state = text.state;
+    expect(notify("text-entry")).toEqual({ state, effects: [], handled: false, dungeonResult: undefined });
+    expect(
+      reduceCampaign(state, { type: "dungeon", event: { type: "key", key: "Enter", code: "Enter", shift: false } })
+        .handled,
+    ).toBe(false);
+    const control = notify("control");
+    expect(control.handled).toBe(true);
+    state = control.state;
+    const screen = notify("screen");
+    expect(screen.handled).toBe(true);
+    state = screen.state;
+    expect(state.context.expedition?.context).toMatchObject({
+      inputContext: "screen",
+      focus: null,
+      branch: { focus: null },
+    });
+    expect(notify("screen")).toEqual({ state, effects: [], handled: false, dungeonResult: undefined });
+    const started = reduceCampaign(state, { type: "dungeon", event: { type: "enter", nodeId: "battle-a" } });
+    expect(started.effects).toEqual([{ type: "dungeon", effect: { type: "open-scene", owner: 1 } }]);
+    expect({ game: initial.context.game, dungeon: initial.context.expedition?.context }).toEqual(before);
+  });
+  it("戦闘読込中と再訪後の同context通知は場面の所有寿命を変えない", () => {
+    let state = command(command(home(), "destinations"), "prepare-departure");
+    state = send(state, { type: "party", event: { type: "depart" } });
+    state = send(state, { type: "dungeon", event: { type: "return" } });
+    expect(state.value).toBe("home");
+    state = command(command(state, "destinations"), "prepare-departure");
+    state = send(state, { type: "party", event: { type: "depart" } });
+    const route = state;
+    state = send(state, { type: "dungeon", event: { type: "enter", nodeId: "battle-a" } });
+    const loading = state;
+    const loadingGame = structuredClone(state.context.game);
+    expect(reduceCampaign(state, { type: "dungeon", event: { type: "input-context", context: "screen" } })).toEqual({
+      state,
+      effects: [],
+      handled: false,
+      dungeonResult: undefined,
+    });
+    const ready = reduceCampaign(state, {
+      type: "dungeon",
+      event: { type: "battle", event: { type: "scene-ready", owner: 1 } },
+    });
+    expect(ready.handled).toBe(true);
+    expect(ready.state.context.expedition?.context.battle?.scene).toEqual({ owner: 1, status: "ready", reason: "" });
+    expect(loading.context.game).toEqual(loadingGame);
+    const disposed = reduceCampaign(ready.state, { type: "disposed" });
+    expect(disposed.effects).toEqual([{ type: "dungeon", effect: { type: "close-scene" } }]);
+    state = route;
+    expect(reduceCampaign(state, { type: "dungeon", event: { type: "input-context", context: "screen" } })).toEqual({
+      state,
+      effects: [],
+      handled: false,
+      dungeonResult: undefined,
+    });
+    state = send(state, {
+      type: "dungeon",
+      event: { type: "route", event: { type: "pointer-down", pointerId: 3, x: 10, button: 0 } },
+    });
+    const dragged = reduceCampaign(state, {
+      type: "dungeon",
+      event: { type: "route", event: { type: "pointer-move", pointerId: 3, x: 30 } },
+    });
+    expect(dragged.effects).toEqual([{ type: "dungeon", effect: { type: "capture-pointer", pointerId: 3 } }]);
+    const ended = reduceCampaign(dragged.state, {
+      type: "dungeon",
+      event: { type: "route", event: { type: "pointer-end", pointerId: 3 } },
+    });
+    expect(ended.handled).toBe(true);
+    expect(ended.state.context.expedition?.context.route.gesture).toBeNull();
+    const closed = send(state, { type: "disposed" });
+    expect(
+      reduceCampaign(closed, { type: "dungeon", event: { type: "input-context", context: "screen" } }),
+    ).toMatchObject({
+      state: closed,
+      effects: [],
+      handled: false,
+    });
+  });
   it("保存は確定データのI/O効果に分け、失敗はホーム、成功時だけタイトルへ戻る", () => {
     const initial = home();
     const before = structuredClone(initial.context.game);

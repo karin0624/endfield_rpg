@@ -642,6 +642,15 @@ export function reduceCampaign(
   event: CampaignEvent,
   enemyDepths: BattleInput["enemyDepths"] = [],
 ): CampaignTransition {
+  // Dungeon rejects an unchanged input context without actions or game changes.
+  if (
+    event.type === "dungeon" &&
+    event.event.type === "input-context" &&
+    state.value === "dungeon" &&
+    state.context.expedition &&
+    event.event.context === state.context.expedition.context.inputContext
+  )
+    return { state, effects: [], handled: false, dungeonResult: undefined };
   if (
     state.value === "party" &&
     state.context.party &&
