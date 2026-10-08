@@ -87,6 +87,49 @@ function session(input: DungeonInput) {
   };
 }
 describe("探索画面の同期意味入力", () => {
+  it("二つの探索はdraft・演出設定・資源ownerを独立して持ち、同期完了と退出は過去snapshotを変えない", () => {
+    const firstInput = initial(20, directBoss),
+      secondInput = initial(20, directBoss),
+      firstInitial = createDungeonModel(firstInput, true),
+      secondInitial = createDungeonModel(secondInput),
+      firstBefore = structuredClone(firstInitial.context),
+      secondBefore = structuredClone(secondInitial.context);
+    expect(firstInitial).toMatchObject({ value: "route", context: { reducedMotion: true, sceneOwner: 0 } });
+    expect(secondInitial).toMatchObject({ value: "route", context: { reducedMotion: false, sceneOwner: 0 } });
+    expect(firstInitial.context.route).not.toBe(secondInitial.context.route);
+    expect(firstInitial.context.branch).not.toBe(secondInitial.context.branch);
+    expect(firstInitial.context.branch.panel).not.toBe(secondInitial.context.branch.panel);
+    const firstOpened = reduceDungeon(firstInitial, firstInput, { type: "enter", nodeId: "boss" });
+    expect(firstOpened.effects).toEqual([{ type: "open-scene", owner: 1 }]);
+    expect(firstOpened.state.context.battle?.playback.reducedMotion).toBe(true);
+    const openedBefore = structuredClone(firstOpened.state.context),
+      committedInput = { ...firstInput, game: firstOpened.game };
+    // The native owner commits the open result before synchronous scene completion.
+    const ready = reduceDungeon(firstOpened.state, committedInput, {
+      type: "battle",
+      event: { type: "scene-ready", owner: 1 },
+    });
+    expect(ready).toMatchObject({ handled: true, effects: [], state: { value: "battle" } });
+    expect(ready.state.context.battle?.scene.status).toBe("ready");
+    const secondOpened = reduceDungeon(secondInitial, secondInput, { type: "enter", nodeId: "boss" });
+    expect(secondOpened.effects).toEqual([{ type: "open-scene", owner: 1 }]);
+    expect(secondOpened.state.context.battle?.playback.reducedMotion).toBe(false);
+    const secondOpenedBefore = structuredClone(secondOpened.state.context);
+    const closed = reduceDungeon(ready.state, committedInput, { type: "closed" });
+    expect(closed).toMatchObject({ state: { value: "closed", context: { battle: null } } });
+    expect(closed.effects).toEqual([{ type: "close-scene" }]);
+    const late = reduceDungeon(closed.state, committedInput, {
+      type: "battle",
+      event: { type: "scene-ready", owner: 1 },
+    });
+    expect(late).toMatchObject({ handled: false, effects: [], state: { value: "closed" } });
+    expect(firstInitial.context).toEqual(firstBefore);
+    expect(secondInitial.context).toEqual(secondBefore);
+    expect(firstOpened.state.context).toEqual(openedBefore);
+    expect(firstOpened.effects).toEqual([{ type: "open-scene", owner: 1 }]);
+    expect(secondOpened.state.context).toEqual(secondOpenedBefore);
+    expect(secondOpened.effects).toEqual([{ type: "open-scene", owner: 1 }]);
+  });
   it("同じ戦闘命令を再生終了後の現在状態へ受理し、HP/RNGを演出から再計算しない", () => {
     const input = initial(20, directBoss),
       unchanged = structuredClone(input.game),
