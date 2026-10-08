@@ -149,8 +149,8 @@ function initialContext(): CampaignContext {
     expedition: null,
   };
 }
-// XState's pure transitions eagerly initialize an unused actor without input.
-// Keep that context immutable; real models and new games own fresh data.
+// Keep the exported machine's direct pure API safe without input.
+// Models and new games own fresh data; reducer adapters use their current snapshot.
 const inertContext = initialContext();
 function freezeInertContext(data: object): void {
   Object.freeze(data);
@@ -650,15 +650,21 @@ export function reduceCampaign(
     isUnchangedPartyFocus(state.context.party.party, event.event.target)
   )
     return { state, effects: [], handled: true };
+  // ActorLogic descriptors are typed never; this delegates the machine unchanged.
   const [next, actions] = transition(
-    campaignMachine,
+    {
+      // The official pure API still owns a fresh inert actor/system per call.
+      getInitialSnapshot: () => state,
+      transition: campaignMachine.transition,
+      getPersistedSnapshot: campaignMachine.getPersistedSnapshot,
+    },
     state,
     event.type === "command"
       ? { type: `command.${event.command}` }
       : event.type === "dungeon"
         ? { ...event, enemyDepths }
         : event,
-  );
+  ) as ReturnType<typeof transition<typeof campaignMachine>>;
   const output = actions.find((action) => action.type === "output");
   return { state: next, effects: [], handled: next !== state, ...output?.params };
 }

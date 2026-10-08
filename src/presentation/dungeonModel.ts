@@ -522,12 +522,25 @@ export const dungeonMachine = flow.createMachine({
   },
 });
 export type DungeonModel = SnapshotFrom<typeof dungeonMachine>;
+function transitionDungeon(state: DungeonModel, event: MachineEvent) {
+  // Delegate macrosteps and descriptors to XState with a fresh scope per call.
+  // Its ActorLogic descriptor type is never; the delegated machine supplies the type.
+  return transition(
+    {
+      getInitialSnapshot: () => state,
+      transition: dungeonMachine.transition,
+      getPersistedSnapshot: dungeonMachine.getPersistedSnapshot,
+    },
+    state,
+    event,
+  ) as ReturnType<typeof transition<typeof dungeonMachine>>;
+}
 export function createDungeonModel(input: DungeonInput, reducedMotion = false): DungeonModel {
   const [initial] = initialTransition(dungeonMachine, { reducedMotion });
-  return transition(dungeonMachine, initial, { type: "resume", input })[0];
+  return transitionDungeon(initial, { type: "resume", input })[0];
 }
 export function reduceDungeon(state: DungeonModel, input: DungeonInput, event: DungeonEvent): DungeonTransition {
-  const [next, actions] = transition(dungeonMachine, state, { ...event, input });
+  const [next, actions] = transitionDungeon(state, { ...event, input });
   const output = actions.find((action) => action.type === "output");
   return { state: next, game: input.game, effects: [], handled: next !== state, ...output?.params };
 }
