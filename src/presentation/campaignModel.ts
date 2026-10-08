@@ -32,7 +32,14 @@ import {
   reduceDungeon,
 } from "./dungeonModel";
 import { type GrowthEvent, reduceGrowthPresentation } from "./growthModel";
-import { createPartyModel, type PartyEvent, type PartyInput, type PartyModel, reduceParty } from "./partyModel";
+import {
+  createPartyModel,
+  isUnchangedPartyFocus,
+  type PartyEvent,
+  type PartyInput,
+  type PartyModel,
+  reduceParty,
+} from "./partyModel";
 import { calendarLabel } from "./statusText";
 import { createTownState, reduceTown, type TownEvent, type TownInput, type TownState } from "./townModel";
 
@@ -635,6 +642,14 @@ export function reduceCampaign(
   event: CampaignEvent,
   enemyDepths: BattleInput["enemyDepths"] = [],
 ): CampaignTransition {
+  if (
+    state.value === "party" &&
+    state.context.party &&
+    event.type === "party" &&
+    event.event.type === "focused" &&
+    isUnchangedPartyFocus(state.context.party.party, event.event.target)
+  )
+    return { state, effects: [], handled: true };
   const [next, actions] = transition(
     campaignMachine,
     state,

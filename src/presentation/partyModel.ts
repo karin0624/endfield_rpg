@@ -102,6 +102,18 @@ const focusKey = (target: PartyFocus): string =>
     : "characterId" in target
       ? `${target.kind}:${target.characterId}`
       : target.kind;
+/** An accepted focus notification that leaves the open Party screen unchanged. */
+export function isUnchangedPartyFocus(
+  state: Pick<PartyModel, "panel" | "details" | "focus">,
+  target: PartyFocus,
+): boolean {
+  return (
+    state.panel.kind !== "closed" &&
+    !state.details.dialog &&
+    state.focus !== null &&
+    focusKey(state.focus) === focusKey(target)
+  );
+}
 function focusOrder(state: PartyModel): readonly PartyFocus[] {
   if (state.panel.kind === "selection")
     return [
@@ -174,9 +186,7 @@ export function reduceParty(state: PartyModel, event: PartyEvent): PartyTransiti
   if (state.details.dialog)
     return event.type === "key" ? reduceParty(state, { type: "details", event }) : result(state, [], false);
   if (event.type === "focused")
-    return result(
-      state.focus && focusKey(state.focus) === focusKey(event.target) ? state : { ...state, focus: event.target },
-    );
+    return result(isUnchangedPartyFocus(state, event.target) ? state : { ...state, focus: event.target });
   if (event.type === "open-selection" && state.panel.kind === "formation") {
     const first = state.input.game.party.members[0];
     return result({
