@@ -14,6 +14,7 @@ import {
   reduceCampaign,
 } from "./campaignModel";
 import { projectCampaign } from "./campaignProjection";
+import type { PartyEvent, PartyFocus } from "./partyModel";
 
 const send = (state: CampaignModel, event: CampaignEvent) => reduceCampaign(state, event).state;
 const command = (state: CampaignModel, value: CampaignCommand) => send(state, { type: "command", command: value });
@@ -246,6 +247,121 @@ describe("本編の現在画面とゲーム状態", () => {
         focus: { kind: "command", command: "prepare-departure" },
       },
     });
+  });
+  it("編成の同focus通知はsnapshotを保ち、同期commit後の異focusと往復を受理する", () => {
+    let state = command(command(home(), "destinations"), "prepare-departure");
+    const other = command(home(), "edit-party");
+    const otherBefore = structuredClone(other.context);
+    const game = state.context.game;
+    const notify = (target: PartyFocus) => {
+      const previous = state;
+      const changed = reduceCampaign(state, { type: "party", event: { type: "focused", target } });
+      state = changed.state; // Commit before a native focus callback can synchronously reenter.
+      expect(changed.handled).toBe(true);
+      expect(changed.effects).toEqual([]);
+      expect(state.context.game).toBe(game);
+      expect(state.context.party?.party.focus).toEqual(target);
+      const repeated = reduceCampaign(state, { type: "party", event: { type: "focused", target: { ...target } } });
+      expect(repeated.state).toBe(state);
+      expect(repeated).toMatchObject({ handled: true, effects: [] });
+      return previous;
+    };
+    const initial = state;
+    notify({ kind: "back" });
+    expect(state).toBe(initial);
+    for (const target of [
+      { kind: "slot", slot: 0 },
+      { kind: "slot", slot: 1 },
+      { kind: "slot", slot: 0 },
+      { kind: "depart" },
+      { kind: "back" },
+    ] as const)
+      expect(notify(target)).not.toBe(state);
+    state = send(state, { type: "party", event: { type: "open-selection", slot: 2 } });
+    state = send(state, { type: "party", event: { type: "toggle", characterId: "player" } });
+    const draft = state.context.party?.party.panel;
+    for (const target of [
+      { kind: "candidate", characterId: "player" },
+      { kind: "candidate", characterId: "gilberta" },
+      { kind: "detail", characterId: "gilberta" },
+      { kind: "detail", characterId: "player" },
+      { kind: "candidate", characterId: "player" },
+      { kind: "confirm" },
+    ] as const) {
+      notify(target);
+      expect(state.context.party?.party.panel).toBe(draft);
+    }
+    expect(other.context).toEqual(otherBefore);
+    expect(reduceCampaign(other, { type: "party", event: { type: "focused", target: { kind: "back" } } }).state).toBe(
+      other,
+    );
+    const departed = command(command(home(), "destinations"), "prepare-departure");
+    expect(departed.context.party?.context).toBe("departure");
+    expect(departed.context.party?.party.focus).toEqual({ kind: "back" });
+    expect(departed.context.party?.party.panel).toEqual({ kind: "formation" });
+    expect(departed.context.party?.party).not.toBe(initial.context.party?.party);
+  });
+  it("詳細中は同focusも拒否し、keyboardとopener・選択scroll復元を保持する", () => {
+    let state = command(home(), "edit-party");
+    const party = (event: PartyEvent) => {
+      const changed = reduceCampaign(state, { type: "party", event });
+      state = changed.state;
+      return changed;
+    };
+    party({ type: "open-selection", slot: 3 });
+    party({ type: "selection-scrolled", scrollTop: 147 });
+    party({ type: "focused", target: { kind: "detail", characterId: "player" } });
+    party({ type: "show-details", characterId: "player" });
+    const game = state.context.game;
+    expect(party({ type: "focused", target: { kind: "detail", characterId: "player" } }).handled).toBe(false);
+    expect(state.context.party?.party.details.dialog?.id).toBe("player");
+    party({ type: "key", key: "Tab", shift: false });
+    expect(state.context.party?.party.details.focus).toEqual({ kind: "information" });
+    party({ type: "key", key: "Escape", shift: false });
+    expect(state.context.party?.party.details.dialog).toBeNull();
+    expect(state.context.party?.party.focus).toEqual({ kind: "detail", characterId: "player" });
+    expect(state.context.party?.party.panel).toMatchObject({ kind: "selection", openerSlot: 3, scrollTop: 147 });
+    const restored = state;
+    party({ type: "focused", target: { kind: "detail", characterId: "player" } });
+    expect(state).toBe(restored);
+    party({ type: "key", key: "Escape", shift: false });
+    expect(state.context.party?.party.focus).toEqual({ kind: "slot", slot: 3 });
+    party({ type: "key", key: "Tab", shift: false });
+    expect(state.context.party?.party.focus).toEqual({ kind: "back" });
+    party({ type: "key", key: "Tab", shift: true });
+    expect(state.context.party?.party.focus).toEqual({ kind: "slot", slot: 3 });
+    expect(state.context.game).toEqual(game);
+    party({ type: "back" });
+    expect(state.value).toBe("home");
+    expect(state.context.party).toBeNull();
+    const homeState = state;
+    expect(party({ type: "focused", target: { kind: "back" } })).toMatchObject({ handled: false, effects: [] });
+    expect(state).toBe(homeState);
+    state = send(state, { type: "disposed" });
+    const disposed = state;
+    expect(party({ type: "focused", target: { kind: "back" } }).handled).toBe(false);
+    expect(state).toBe(disposed);
+  });
+  it("街の同target focusはshop focusを解除し、入力contextの更新も保持する", () => {
+    let state = command(command(home(), "destinations"), "town");
+    state = send(state, { type: "town", event: { type: "select", placeId: "market" } });
+    state = send(state, { type: "town", event: { type: "shop-open" } });
+    const focused = { type: "town", event: { type: "focused", target: { kind: "place", placeId: "market" } } } as const;
+    state = send(state, focused);
+    state = send(state, { type: "town", event: { type: "shop-focused", target: "quantity" } });
+    expect(state.context.town).toMatchObject({
+      focus: { kind: "place", placeId: "market" },
+      shop: { focus: "quantity" },
+    });
+    const changed = reduceCampaign(state, focused);
+    expect(changed.handled).toBe(true);
+    expect(changed.state.context.town).toMatchObject({
+      focus: { kind: "place", placeId: "market" },
+      inputContext: "control",
+      shop: { focus: null },
+    });
+    state = send(changed.state, { type: "town", event: { type: "input-context", context: "text-entry" } });
+    expect(send(state, focused).context.town.inputContext).toBe("control");
   });
   it("出発は編成から実探索へ進み、途中操作と帰還を現在の活動へ適用する", () => {
     let state = command(command(home(), "destinations"), "prepare-departure");

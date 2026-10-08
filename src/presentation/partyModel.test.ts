@@ -7,7 +7,14 @@ import { createInitialGameState } from "../game/createInitialGameState";
 import { applyPartyStatus, type ExpeditionGame } from "../game/expedition";
 import { type CharacterDefinition, createParty, type PartySlots } from "../game/party";
 import { createActionClock } from "../game/time";
-import { createPartyModel, type PartyEvent, type PartyInput, type PartyModel, reduceParty } from "./partyModel";
+import {
+  createPartyModel,
+  isUnchangedPartyFocus,
+  type PartyEvent,
+  type PartyInput,
+  type PartyModel,
+  reduceParty,
+} from "./partyModel";
 import { projectParty } from "./partyProjection";
 
 const companions: readonly CharacterDefinition[] = [
@@ -44,6 +51,27 @@ function selected(state: PartyModel) {
 }
 
 describe("編成の現在状態と意味イベント", () => {
+  it("無変更focused契約は開いた画面だけ受理し、詳細中・閉状態・破棄後を区別する", () => {
+    const initial = createPartyModel(input(), "home");
+    const target = { kind: "back" } as const;
+    const focused = { type: "focused", target } as const;
+    expect(isUnchangedPartyFocus(initial, target)).toBe(true);
+    expect(reduceParty(initial, focused)).toEqual({ state: initial, handled: true, effects: [] });
+    expect(reduceParty(initial, focused).state).toBe(initial);
+    expect(isUnchangedPartyFocus({ ...initial, focus: null }, target)).toBe(false);
+    const selection = send(initial, { type: "open-selection", slot: 1 });
+    const dialog = send(selection, { type: "show-details", characterId: "player" });
+    const closed = send(initial, { type: "back" });
+    const disposed = send(initial, { type: "disposed" });
+    for (const state of [dialog, closed, disposed]) {
+      // Even an equal target cannot turn an ignored notification into an accepted one.
+      const currentTarget = state.focus ?? target;
+      expect(isUnchangedPartyFocus(state, currentTarget)).toBe(false);
+      const ignored = reduceParty(state, { type: "focused", target: currentTarget });
+      expect(ignored).toEqual({ state, handled: false, effects: [] });
+      expect(ignored.state).toBe(state);
+    }
+  });
   it("候補切替は毎回有効で、確定・再表示・再確定は現在の画面で受理する", () => {
     const source = input(["player", null, null, null]);
     const before = structuredClone(source.game);
