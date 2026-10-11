@@ -66,7 +66,7 @@
 
 ## 再現fixtureと実画像比較
 
-`tests/fixtures/party-approved.html`は明示的な編成snapshotを`projectParty`へ渡し、本番の`createPartyView`で直接描く。状態へ到達するゲーム操作は実行しない。実装初版はcommit `5b3a2dd`。Playwrightの`party-ui.spec.ts`にある「承認画像に対応する4状態」で、1672×941 CSS px、DPR1、reduced-motion、画像decode・同梱フォントの準備完了後に撮影する。
+`tests/fixtures/party-approved.html`は明示的な編成snapshotを`projectParty`へ渡し、本番の`createPartyView`で直接描く。状態へ到達するゲーム操作は実行しない。実装初版はcommit `5b3a2dd`。現在のPlaywrightの[`tests/views/party.spec.ts`](../../../tests/views/party.spec.ts)にある「承認画像に対応する4状態」で、1672×941 CSS px、DPR1、reduced-motion、画像decode・同梱フォントの準備完了後に撮影する。
 
 | 状態 | URL query／操作 | 固定条件 |
 | --- | --- | --- |

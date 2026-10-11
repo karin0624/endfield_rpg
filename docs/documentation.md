@@ -7,10 +7,13 @@
 | `specs/` | 現在有効なゲーム・画面の振る舞い、制約、責務、具体例。合意済みの要求を記し、実装状況はIssueで追跡する |
 | `docs/adr/` | 後から理由を参照する必要がある判断の背景、選択肢、決定、結果。決定ごとに1ファイルを置く |
 | `docs/milestones.md` | 実装順、依存関係、到達点。進捗はIssueで追跡する |
-| `docs/ui-screen-design.md` | 目的・必要情報・操作・確定点を設計する方法と設計票。ゲーム規則はspecsを参照し、別の正本を作らない |
-| `docs/design-guidelines.md` | UIの情報表現・文字・操作状態の設計指針。具体的な実装値はCSS、承認配置は対象画像を参照する |
-| `docs/ui-asset-production.md` | 設計から制作・承認・実装・審査へ進む条件。原画像の実入力・保存・証拠の扱い |
-| `docs/ui-adoption.md` | 共通部品の現在の接続状況。新案の配置制約や完成画像の承認記録にしない |
+| `docs/design-system/screens-and-patterns.md` | 目的・情報・操作・構成・階層・配置・状態を設計する方法とパターン。ゲーム規則はspecsを参照し、別の正本を作らない |
+| `docs/design-system/principles.md` | UIの必要性・共通視覚言語・到達性・承認範囲の原則 |
+| `docs/design-system/foundations.md` | 基本デザインの用途と選び方。現在値はCSS、未承認提案は設計資料 |
+| `docs/design-system/components.md` | 共通部品の目的・構造・variant・状態・入力・例外と実装参照 |
+| `docs/design-system/accessibility.md` | 部品・画面・制作・検証へ横断適用する共通要件 |
+| `docs/design-system/production-and-validation.md` | 設計から制作・承認・実装・審査へ進む条件。原画像の実入力・保存・証拠の扱い |
+| `docs/design-system/adoption.md` | 共通部品の現在の接続状況。新案の配置制約や完成画像の承認記録にしない |
 | `docs/testing.md` | テストの方針、環境、実行方法の分担 |
 | `README.md` | 文書の入口、環境構築、実行方法、ソース構成 |
 | Issue | 開発の目的、仕様判断、調査の結論と根拠、進捗、受入条件、承認の正本 |
@@ -26,7 +29,7 @@ SpaceはLibraryの代替となる画像・ファイル・保存して読み返�
 
 Spaceへの保存は公式Page/reference経路で行い、用途に必要な読戻し・画像表示・受取担当者のアクセスを確認する。既存Libraryの記録は過去成果の所在として保持し、新規保存の行き先にしない。
 
-保存先の方針と、保存・投稿・共有の権限は別である。元の許可範囲を保持し、Issue投稿・第三者送信・公開の許可をこの方針から新たに作らない。公開対象でない原画像をrepoへ転載しない。画像と承認の詳細は[制作手順](ui-asset-production.md)を参照する。
+保存先の方針と、保存・投稿・共有の権限は別である。元の許可範囲を保持し、Issue投稿・第三者送信・公開の許可をこの方針から新たに作らない。公開対象でない原画像をrepoへ転載しない。画像と承認の詳細は[制作手順](design-system/production-and-validation.md)を参照する。
 
 UI文書を更新するときは、AGENTS・README・PRテンプレート・specs・適用一覧・関連ADRの導線を確認する。設計方法、表現、制作ゲート、検証方法を別文書へ複製しない。仕様を参照する設計票は規則を変えたときに照合し、仮表示を現在有効な仕様にしない。
 

@@ -6,8 +6,9 @@
 - 実装順・依存関係を確認するときは[docs/milestones.md](docs/milestones.md)を参照する。
 - 環境構築・実行コマンド・ソース構成を確認するときは[README.md](README.md)を参照する。
 - CodexでGitの取得・同期・認証やGit LFS取得を扱うときは[endfield-git-auth skill](.agents/skills/endfield-git-auth/SKILL.md)を参照する。
-- UIを設計・変更するときは[画面設計](docs/ui-screen-design.md)から目的・情報・操作結果を決め、[デザインガイドライン](docs/design-guidelines.md)と[制作手順](docs/ui-asset-production.md#ui開発の必須ゲート)に従う。
-- 画像を制作・引き継ぐときは[原画像の実入力と工程別確認](docs/ui-asset-production.md#原画像を文章へ置き換えない)を参照する。
+- UIを設計・変更するときは[画面設計](docs/design-system/screens-and-patterns.md)から目的・情報・操作結果を決め、[UIデザイン原則](docs/design-system/principles.md)と[制作手順](docs/design-system/production-and-validation.md#ui開発の必須ゲート)に従う。
+- UIの表現・部品・到達性を扱うときは[基本デザイン](docs/design-system/foundations.md)・[共通部品](docs/design-system/components.md)・[アクセシビリティ](docs/design-system/accessibility.md)を参照する。
+- 画像を制作・引き継ぐときは[原画像の実入力と工程別確認](docs/design-system/production-and-validation.md#原画像を文章へ置き換えない)を参照する。
 - 文書を追加・変更するときは[docs/documentation.md](docs/documentation.md)の書き分けと更新規則に従う。
 
 - 開発段階ではセーブを含む後方互換・旧データ移行は不要。互換性専用の分岐を作らず、現行仕様の簡潔さを優先する。旧形式は明示的に拒否し、既存データを自動削除しない。

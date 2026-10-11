@@ -1,6 +1,6 @@
 # テスト設計と実行
 
-仕様の正本は `specs/`。デザインガイドラインは設計指針であり、実装仕様・必須テスト・マージ条件とは区別する。品質維持とは必要な実装仕様の保証を保つことで、assertion・ケース件数・ファイル構造の不変を意味しない。同じ保証を実証できる統合・移動・書換え・削除を認める。
+仕様の正本は `specs/`。[UIデザイン原則](design-system/principles.md)と[アクセシビリティの共通要件](design-system/accessibility.md)は設計指針であり、実装仕様・必須テスト・マージ条件とは区別する。品質維持とは必要な実装仕様の保証を保つことで、assertion・ケース件数・ファイル構造の不変を意味しない。同じ保証を実証できる統合・移動・書換え・削除を認める。
 
 ## 責務と観測結果
 
@@ -37,7 +37,7 @@ Node.jsは `.nvmrc` の24系、ブラウザは `mcr.microsoft.com/playwright:v1.
 
 CIは固定コンテナの単一jobで `npm ci` の後に `test:browser:inside` を実行する。checkで作った通常配布を同じworkspaceから使い、job間の配布受渡し・結果保存artifactは設けない。ローカルの `test:browser` も同じ `run-game-quality.sh` をworkspace所有者で実行する。従来の単体coverage閾値、全git spec／無filter collection／実行・全project・各case coverage照合を維持する。結果とrevision、失敗・skip・retry・global error、0-hit込みのsource数とcoverageをログへ出し、Actionsではjob summaryにも残す。summaryは既存JSONを読み取るだけで、テスト・coverage変換・実行gateを再実行しない。生成JSON・画像・trace・mapは同じローカルworkspaceで確認できる。失敗前に未生成のreportを成功に数えず、旧runner reportを消してから開始し、summary処理の成否で元の品質失敗を成功へ変えない。
 
-承認資料のraw比較は人が評価する診断であり、既存goldenとの正式VRT合否やWCAG適合とは区別する。UI変更時に必要な画像レビューは[UI開発の必須ゲート](ui-asset-production.md#ui開発の必須ゲート)を満たす。通常CIにはこの診断と専用のPillow導入を含めず、撮影後にPython／Pillow環境で `npm run review:party` を明示実行する。既定で28枚の原画・実画面・overlay／差分・領域PNGと4状態のJSONを `test-results/approved-comparison/` へ生成する。数値だけが必要な診断では `npm run review:party -- --metrics-only` を使える。全画素・注記領域・診断領域の差分、寸法、hashと診断コードは保持する。
+承認資料のraw比較は人が評価する診断であり、既存goldenとの正式VRT合否やWCAG適合とは区別する。UI変更時に必要な画像レビューは[UI開発の必須ゲート](design-system/production-and-validation.md#ui開発の必須ゲート)を満たす。通常CIにはこの診断と専用のPillow導入を含めず、撮影後にPython／Pillow環境で `npm run review:party` を明示実行する。既定で28枚の原画・実画面・overlay／差分・領域PNGと4状態のJSONを `test-results/approved-comparison/` へ生成する。数値だけが必要な診断では `npm run review:party -- --metrics-only` を使える。全画素・注記領域・診断領域の差分、寸法、hashと診断コードは保持する。
 
 コンテナ内では対応する `:inside` scriptを使う。`test:browser`／`test:all` はcheckが作った通常配布を共用し、素材・型の前処理を後続buildで反復しない。単独の `build`／`build:debug`／`build:views` は前処理を含む。Vitestのfile並列設定は変更しない。check・必要build・Native・終了時集計の工程順を保ち、gameのNativeだけ共有entryで既定 `--workers=2` を渡す。Playwrightのfile単位の標準配分を使い、gameへ `fullyParallel` は追加しない。`test:editor`／`test:all`の既定はconfigの1workerを保持する。`npm run test:browser -- --workers=1` は後続CLI引数として優先され、直列条件を再現できる。
 

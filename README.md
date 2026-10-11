@@ -17,9 +17,13 @@
 | [specs/adventure.md](specs/adventure.md) | 街・会話のゲーム状態、入力、条件、型付き会話データ |
 | [specs/battle.md](specs/battle.md) | タイムライン戦闘、通常攻撃、勝敗の状態・操作・受入例 |
 | [specs/visuals.md](specs/visuals.md) | 戦闘画面の配置・構図設定・描画 |
-| [docs/ui-screen-design.md](docs/ui-screen-design.md) | 画面の目的・情報・操作・確定点の設計票、ホーム／街／ADVの境界と棄却例 |
-| [docs/design-guidelines.md](docs/design-guidelines.md) | UIの情報表現・文字・操作状態と共通部品の設計指針 |
-| [docs/ui-asset-production.md](docs/ui-asset-production.md) | 作業種別ごとの適用条件、原画像の実入力・制作・完成画像承認・製品比較・PR審査 |
+| [docs/design-system/README.md](docs/design-system/README.md) | UI文書の索引と正本・適用範囲 |
+| [docs/design-system/screens-and-patterns.md](docs/design-system/screens-and-patterns.md) | 画面の目的・情報・操作・構成・階層・配置・状態と再利用するパターン |
+| [docs/design-system/principles.md](docs/design-system/principles.md) | 必要性・共通視覚言語・到達性・承認範囲の原則 |
+| [docs/design-system/foundations.md](docs/design-system/foundations.md) | 色・文字・余白・形・図案・動きの用途と実装値の参照 |
+| [docs/design-system/components.md](docs/design-system/components.md) | 共通部品の構造・バリエーション・状態・入力と編成接続 |
+| [docs/design-system/accessibility.md](docs/design-system/accessibility.md) | 設計・部品・画面適用から検証へ通す共通要件 |
+| [docs/design-system/production-and-validation.md](docs/design-system/production-and-validation.md) | 作業種別ごとの適用条件、原画像の実入力・制作・完成画像承認・製品比較・PR審査 |
 | [docs/testing.md](docs/testing.md) | 純粋モデル、直接VRT、Native資源検証の責務と実行環境 |
 | [docs/documentation.md](docs/documentation.md) | 文書の役割、Issue／repo／Space／チャットの使い分け、更新規則 |
 | [docs/adr/](docs/adr/) | 採用した判断とその経緯 |
@@ -28,7 +32,7 @@
 | [全体ロードマップ（Issue #1）](https://github.com/karin0624/endfield_rpg/issues/1) | GitHub上の進捗の入口 |
 
 現在のゲーム仕様の正本は`specs/`、判断の経緯は`docs/adr/`、計画とテスト方針は`docs/`、Issueは変更単位と受入条件、`AGENTS.md`は作業規約とする。
-`docs/design-guidelines.md`は設計指針であり、配置だけで実装仕様・必須テスト・マージ条件に昇格させない。
+`docs/design-system/principles.md`は設計指針であり、配置だけで実装仕様・必須テスト・マージ条件に昇格させない。
 
 ## 必要な環境
 
@@ -85,7 +89,7 @@ npm run test:browser
 
 開発エディター・標準構図・HMR変更時は`npm run test:editor`も必要になる。この改修では`test:all`で両scopeを同じ必要build／ブラウザ実行へまとめられる。基準画像を意図的に変更するときだけ対応scopeの`--update-snapshots`を使用し、承認と画像レビューを経る。今回の責務分離で基準bytes・許容差を更新しない。5分目標の全工程計測は`test:browser`が対象で、設定画面の`test:editor`と両scopeの`test:all`は含めない。CIは固定コンテナの一つのjob／workspaceで`test:browser:inside`を実行する。checkの通常配布をその場で再利用し、別入口のdebug／viewだけを一度ずつ追加buildする。artifactのupload／downloadや保存容量に依存せず、対象revision・全実行結果・coverageをログとjob summaryへ記録する。ローカルの`test:browser`も同じ工程をworkspace所有者として実行する。gameのNative実行は既定2workers、`test:editor`／`test:all`は既定1worker。直列のgameを明示実行するには`npm run test:browser -- --workers=1`を使う。
 
-UI変更の画像レビューには、`test:browser`で撮影した4状態を使い、Pillowを用意したPython環境で`npm run review:party`を明示実行する。`test-results/approved-comparison/`へ同解像度の原画・実画面・raw diff・overlay・領域別数値を生成し、レビュー資料として確認する。この診断とPillow導入は通常CIの工程へ含めない。画像レビューの必要条件は[UI開発の必須ゲート](docs/ui-asset-production.md#ui開発の必須ゲート)を参照する。
+UI変更の画像レビューには、`test:browser`で撮影した4状態を使い、Pillowを用意したPython環境で`npm run review:party`を明示実行する。`test-results/approved-comparison/`へ同解像度の原画・実画面・raw diff・overlay・領域別数値を生成し、レビュー資料として確認する。この診断とPillow導入は通常CIの工程へ含めない。画像レビューの必要条件は[UI開発の必須ゲート](docs/design-system/production-and-validation.md#ui開発の必須ゲート)を参照する。
 
 クラウド環境で`NODE_EXTRA_CA_CERTS`が既存の`/usr/local/share/ca-certificates/environment-proxy-ca.crt`を指し、そのファイルを読み取れる場合、ブラウザテストの起動スクリプトが証明書をコンテナへ読み取り専用で渡す。コンテナ内のNode.jsだけに同じCAを追加し、TLS検証は有効のままにする。OSの信頼設定は変更せず、証明書はリポジトリに保存しない。この条件に当てはまらないローカル環境とGitHub Actionsの実行方法は変わらない。
 
