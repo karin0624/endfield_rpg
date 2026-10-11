@@ -7,7 +7,7 @@
 1. `src/content/characters.ts` のギルベルタを例に、一意な `id`、表示名 `name`、`maxHp`、`speed`、`attackPower` を登録する。命中率を指定する場合は `hitRate`（0〜1）。ロッシの論理IDは `player`、会話画像のIDは `rossi` なので取り違えない。名簿への登録と加入は別で、初期仲間はロッシだけ、PTは1〜4人と控えを扱う。
 2. `growthRules.ts` の `progression.initial` に初期レベル・経験値・能力補正があることを確認する。現行は名簿からLv1・経験値0・補正0を生成している。`skillDefinitions.ts` の `characters` に `characterId`、`poolId`、`initialSkillIds` を追加する。`null` は未決・未接続で、習得なしを確定した `[]` とは異なる。プレイ可能な名簿では `null` を残せない。
 3. ギルベルタ同様、次節の加入イベントと `saveDefinitions.ts` の対応を追加する。`saveDefinitions.skills.catalog` と `saveDefinitions.skills.growth` は実行側と同じスキル・成長定義へ接続する。名簿だけ増やして保存側に旧profileや旧初期成長を残すと、現行形式でも保存・復元できない。初期習得と探索中の習得を区別する。保証アクティブがある場合は `guaranteedUnlocks` のIDとレベルを指定し、初期レベル以下の保証は置かず初期習得として表す。初期と保証で同じIDを重複させない。
-4. キャラ詳細・編成等の画像登録は現状 `src/web/characterPortrait.ts` の `portraits` にある。未登録ではURLが返らず、編成では「画像なし」、キャラ詳細では画像欄を隠して名前と能力を表示する。会話画像は会話側の `portraitId`／`expressionId`、素材登録に従う。画像登録の移動はこの手順に含めない。素材追加時は[素材制作](design-system/production-and-validation.md)と `scripts/check-assets.mjs` の検証を確認する。
+4. キャラ詳細・編成等の画像登録は現状 `src/presentation/characterPortrait.ts` の `portraits` にある。未登録ではURLが返らず、編成では「画像なし」、キャラ詳細では画像欄を隠して名前と能力を表示する。会話画像は会話側の `portraitId`／`expressionId`、素材登録に従う。画像登録の移動はこの手順に含めない。素材追加時は[素材制作](design-system/production-and-validation.md)と `scripts/check-assets.mjs` の検証を確認する。
 
 帰還ではレベル・経験値・後天習得・成長とパッシブ補正を初期化する。加入、PT、フラグ、乱数、症状、精神疲労は巻き戻さない。症状の回復を帰還リセットで代替しない。
 
