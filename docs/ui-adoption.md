@@ -1,34 +1,17 @@
-# 共通UIの適用一覧
+# UIの実装対応
 
-画面の設計方法は[画面設計](ui-screen-design.md)、表現の指針は[デザインガイドライン](design-guidelines.md)、共通部品の実装値は[`ui.css`](../src/web/ui.css)。本書は共通部品の接続・適用状況を管理する。「適用」は完成画像への一致やユーザー承認を意味しない。UI変更の採否は[承認とpixel diffの必須ゲート](ui-asset-production.md#ui開発の必須ゲート)で別途確認する。画面を適用したPRでこの表と実画面証跡を更新する。
+共通規則は[デザインシステム](design-guidelines.md)、具体的な対象は[画面仕様](ui-screen-design.md#現行画面への入口)から読む。本書はコードへの案内であり、見た目の承認や一致検証の結果を示すものではない。
 
-| 画面 | 共通部品 | 状況・残る範囲 |
+| 画面・部品 | 実装・値 | 契約の参照先 |
 | --- | --- | --- |
-| ホームからの編成 | `ui-screen`、`ui-title`、`ui-actions`、`ui-button` | 適用。編集専用で出発なし |
-| ダンジョン出発準備 | 同上、`ui-primary` | 適用。実出発だけに主操作を表示 |
-| 仲間選択 | 同上、セージ選択と白focus | 適用。候補の内部scroll、各カードのHP・詳細・症状、選択番号。背景・人物・文字・材質のpixel diffは未解消 |
-| キャラ詳細 | `ui-dialog`、`ui-title`、`ui-back` | 適用。表示専用、候補の状態を保持して戻る |
-| デバッグ街からの編成 | 編成と同じモジュール | 適用。従来の直接出発コールバック |
-| タイトル・ホーム・探索先 | `campaign.css`の既存部品 | 未適用。新案は目的・情報・操作から設計し、旧配置や共通骨格への移行を自動要件にしない |
-| 街の場所選択・会話 | `style.css`の既存部品 | 未適用。静的場所選択と動的会話は別対象として設計し、既存背景・配置を新案の制約にしない |
-| 装備・ショップ・物品 | `items.css`等の既存部品 | 未適用。UI状態・保存v5の機能は保持 |
-| ルート・成長選択 | 既存部品 | 未適用。地図配置と必須選択の仕様を保つ |
-| 戦闘・戦闘詳細 | `style.css` / `battleSequence.css` | 新しい画面骨格は未適用。投影札・行動順は全画面アンカーの例外。戦闘演出のCSSは変更しない |
+| ホーム・探索先・静的な街 | [CampaignHub](../src/web/components/CampaignHub.svelte)、[HubScene](../src/web/components/HubScene.svelte)、[hub.css](../src/web/hub.css)、[hub-art.json](../src/web/hub-art.json) | [拠点部品](ui-screens/hub-components.md)、各画面仕様 |
+| 絵付き入口・場所入口・日付 | [IllustratedAction](../src/web/components/IllustratedAction.svelte)、[HubCalendar](../src/web/components/HubCalendar.svelte) | 横長の入口／背景上の場所／受動情報を使い分ける |
+| 編成・仲間選択・詳細 | [Party](../src/web/components/Party.svelte)、[CharacterDetails](../src/web/components/CharacterDetails.svelte)、[party.css](../src/web/party.css)、[ui.css](../src/web/ui.css) | [編成仕様](../specs/party.md)。編集文脈と出発文脈を区別 |
+| タイトル・装備等 | [Campaign](../src/web/components/Campaign.svelte)、[campaign.css](../src/web/campaign.css)、[items.css](../src/web/items.css) | [本編](../specs/overview.md)、[物品](../specs/items.md)、[保存](../specs/save.md) |
+| 会話・買物 | [Conversation](../src/web/components/Conversation.svelte)、[ItemShop](../src/web/components/ItemShop.svelte) | [会話](../specs/adventure.md)、[物品](../specs/items.md) |
+| ルート・成長 | [Dungeon](../src/web/components/Dungeon.svelte)、[GrowthChoice](../src/web/components/GrowthChoice.svelte) | [ダンジョン](../specs/dungeon.md)、[成長](../specs/progression.md) |
+| 戦闘・演出 | [BattleHud](../src/web/components/BattleHud.svelte)、[BattleSequence](../src/web/components/BattleSequence.svelte)、[style.css](../src/web/style.css)、[battleSequence.css](../src/web/battleSequence.css) | [戦闘画面](../specs/visuals.md) |
 
-この表は現状の接続を記録する。次の画面の配置や意匠の採用を決めるものではない。役割と承認意匠が同じ部品は既存のクラス・トークンを再利用し、旧画面を未検証で一括変更しない。新しい対象の設計・承認は[制作手順](ui-asset-production.md)に従う。
+意味イベント・draft・focus・dialog状態は`src/presentation/`、ゲーム規則は`src/game/`と担当specsを正本とする。CSSの採用を理由に意味入力やゲームの確定点を変えない。同じ役割と採用意匠の部品を再利用し、異なる役割を同じ外観へ押し込まない。
 
-## 接続境界
-
-`PartyUiOptions.context`は`edit`と`departure`を区別する。`edit`は出発操作を出さない。`departure`は実入場する`depart`コールバックがある場合に出発を表示する。旧デバッグ呼出しは省略時に出発文脈となる。編成の`confirm`と情報取得は同じコアを使う。
-
-`campaignUi.ts`はホーム／探索先の遷移、選んだ持込み数、実入場を所有する。編成モジュールはその数量やセーブを書き換えない。ダンジョンを選んだ時点では持込み・時間を消費せず、出発成功時に既存の`itemSelection()`を渡して持込み指定を消費する。
-
-## 実画面の確認
-
-`tests/views/party.spec.ts`は明示した直接snapshotで承認4状態を1672×941に描き、通常CIで既存goldenとの正式VRTを行う。UI変更の画像レビュー時には撮影後に`npm run review:party`を明示実行する。`scripts/compare-party-ui.py`が50%overlay・無マスクraw diff・領域診断・数値を`test-results/approved-comparison/`へ生成する。診断とPillow導入は通常CIへ含めない。唯一の許可領域は右上の文書注記「検討用・未実装」。背景・人物・文字をmaskへ含めない。意味ある意図しない差、説明済みの素材微差、全画面タイポグラフィ等の後続課題を区別する。Native hover／mouse保持／Space押下中の主操作は直接描画の撮影条件として確認し、候補・欠番・取消・詳細復帰・focus・所持と時刻保持は実コアをつないだ純粋モデルで確認する。直接VRTと旧実行参考画像の比較を、ゲームjourneyの実行や新たな画像承認と扱わない。
-
-実画面の記録は[編成の画面記録](visual-records/formation/README.md)。概念図の生成成功と、実画面の表示・操作成功は別の証拠として扱う。画像の出典と原画・採用版の関係は[素材メモ](../art-src/README.md)を参照する。
-
-実画面の撮影前は表示中の人物画像を`decode()`し、自然寸法が正であること、同梱フォントがloadedであること、タイトルの描画にNoto Serif JPが実際に使われたことを確認する。JSONのreadiness記録とPNGは同じローカル実行のレビュー資料として確認し、画像取得失敗を待機で隠さない。
-
-編成の候補カードのHP・詳細・選択番号・症状名と、右側の重複人物を置かない構成は[編成仕様](../specs/party.md)と対象承認に従う。後続画面へ編成の構成を移植せず、要素ごとの判断・操作上の必要性を設計する。
+画像・font・値の更新では、対応する画面仕様と[素材メモ](../art-src/README.md)を確認する。既存CSSへの移行を全画面の自動要件にしない。操作・外観・資源の検証方法は[テスト設計](testing.md)、Figmaとの比較と本人判断は[制作手順](ui-asset-production.md)を参照する。

@@ -18,7 +18,7 @@ import { deserializeGame, serializeGame } from "./save";
 import { prepareSkillChoice } from "./skillAcquisition";
 import { multidayFixture } from "./testing/multidayFixture";
 
-describe("Issue46: 公開操作による複数日受入", () => {
+describe("公開操作による複数日受入", () => {
   it.each(["cleared", "failed"] as const)("加入・4枠と控え・育成・回復・%s帰還・保存・再出撃", (outcome) => {
     const definitions = multidayFixture(outcome);
     validateContent(definitions);

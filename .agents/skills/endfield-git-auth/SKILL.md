@@ -58,7 +58,7 @@ connectorのAPI fetchはGitのfetchではなく、LFS pointerは素材実体で�
    git config --show-origin --show-scope --get-all "$lfs_access_key"
    ```
 
-3. 保存済み`basic`が初回のcredential要求につながった証拠と、[公式根拠](#公式根拠)・[このrepoの検証記録](../../../docs/testing/git-lfs-auth-evidence.md)のような原因対照の根拠があり、取得が許可されている場合だけ、同じendpoint・ref・path・既存認証のままaccess値だけをcommand scopeの空値へ戻して一度対照する。以下の変数は許可済みの対象に設定する。
+3. 保存済み`basic`が初回のcredential要求につながった証拠と、[公式根拠](#公式根拠)・[setupの対象条件](#install-scriptとの関係)のような原因対照の根拠があり、取得が許可されている場合だけ、同じendpoint・ref・path・既存認証のままaccess値だけをcommand scopeの空値へ戻して一度対照する。以下の変数は許可済みの対象に設定する。
 
    ```sh
    git -c "$lfs_access_key=" lfs fetch --include="$target_path" "$target_remote" "$target_ref"
@@ -76,7 +76,13 @@ connectorのAPI fetchはGitのfetchではなく、LFS pointerは素材実体で�
 
 ## Install scriptとの関係
 
-環境準備は保存環境のInstall scriptから[setup入口](../../../README.md#セットアップと実行)を呼ぶ。setup専用のSessionStart hookは削除し、同期・依存導入を二重実行しない。setupは既存credential helperを維持し、認証setupやGit同期は行わない。必要な認証準備・同期には上記手順を使う。自動復旧はPR108の既知条件と同一対象の対照成功に限定し、判断できない状態や失敗では後続検査を停止する。
+環境準備は保存環境のInstall scriptから[setup入口](../../../README.md#セットアップと実行)を呼ぶ。同期・依存導入をSessionStartと二重に実行しない。setupは既存credential helperを維持し、認証setupやGit同期を行わない。
+
+自動診断の対象endpointと地形のpath・oid・sizeは[setup.mjsのrecordedAssetと検査条件](../../../scripts/setup.mjs)を正本とする。自動対照はGit LFS 3.6／3.8系、既知のbatch login-attempt失敗・batch403・先行credential不足に限る。対象endpointの単一local `access=basic`がfetch前から存在し、失敗後も同じorigin／scope／値で残ることを必要とする。初回交渉で新規学習した値、明示的な権限拒否・quota、別endpoint・object・設定元・複数値・未知の条件では停止する。エラー文だけで修復を判断しない。
+
+同じendpoint・ref・path・既存認証で、空storageとcommand scopeの空access値による取得・oid／size照合が成功した場合だけ対象学習値をunsetする。その後、空storageからaccess上書きなしの標準取得・展開・照合も成功してから後続検査へ進む。対照成功だけを恒久復旧にしない。取得成功を匿名公開・proxy認証方式・すべての失敗原因の確定へ広げず、helper呼出しの有無だけでAuthorization送信を断定しない。特定versionでの成功を、そのversionの必須性や他versionの復旧保証にしない。
+
+複数worktreeではlocal configが共有されるため、setupはLFS操作前に停止する。Gitの`extensions.worktreeConfig`は固有の`config.worktree`を扱うが、LFSのaccess学習はlocal configへ保存される。自動setupのために拡張有効化・設定移行をせず、独立checkoutを使う。既存のconfig・hook・cacheを削除して復旧を演出しない。
 
 ## 公式根拠
 
@@ -89,3 +95,5 @@ connectorのAPI fetchはGitのfetchではなく、LFS pointerは素材実体で�
 - [3.8.0 endpoint finder](https://github.com/git-lfs/git-lfs/blob/v3.8.0/lfsapi/endpoint_finder.go)、[auth](https://github.com/git-lfs/git-lfs/blob/v3.8.0/lfsapi/auth.go): access値の読出し・local保存、初期交渉と既存認証の利用。
 - [maintainerの初期交渉の確認例](https://github.com/git-lfs/git-lfs/issues/6358#issuecomment-5977233607): lock endpointでaccess未設定時に最初のrequest、401 challenge、既存認証付きrequestを確認。batchへの適用は上記config・実装とrepoの対照結果で判断する。
 - [Git config](https://git-scm.com/docs/git-config): 設定origin／scopeの確認と該当キーのunset。
+
+- [Git worktree設定](https://git-scm.com/docs/git-worktree#_configuration_file)、[Git LFS 3.6.1のSetAccess](https://github.com/git-lfs/git-lfs/blob/v3.6.1/lfsapi/endpoint_finder.go): 共有local設定とaccess学習の保存先。

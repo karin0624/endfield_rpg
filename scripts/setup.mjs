@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 
 const endpoint = "https://github.com/karin0624/endfield_rpg.git/info/lfs";
 const accessKey = `lfs.${endpoint}.access`;
-// PR108's demonstrated recovery applies only to this endpoint and object.
+// Limit access-learning diagnosis to this endpoint and verified asset identity.
 const recordedAsset = {
   name: "public/assets/ground/ground1.glb",
   oid: "0bad77901554e56495e34844a5e63e66380b30d48c732c5c7fbc152c9b976ef9",
@@ -98,7 +98,7 @@ export async function setup({
     if (settings.status !== 0 && settings.status !== 1) requireSuccess(settings, "Read pre-fetch LFS access");
     const fetched = git(...fetchArgs);
     if (fetched.status !== 0) {
-      // Diagnose only PR108's known local learned state. A general denial,
+      // Diagnose only the matching pre-existing local access setting. A general denial,
       // quota, other endpoint, version, object or shared configuration stops here.
       const lfsVersion = requiredGit("lfs", "version");
       const lfsEnv = requiredGit("lfs", "env");
