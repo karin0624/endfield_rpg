@@ -17,9 +17,9 @@
 | [specs/adventure.md](specs/adventure.md) | 街・会話のゲーム状態、入力、条件、型付き会話データ |
 | [specs/battle.md](specs/battle.md) | タイムライン戦闘、通常攻撃、勝敗の状態・操作・受入例 |
 | [specs/visuals.md](specs/visuals.md) | 戦闘画面の配置・構図設定・描画 |
-| [docs/ui-screen-design.md](docs/ui-screen-design.md) | 画面の目的・情報・操作・確定点の設計票、ホーム／街／ADVの境界と棄却例 |
-| [docs/design-guidelines.md](docs/design-guidelines.md) | UIの情報表現・文字・操作状態と共通部品の設計指針 |
-| [docs/ui-asset-production.md](docs/ui-asset-production.md) | 作業種別ごとの適用条件、原画像の実入力・制作・完成画像承認・製品比較・PR審査 |
+| [docs/ui-screen-design.md](docs/ui-screen-design.md) | 画面の目的・情報・操作・構図の設計方法と現行画面仕様への入口 |
+| [docs/design-guidelines.md](docs/design-guidelines.md) | 共通原則・基盤・意味トークン・部品契約・状態・複合パターン |
+| [docs/ui-asset-production.md](docs/ui-asset-production.md) | 本人Figmaからの実装、素材制作、実画像レビュー、一致・操作検証の責務 |
 | [docs/testing.md](docs/testing.md) | 純粋モデル、直接VRT、Native資源検証の責務と実行環境 |
 | [docs/documentation.md](docs/documentation.md) | 文書の役割、Issue／repo／Space／チャットの使い分け、更新規則 |
 | [docs/adr/](docs/adr/) | 採用した判断とその経緯 |
@@ -28,7 +28,7 @@
 | [全体ロードマップ（Issue #1）](https://github.com/karin0624/endfield_rpg/issues/1) | GitHub上の進捗の入口 |
 
 現在のゲーム仕様の正本は`specs/`、判断の経緯は`docs/adr/`、計画とテスト方針は`docs/`、Issueは変更単位と受入条件、`AGENTS.md`は作業規約とする。
-`docs/design-guidelines.md`は設計指針であり、配置だけで実装仕様・必須テスト・マージ条件に昇格させない。
+本人がFigmaでデザインを作成し、実装担当は対象の固定版と操作仕様を製品へ反映する。共通DSの記載を全画面への適用済み・承認済みと扱わない。
 
 ## 必要な環境
 
