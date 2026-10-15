@@ -23,7 +23,7 @@
 | [docs/testing.md](docs/testing.md) | 純粋モデル、直接VRT、Native資源検証の責務と実行環境 |
 | [docs/documentation.md](docs/documentation.md) | 文書の役割、Issue／repo／Space／チャットの使い分け、更新規則 |
 | [docs/adr/](docs/adr/) | 採用した判断とその経緯 |
-| [docs/visual-records/](docs/visual-records/) | 過去の画面記録 |
+| [docs/visual-records/](docs/visual-records/) | 保存画像の索引 |
 | [素材メモ](art-src/README.md) | 使用素材の出典・透過処理・Git LFS運用 |
 | [全体ロードマップ（Issue #1）](https://github.com/karin0624/endfield_rpg/issues/1) | GitHub上の進捗の入口 |
 
