@@ -54,6 +54,8 @@ let available = $derived(
 );
 function layout() {
   if (!element) return;
+  const previousMode = wide;
+  const activeMenu = element.querySelector<HTMLElement>(".system-entry:focus,.map-close:focus");
   const unit = parseFloat(getComputedStyle(document.documentElement).fontSize);
   const width = innerWidth,
     height = innerHeight,
@@ -97,6 +99,12 @@ function layout() {
               ),
           ),
       );
+  }
+  if (wide !== previousMode && activeMenu) {
+    void tick().then(() => {
+      if (!activeMenu.isConnected && document.activeElement === document.body)
+        element?.querySelector<HTMLElement>(".system-entry,.map-close")?.focus({ preventScroll: true });
+    });
   }
 }
 onMount(() => {

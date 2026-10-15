@@ -352,7 +352,8 @@
 }
 .hub-scene[data-mode="compact"] .locations {
   display: grid;
-  grid-template-columns: repeat(2, 10rem);
+  width: min(21rem, 100%);
+  grid-template-columns: repeat(auto-fit, 10rem);
   gap: 1rem;
 }
 .hub-scene[data-mode="compact"] .travel-date {
@@ -475,9 +476,4 @@
   display: flex;
   justify-content: space-between;
   gap: 1rem;
-}
-@media (max-width: 370px) {
-  .hub-scene[data-mode="compact"] .locations {
-    grid-template-columns: 10rem;
-  }
 }
