@@ -13,7 +13,7 @@
 | [specs/save.md](specs/save.md) | ホームの1スロット保存、復元、入力検証と保存I/Oの境界 |
 | [specs/party.md](specs/party.md) | 仲間一覧、空き枠可4枠PT、単独出撃と状態の引継ぎ |
 | [specs/dungeon.md](specs/dungeon.md) | 固定ルート、ノード進行、戦闘・会話からの復帰 |
-| [docs/milestones.md](docs/milestones.md) | 段階ごとの完了条件とタスクの依存順 |
+| [docs/milestones.md](docs/milestones.md) | 領域間の依存関係と開発計画の入口 |
 | [specs/adventure.md](specs/adventure.md) | 街・会話のゲーム状態、入力、条件、型付き会話データ |
 | [specs/battle.md](specs/battle.md) | タイムライン戦闘、通常攻撃、勝敗の状態・操作・受入例 |
 | [specs/visuals.md](specs/visuals.md) | 戦闘画面の配置・構図設定・描画 |
