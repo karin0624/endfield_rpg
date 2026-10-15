@@ -26,7 +26,7 @@
 | [全体ロードマップ（Issue #1）](https://github.com/karin0624/endfield_rpg/issues/1) | GitHub上の進捗の入口 |
 
 開発計画・受入条件・進捗・対象版の検証結果はIssue／PR、継続的な技術判断はADRで扱う。文書の規約は[AGENTS.md](AGENTS.md#文書の更新)を参照する。
-本人がFigmaでデザインを作成し、実装担当は対象の固定版と操作仕様を製品へ反映する。共通DSの記載を全画面への適用済み・承認済みと扱わない。
+本人がローカルのOpenPencilで`.fig`を編集し、実装担当は指定された固定版と操作仕様を製品へ反映する。導入・編集は[OpenPencilの手順](#openpencilでfigを編集する)を参照する。共通DSの記載を全画面への適用済み・承認済みと扱わない。
 
 ## 必要な環境
 
@@ -34,6 +34,62 @@
 - npm 11
 - Git LFS（地面GLBの取得に必要）
 - Docker（ブラウザテストに必要）
+
+## OpenPencilで.figを編集する
+
+対象は[open-pencil/open-pencil](https://github.com/open-pencil/open-pencil/tree/v0.16.0)の**0.16.0**。同名の別製品と取り違えない。画面ファイルの制作と、ツールの導入は別作業として扱う。
+
+| 導入物 | 役割 |
+| --- | --- |
+| デスクトップアプリ | 本人が画面を見て`.fig`を編集・保存する。MCPで編集する場合も起動しておく |
+| `@open-pencil/cli` | ファイルを読取・編集・保存する。ファイルパスを渡すheadless操作はアプリなしでも実行できる |
+| `@open-pencil/mcp` | アプリ側サーバーと、クライアント用stdio bridge。bridge単体では文書を編集できない |
+
+### 初回だけ行うこと
+
+1. [0.16.0の公式リリース](https://github.com/open-pencil/open-pencil/releases/tag/v0.16.0)からOS／CPUに合うアプリをインストールする。macOSは`brew install --cask openpencil`でも導入できるが、取得版はHomebrewの現行版になる。アプリとMCPのmajor.minorを揃え、ここでは0.16.0を使う。
+2. Node.js 24／npm 11を用意し、このrepoのルートで`npm ci`を実行する。lockfileで固定されたCLI／MCP 0.16.0がrepo内へ入る。ゲーム環境も準備する場合は[既存のsetup](#セットアップと実行)を使う。
+3. デスクトップがMCPサーバーを自動起動できるよう、本人の端末で次を一度実行し、アプリを再起動する。これはnpmのglobal領域への明示的なインストール。repoのsetupやMCP起動スクリプトはglobal installを行わない。
+
+   ```sh
+   npm install --global @open-pencil/mcp@0.16.0
+   ```
+
+4. アプリで対象`.fig`を開き、Settings → MCPでLocal serverの起動状態とフォルダーを確認する。ファイルを開く・保存する範囲をこのcheckoutに合わせる。選択限定やTool accessで編集を制限している場合は、必要な範囲を本人が判断する。認証は有効のまま使う。
+5. **同じPC・OSユーザー**で、repoルートからCodexを開く。`.codex/config.toml`に`open-pencil`を設定済み。プロジェクトの信頼確認が表示された場合は本人が内容を確認し、クライアントを再起動／再接続して`/mcp`で状態を確認する。他の対応クライアント用には`.mcp.json`もある。自動読込の対応と初回承認はクライアントに従う。
+
+手動編集やこのローカルMCP接続にAI providerのAPI keyは不要。内蔵AIを使う場合の設定は別。repoはPCの設定・認証・永続許可を変更しない。bridgeはアプリのdiscoveryを使い、トークンをrepoへ保存しない。MCPの`eval`も追加で有効化しない。
+
+### 次回からの編集
+
+アプリを開き、このrepoで「`対象パス.fig`の○○を編集して」と指示する。設定済みクライアントでは再登録は不要。担当は[編集skill](.agents/skills/endfield-openpencil/SKILL.md)に従って既存文書・ページを読み、専用MCPツールで編集し、同じ対象へ保存して再読取する。本人の未保存編集とGit差分を先に確認する。
+
+接続は同じマシンのアプリに限られる。クラウドのCodexから本人PCのアプリへ、この設定だけで接続はできない。クラウドでは同期済みの`.fig`をCLIで編集できるが、開いているローカル文書には反映しない。本人はアプリで保存してからGitで受け渡し、更新後のファイルを開き直す。
+
+repoルートでの確認とheadless編集例（パスを実在する対象へ置き換える）:
+
+```sh
+npm run openpencil -- --version
+npm run openpencil:mcp -- --version
+npm run openpencil -- info path/to/existing.fig
+npm run openpencil -- tree path/to/existing.fig
+npm run openpencil -- eval path/to/existing.fig -c "figma.currentPage.name = 'Updated'" --output path/to/edited.fig
+npm run openpencil -- info path/to/edited.fig
+```
+
+CLIの`--output`は別ファイルへ保存する。原本へ保存するときだけ対象を確認して`--write`を使う。MCPのランチャーはこのcheckoutをファイル操作のrootにする。MCPクライアントはrepoルートから起動する。他の作業ディレクトリから登録するクライアントでは`args`のスクリプトパスを絶対パスにする。アプリ側の許可範囲がより狭い場合、その制限は引き続き適用される。
+
+### 対応OSと検証の境界
+
+| デスクトップ | 公式0.16.0の要件・配布 |
+| --- | --- |
+| macOS | 13 Ventura以降＋現行Safari更新。Apple Silicon／IntelのDMG |
+| Windows | 10以降＋WebView2 Evergreen。x64／ARM64のMSI／EXE |
+| Linux | WebKitGTK 2.40以降（webkit2gtk-4.1）。x64のAppImage／DEB／RPM |
+
+repoのCLI／MCPはNode.js 24で検証する。LinuxのGUIなし環境では、setup再実行、CLIの`.fig`読取・編集・保存・再読取、認証を保ったMCPサーバーとstdioの起動を確認できる。デスクトップの画面操作、アプリとMCPの接続、macOS／Windowsの実動作、本人PCの初回信頼確認は別途実機での確認が必要。CLIの保存成功を表示の一致や本人承認と扱わない。
+
+公式仕様: [導入・OS要件](https://github.com/open-pencil/open-pencil/blob/v0.16.0/packages/docs/getting-started.md)、[MCP](https://github.com/open-pencil/open-pencil/blob/v0.16.0/packages/docs/programmable/mcp-server.md)、[CLI編集・保存](https://github.com/open-pencil/open-pencil/blob/v0.16.0/packages/docs/programmable/cli/scripting.md)。
 
 ## セットアップと実行
 

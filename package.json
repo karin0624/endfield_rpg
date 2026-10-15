@@ -21,10 +21,14 @@
     "review:party": "python3 scripts/compare-party-ui.py test-results test-results/approved-comparison",
     "test:all": "sh scripts/run-browser-test.sh all",
     "test:all:inside": "COVERAGE_BROWSER=1 npm run check && COVERAGE_BROWSER=1 vite build --mode debug --outDir dist-debug && COVERAGE_BROWSER=1 vite build --config vite.views.config.ts && sh scripts/run-playwright-quality.sh all",
-    "typecheck": "svelte-check --tsgo --tsconfig ./tsconfig.json --fail-on-warnings"
+    "typecheck": "svelte-check --tsgo --tsconfig ./tsconfig.json --fail-on-warnings",
+    "openpencil": "openpencil",
+    "openpencil:mcp": "node scripts/openpencil-mcp.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.14",
+    "@open-pencil/cli": "0.16.0",
+    "@open-pencil/mcp": "0.16.0",
     "@playwright/test": "^1.63.0",
     "@sveltejs/vite-plugin-svelte": "^7.3.1",
     "@types/node": "^24.13.6",
