@@ -3,7 +3,7 @@
 作業に必要な文書だけを参照する。
 
 - 仕様・責務境界を確認するときは[specs/overview.md](specs/overview.md)を参照する。
-- 実装順・依存関係を確認するときは[docs/milestones.md](docs/milestones.md)を参照する。
+- 領域間の依存関係と開発計画の入口を確認するときは[docs/milestones.md](docs/milestones.md)を参照する。
 - 環境構築・実行コマンド・ソース構成を確認するときは[README.md](README.md)を参照する。
 - CodexでGitの取得・同期・認証やGit LFS取得を扱うときは[endfield-git-auth skill](.agents/skills/endfield-git-auth/SKILL.md)を参照する。
 - UIを設計・変更するときは[画面設計](docs/ui-screen-design.md)から目的・情報・操作結果を決め、[デザインガイドライン](docs/design-guidelines.md)と[制作手順](docs/ui-asset-production.md#ui開発の必須ゲート)に従う。

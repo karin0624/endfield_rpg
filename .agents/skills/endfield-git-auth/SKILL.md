@@ -58,7 +58,7 @@ connectorのAPI fetchはGitのfetchではなく、LFS pointerは素材実体で�
    git config --show-origin --show-scope --get-all "$lfs_access_key"
    ```
 
-3. 保存済み`basic`が初回のcredential要求につながった証拠と、[公式根拠](#公式根拠)・[このrepoの検証記録](../../../docs/testing/git-lfs-auth-evidence.md)のような原因対照の根拠があり、取得が許可されている場合だけ、同じendpoint・ref・path・既存認証のままaccess値だけをcommand scopeの空値へ戻して一度対照する。以下の変数は許可済みの対象に設定する。
+3. 保存済み`basic`が初回のcredential要求につながった証拠と、[公式根拠](#公式根拠)・[このrepoの診断条件と根拠](../../../docs/testing/git-lfs-auth-evidence.md)のような原因対照の根拠があり、取得が許可されている場合だけ、同じendpoint・ref・path・既存認証のままaccess値だけをcommand scopeの空値へ戻して一度対照する。以下の変数は許可済みの対象に設定する。
 
    ```sh
    git -c "$lfs_access_key=" lfs fetch --include="$target_path" "$target_remote" "$target_ref"
@@ -76,7 +76,7 @@ connectorのAPI fetchはGitのfetchではなく、LFS pointerは素材実体で�
 
 ## Install scriptとの関係
 
-環境準備は保存環境のInstall scriptから[setup入口](../../../README.md#セットアップと実行)を呼ぶ。setup専用のSessionStart hookは削除し、同期・依存導入を二重実行しない。setupは既存credential helperを維持し、認証setupやGit同期は行わない。必要な認証準備・同期には上記手順を使う。自動復旧はPR108の既知条件と同一対象の対照成功に限定し、判断できない状態や失敗では後続検査を停止する。
+環境準備は保存環境のInstall scriptから[setup入口](../../../README.md#セットアップと実行)を呼ぶ。同期・依存導入をSessionStartと二重に実行しない。setupは既存credential helperを維持し、認証setupやGit同期は行わない。必要な認証準備・同期には上記手順を使う。自動復旧は[既知の診断条件](../../../docs/testing/git-lfs-auth-evidence.md)と同一対象の対照成功に限定し、判断できない状態や失敗では後続検査を停止する。
 
 ## 公式根拠
 

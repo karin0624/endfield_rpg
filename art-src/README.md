@@ -30,9 +30,9 @@
 
 `art-src/background/departure/endfield-departure-industrial-background.webp`は、承認済みの出撃準備コンセプトから生成した背景の保存用データ。実行用には同一バイト列を`public/assets/backgrounds/endfield-departure-industrial-background.webp`へコピーする。UI、文字、キャラクター、HP表示は別途HTML/CSS等で描画し、背景のみを実行用素材とする。この素材の出典・採用記録は、完成画面の承認を意味しない。必要情報を反映した完成画像の承認と同一解像度比較は[UI開発の必須ゲート](../docs/ui-asset-production.md#ui開発の必須ゲート)に従う。
 
-構図・意匠の主参照は[エンドフィールド公式PlayStation Blog](https://blog.playstation.com/?p=420605)、補助参照は[原作アークナイツのPRTSホーム背景一覧](https://prts.wiki/w/首页场景一览)の「视野」。参照画像そのものは同梱していない。生成物であることは第三者の権利や利用許諾の保証を意味せず、参照元および生成時の利用条件は未確認。
+この背景の生成時に用いた主な出典は[エンドフィールド公式PlayStation Blog](https://blog.playstation.com/?p=420605)、補助参照は[原作アークナイツのPRTSホーム背景一覧](https://prts.wiki/w/首页场景一览)の「视野」。参照画像そのものは同梱していない。生成物であることは第三者の権利や利用許諾の保証を意味せず、参照元および生成時の利用条件は未確認。
 
-元PNGは原素材の保管先に保持。SHA-256は`ae343494b6fa167afe7d61749b7d03752f8166a740300505d20ce79da78e734d`。リポジトリには無劣化WebP派生を保存し、元PNGを上書きしない。寸法1672×941を維持し、拡大・色変更・内容変更はせず、RGBAへ復号した全画素の完全一致を検証済み。WebPのSHA-256は`1147382eb2c7a86c42938ab476df1f4d95d24260775326f64694edf5fa307c2f`。WebPも通常のGitで管理する。
+元PNGは原素材の保管先に保持。リポジトリには無劣化WebP派生を保存し、元PNGを上書きしない。寸法1672×941を維持した派生物で、拡大・色変更・内容変更はしない。WebPも通常のGitで管理する。
 
 ## 共通UIのフォント
 
@@ -44,4 +44,4 @@ Noto Serif JP（weight 500・700）とNoto Sans JP（weight 400）を`public/ass
 
 `public/assets/ui/hubs/`の17 PNGは、提供された背景・図案・frame・日付・人物portraitの実行用素材。原画像のbytes・寸法を保持し、表示時の範囲と縮尺は[hub-art.json](../src/web/hub-art.json)で管理する。日付は元画像をSVG clipPathで表示し、数字はHTML。人物の顔だけは楕円viewportを使う。素材ごとの利用方法は[拠点部品仕様](../docs/ui-screens/hub-components.md)を参照する。
 
-参考ゲームの画像・動画や個人識別を含む原参考スクリーンショットは配布しない。原素材と承認の管理は対象課題のアクセス可能な資料で行い、非公開識別子を公開文書へ転記しない。外部の利用条件は未提示。
+非配布の参照画像・動画や個人識別を含むスクリーンショットは配布物へ含めない。原素材と承認の管理は対象課題のアクセス可能な資料で行い、非公開識別子を公開文書へ転記しない。外部の利用条件は未提示。

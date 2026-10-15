@@ -41,9 +41,9 @@ CIは固定コンテナの単一jobで `npm ci` の後に `test:browser:inside` 
 
 コンテナ内では対応する `:inside` scriptを使う。`test:browser`／`test:all` はcheckが作った通常配布を共用し、素材・型の前処理を後続buildで反復しない。単独の `build`／`build:debug`／`build:views` は前処理を含む。Vitestのfile並列設定は変更しない。check・必要build・Native・終了時集計の工程順を保ち、gameのNativeだけ共有entryで既定 `--workers=2` を渡す。Playwrightのfile単位の標準配分を使い、gameへ `fullyParallel` は追加しない。`test:editor`／`test:all`の既定はconfigの1workerを保持する。`npm run test:browser -- --workers=1` は後続CLI引数として優先され、直列条件を再現できる。
 
-2workersは準備・再import／draw・手動診断の重複を整理した後に採用した。並行するcaseはそれぞれcontext／pageと出力先を持ち、coverageは全worker終了後に一度集計する。固定sourceの比較では全品質成功・起動〜shutdown287.611秒だったが、5分までの余裕は12.389秒に限られ、19/22caseの時間は増えた。共有cgroupのCPU／memory／throttle観測はgameの専有消費やGPU elapsedではない。これを安定したCI時間のSLA、直列で5分以内が不可能という証明、Actions runner上の実測と扱わない。直列272.004／289.151／335.542秒等の結果も[検証記録](testing/change-evidence.md)に保持する。
+並行するcaseはそれぞれcontext／pageと出力先を持ち、coverageは全worker終了後に一度集計する。実行時間は同じsource・scope・環境・worker条件で比較し、起動からshutdownまでの全工程を記録する。共有cgroupのCPU／memory／throttle観測はgameの専有消費やGPU elapsedではない。単一runの時間を安定したCI時間のSLA、直列での短縮不可能性、Actions runner上の実測へ読み替えない。
 
-画像比較を持たないrenderer／editor-resourcesは既存DPR検証と同じ800×900 viewportを使う。実GLB・PNG・PBR・shaderを準備して実drawを行い、viewportを変えてもcanvasの16:9比率とカメラ構図は保つ。DPR1／3と800→640のresize、資源生成・warm切替・遅着／失敗・HMR・退出時0の保証を維持する。VRTのviewport・DPR・基準画像・許容差をこの費用整理で変えない。
+画像比較を持たないrenderer／editor-resourcesは既存DPR検証と同じ800×900 viewportを使う。実GLB・PNG・PBR・shaderを準備して実drawを行い、viewportを変えてもcanvasの16:9比率とカメラ構図は保つ。DPR1／3と800→640のresize、資源生成・warm切替・遅着／失敗・HMR・退出時0の保証を維持する。性能の改善でもVRTのviewport・DPR・基準画像・許容差を保持する。
 
 通常 `dist/` の初期タイトル、debug `dist-debug/` の初期戦闘を実際に描く。attack／healのFXは同じrendererの実地形を保持し、実コアから別々の直接snapshot・BattleScene・UIを生成して既存6画像を比較する。editorの初期2対2はconstructorの準備済み構図を使い、人数変更とresizeだけを再描画する。任意の画面状態は標準Viteの[multi-page build](https://vite.dev/guide/build.html#multi-page-app)で `dist-views/` へ生成する。同じ標準minifierを使い、通常配布へfixtureを混入しない。3出力は異なる実入口の検証であり、coverage専用の解析buildではない。通常4173、debug4175、直接view4174。viewの実 `BASE_URL=/rpg/` で素材を取得し、非root専用buildやURL書換えを重ねない。
 
@@ -63,8 +63,7 @@ git上の全品質spec、runnerの実collection、今回の実JSONを照合す�
 
 ## 表示負荷の計測
 
-Svelte移行時の前後比較、全scope／gameの実行結果と未確認事項は[検証記録](testing/view-refactor-evidence.md)を参照する。
-移行後の街生成時のCSS反映費用、疎な切替の単発費用と採用案の限界は[切替負荷の検証記録](testing/view-switch-performance-evidence.md)を参照する。
+性能結果は対象revision・環境・測定条件・生データ・限界を対象Issue／PRへ記録する。現在の手順と過去の一実行の結果を分ける。
 
 `tests/fixtures/performance-view.html`は直接状態fixtureで、通常配布へ含めない。通常戦闘の選択更新、連続marker、確定recordのcue、home／destinations／town切替を各180frameで測る。実Babylon・素材・shader・fonts・画像decodeを準備し、20rAFのwarm後にGC・profilingを開始する。通常戦闘の入力更新とclockを通し、Svelteでは実行中と同じ`renderModel`を使う。
 
@@ -106,9 +105,11 @@ GPUを含む全frameの余裕は実rAF間隔とtraceを合わせて評価する�
 
 実装中は必要な短い検証で原因と費用を確認する。提出前はsourceを固定し、check・必要な全直接VRT・資源検証・editorをローカルで完走する。代表数件だけで全件をCIへ委ねない。source／LFS実体／CSS・素材・goldenの前後一致、正確なhead／tree、開始・終了・shutdown、実runnerのworker設定、層別時間、failure／retry別記を残す。GitHub権限・required checks・Actions固有のrunner条件等、ローカルで不可能な条件だけを理由付き例外とする。
 
-[#102](https://github.com/karin0624/endfield_rpg/issues/102)では、品質維持したゲーム本体CI対象（`npm run test:browser`）のローカル全工程が起動から終了まで5分以内、または同品質で5分以内にできない明確な根拠が成立することを公開条件とする。直列側の費用整理を先に検討し、ユーザー確認を経てgameの既定2workersを採用する。設定画面の`editor-views`／`editor-resources`はこの5分判定へ含めず、`npm run test:editor`で明示的に別実行する。`test:all`は両scopeを必要時に検証するコマンドであり、5分の判定対象ではない。公開・マージはユーザー判断に従う。部分成功、実描画が多い事実、未測定の推測を不可避の根拠・課題解決としない。
+ゲーム本体CI対象（`npm run test:browser`）の時間条件は、品質を維持したローカル全工程が起動から終了まで5分以内、または同品質で5分以内にできない明確な根拠が成立すること。条件の充足を実測と検討結果で示し、未確認点を残したまま達成扱いにしない。設定画面の`editor-views`／`editor-resources`はこの判定へ含めず、`npm run test:editor`で必要時に明示実行する。`test:all`は両scopeを検証するコマンドであり、5分の判定対象ではない。部分成功、実描画が多い事実、未測定の推測を不可避の根拠へ置き換えない。公開・マージはユーザー判断に従う。
 
 実runner固有のreport生成・古いJSONの再利用拒否・list-onlyは実CLIで検証する。未登録ファイル、部分結果、coverage欠落はその実reportを入力として実行照合を検証し、同じfixtureを再実行して準備を重複させない。ケース別coverage annotationには回収のwall msを含め、ブラウザcase全体や終了時の集計費用と区別する。共有fixtureは実初期viewport／DPR、標準CDPのGPU deviceと共有page fixture内のprocess CPU累積値も記録する。CPU累積値は全threadの消費量であり、GPU elapsedや排他的なcase CPU時間と扱わない。
+
+VRTは既存画像との回帰を検出し、絶対コントラストやWCAG全体への適合を保証しない。画像背景・半透明・halo上の文字と重要な非文字の読取りは、実際の合成結果と適用条件を別途確認する。設計上の目標、現在のassertion、未確認の範囲を混同しない。
 
 自動検査は自然言語仕様の完全性やassertionの意味を証明しない。レビューでは、公開入力・独立した期待結果・担当層・旧保証の移行先・未確認事項を具体的に読む。
 

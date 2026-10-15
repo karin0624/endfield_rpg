@@ -56,7 +56,7 @@ node scripts/setup.mjs --cache /workspace/.npm
 
 Install scriptを環境起動の実行入口とする。`SessionStart`で同じ準備を重ねず、追加の `npm run build` も不要（`check` が通常buildを含む）。保存環境への設定・公開と新規taskでの実行確認は別途必要であり、repositoryのscript追加だけでは自動実行されない。同期は対象taskの取得手順で行い、setupは現在のcheckoutを変更しない。
 
-LFS失敗時の自動対照は[PR108の記録](docs/testing/git-lfs-auth-evidence.md)と一致するendpoint・groundのoid／size、Git LFS 3.6／3.8、単一のlocal `.git/config` の `basic` に限定する。fetch前から存在してfetch後も不変の値だけを候補にし、初回交渉で新規学習した値は扱わない。記録済みのbatch login-attempt失敗（標準stderrに403の数字がない場合を含む）・batch403・先行credential不足で、空storage・command scopeの空access値による同一ref／pathの取得と実体照合が成功してから、その学習値だけをunsetする。さらに空storageからaccess上書きなしの標準取得・展開・照合を行う。対照失敗・別の拒否・複数値・別保存元・未知の条件では停止し、credential helper／remote／権限を変更しない。複数worktreeのrepositoryでは、共有config・hook・LFSの新規学習を別taskへ波及させないためLFS操作前に停止する。[Gitのworktree固有設定](https://git-scm.com/docs/git-worktree#_configuration_file)は拡張が有効な場合の `config.worktree`／`--worktree` を指すが、LFSのaccess学習はlocal共通configへ保存されるため、このsetupは拡張を有効化したり固有設定を修復したりしない。Install scriptには独立checkoutを使い、既存worktreeの設定は保持する。詳細な手動診断は[endfield-git-auth skill](.agents/skills/endfield-git-auth/SKILL.md)を参照する。
+LFS失敗時の自動対照は[診断条件](docs/testing/git-lfs-auth-evidence.md)と一致するendpoint・groundのoid／size、Git LFS 3.6／3.8、単一のlocal `.git/config` の `basic` に限定する。fetch前から存在してfetch後も不変の値だけを候補にし、初回交渉で新規学習した値は扱わない。記録済みのbatch login-attempt失敗（標準stderrに403の数字がない場合を含む）・batch403・先行credential不足で、空storage・command scopeの空access値による同一ref／pathの取得と実体照合が成功してから、その学習値だけをunsetする。さらに空storageからaccess上書きなしの標準取得・展開・照合を行う。対照失敗・別の拒否・複数値・別保存元・未知の条件では停止し、credential helper／remote／権限を変更しない。複数worktreeのrepositoryでは、共有config・hook・LFSの新規学習を別taskへ波及させないためLFS操作前に停止する。[Gitのworktree固有設定](https://git-scm.com/docs/git-worktree#_configuration_file)は拡張が有効な場合の `config.worktree`／`--worktree` を指すが、LFSのaccess学習はlocal共通configへ保存されるため、このsetupは拡張を有効化したり固有設定を修復したりしない。Install scriptには独立checkoutを使い、既存worktreeの設定は保持する。詳細な手動診断は[endfield-git-auth skill](.agents/skills/endfield-git-auth/SKILL.md)を参照する。
 
 | コマンド | 用途 |
 | --- | --- |
@@ -83,7 +83,7 @@ npm run test:browser
 
 基準画像の比較環境を固定し、失敗時の画像・traceと実JSONは`test-results/`へ保存する。通常配布4173、debug4175、標準minifiedの直接fixture4174を使用する。任意state・phaseを直接描き、ゲームjourneyや実時間待機をテストへ残さない。ゲーム操作・focus・dialog・保存等の結果は実コアをつないだ純粋モデルで確認し、ブラウザは実外観と直接WebGL資源だけを担当する。詳しくは[テスト設計](docs/testing.md)を参照する。
 
-開発エディター・標準構図・HMR変更時は`npm run test:editor`も必要になる。この改修では`test:all`で両scopeを同じ必要build／ブラウザ実行へまとめられる。基準画像を意図的に変更するときだけ対応scopeの`--update-snapshots`を使用し、承認と画像レビューを経る。今回の責務分離で基準bytes・許容差を更新しない。5分目標の全工程計測は`test:browser`が対象で、設定画面の`test:editor`と両scopeの`test:all`は含めない。CIは固定コンテナの一つのjob／workspaceで`test:browser:inside`を実行する。checkの通常配布をその場で再利用し、別入口のdebug／viewだけを一度ずつ追加buildする。artifactのupload／downloadや保存容量に依存せず、対象revision・全実行結果・coverageをログとjob summaryへ記録する。ローカルの`test:browser`も同じ工程をworkspace所有者として実行する。gameのNative実行は既定2workers、`test:editor`／`test:all`は既定1worker。直列のgameを明示実行するには`npm run test:browser -- --workers=1`を使う。
+開発エディター・標準構図・HMR変更時は`npm run test:editor`も必要になる。`test:all`で両scopeを同じ必要build／ブラウザ実行へまとめられる。基準画像を意図的に変更するときだけ対応scopeの`--update-snapshots`を使用し、承認と画像レビューを経る。基準bytes・許容差は回帰検出の契約として管理する。5分目標の全工程計測は`test:browser`が対象で、設定画面の`test:editor`と両scopeの`test:all`は含めない。CIは固定コンテナの一つのjob／workspaceで`test:browser:inside`を実行する。checkの通常配布をその場で再利用し、別入口のdebug／viewだけを一度ずつ追加buildする。artifactのupload／downloadや保存容量に依存せず、対象revision・全実行結果・coverageをログとjob summaryへ記録する。ローカルの`test:browser`も同じ工程をworkspace所有者として実行する。gameのNative実行は既定2workers、`test:editor`／`test:all`は既定1worker。直列のgameを明示実行するには`npm run test:browser -- --workers=1`を使う。
 
 UI変更の画像レビューには、`test:browser`で撮影した4状態を使い、Pillowを用意したPython環境で`npm run review:party`を明示実行する。`test-results/approved-comparison/`へ同解像度の原画・実画面・raw diff・overlay・領域別数値を生成し、レビュー資料として確認する。この診断とPillow導入は通常CIの工程へ含めない。画像レビューの必要条件は[UI開発の必須ゲート](docs/ui-asset-production.md#ui開発の必須ゲート)を参照する。
 
@@ -125,13 +125,13 @@ GLBはGit LFS、現在の数MiBのPNG・文書・コードは通常のGitで管�
 
 通常配布は `npm run build` の `dist/` を使う。`?debug=1`、`?battle=1`、`?dungeon=1` 等を付けてもデバッグを起動できない。開発サーバー、または `npm run build:debug` の `dist-debug/` だけが `/?debug=1`（街の検証）、`/?debug=1&battle=1`（固定戦闘デモ）、`/?debug=1&dungeon=1`（直接探索）を受け付ける。デバッグ保存は通常保存と別キー。旧デバッグURLを通常配布の入口として使わない。
 
-ホーム・街の場所／人物選択・探索先地図はIssue #80の採用済みr9へ接続する。通常ホームの仲間は既存の全加入者装備画面を開く暫定入口で、新仲間一覧／詳細ではない。アイテム一覧は別タスクで、入口の見た目だけを保持する。出かける時に任意の持込み・装備・編成を行える。保存・タイトルはメニューへまとめる。タイトル絵は対象外。共通アート方向は #78、絵付きホーム／街は #80、モーションは #84、装備の実操作は #83 に分ける。色変更や既存絵の仮配置を完成品質として扱わない。
+ホーム・街・探索先地図の構成と表示条件は[画面仕様](docs/ui-screen-design.md#現行画面への入口)を参照する。通常ホームの「仲間」は全加入者の装備画面を開き、「アイテム」は表示のみの入口である。「出かける」から任意の持込み・装備・編成を行える。保存・タイトル復帰はメニューから選ぶ。
 
 ### 接続済み機能と残る範囲
 
 通常プレイでは街・探索の試用XP、複数レベル分の必須3択、パッシブ強化、次戦への成長投影、帰還時の全員の育成初期化を接続している。追加発症と連続症状も戦闘・街回復・保存へ接続し、ゲージ下のアイコンを開くと効果と回復回数を確認できる。詳細画面は内部数値も表示する。係数・上限・回復量は調整可能な試用値で、最終バランスではない。
 
-探索分岐では「分岐で回復」から使用者・習得済み回復技・生存味方を選べる。取消では何も消費せず、有効使用でも日数やノードは進めない。全体の最終受入は未完了。進捗は[Issue #20](https://github.com/karin0624/endfield_rpg/issues/20)で追跡する。SP、恒久育成、終了日・エンディング、コンテンツ量産も対象外。ショップ・装備の現行契約は[物品仕様](specs/items.md)を参照する。加入イベントと生活半日の長さは試作用の定義である。
+探索分岐では「分岐で回復」から使用者・習得済み回復技・生存味方を選べる。取消では何も消費せず、有効使用でも日数やノードは進めない。SP、恒久育成、終了日・エンディング、コンテンツ量産も対象外。ショップ・装備の現行契約は[物品仕様](specs/items.md)を参照する。加入イベントと生活半日の長さは試作用の定義である。
 
 戦闘の敵札・選択マーカーは、画面サイズと札自身の折返しによる寸法変更に追従する。画面上の投影位置と札の実寸を使って配置する。
 

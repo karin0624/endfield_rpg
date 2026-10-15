@@ -45,4 +45,4 @@
 
 集約入口は `src/game/loadSymptoms.ts` の `validateLoadSymptomRules` を呼ぶ。このAPIが `validateLoadSymptomDefinition` にも委譲するため、症状の検証を複製しない。候補を全状態異常から自動生成せず、精神疲労自身や戦闘不能の混入を拒否する。現在の保存形式はv5のみで、旧形式の変換は行わない。症状値と精神疲労は丸めず保存し、読込では回復しない。
 
-残る全通し受入は [Issue 21](https://github.com/karin0624/endfield_rpg/issues/21)／[Issue 46](https://github.com/karin0624/endfield_rpg/issues/46)、ユーザー試遊はIssue 19で追跡する。定義検証・個別境界テストの成功を全通し受入の完了と取り違えない。
+定義検証・個別境界テスト・公開操作の結合検証・ユーザー試遊は、それぞれの対象と確認結果を分ける。個別の成功を全通し受入の完了へ広げない。開発の受入条件と進捗は[ロードマップ](https://github.com/karin0624/endfield_rpg/issues/1)を参照する。

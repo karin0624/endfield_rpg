@@ -4,12 +4,12 @@
 
 ## 対象画像
 
-| 状態 | ファイル | bytes | SHA-256 |
-| --- | --- | --- | --- |
-| 通常の出発準備 | [departure-hp-v1.webp](departure-hp-v1.webp) | 1450144 | `8fc37db3871cbc8747bfce9bdf455f7f0ca191d46b2fb74a7bce2f0350924ee8` |
-| 通常の仲間選択 | [selection-quick-v2.webp](selection-quick-v2.webp) | 1208124 | `8c40208b8b27474a0ed8efc1e5486892ab3f6dddc2d6d08721d7289f6700cc8d` |
-| 全員HP0・出発不可 | [departure-all-zero-disabled-v1.webp](departure-all-zero-disabled-v1.webp) | 1421036 | `ac40f823986d70f45b3cc3d95b0f8811ee8355d5ff57cd0c228203436c95f97e` |
-| 症状ありの仲間選択 | [selection-fatigue-daze-v1.webp](selection-fatigue-daze-v1.webp) | 1201178 | `5169feced381d7d4881143b8fe84d0f5b21597a2602e439ee8793e8b4f9ae038` |
+| 状態 | ファイル |
+| --- | --- |
+| 通常の出発準備 | [departure-hp-v1.webp](departure-hp-v1.webp) |
+| 通常の仲間選択 | [selection-quick-v2.webp](selection-quick-v2.webp) |
+| 全員HP0・出発不可 | [departure-all-zero-disabled-v1.webp](departure-all-zero-disabled-v1.webp) |
+| 症状ありの仲間選択 | [selection-fatigue-daze-v1.webp](selection-fatigue-daze-v1.webp) |
 
 画像の右上の資料注記は実行UIの要素ではない。参照画像の追加・維持を製品実装や一致検証の成功と扱わない。ゲームの文字・HP・状態・操作は実データとHTML/CSSで描く。既存の[コンセプト資料](../README.md)と原出力は保持する。
 

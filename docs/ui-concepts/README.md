@@ -6,9 +6,9 @@
 
 以下はリポジトリ内の実ファイルの情報。元画像や採用元の管理情報は、対象課題のアクセス可能な資料で扱う。原素材と既存画像を上書きしない。
 
-| 資料 | 寸法 | SHA-256 |
-| --- | --- | --- |
-| [出発準備の構図資料](endfield-departure-preparation-refined-concept.webp) | 1672×941 | `2703a1d36ac9af8176e274b66d7acc6b5457f626931b4f6e3c7ab09061ad69f9` |
-| [仲間選択の構図資料](endfield-character-selection-concept.webp) | 1672×941 | `77933965e398f02f6c611a81d93a2faa42d9a851092b6435df7182e568586845` |
+| 資料 | 寸法 |
+| --- | --- |
+| [出発準備の構図資料](endfield-departure-preparation-refined-concept.webp) | 1672×941 |
+| [仲間選択の構図資料](endfield-character-selection-concept.webp) | 1672×941 |
 
 背景等の実行用素材は[素材メモ](../../art-src/README.md)、新しい素材制作・実装・保存は[制作手順](../ui-asset-production.md)を参照する。構図資料、素材単品、製品screenshot、対象デザインへの本人判断を相互に代用しない。

@@ -2,17 +2,11 @@
 
 プレイヤーが状況を理解し、行動とその結果を予測できるUIを作るための共通規則を定める。ゲームの規則は[仕様概要](../specs/overview.md)、画面への割当は[画面設計](ui-screen-design.md)、制作と検証の責務は[制作手順](ui-asset-production.md)を参照する。
 
-## 参考体系と本作への適用
-
-[デジタル庁のローカルDS](https://design.digital.go.jp/dads/guidance/local-design-system/)が示す導入先の原則・基盤・部品の関係を参考に、本作の目的に必要な規則を選ぶ。初期tokenやフォルダ構成を完成形として移植しない。情報構造と言葉は[SmartHRの情報設計](https://smarthr.design/products/information-architecture/)・[ライティング](https://smarthr.design/products/contents/)を参考に、画面を描く前に分類・命名・関係と操作結果を整理する。人事業務の用語やフローをゲームへ移さない。
-
-[Material 3のtoken](https://m3.material.io/foundations/design-tokens/overview)・[states](https://m3.material.io/foundations/interaction/states/overview)・[Button guidelines](https://m3.material.io/components/buttons/guidelines)は、役割、状態の組合せ、強調と構成の根拠として参照する。Material Webの実装APIとは区別する。Fluent・Carbon・Atlassianは下記の該当項目で補完し、各体系の値やブランド意匠を本作の絶対規則にしない。
-
 ## 設計原則
 
 ### 判断に必要な情報から始める
 
-画面に置く情報は0個から考える。各要素について「これが無ければ、どの理解・判断・操作が成立しないか」を説明できるものだけを採る。既存画面、参考作品、空いた領域は、要素を追加する理由にならない。常設する必要がなければ、必要になる場面で示す。機能へ到達する必要性と、その入口をここへ常設する必要性を分ける。旧UIを維持してメニューへ隠すだけで済ませず、行為が必要になる場面そのものを検討する。
+画面に置く情報は0個から考える。各要素について「これが無ければ、どの理解・判断・操作が成立しないか」を説明できるものだけを採る。既存画面や空いた領域は、要素を追加する理由にならない。常設する必要がなければ、必要になる場面で示す。機能へ到達する必要性と、その入口をここへ常設する必要性を分ける。旧UIを維持してメニューへ隠すだけで済ませず、行為が必要になる場面そのものを検討する。
 
 文字を置かずに意味が伝わる構造を先に検討し、識別名・数値・操作名・制約・結果など文字が必要な情報を加える。語句ごとに必要性を確かめ、同じ意味の言い直し、管理用番号、制作状況の説明をプレイヤーの画面へ持ち込まない。必要な可視情報と支援技術向けの名前・説明はそれぞれ保持する。文言は内部の画面名ではなくプレイヤーの行為と結果を表す。移動・履歴を戻る・閉じる・実行を名称だけで分類しない。文字の削減を、必要な図案や視覚階層の喪失に置き換えない。
 
@@ -38,7 +32,7 @@
 
 基盤は利用する値の体系、意味トークンはその値を使う役割、部品契約はそれらの組合せと振る舞いを表す。背景・書体・表示縮尺が変われば見え方を再確認する。新しい役割は必要性から定義し、使い道のないサイズ段階やvariantを追加しない。
 
-[Fluentのglobal／alias tokens](https://fluent2.microsoft.design/design-tokens)と[Material Webのreference／system／component tokens](https://github.com/material-components/material-web/blob/main/docs/theming/README.md)を参考に、値と用途を分ける。本作では既存の意味トークンと部品仕様を使い、層数を増やすためのtokenを追加しない。値の所在は[適用一覧](ui-adoption.md)を参照する。
+値と用途を分けることで、同じ意味の色・文字・状態をまとめて調整できるようにする。部品固有の値は、その部品の構成や表示条件へ閉じる。既存の意味トークンと部品仕様で表せる役割に別名を増やさず、変更が必要な範囲に応じて共通値と個別値を選ぶ。値の所在は[適用一覧](ui-adoption.md)を参照する。
 
 | 意味 | 現在の通常UIトークン | 使用条件 |
 | --- | --- | --- |
@@ -54,7 +48,7 @@
 
 ### 文字
 
-本文、操作ラベル、主要数値、見出し、補助情報を区別し、書体・太さ・サイズ・行高・字間を一組で定義する。ブラウザの通常の16 CSS pxは比較の出発点であり、全ゲームの唯一の正解ではない。[MDNのfont-size](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/font-size)と[デジタル庁のタイポグラフィ](https://design.digital.go.jp/dads/foundations/typography/)を参照する。
+本文、操作ラベル、主要数値、見出し、補助情報を区別し、書体・太さ・サイズ・行高・字間を一組で定義する。戦闘中に読むHPや対象名、行為を選ぶラベル、落ち着いて読む説明では、読む速さと密度の条件が異なる。背景と実書体を含む画面で必要な情報が読め、優先順位が分かるようにする。
 
 既存通常UIの対応は次のとおり。値の正本は[ui.css](../src/web/ui.css)。換算値はroot 16px時。
 
@@ -70,7 +64,7 @@
 
 ### 寸法・余白・整列
 
-部品内、同じ群の部品間、群同士、画面端の余白を役割で分ける。[Fluent layout](https://fluent2.microsoft.design/layout)と[Atlassian spacing](https://atlassian.design/foundations/spacing)の近接・階層・光学調整を参考にする。それぞれの4px／8px体系を本作の全寸法へ移植しない。
+部品内、同じ群の部品間、群同士、画面端の余白を役割で分ける。同じ判断に使う情報がまとまりとして見え、別の操作や背景の対象から分離して読める距離を選ぶ。密度を下げるための空白と、関係を伝える空白を区別し、画面全体で釣合いを確認する。
 
 padding・gap・margin・border、文字のline boxと字面、図案boxと可視図案・透明域、操作領域とfocus外周を区別する。入れ子の余白と枠線の内包を確かめ、可視要素間の距離を判断する。layout boxの間隔だけでは見た目の余白を確定できない。上下・左右に加え、曲線の枠と不規則な図案では斜めの突起を含む全周、最狭部、偏りも見る。
 
@@ -88,21 +82,21 @@ padding・gap・margin・border、文字のline boxと字面、図案boxと可�
 
 図案box、可視の占有面積、外枠、ラベル込み部品、操作領域を別々に定義する。透明余白や原画像の解像度は表示推奨サイズではない。共通サイズは入力方式、実表示、ラベル、識別性から選び、光学的な釣合いを実画像で比較する。alpha面積の一致だけで均一と判定しない。
 
-[Carbonのicons指針](https://www.carbondesignsystem.com/building-blocks/foundations/icons/guidelines)は図案・文字・操作領域の区別の参考とする。IBM Plex向け比率、単色規則、具体的なpx値は本作のイラストへ転写しない。単純な記号と複雑なイラストは、細部の識別に必要な大きさと部品全体の占有面積を比べる。原図案を使う対象では輪郭・形状・顔や特徴を保ち、許可された表示範囲や加工を画面仕様で定める。原本を保存しつつ配置用cropを使い、不要な透明域を守るために図案を過小化しない。
+図案の形とラベルの双方から対象が分かり、隣接する入口と見分けられる大きさを選ぶ。単純な記号と複雑なイラストは、細部の識別に必要な大きさと部品全体の占有面積を比べる。原図案を使う対象では輪郭・形状・顔や特徴を保ち、許可された表示範囲や加工を画面仕様で定める。原本を保存しつつ配置用cropを使い、不要な透明域を守るために図案を過小化しない。
 
 ### 色・コントラスト・動き
 
 選択、focus、操作不可、危険を色だけに依存させない。必要な文字、輪郭、内部線、状態表示について、実際の隣接色と合成後の下地で確認する。画像・半透明の上では場所と状態によって下地が変わる。情報を絞った後で注目先にアクセントを使い、色・大きさ・明暗・配置が同じ優先順位を示すようにする。重要な受動情報を文字だけへ落とさず、背景の明度・彩度・細かな明暗差との競合も確認する。背景を暗くすること自体を目的にしない。
 
-通常文字は4.5:1、大きな文字は適用条件を満たす場合3:1、識別に必要な非テキストは3:1を設計基準とする。装飾や非活性部品へ同じ閾値を機械適用しない。適用範囲はW3Cの[文字コントラスト](https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html)と[非テキストコントラスト](https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast.html)を参照する。数値や自動検査だけでWCAG全体への適合を宣言しない。
+通常文字は4.5:1、大きな文字は適用条件を満たす場合3:1、識別に必要な非テキストは3:1を設計基準とする。装飾や非活性部品へ同じ閾値を機械適用しない。文字の大きさ・太さ、状態、情報として識別が必要かを区別して適用する。数値や自動検査だけでWCAG全体への適合を宣言しない。
 
-動きは対象・結果の理解を補助する。動かない状態でも意味を識別できるようにし、[動きを減らす設定](https://www.w3.org/WAI/WCAG22/Techniques/css/C39)に対応する。演出時刻からゲームの確定処理を再実行しない。戦闘・会話のマーカーの使用条件は[戦闘画面](../specs/visuals.md)と[会話](../specs/adventure.md)に置く。
+動きは対象・結果の理解を補助する。動かない状態でも意味を識別できるようにし、動きを減らす設定に対応する。演出時刻からゲームの確定処理を再実行しない。戦闘・会話のマーカーの使用条件は[戦闘画面](../specs/visuals.md)と[会話](../specs/adventure.md)に置く。
 
 ### 入力とアクセシビリティ
 
 マウス・タッチ・キーボードで同じ意味の操作へ到達できるようにする。可視図案と操作領域を分け、focusの外周、ラベル、状態・理由の読取りを保つ。読む順とTab順を構造に対応付け、通常画面に不要なfocus閉込めを作らない。dialogでは初期focus、背面抑止、Tab範囲、終了後の復元を定める。
 
-[SmartHRの品質基準](https://smarthr.design/accessibility/standards-and-process/)を参考に、色・文字だけでなく入力・状態・通知を横断して確認する。本書の各基盤、下記の部品契約、対象画面の表示条件から具体的な確認へ辿れるようにする。適合を主張する場合は、その対象・基準・実際の検証を示す。
+操作を見つけ、現在の入力先を知り、結果を受け取れることを、色・文字・入力・状態・通知を通して確認する。本書の各基盤、下記の部品契約、対象画面の表示条件から具体的な確認へ辿れるようにする。適合を主張する場合は、その対象・基準・実際の検証を示す。
 
 ## 部品の契約
 
@@ -120,9 +114,9 @@ familyは役割と振る舞い、variantは同じfamily内の必要な使い分�
 | Dialog | 背面操作を止め、一つの判断に集中させる | 選択、確認、処理待機を区別 | 読む順、初期focus、Tab範囲、取消、終了後の復元、失敗時の保持を定義 |
 | Feedback | 操作の結果・失敗を必要な時点で知らせる | 受動通知と、読取り・scrollが必要な領域を区別 | 読める期間と到達性を確保。通知のために現在の入力先を奪わない |
 
-Buttonの強調・種類・無効時の契約は[Material Web Button](https://github.com/material-components/material-web/blob/main/docs/components/button.md)、行為・名前・状態の区別は[Fluent Button](https://fluent2.microsoft.design/components/web/react/core/button/usage)を参考にする。企業アプリの配置順、主操作の数、英語のラベル規則を全ゲーム画面へ強制しない。絵付き部品は本作の契約であり、一般DSのButton寸法から導いたものではない。
+操作の強調は、その場面で進める判断と結果に対応させる。主操作と補助操作の差、同格の選択肢の関係、実行できない理由が、周囲を含む配置と状態から分かるようにする。図案が主体の入口でもラベルと入力先を保ち、受動情報を押せる部品に見せない。
 
-部品ごとに目的・使用条件・不適な用途、必須／任意の構成要素、内容制約、variantと組合せ、状態、入力・focus、伸縮・欠損時の扱いを定義する。具体的な実装との対応は[適用一覧](ui-adoption.md)、拠点の契約は[部品仕様](ui-screens/hub-components.md)、編成の選択・詳細は[編成仕様](../specs/party.md)を参照する。未定義の部品を名称だけで適用済みにしない。ラベルの折返し等は体系間でも条件が異なるため、一般DSの標準という理由で全Buttonを単一行へ固定しない。対象の長い日本語、文字拡大、可変幅で採用済みの契約を確かめる。
+部品ごとに目的・使用条件・不適な用途、必須／任意の構成要素、内容制約、variantと組合せ、状態、入力・focus、伸縮・欠損時の扱いを定義する。具体的な実装との対応は[適用一覧](ui-adoption.md)、拠点の契約は[部品仕様](ui-screens/hub-components.md)、編成の選択・詳細は[編成仕様](../specs/party.md)を参照する。未定義の部品を名称だけで適用済みにしない。ラベルは行為と対象を読めることを条件に、部品の役割に合わせて折返しと伸縮を定める。対象の長い日本語、文字拡大、可変幅で、ラベルの欠落や隣接操作との混同がないかを確かめる。
 
 ### 状態の組合せ
 
@@ -132,7 +126,7 @@ hoverはポインター位置、pressedは押下中、selectedは選択内容、
 
 ## 複合パターン
 
-[Carbon Patterns](https://www.carbondesignsystem.com/building-blocks/core/patterns/overview)の、目的を満たす部品・flowの組合せという考え方を参考にする。必要なパターンだけを扱う。
+複数の部品を組み合わせる際は、判断の順序、状態の保持、入力先と復帰先までを一つの関係として設計する。同じ判断の流れを画面ごとに作り直さず、必要なパターンを共有する。
 
 | pattern | 組み立てる関係 |
 | --- | --- |
@@ -147,6 +141,24 @@ layout・状態・値は画面仕様で決める。固定位置や画像寸法�
 
 ## 画面への適用と更新
 
-全要素を目的・必要情報・family／variant・トークン・stateへ対応付け、差の理由を[設計票](ui-screen-design.md#画面ごとに決めること)へ記す。共通規則を各画面へ複製しない。新しい共通規則が必要なら、画面の固有値を除いて本書を更新する。
+全要素を目的・必要情報・family／variant・トークン・stateへ対応付け、差の理由を[設計票](ui-screen-design.md#画面ごとに決めること)へ記す。共通規則を各画面へ複製しない。
+
+規則の見直しは、本作の実画面で起きる読みにくさ、識別の難しさ、余白や階層の不釣合いから始める。対象場面と改善の仮説を定め、該当する部品・状態・全体画像と、影響する別画面で比較する。比較前の案と確認済みの結果を区別し、利点と弊害を見て、共通規則を変えるか画面固有の条件を定めるか判断する。新しい共通規則は複数の用途に成立する意味と条件で記し、一画面の寸法を普遍値にしない。
+
+見た目と操作の目的を満たすことを改訂の判断軸とする。参考資料の更新そのものを、本作の規則や採用済みデザインを変更する理由にしない。意匠に影響する変更は本人のデザイン判断へ戻す。
 
 共通ルールの検討、Figmaでの具体的な設計、製品への適用を区別する。文書・トークン・テストの存在だけで実際の見た目を合格にしない。視覚レビューとFigmaからの一致検証は[制作手順](ui-asset-production.md)に従う。
+
+## 参考文献
+
+設計を検討するための公開資料。本文の規則と具体値の正本は本作の文書・デザイン・実装に置き、参考文献の変更に追従する運用にはしない。
+
+- デジタル庁：[ローカルデザインシステム](https://design.digital.go.jp/dads/guidance/local-design-system/)、[タイポグラフィ](https://design.digital.go.jp/dads/foundations/typography/)
+- SmartHR：[情報設計](https://smarthr.design/products/information-architecture/)、[ライティング](https://smarthr.design/products/contents/)、[アクセシビリティの品質基準](https://smarthr.design/accessibility/standards-and-process/)
+- Material 3：[Design tokens](https://m3.material.io/foundations/design-tokens/overview)、[States](https://m3.material.io/foundations/interaction/states/overview)、[Button guidelines](https://m3.material.io/components/buttons/guidelines)
+- Material Web：[Theming](https://github.com/material-components/material-web/blob/main/docs/theming/README.md)、[Button](https://github.com/material-components/material-web/blob/main/docs/components/button.md)
+- Fluent 2：[Design tokens](https://fluent2.microsoft.design/design-tokens)、[Layout](https://fluent2.microsoft.design/layout)、[Button](https://fluent2.microsoft.design/components/web/react/core/button/usage)
+- Carbon：[Icons](https://www.carbondesignsystem.com/building-blocks/foundations/icons/guidelines)、[Patterns](https://www.carbondesignsystem.com/building-blocks/core/patterns/overview)
+- Atlassian：[Spacing](https://atlassian.design/foundations/spacing)
+- MDN：[font-size](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/font-size)
+- W3C WCAG 2.2：[文字コントラスト](https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html)、[非テキストコントラスト](https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast.html)、[動きを減らす設定](https://www.w3.org/WAI/WCAG22/Techniques/css/C39)
