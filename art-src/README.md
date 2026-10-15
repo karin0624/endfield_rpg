@@ -39,3 +39,7 @@
 Noto Serif JP（weight 500・700）とNoto Sans JP（weight 400）を`public/assets/fonts/`に同梱する。Google Fontsの[Serif JP](https://github.com/google/fonts/tree/main/ofl/notoserifjp)・[Sans JP](https://github.com/google/fonts/tree/main/ofl/notosansjp)の可変TrueType原本をFontToolsで指定weightへ固定し、WOFF2へ可逆圧縮した。グリフを削る部分集合化は行っていない。各原本のSIL Open Font License 1.1を同じディレクトリへ同梱する。CSSでは既存画面に影響しない`Endfield UI Serif` / `Endfield UI Sans`の名前で参照する。
 
 編成用の`public/assets/ui/*.svg`は承認画像の罫線・角・材質をHTML部品の背景として再現するためのベクター部品。文字・数値・人物を含まず、完成画面を背景へ貼っていない。生成画像の元レイヤーは未提供であり、元画像との材質一致は未解消。
+
+## Issue #80の採用r9素材
+
+`public/assets/ui/hubs/`の17 PNGは同じSpace Page sequence 177で採用した背景・図案・frame・日付・Gilberta portraitの実行用コピー。採用前の原素材はSpaceの正式referenceと固定索引に保持し、bytes・寸法を変えずコピーした。参考Steamの画像・動画や個人識別を含むUI参考スクリーンショットは配布しない。日付は原画像をSVG clipPathで表示し、数字はHTML。人物だけは原portraitの顔用途楕円viewportを使う。素材の固定SHA・出典は[画面spec](../docs/ui-screens/home.md)と[採用Page](https://chatgpt.com/space/page_a11aa676ca3c8191872d45809e2c15fa)の固定索引を参照する。本人の実装承認元はSlack message1792002525.703739。外部の利用条件は追加で提示されていない。

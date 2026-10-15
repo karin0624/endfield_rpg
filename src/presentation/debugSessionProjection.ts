@@ -16,6 +16,7 @@ export function projectDebugSession(state: DebugSessionModel, enemyDepths: Battl
         ? { kind: "growth-candidate", skillId: state.growthFocus.skillId }
         : null;
   const base = {
+    hub: undefined,
     title: "",
     copy: [],
     commands: [],

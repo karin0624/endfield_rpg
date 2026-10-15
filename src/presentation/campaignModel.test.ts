@@ -673,7 +673,12 @@ describe("本編の現在画面とゲーム状態", () => {
         handled: false,
         state,
       });
-      if (state.value !== "confirm" && state.value !== "destinations")
+      if (state.value === "equipment")
+        expect(reduceCampaign(state, { type: "escape" }).state).toMatchObject({
+          value: "home",
+          context: { game: before, focus: { kind: "command", command: "equipment" } },
+        });
+      else if (state.value !== "confirm" && state.value !== "destinations")
         expect(reduceCampaign(state, { type: "escape" })).toMatchObject({ handled: false, state });
       expect(state.context.game).toEqual(before);
     }

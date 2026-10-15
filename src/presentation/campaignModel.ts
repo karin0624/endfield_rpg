@@ -75,6 +75,9 @@ export type CampaignFocus =
   | { readonly kind: "growth-heading" }
   | { readonly kind: "growth-candidate"; readonly skillId: string };
 export interface CampaignContext {
+  readonly hubPanel: "normal" | "preparation" | "menu" | "title-options";
+  readonly hubReturn: "normal" | "preparation";
+  readonly confirmOrigin: "home" | "town";
   readonly game: ExpeditionGame;
   readonly confirmation: Confirmation;
   readonly returnToTitle: boolean;
@@ -87,6 +90,10 @@ export interface CampaignContext {
   readonly expedition: DungeonModel | null;
 }
 export type CampaignCommand =
+  | "prepare"
+  | "menu"
+  | "close-panel"
+  | "title-options"
   | "new-game"
   | "load"
   | "home"
@@ -138,6 +145,9 @@ export interface CampaignTransition extends CampaignOutput {
 }
 function initialContext(): CampaignContext {
   return {
+    hubPanel: "normal",
+    hubReturn: "normal",
+    confirmOrigin: "home",
     game: createCampaignGame(),
     confirmation: "new-game",
     returnToTitle: false,
@@ -224,7 +234,7 @@ function prepareParty(state: CampaignContext, context: "edit" | "departure"): Ca
   );
   return { party, context };
 }
-const heading = { message: "", focus: { kind: "heading" as const } };
+const heading = { message: "", hubPanel: "normal" as const, focus: { kind: "heading" as const } };
 type MachineEvent =
   | Exclude<CampaignEvent, { type: "command" | "dungeon" }>
   | { [C in CampaignCommand]: { readonly type: `command.${C}` } }[CampaignCommand]
@@ -264,7 +274,12 @@ const cancel = [
     target: "title",
     actions: enterHeading,
   },
-  { target: "home", actions: enterHeading },
+  {
+    guard: ({ context }: { context: CampaignContext }) => context.confirmOrigin === "town",
+    target: "town",
+    actions: flow.assign({ ...heading, focus: { kind: "command", command: "menu" } }),
+  },
+  { target: "home", actions: flow.assign({ ...heading, focus: { kind: "command", command: "menu" } }) },
 ];
 export const campaignMachine = flow.createMachine({
   id: "campaign",
@@ -358,6 +373,7 @@ export const campaignMachine = flow.createMachine({
             actions: assign(({ event }) => ({
               ...heading,
               message: event.saved ? "保存しました。" : "保存できませんでした。ブラウザの保存領域を確認してください。",
+              focus: { kind: "command", command: "menu" },
             })),
           },
         ],
@@ -400,37 +416,101 @@ export const campaignMachine = flow.createMachine({
     },
     home: {
       on: {
+        "command.prepare": {
+          actions: assign(({ context }) => ({
+            hubPanel: "preparation" as const,
+            focus: carryValid(context)
+              ? { kind: "command" as const, command: "destinations" }
+              : { kind: "carry" as const },
+          })),
+        },
+        "command.menu": { actions: assign({ hubPanel: "menu", focus: { kind: "command", command: "save" } }) },
+        "command.title-options": {
+          actions: assign({ hubPanel: "title-options", focus: { kind: "command", command: "close-panel" } }),
+        },
+        "command.close-panel": {
+          actions: assign(({ context }) => ({
+            hubPanel: "normal" as const,
+            focus: { kind: "command" as const, command: context.hubPanel === "preparation" ? "prepare" : "menu" },
+          })),
+        },
+        escape: {
+          guard: ({ context }) => context.hubPanel !== "normal",
+          actions: assign(({ context }) => ({
+            hubPanel: "normal" as const,
+            focus: { kind: "command" as const, command: context.hubPanel === "preparation" ? "prepare" : "menu" },
+          })),
+        },
         "carry-changed": { actions: assign(({ event }) => ({ carryQuantity: event.quantity })) },
         "command.destinations": [
           { guard: ({ context }) => carryValid(context), target: "destinations", actions: enterHeading },
-          { actions: { type: "output", params: { handled: true, effects: [{ type: "report-carry-validity" }] } } },
+          {
+            actions: { type: "output", params: { handled: true, effects: [{ type: "report-carry-validity" }] } },
+          },
         ],
-        "command.equipment": { target: "equipment", actions: enterHeading },
+        "command.equipment": {
+          target: "equipment",
+          actions: assign(({ context }) => ({
+            ...heading,
+            hubReturn: context.hubPanel === "preparation" ? ("preparation" as const) : ("normal" as const),
+          })),
+        },
         "command.edit-party": {
           target: "party",
-          actions: assign(({ context }) => ({ ...heading, party: prepareParty(context, "edit"), focus: null })),
+          actions: assign(({ context }) => ({
+            ...heading,
+            hubReturn: context.hubPanel === "preparation" ? ("preparation" as const) : ("normal" as const),
+            party: prepareParty(context, "edit"),
+            focus: null,
+          })),
         },
         "command.save": {
           target: "confirm",
-          actions: assign({ ...heading, confirmation: "save", focus: { kind: "command", command: "cancel" } }),
+          actions: assign({
+            ...heading,
+            confirmOrigin: "home",
+            confirmation: "save",
+            focus: { kind: "command", command: "cancel" },
+          }),
         },
         "command.save-title": {
           target: "confirm",
           actions: assign({
             ...heading,
             confirmation: "save-title",
+            confirmOrigin: "home",
             focus: { kind: "command", command: "cancel" },
           }),
         },
         "command.title": {
           target: "confirm",
-          actions: assign({ ...heading, confirmation: "title", focus: { kind: "command", command: "cancel" } }),
+          actions: assign({
+            ...heading,
+            confirmOrigin: "home",
+            confirmation: "title",
+            focus: { kind: "command", command: "cancel" },
+          }),
         },
       },
     },
     equipment: {
       on: {
-        "command.home": { target: "home", actions: enterHeading },
+        "command.home": {
+          target: "home",
+          actions: assign(({ context }) => ({
+            ...heading,
+            hubPanel: context.hubReturn,
+            focus: { kind: "command" as const, command: "equipment" },
+          })),
+        },
+        escape: {
+          target: "home",
+          actions: assign(({ context }) => ({
+            ...heading,
+            hubPanel: context.hubReturn,
+            focus: { kind: "command" as const, command: "equipment" },
+          })),
+        },
         equip: {
           actions: assign(({ context, event }) => {
             const changed = editHomeEquipment(
@@ -453,8 +533,11 @@ export const campaignMachine = flow.createMachine({
     },
     destinations: {
       on: {
-        "command.home": { target: "home", actions: enterHeading },
-        escape: { target: "home", actions: enterHeading },
+        "command.home": {
+          target: "home",
+          actions: assign({ ...heading, focus: { kind: "command", command: "prepare" } }),
+        },
+        escape: { target: "home", actions: assign({ ...heading, focus: { kind: "command", command: "prepare" } }) },
         "command.town": [
           { guard: ({ context }) => hasPendingGrowth(context.game), target: "growth", actions: enterGrowth },
           { target: "town", actions: enterTown },
@@ -496,7 +579,11 @@ export const campaignMachine = flow.createMachine({
         },
         "party-home": {
           target: "home",
-          actions: assign({ ...heading, focus: { kind: "command", command: "edit-party" } }),
+          actions: assign(({ context }) => ({
+            ...heading,
+            hubPanel: context.hubReturn,
+            focus: { kind: "command" as const, command: "edit-party" },
+          })),
         },
         "party-destinations": {
           target: "destinations",
@@ -516,10 +603,40 @@ export const campaignMachine = flow.createMachine({
     },
     town: {
       on: {
+        "command.menu": {
+          guard: ({ context }) => context.game.adventure.mode === "town",
+          actions: assign({ hubPanel: "menu", focus: { kind: "command", command: "title-options" } }),
+        },
+        "command.title-options": {
+          guard: ({ context }) => context.game.adventure.mode === "town",
+          actions: assign({ hubPanel: "title-options", focus: { kind: "command", command: "close-panel" } }),
+        },
+        "command.close-panel": { actions: assign({ ...heading, focus: { kind: "command", command: "menu" } }) },
+        escape: [
+          {
+            guard: ({ context }) => context.hubPanel !== "normal",
+            actions: assign({ ...heading, focus: { kind: "command", command: "menu" } }),
+          },
+          {
+            guard: ({ context }) => context.game.adventure.mode === "town",
+            target: "home",
+            actions: assign({ ...heading, focus: { kind: "command", command: "prepare" } }),
+          },
+        ],
+        "command.title": {
+          guard: ({ context }) => context.game.adventure.mode === "town",
+          target: "confirm",
+          actions: assign({
+            ...heading,
+            confirmOrigin: "town",
+            confirmation: "title",
+            focus: { kind: "command", command: "cancel" },
+          }),
+        },
         "command.home": {
           guard: ({ context }) => context.game.adventure.mode === "town",
           target: "home",
-          actions: enterHeading,
+          actions: assign({ ...heading, focus: { kind: "command", command: "prepare" } }),
         },
         town: {
           actions: enqueueActions(({ context, event, enqueue }) => {
@@ -539,7 +656,10 @@ export const campaignMachine = flow.createMachine({
             else if (changed.action?.accepted && hasPendingGrowth(changed.game)) enqueue.raise({ type: "town-growth" });
           }),
         },
-        "town-home": { target: "home", actions: enterHeading },
+        "town-home": {
+          target: "home",
+          actions: assign({ ...heading, focus: { kind: "command", command: "prepare" } }),
+        },
         "town-growth": { target: "growth", actions: enterGrowth },
       },
     },
@@ -617,7 +737,10 @@ export const campaignMachine = flow.createMachine({
             });
           }),
         },
-        "expedition-returned": { target: "home", actions: enterHeading },
+        "expedition-returned": {
+          target: "home",
+          actions: assign({ ...heading, focus: { kind: "command", command: "prepare" } }),
+        },
       },
     },
     disposed: { on: { focused: {} } },
