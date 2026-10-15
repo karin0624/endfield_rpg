@@ -31,6 +31,6 @@
 [制作手順](https://github.com/karin0624/endfield_rpg/blob/main/docs/ui-asset-production.md)を正本とし、[共通DS](https://github.com/karin0624/endfield_rpg/blob/main/docs/design-guidelines.md)と[対象画面仕様](https://github.com/karin0624/endfield_rpg/blob/main/docs/ui-screen-design.md#現行画面への入口)へ対応付ける。
 
 - [ ] 今回の対象・操作・変更範囲と保持条件、適用工程・対象外の理由が分かる。
-- [ ] 設計・素材制作がある場合、全パーツ割当、一般DSの適用根拠、原画像の実入力、変更と保持の指示、独立した実画像比較を確認した。
+- [ ] 設計・素材制作がある場合、全パーツ割当、一般DSの適用根拠、本人の制作・変更指示と保持条件、独立した実画像確認を対応付けた。参照画像付き制作・編集は原画像を実入力し、参照なしの新規制作には原画像を必須化していない。
 - [ ] UI実装がある場合、本人の固定版Figma・画像と実装指示、同条件の実画面・raw diff・overlay・残差を確認した。未承認の意匠変更を混ぜていない。
 - [ ] 視覚品質、一致検証、操作・状態保証、VRT、本人判断をそれぞれ確認し、未確認点を明記した。成功を相互に代用していない。
