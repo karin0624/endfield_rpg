@@ -16,4 +16,4 @@
 
 ## 結果
 
-現在の規則は[共通DS](../design-guidelines.md)、[画面設計](../ui-screen-design.md)、[制作手順](../ui-asset-production.md)へ置く。会話・採用経緯・進捗は本文へ累積せず、参照は[文書の責務](../documentation.md)に従って更新する。
+現在の規則は[共通DS](../design-guidelines.md)、[画面設計](../ui-screen-design.md)、[制作手順](../ui-asset-production.md)へ置く。会話・採用経緯・進捗は本文へ累積せず、参照は[文書規約](../../AGENTS.md#文書の更新)に従って更新する。
