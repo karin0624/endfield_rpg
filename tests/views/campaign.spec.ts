@@ -34,6 +34,7 @@ test("通常配布の初期タイトルと9つの直接状態を既存画像へ�
     );
     await readyPicture(page);
     if (state !== "title") await pointerFocusAppearance(page);
+    await page.mouse.move(0, 0);
     await expect.soft(page).toHaveScreenshot(golden(`campaign-${name}-1920.png`));
   }
   expect(errors).toEqual([]);

@@ -1,6 +1,8 @@
 import { characters } from "../content/characters";
 import { equipmentCatalog } from "../content/equipmentDefinitions";
+import { initialAdventure } from "../content/initialAdventure";
 import { recoveryItemId } from "../content/itemSettings";
+import { getAvailableTownPlaces } from "../game/adventure";
 import { grownCharacters } from "../game/growthRuntime";
 import { characterById } from "../game/party";
 import { effectiveMaxHp, healthyStatus } from "../game/status";
@@ -15,6 +17,7 @@ import {
   campaignTownInput,
 } from "./campaignModel";
 import { characterPortraitPath } from "./characterPortrait";
+import type { projectDebugSession } from "./debugSessionProjection";
 import { projectDungeon } from "./dungeonProjection";
 import { projectGrowthChoice } from "./growthProjection";
 import { projectParty } from "./partyProjection";
@@ -70,7 +73,20 @@ export function campaignFeedback(state: Pick<CampaignContext, "game" | "completi
 }
 export function projectCampaign(state: CampaignModel, enemyDepths: BattleInput["enemyDepths"] = []) {
   const context = state.context;
-  const base = { focus: context.focus, status: context.message, calendar: calendarLabel(context.game.clock) };
+  const stock = context.game.inventory?.items.home.find(({ itemId }) => itemId === recoveryItemId)?.quantity ?? 0;
+  const base = {
+    focus: context.focus,
+    status: context.message,
+    calendar: calendarLabel(context.game.clock),
+    hub: {
+      panel: context.hubPanel,
+      origin: context.confirmOrigin,
+      confirmation: context.confirmation,
+      feedback: campaignFeedback(context),
+      carry: { quantity: context.carryQuantity, stock },
+      places: getAvailableTownPlaces(context.game.adventure, initialAdventure).map(({ id, label }) => ({ id, label })),
+    },
+  };
   const mode = state.value;
   switch (mode) {
     case "title":
@@ -245,4 +261,4 @@ export function projectCampaign(state: CampaignModel, enemyDepths: BattleInput["
       return { ...base, kind: mode, title: "", copy: [], commands: commands.empty };
   }
 }
-export type CampaignFrame = ReturnType<typeof projectCampaign>;
+export type CampaignFrame = ReturnType<typeof projectCampaign> | ReturnType<typeof projectDebugSession>;

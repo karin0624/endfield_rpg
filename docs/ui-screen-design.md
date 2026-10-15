@@ -87,7 +87,7 @@ focus順と復帰先は現状の[本編モデル](../src/presentation/campaignMo
 
 ## Issue #80の資料と今回の境界
 
-[Issue #80](https://github.com/karin0624/endfield_rpg/issues/80)の今回の設計対象は静的ホームと街の場所選択。製品実装・背景生成、ギルドADV／会話画面はこの文書整備タスクの対象外である。
+[Issue #80](https://github.com/karin0624/endfield_rpg/issues/80)の設計対象は静的ホーム・探索先地図・街の場所／人物選択。r9採用後の製品接続は各[画面別spec](ui-screens/home.md)へ記録する。背景の再生成とADV／会話画面の意匠変更は今回の実装対象外である。
 
 | 資料／決定 | 役割と状態 |
 | --- | --- |

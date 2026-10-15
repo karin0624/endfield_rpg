@@ -5,6 +5,7 @@ import type { CampaignEvent } from "../../presentation/campaignModel";
 import type { CampaignFrame } from "../../presentation/campaignProjection";
 import savedAdventureSettings from "../adventure-settings.json";
 import Adventure from "./Adventure.svelte";
+import CampaignHub from "./CampaignHub.svelte";
 import GrowthChoice from "./GrowthChoice.svelte";
 import Party from "./Party.svelte";
 import "../campaign.css";
@@ -17,7 +18,15 @@ let focus = $derived(frame?.focus);
 let waiting = $derived(frame !== null && "waiting" in frame && frame.waiting);
 const settings = parseAdventureSettings(savedAdventureSettings);
 $effect(() => {
-  if (!focus || frame?.kind === "town" || frame?.kind === "growth") return;
+  if (
+    !focus ||
+    frame?.kind === "town" ||
+    frame?.kind === "growth" ||
+    frame?.kind === "home" ||
+    frame?.kind === "destinations" ||
+    (frame?.kind === "confirm" && frame.hub.confirmation !== "new-game")
+  )
+    return;
   const selector =
     focus.kind === "heading"
       ? ".campaign-header h1"
@@ -43,7 +52,12 @@ onMount(() => {
 });
 </script>
 {#if frame && frame.kind !== "disposed" && frame.kind !== "dungeon"}
-  {#if frame.kind === "town"}
+  {#if frame.kind === "home" ||
+  frame.kind === "destinations" ||
+  (frame.kind === "town" && frame.hub && frame.town.adventure.mode === "town") ||
+  (frame.kind === "confirm" && frame.hub.confirmation !== "new-game")}
+    <CampaignHub {root} {frame} {send} />
+  {:else if frame.kind === "town"}
     <Adventure
       {root}
       frame={frame.town.adventure}
@@ -67,11 +81,7 @@ onMount(() => {
     {/if}
   {:else}
     <main class="campaign-screen" data-campaign-screen={frame.kind}>
-      <div class="campaign-art" aria-hidden="true">
-        {#if frame.kind === "home"}
-          <img src={`${import.meta.env.BASE_URL}assets/${frame.portrait.path}`} alt="">
-        {/if}
-      </div>
+      <div class="campaign-art" aria-hidden="true"></div>
       <header class="campaign-header">
         <h1 tabindex="-1" onfocus={() => send({ type: "focused", target: { kind: "heading" } })}>{frame.title}</h1>
         <p data-calendar>{frame.calendar}</p>
@@ -85,34 +95,10 @@ onMount(() => {
           </section>
         {:else}
           <div class="campaign-copy">
-            {#if frame.kind === "home"}
-              <div data-town-recovery class="campaign-report" role="status" hidden={!frame.feedback.length}>
-                {#each frame.feedback as text}
-                  <p>{text}</p>
-                {/each}
-              </div>
-            {/if}
             {#each frame.copy as text}
               <p>{text}</p>
             {/each}
-            {#if frame.kind === "home"}
-              <label
-                >持込み個数（HP回復品）<input
-                  type="number"
-                  min="0"
-                  max={frame.carry.stock}
-                  step="1"
-                  class="item-carry-input"
-                  value={frame.carry.quantity ?? ""}
-                  oninput={(event) =>
-  send({
-    type: "carry-changed",
-    quantity: Number.isNaN(event.currentTarget.valueAsNumber) ? null : event.currentTarget.valueAsNumber,
-  })}
-                  onfocus={() => send({ type: "focused", target: { kind: "carry" } })}
-                ></label
-              >
-            {:else if frame.kind === "equipment"}
+            {#if frame.kind === "equipment"}
               {#each frame.members as member (member.id)}
                 <p>{member.summary}</p>
                 {#each member.slots as field (field.slot)}
