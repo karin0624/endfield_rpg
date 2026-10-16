@@ -4,7 +4,7 @@ import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
-import { PNG } from "pngjs";
+import { comparePNG } from "./compare-png.mjs";
 
 const [source, ...args] = process.argv.slice(2);
 const { values, positionals } = parseArgs({
@@ -16,6 +16,7 @@ const { values, positionals } = parseArgs({
     output: { type: "string" },
     compare: { type: "string" },
     lang: { type: "string", default: "ja" },
+    "verify-home": { type: "boolean", default: false },
   },
 });
 if (positionals.length !== 1 || !values.page || !values.node || !values.output) {
@@ -56,7 +57,7 @@ try {
     await mkdir(dirname(path), { recursive: true });
     await writeFile(path, asset.content);
   }
-  await writeFile(join(temporary, "job.json"), JSON.stringify({ width, height }));
+  await writeFile(join(temporary, "job.json"), JSON.stringify({ width, height, verifyHome: values["verify-home"] }));
   await new Promise((resolveRun, reject) => {
     const child = spawn(
       "docker",
@@ -95,23 +96,16 @@ try {
     ...JSON.parse(await readFile(join(temporary, "result.json"), "utf8")),
   };
   if (values.compare) {
-    const expected = PNG.sync.read(await readFile(resolve(values.compare)));
-    const actual = PNG.sync.read(await readFile(output));
-    if (actual.width !== expected.width || actual.height !== expected.height) throw new Error("PNG dimensions differ");
-    let differentPixels = 0,
-      maxChannelDifference = 0;
-    for (let index = 0; index < actual.data.length; index += 4) {
-      let different = false;
-      for (let channel = 0; channel < 4; channel++) {
-        const difference = Math.abs(actual.data[index + channel] - expected.data[index + channel]);
-        different ||= difference !== 0;
-        maxChannelDifference = Math.max(maxChannelDifference, difference);
-      }
-      differentPixels += Number(different);
-    }
-    result.comparison = { reference: resolve(values.compare), differentPixels, maxChannelDifference };
-    if (differentPixels !== 0) process.exitCode = 1;
+    result.comparison = await comparePNG(output, resolve(values.compare));
+    if (!result.comparison.identical) process.exitCode = 1;
   }
+  if (values["verify-home"]) {
+    const implementation = output.replace(/(\.png)?$/, ".implementation.png");
+    await cp(join(temporary, "implementation.png"), implementation);
+    result.homeComparison = await comparePNG(implementation, output);
+    if (!result.homeComparison.identical) process.exitCode = 1;
+  }
+  await writeFile(`${output}.json`, `${JSON.stringify(result, null, 2)}\n`);
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
 } finally {
   await rm(temporary, { recursive: true, force: true });

@@ -2,11 +2,15 @@ import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { chromium } from "@playwright/test";
+import { captureHome } from "./capture-home.mjs";
 
 const directory = process.argv[2];
-const { width, height } = JSON.parse(await readFile(join(directory, "job.json"), "utf8"));
+const { width, height, verifyHome } = JSON.parse(await readFile(join(directory, "job.json"), "utf8"));
 const browser = await chromium.launch({ headless: true, args: ["--no-sandbox", "--enable-unsafe-swiftshader"] });
 try {
+  const implementation = verifyHome
+    ? await captureHome(browser, width, height, join(directory, "implementation.png"))
+    : undefined;
   const page = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: 1, reducedMotion: "reduce" });
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
@@ -25,7 +29,10 @@ try {
   });
   if (errors.length) throw new Error(errors.join("\n"));
   await page.screenshot({ path: join(directory, "result.png"), animations: "disabled" });
-  await writeFile(join(directory, "result.json"), JSON.stringify({ browser: browser.version(), errors }));
+  await writeFile(
+    join(directory, "result.json"),
+    JSON.stringify({ browser: browser.version(), errors, implementation }),
+  );
 } finally {
   await browser.close();
 }

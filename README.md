@@ -89,24 +89,33 @@ UI変更の画像レビューには、`test:browser`で撮影した4状態を使
 
 GLBはGit LFS、現在の数MiBのPNG・文書・コードは通常のGitで管理する。CIもLFSの実体を取得する。`build`は素材のヘッダーを確認し、LFSポインタのままなら配布物を作る前にエラーにする。
 
-## OpenPencilでホームの原稿を編集する
+## OpenPencilでデザインマスターを編集する
 
-ホームのデザインマスタは[Home.fig](art-src/openpencil/Home.fig)。`Foundations`に色変数と文字スタイル、`Components`に共通の記号と拠点部品、`Screens`に画面フレームを置く。画面には部品のインスタンスを配置し、文字・色・図案・状態はそれぞれの標準プロパティから編集する。
+ゲームのデザインマスターは[endfield-rpg.fig](art-src/openpencil/endfield-rpg.fig)。一つのファイルに共通定義と複数の画面を管理する。`Foundations`に色変数と文字スタイル、`Components`に部品定義、`Screens`に各画面のフレームを置く。現在の対象画面は`Screens / Home`。画面には部品のインスタンスを配置し、文字・色・図案・状態はそれぞれの標準プロパティから編集する。
 
 `npm ci`後、次のコマンドでGUIとCLIを使える。初回はGitとネットワーク接続が必要で、固定版のOpenPencilソースと依存を`.openpencil/`へ準備する。両方に同じ保存形式の修正と実装と同一のフォントを適用する。
 
 ```sh
-npm run openpencil:app -- --host 127.0.0.1
-npm run openpencil -- info art-src/openpencil/Home.fig
-npm run openpencil -- tree art-src/openpencil/Home.fig
-npm run openpencil:render -- art-src/openpencil/Home.fig --page Screens --node Home --output test-results/home.png
+npm run openpencil
+npm run openpencil -- info art-src/openpencil/endfield-rpg.fig
+npm run openpencil -- tree art-src/openpencil/endfield-rpg.fig
+npm run openpencil:render -- art-src/openpencil/endfield-rpg.fig --page Screens --node Home --output test-results/home.png
+npm run openpencil:verify
 ```
 
-GUIが表示するローカルURLを開き、原稿を読み込む。編集後は`.fig`として保存し、元の原稿を更新する。GUI・CLIともに[フォント](art-src/openpencil/fonts/)を同梱するため、OSへのフォント導入とMCP設定は不要。Figmaで直接開く場合は同じTTFをOSへ導入する。ライセンスと元のWebフォントは[素材メモ](art-src/README.md#共通uiのフォント)を参照する。
+引数なしの`npm run openpencil`でGUIが起動する。表示されたローカルURLを開いて原稿を読み込み、編集後は`.fig`として保存して元の原稿を更新する。GUI・CLIともに[フォント](art-src/openpencil/fonts/)を同梱するため、OSへのフォント導入とMCP設定は不要。Figmaで直接開く場合は同じTTFをOSへ導入する。ライセンスと元のWebフォントは[素材メモ](art-src/README.md#共通uiのフォント)を参照する。
 
-`openpencil:render`はOpenPencilのHTML出力を、ゲームのVRTと同じ固定PlaywrightコンテナでPNGにする。Dockerが必要で、編集後も同じコマンドを使う。`--compare <比較先PNG>`を加えると、寸法と全RGBAを比較し、差分0のときだけ成功する。Homeの比較先は`tests/long/campaign.spec.ts-snapshots/campaign-04-home-1920-built-linux.png`。出力ログには原稿のSHA256・ブラウザ版・比較結果を記録する。
+公開Web版OpenPencil 0.16.0には、このリポジトリで適用する画像切り抜きの読み込みと文字の保存の修正が含まれない。編集・保存には上記コマンドで起動するローカル版を使う。
 
-GUIプレビューと標準のPNG出力はCanvasKitで描画され、ブラウザ描画とは画素差がある。画素一致の検証には`openpencil:render`のPNGを使う。文字・図形・マスク・色変数・部品は原稿のネイティブ構造で管理する。
+`openpencil:render`はOpenPencilのHTML出力を、ゲームのVRTと同じ固定PlaywrightコンテナでPNGにする。Dockerが必要で、編集後も同じコマンドを使う。`--compare <比較先PNG>`を加えると、寸法と全RGBAを比較し、差分0のときだけ成功する。
+
+`openpencil:verify`は現在の実装をbuildし、通常配布のタイトルから新規開始してホームを撮影する。同じ実行でマスターのHomeフレームをPNGへ出力し、独立した`compare-png.mjs`で寸法と全画素・全RGBAを比較する。除外領域・許容差はなく、一つでも異なれば非0で終了する。出力は`test-results/openpencil/design-home.png`、`design-home.implementation.png`、原稿SHA256・ブラウザ版・比較結果を含む`design-home.png.json`。比較だけを再実行するには次を使う。
+
+```sh
+npm run compare:png -- test-results/openpencil/design-home.implementation.png test-results/openpencil/design-home.png
+```
+
+GUIプレビューと標準のPNG出力はCanvasKitで描画され、ブラウザ描画とは画素差がある。Homeの比較用PNGは`openpencil:render`で作り、完了判定は比較スクリプトの差分0に限る。文字・図形・マスク・色変数・部品は原稿のネイティブ構造で管理する。
 
 ## ソース構成
 

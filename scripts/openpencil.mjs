@@ -29,6 +29,7 @@ const run = (command, args, cwd, quiet = false) =>
     child.on("exit", (code, signal) => {
       if (quiet) resolve(code === 0);
       else if (code === 0) resolve();
+      else if (code !== null) process.exit(code);
       else reject(new Error(`${command} exited with ${signal ?? code}`));
     });
   });
@@ -59,7 +60,7 @@ if (!(await exists(join(source, ".endfield-ready")))) {
 
 if (process.argv[2] === "--render") {
   await run(bun, [join(project, "scripts/render-openpencil.mjs"), source, ...process.argv.slice(3)], project);
-} else if (process.argv[2] === "--app") {
+} else if (process.argv.length === 2 || process.argv[2] === "--app") {
   await run(bun, ["run", "dev", ...process.argv.slice(3)], source);
 } else {
   await run(bun, [join(source, "packages/cli/src/index.ts"), ...process.argv.slice(2)], project);

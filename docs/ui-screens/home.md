@@ -2,7 +2,7 @@
 
 管理、任意の出発準備、保存を行う拠点。街の場所選択とは別の画面であり、背景は提供された部屋の原画像を使う。特定都市の再現や、全地域共通の建築規則へ拡張しない。[拠点部品仕様](hub-components.md)と[共通DS](../design-guidelines.md)を併用する。
 
-デザインマスタは[Home.fig](../../art-src/openpencil/Home.fig)の`Screens / Home`。色・文字スタイルと部品を分離し、画面ではインスタンスを使う。[OpenPencilの起動・保存手順](../../README.md#openpencilでホームの原稿を編集する)を参照する。
+デザインマスタは[endfield-rpg.fig](../../art-src/openpencil/endfield-rpg.fig)の`Screens / Home`。色・文字スタイルと部品を分離し、画面ではインスタンスを使う。[OpenPencilの起動・保存手順](../../README.md#openpencilでデザインマスターを編集する)を参照する。
 
 ## 構成と適用理由
 

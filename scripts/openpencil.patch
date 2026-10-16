@@ -1024,3 +1024,41 @@ diff --git a/packages/core/src/io/formats/html/index.ts b/packages/core/src/io/f
    const sizes = new Map<string, { width: number; height: number }>()
    if (options.html === 'standalone') {
      const ck = await getCanvasKit()
+--- a/packages/fig/src/node-change/instance/geometry.ts
++++ b/packages/fig/src/node-change/instance/geometry.ts
+@@ -76,7 +76,10 @@
+   owner: SceneNode,
+   resolveGuid: ResolveGuid,
+   retained: DerivedSymbolOverride[],
+-  geometry: (node: SceneNode) => Pick<DerivedSymbolOverride, 'size' | 'transform'>
++  geometry: (node: SceneNode) => Pick<
++    DerivedSymbolOverride,
++    'size' | 'transform' | 'derivedTextData'
++  >
+ ): DerivedSymbolOverride[] {
+   const key = (path: GUID[]) => path.map((guid) => `${guid.sessionID}:${guid.localID}`).join('/')
+   const entries = new Map<string, DerivedSymbolOverride>()
+--- a/packages/fig/src/node-change/export/node.ts
++++ b/packages/fig/src/node-change/export/node.ts
+@@ -540,7 +540,20 @@
+     node,
+     instanceGuidResolver(context, localIdCounter),
+     retainedGeometry,
+-    (target) => ({ size: exportNodeSize(target), transform: exportNodeTransform(context, target) })
++    (target) => {
++      const geometry: Pick<DerivedSymbolOverride, 'size' | 'transform' | 'derivedTextData'> = {
++        size: exportNodeSize(target),
++        transform: exportNodeTransform(context, target)
++      }
++      if (target.type === 'TEXT') {
++        // Occurrence glyphs are a cache, not a property override. Write them after
++        // claims so a changed label does not inherit its component's old glyphs.
++        const textFields: KiwiNodeChange = {}
++        serializeText(context, nodeToSerialize(context, target), textFields)
++        geometry.derivedTextData = textFields.derivedTextData
++      }
++      return geometry
++    }
+   )
+   if (node.source.fig.derivedSymbolDataLayoutVersion != null) {
+     nc.derivedSymbolDataLayoutVersion = node.source.fig.derivedSymbolDataLayoutVersion

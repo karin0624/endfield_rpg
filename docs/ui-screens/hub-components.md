@@ -6,7 +6,7 @@
 
 | 対象 | 所在 |
 | --- | --- |
-| ホームのデザインマスタ・共通スタイル・部品 | [Home.fig](../../art-src/openpencil/Home.fig) |
+| ホームのデザインマスタ・共通スタイル・部品 | [endfield-rpg.fig](../../art-src/openpencil/endfield-rpg.fig) |
 | 形状・文字・色・配置の実装 | [hub.css](../../src/web/hub.css) |
 | 素材の表示範囲・縮尺・図案位置・日付領域 | [hub-art.json](../../src/web/hub-art.json) |
 | 部品構造 | [IllustratedAction](../../src/web/components/IllustratedAction.svelte)、[HubCalendar](../../src/web/components/HubCalendar.svelte) |
