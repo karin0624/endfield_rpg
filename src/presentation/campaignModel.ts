@@ -107,10 +107,6 @@ export type CampaignCommand =
   | "title"
   | "accept"
   | "cancel";
-export type CampaignTownCommand =
-  | { readonly type: "select"; readonly placeId: string }
-  | { readonly type: "advance" }
-  | { readonly type: "choose"; readonly optionId: string };
 export type CampaignEvent =
   | { readonly type: "command"; readonly command: CampaignCommand }
   | { readonly type: "escape" }
@@ -159,14 +155,6 @@ function initialContext(): CampaignContext {
     expedition: null,
   };
 }
-// Keep the exported machine's direct pure API safe without input.
-// Models and new games own fresh data; reducer adapters use their current snapshot.
-const inertContext = initialContext();
-function freezeInertContext(data: object): void {
-  Object.freeze(data);
-  for (const value of Object.values(data)) if (value !== null && typeof value === "object") freezeInertContext(value);
-}
-freezeInertContext(inertContext);
 function carryValid(state: CampaignContext): boolean {
   const stock = state.game.inventory?.items.home.find(({ itemId }) => itemId === recoveryItemId)?.quantity ?? 0;
   return (
@@ -284,7 +272,7 @@ const cancel = [
 export const campaignMachine = flow.createMachine({
   id: "campaign",
   initial: "title",
-  context: ({ input }) => input ?? inertContext,
+  context: ({ input }) => input,
   on: {
     focused: { actions: assign(({ event }) => ({ focus: event.target })) },
     disposed: {

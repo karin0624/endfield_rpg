@@ -28,7 +28,7 @@
 
 ## 出撃準備の生成背景
 
-`art-src/background/departure/endfield-departure-industrial-background.webp`は、承認済みの出撃準備コンセプトから生成した背景の保存用データ。実行用には同一バイト列を`public/assets/backgrounds/endfield-departure-industrial-background.webp`へコピーする。UI、文字、キャラクター、HP表示は別途HTML/CSS等で描画し、背景のみを実行用素材とする。この素材の出典・採用記録は、完成画面の承認を意味しない。必要情報を反映した完成画像の承認と同一解像度比較は[UI開発の必須ゲート](../docs/ui-asset-production.md#ui開発の必須ゲート)に従う。
+`art-src/background/departure/endfield-departure-industrial-background.webp`は、承認済みの出撃準備コンセプトから生成した背景の保存用データ。実行用には同一バイト列を`public/assets/backgrounds/endfield-departure-industrial-background.webp`へコピーする。UI、文字、キャラクター、HP表示は別途HTML/CSS等で描画し、背景のみを実行用素材とする。完成画面の確認は[制作手順](../docs/ui-asset-production.md)に従う。
 
 この背景の生成時に用いた主な出典は[エンドフィールド公式PlayStation Blog](https://blog.playstation.com/?p=420605)、補助参照は[原作アークナイツのPRTSホーム背景一覧](https://prts.wiki/w/首页场景一览)の「视野」。参照画像そのものは同梱していない。生成物であることは第三者の権利や利用許諾の保証を意味せず、参照元および生成時の利用条件は未確認。
 
@@ -38,10 +38,10 @@
 
 Noto Serif JP（weight 500・700）とNoto Sans JP（weight 400）を`public/assets/fonts/`に同梱する。Google Fontsの[Serif JP](https://github.com/google/fonts/tree/main/ofl/notoserifjp)・[Sans JP](https://github.com/google/fonts/tree/main/ofl/notosansjp)の可変TrueType原本をFontToolsで指定weightへ固定し、WOFF2へ可逆圧縮した。グリフを削る部分集合化は行っていない。各原本のSIL Open Font License 1.1を同じディレクトリへ同梱する。CSSでは既存画面に影響しない`Endfield UI Serif` / `Endfield UI Sans`の名前で参照する。
 
-編成用の`public/assets/ui/*.svg`は承認画像の罫線・角・材質をHTML部品の背景として再現するためのベクター部品。文字・数値・人物を含まず、完成画面を背景へ貼っていない。生成画像の元レイヤーは未提供であり、元画像との材質一致は未解消。
+編成用の`public/assets/ui/*.svg`は承認画像の罫線・角・材質をHTML部品の背景として再現するためのベクター部品。文字・数値・人物は含まない。生成画像の元レイヤーは未提供であり、元画像との材質一致は未解消。
 
 ## 拠点UIの素材
 
-`public/assets/ui/hubs/`の17 PNGは、提供された背景・図案・frame・日付・人物portraitの実行用素材。原画像のbytes・寸法を保持し、表示時の範囲と縮尺は[hub-art.json](../src/web/hub-art.json)で管理する。日付は元画像をSVG clipPathで表示し、数字はHTML。人物の顔だけは楕円viewportを使う。素材ごとの利用方法は[拠点部品仕様](../docs/ui-screens/hub-components.md)を参照する。
+`public/assets/ui/hubs/`は、提供された背景・図案・frame・日付の実行用素材。ギルベルタのportraitは既存の`public/assets/characters/gilberta/expressions/neutral.png`を共用する。原画像のbytes・寸法を保持し、表示時の範囲と縮尺は[hub-art.json](../src/web/hub-art.json)で管理する。日付は元画像をSVG clipPathで表示し、数字はHTML。人物の顔だけは楕円viewportを使う。素材ごとの利用方法は[拠点部品仕様](../docs/ui-screens/hub-components.md)を参照する。
 
 非配布の参照画像・動画や個人識別を含むスクリーンショットは配布物へ含めない。原素材と承認の管理は対象課題のアクセス可能な資料で行い、非公開識別子を公開文書へ転記しない。外部の利用条件は未提示。

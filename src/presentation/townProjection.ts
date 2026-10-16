@@ -28,4 +28,3 @@ export function projectTown(
     shop: projectTownShop(state, input),
   };
 }
-export type TownFrame = ReturnType<typeof projectTown>;

@@ -86,14 +86,8 @@ for state, file in references.items():
         "reference": str(reference.relative_to(repo)), "reference_sha256": hashlib.sha256(reference.read_bytes()).hexdigest(),
         "runtime_sha256": hashlib.sha256(runtime.read_bytes()).hexdigest(),
         "full": metrics(diff), "invariant": metrics(diff, invariant), "annotation": metrics(diff, note),
-        "allowed_regions": [{"rectangle": [1510,12,1664,44], "reason": "資料注記のみ。runtimeには表示しない。",
-                             "approval": "docs/ui-concepts/approved/README.md; Slack 1791028085.252249"}],
+        "allowed_regions": [{"rectangle": [1510,12,1664,44], "reason": "資料注記のみ。runtimeには表示しない。"}],
         "diagnostics": records,
-        "review_policy": {
-            "reject": "Unexplained or unagreed meaningful changes to composition, information, positions, frames or material.",
-            "permitted_residuals": ["Font raster/typeface differences tracked as shared typography work.", "Minor differences from existing character artwork; approval Slack 1791030923.386299."],
-            "note": "Permitted residuals remain in raw differences and are not masked. Position/size/composition changes still require review."
-        },
         "diagnostic_limit": "Rectangles may include multiple causes. They are not acceptance masks; all pixels remain in full and invariant metrics.",
     }, ensure_ascii=False, indent=2) + "\n")
     print(state, metrics(diff))

@@ -1,25 +1,28 @@
 import { rename, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import type { Plugin } from "vite";
-import { type AdventureSettings, parseAdventureSettings } from "../src/presentation/adventureSettings.ts";
+import { parseAdventureSettings } from "../src/presentation/adventureSettings.ts";
+import { parseBattleSettings } from "../src/presentation/battleSettings.ts";
 
-// 開発サーバー専用。保存先を会話画面の標準設定に固定する。
-export function adventureSettingsPlugin(): Plugin {
+const parsers = { battle: parseBattleSettings, adventure: parseAdventureSettings };
+
+export function settingsPlugin(kind: keyof typeof parsers): Plugin {
   let settingsPath: string;
   return {
-    name: "adventure-settings",
+    name: `${kind}-settings`,
     apply: "serve",
     configResolved(config) {
-      settingsPath = resolve(config.root, "src/web/adventure-settings.json");
+      settingsPath = resolve(config.root, `src/web/${kind}-settings.json`);
     },
     hotUpdate({ file, modules }) {
       if (file !== settingsPath) return;
+      // Keep the current preview while the next import receives the saved defaults.
       for (const module of modules) this.environment.moduleGraph.invalidateModule(module);
       return [];
     },
     configureServer(server) {
       let saving = false;
-      server.middlewares.use("/__dev/adventure-settings", async (request, response) => {
+      server.middlewares.use(`/__dev/${kind}-settings`, async (request, response) => {
         const reply = (status: number, message: string) => {
           response.writeHead(status, { "Content-Type": "application/json; charset=utf-8" });
           response.end(JSON.stringify({ message }));
@@ -42,10 +45,9 @@ export function adventureSettingsPlugin(): Plugin {
             if (bytes > 4096) return reply(413, "設定が大きすぎます。");
             chunks.push(buffer);
           }
-          const body = Buffer.concat(chunks, bytes).toString("utf8");
-          let settings: AdventureSettings;
+          let settings: unknown;
           try {
-            settings = parseAdventureSettings(JSON.parse(body));
+            settings = parsers[kind](JSON.parse(Buffer.concat(chunks, bytes).toString("utf8")));
           } catch (error) {
             return reply(400, error instanceof Error ? error.message : "設定を読み取れません。");
           }

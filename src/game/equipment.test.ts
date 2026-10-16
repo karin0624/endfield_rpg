@@ -2,30 +2,46 @@ import { describe, expect, it } from "vitest";
 import { characters } from "../content/characters";
 import { itemTrials } from "../content/itemTrials";
 import { skillCatalog } from "../content/skillDefinitions";
-import { assignEquipment, assignedEquipmentStats, changeEquipment, emptyEquipment, equipmentStats } from "./equipment";
+import { assignEquipment, assignedEquipmentStats, emptyEquipment, equipmentStats } from "./equipment";
 import { createParty, getPartyCombatants } from "./party";
 
 const catalog = itemTrials.equipment;
-const available = catalog.map((e) => e.id);
+const initialEquipment = {
+  owned: [
+    { instanceId: "weapon", definitionId: "trial-weapon" },
+    { instanceId: "armor", definitionId: "trial-armor" },
+  ],
+  assignments: [],
+};
 describe("ホームの武器1枠・防具1枠", () => {
   it("ホームで両枠へ装備・交換・解除でき、探索中は街でも変更しない", () => {
-    const weapon = changeEquipment(emptyEquipment, "home", "weapon", "trial-weapon", available, catalog);
+    const weapon = assignEquipment(initialEquipment, "home", "player", "weapon", "weapon", catalog);
     expect(weapon.accepted).toBe(true);
-    const both = changeEquipment(weapon.loadout, "home", "armor", "trial-armor", available, catalog);
-    expect(both.loadout).toEqual({ weapon: "trial-weapon", armor: "trial-armor" });
-    expect(changeEquipment(both.loadout, "exploration", "weapon", null, available, catalog)).toEqual({
+    const both = assignEquipment(weapon.state, "home", "player", "armor", "armor", catalog);
+    expect(both.state.assignments).toEqual([{ characterId: "player", weapon: "weapon", armor: "armor" }]);
+    expect(assignEquipment(both.state, "exploration", "player", "weapon", null, catalog)).toEqual({
       accepted: false,
-      loadout: both.loadout,
+      state: both.state,
     });
-    expect(changeEquipment(both.loadout, "home", "weapon", null, available, catalog).loadout).toEqual({
-      weapon: null,
-      armor: "trial-armor",
-    });
+    expect(assignEquipment(both.state, "home", "player", "weapon", null, catalog).state.assignments).toEqual([
+      { characterId: "player", weapon: null, armor: "armor" },
+    ]);
   });
   it("枠違い・未提供・未知の装備を拒否する", () => {
-    expect(changeEquipment(emptyEquipment, "home", "armor", "trial-weapon", available, catalog).accepted).toBe(false);
-    expect(changeEquipment(emptyEquipment, "home", "weapon", "trial-weapon", [], catalog).accepted).toBe(false);
-    expect(changeEquipment(emptyEquipment, "home", "weapon", "unknown", ["unknown"], catalog).accepted).toBe(false);
+    expect(assignEquipment(initialEquipment, "home", "player", "armor", "weapon", catalog).accepted).toBe(false);
+    expect(
+      assignEquipment({ owned: [], assignments: [] }, "home", "player", "weapon", "weapon", catalog).accepted,
+    ).toBe(false);
+    expect(
+      assignEquipment(
+        { owned: [{ instanceId: "unknown", definitionId: "unknown" }], assignments: [] },
+        "home",
+        "player",
+        "weapon",
+        "unknown",
+        catalog,
+      ).accepted,
+    ).toBe(false);
   });
   it("既存能力へ注入補正を投影し、固有技/初期技を装備の有無で制限しない", () => {
     const base = characters[0];

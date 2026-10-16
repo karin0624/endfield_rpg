@@ -84,6 +84,7 @@ export function mountPartyFixture(root: HTMLElement, preset: "approved" | "candi
       id: character.id,
       hp: mode === "disabled" ? 0 : mode === "hp-levels" ? hp[character.id] : effectiveMaxHp(character.maxHp, status),
       status,
+      mentalFatigue: 0,
     };
   });
   const slots: PartySlots = [

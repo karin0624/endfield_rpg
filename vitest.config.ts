@@ -12,7 +12,7 @@ export default defineConfig({
       provider: "v8",
       include: ["src/**/*.{ts,svelte}", "scripts/*.{ts,mjs}"],
       exclude: ["**/*.test.{ts,mjs}", "**/*.d.ts"],
-      reporter: ["text-summary", "html", "json", "json-summary", "lcov"],
+      reporter: ["text-summary", "html", "json", "json-summary"],
       reportsDirectory: "coverage/unit",
       reportOnFailure: true,
       thresholds: {

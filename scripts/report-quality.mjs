@@ -11,8 +11,6 @@ export function renderQualitySummary({ exitCode, revision, head, base, unit, bro
     ...(head ? [`PR head: \`${head}\``] : []),
     ...(base ? [`PR base: \`${base}\``] : []),
     "",
-    "The single workspace reuses the normal build from check; debug and direct-state entries are built once each with production minification and hidden source maps. Tests collect native V8 coverage during the required execution. No artifact storage is used.",
-    "",
     "| Runner | Reported cases | Passed | Failed | Skipped / pending | Retried | Per-case V8 records |",
     "| --- | ---: | ---: | ---: | ---: | ---: | ---: |",
   ];
@@ -53,8 +51,6 @@ export function renderQualitySummary({ exitCode, revision, head, base, unit, bro
     );
   } else lines.push("| Playwright | report not generated | — | — | — | — | — |");
   lines.push(
-    "",
-    "Exit 0 requires the existing coverage thresholds, unfiltered collection/execution and project/per-case coverage gates to pass. Missing reports or partial execution do not count as completion. On failure, the original check exit code is preserved.",
     "",
     "| Coverage | Sources including zero-hit | Statements covered / total | Functions covered / total | Branches covered / total | Lines covered / total |",
     "| --- | ---: | ---: | ---: | ---: | ---: |",

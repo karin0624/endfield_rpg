@@ -18,7 +18,7 @@ export function projectCharacterDetails(input: CharacterDetailsInput, id: string
   const character = characterById(context?.characters ?? input.characters, id);
   const base = context?.baseCharacters.find((entry) => entry.id === id);
   const learning = context ? characterLearning(id, context) : undefined;
-  const status = member.status ?? healthyStatus();
+  const status = member.status;
   const maxHp = effectiveMaxHp(character.maxHp, status);
   const baseHit = effectiveHitRate(character.hitRate, healthyStatus());
   const hit = effectiveHitRate(character.hitRate, status);
@@ -47,7 +47,7 @@ export function projectCharacterDetails(input: CharacterDetailsInput, id: string
     ["速度", String(character.speed), ""],
     ["命中率", percent(hit), hit !== baseHit ? `基礎 ${percent(baseHit)} · 朦朧による低下` : ""],
     ["レベル", learning?.level === undefined ? "未接続" : String(learning.level), ""],
-    ["精神疲労", mentalFatigueText(member.mentalFatigue ?? 0), ""],
+    ["精神疲労", mentalFatigueText(member.mentalFatigue), ""],
     ...(["physicalFatigue", "haze"] as const).map(
       (kind) =>
         [

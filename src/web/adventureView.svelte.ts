@@ -1,9 +1,8 @@
-import { flushSync, mount, unmount } from "svelte";
+import { mount, unmount } from "svelte";
 import type { AdventureEvent } from "../presentation/adventureModel";
 import type { AdventureFrame } from "../presentation/adventureProjection";
 import type { AdventureSettings } from "../presentation/adventureSettings";
 import Adventure from "./components/Adventure.svelte";
-import { requiredElement } from "./requiredElement";
 export function createAdventureView(
   root: HTMLDivElement,
   utilities: AdventureFrame["utilities"],
@@ -26,9 +25,7 @@ export function createAdventureView(
       },
     },
   });
-  flushSync();
   return {
-    conversationHost: requiredElement<HTMLElement>(root, "[data-conversation-view]"),
     render(next: AdventureFrame) {
       frame = next;
     },

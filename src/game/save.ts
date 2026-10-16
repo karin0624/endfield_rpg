@@ -11,7 +11,7 @@ import { restoreSavedGrowth, savedGrowth } from "./growthSave";
 import { createInventory, type Inventory } from "./inventory";
 import type { CharacterDefinition, PartyMember } from "./party";
 import { nonnegativeInteger, nonnegativeNumber, positiveInteger, savedRandomState } from "./saveFormat";
-import { effectiveMaxHp, healthyStatus } from "./status";
+import { effectiveMaxHp } from "./status";
 import { ACTION_HALF_DAYS, createActionClock } from "./time";
 
 export interface SaveDefinitions {
@@ -191,8 +191,8 @@ export function serializeGame(
       members: game.party.members.map(({ id, hp, status, mentalFatigue }) => ({
         id,
         hp,
-        status: status ?? healthyStatus(),
-        mentalFatigue: mentalFatigue ?? 0,
+        status,
+        mentalFatigue,
       })),
       slots: game.party.slots,
     },

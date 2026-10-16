@@ -1,11 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { initialBattleCombatants } from "../content/initialBattle";
-import {
-  createDebugBattleModel,
-  type DebugBattleInput,
-  projectDebugBattle,
-  reduceDebugBattle,
-} from "./debugBattleModel";
+import { battleNeedsAnimation, projectBattleHud, projectBattleSceneStatus } from "./battleViewProjection";
+import { createDebugBattleModel, type DebugBattleInput, debugBattleInput, reduceDebugBattle } from "./debugBattleModel";
 
 const input: DebugBattleInput = {
   combatants: initialBattleCombatants,
@@ -21,7 +17,8 @@ describe("固定戦闘デモの同期状態遷移", () => {
     let state = createDebugBattleModel(input);
     const original = state;
     const untouched = structuredClone(state);
-    expect(projectDebugBattle(state, input).view).toBeNull();
+    expect(projectBattleSceneStatus(state.view.scene).ready).toBe(false);
+    expect(battleNeedsAnimation(state.view, debugBattleInput(state, input))).toBe(false);
     state = reduceDebugBattle(state, input, { type: "scene-ready", owner: 0 }).state;
     for (const [target, hp] of [
       ["slime-2", 6],
@@ -38,7 +35,10 @@ describe("固定戦闘デモの同期状態遷移", () => {
     }
     expect(state.battle.outcome).toBe("victory");
     expect(state.battle.combatants.find(({ id }) => id === "player")?.hp).toBe(16);
-    expect(projectDebugBattle(state, input).view?.result).toMatchObject({ visible: true, title: "戦闘に勝利しました" });
+    expect(projectBattleHud(state.view, debugBattleInput(state, input)).result).toMatchObject({
+      visible: true,
+      title: "戦闘に勝利しました",
+    });
     const rematch = reduceDebugBattle(state, input, { type: "finish" });
     expect(rematch.effects).toEqual([{ type: "replace-scene", owner: 1 }]);
     expect(rematch.state.battle.combatants.map(({ hp }) => hp)).toEqual([20, 18, 14, 14]);
@@ -52,15 +52,15 @@ describe("固定戦闘デモの同期状態遷移", () => {
     let state = reduceDebugBattle(createDebugBattleModel(input), input, { type: "scene-ready", owner: 0 }).state;
     state = reduceDebugBattle(state, input, { type: "focused", target: { kind: "attack" } }).state;
     state = reduceDebugBattle(state, input, { type: "key", key: "Tab", shift: false }).state;
-    expect(projectDebugBattle(state, input).utilityFocus).toBe("town");
+    expect(state.utilityFocus).toBe("town");
     state = reduceDebugBattle(state, input, { type: "key", key: "Tab", shift: false }).state;
-    expect(projectDebugBattle(state, input).utilityFocus).toBe("editor");
+    expect(state.utilityFocus).toBe("editor");
     const outside = reduceDebugBattle(state, input, { type: "key", key: "Tab", shift: false });
     expect(outside.handled).toBe(false);
-    expect(projectDebugBattle(outside.state, input).utilityFocus).toBeNull();
+    expect(outside.state.utilityFocus).toBeNull();
     state = reduceDebugBattle(outside.state, input, { type: "utility-focused", target: "town" }).state;
     state = reduceDebugBattle(state, input, { type: "key", key: "Tab", shift: true }).state;
-    expect(projectDebugBattle(state, input).view?.focus).toEqual({ kind: "attack" });
+    expect(projectBattleHud(state.view, debugBattleInput(state, input)).focus).toEqual({ kind: "attack" });
     state = reduceDebugBattle(state, input, { type: "focused", target: { kind: "enemy", id: "slime" } }).state;
     expect(reduceDebugBattle(state, input, { type: "key", key: "Tab", shift: true }).handled).toBe(false);
   });
@@ -68,7 +68,8 @@ describe("固定戦闘デモの同期状態遷移", () => {
   it("scene失敗は理由を保持し、退出後のready/error/操作で資源やゲームを再開しない", () => {
     let state = createDebugBattleModel(input);
     state = reduceDebugBattle(state, input, { type: "scene-error", owner: 0, reason: "portrait 404" }).state;
-    expect(projectDebugBattle(state, input)).toMatchObject({ view: null, animate: false, status: { error: true } });
+    expect(projectBattleSceneStatus(state.view.scene)).toMatchObject({ ready: false, error: true });
+    expect(battleNeedsAnimation(state.view, debugBattleInput(state, input))).toBe(false);
     expect(state.view.scene.reason).toBe("portrait 404");
     const closed = reduceDebugBattle(state, input, { type: "closed" });
     expect(closed.effects).toEqual([{ type: "close-scene" }]);

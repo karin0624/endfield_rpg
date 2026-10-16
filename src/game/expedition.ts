@@ -215,7 +215,7 @@ export function actInExpedition(
           : {
               ...member,
               hp: participant.hp,
-              status: participant.status,
+              status: participant.status ?? healthyStatus(),
               mentalFatigue: participant.mentalFatigue ?? 0,
             };
       }),
@@ -288,7 +288,7 @@ export function leaveExpedition(state: ExpeditionGame, skills?: BattleSkillRules
   const members = resetState.party.members.map((member) => {
     const participant = resetState.dungeon?.party.find(({ id }) => id === member.id);
     if (participant === undefined) return member;
-    const status = member.status ?? healthyStatus();
+    const status = member.status;
     return { ...member, hp: effectiveMaxHp(participant.maxHp ?? participant.hp, status) };
   });
   return {
@@ -318,10 +318,10 @@ function recoverTownParty(
     party: {
       ...state.party,
       members: state.party.members.map((member) => {
-        const status = recoverTownStep(member.status ?? healthyStatus());
+        const status = recoverTownStep(member.status);
         return {
           ...member,
-          mentalFatigue: fatigue ? recoverMentalFatigue(member.mentalFatigue ?? 0, fatigue) : member.mentalFatigue,
+          mentalFatigue: fatigue ? recoverMentalFatigue(member.mentalFatigue, fatigue) : member.mentalFatigue,
           status,
           hp: Math.min(
             member.hp,
@@ -346,7 +346,7 @@ export function applyPartyStatus(
       ...state.party,
       members: state.party.members.map((member) => {
         if (member.id !== id) return member;
-        const previous = member.status ?? healthyStatus();
+        const previous = member.status;
         const status =
           effect.kind === "incapacity"
             ? applyIncapacity(previous)
@@ -434,13 +434,14 @@ function completeTownExploration(
   }
   // Calendar, returned items and all members' recovery are committed together.
   const recovered = recoverTownParty({ ...returnedState, clock: result.clock }, characters, fatigue);
-  const recovery = recovered.party.members.map((member) => {
-    const before = state.party.members.find(({ id }) => id === member.id)?.status ?? healthyStatus();
-    const after = member.status ?? healthyStatus();
+  const recovery = recovered.party.members.map((member, index) => {
+    const previous = state.party.members[index];
+    const before = previous.status;
+    const after = member.status;
     return {
       id: member.id,
-      mentalFatigueBefore: state.party.members.find(({ id }) => id === member.id)?.mentalFatigue ?? 0,
-      mentalFatigueAfter: member.mentalFatigue ?? 0,
+      mentalFatigueBefore: previous.mentalFatigue,
+      mentalFatigueAfter: member.mentalFatigue,
       before,
       after,
       remainingSteps: {

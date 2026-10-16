@@ -1,10 +1,12 @@
-import { approvedPicture } from "../browser/pictures";
-
-const golden = (name: string) =>
-  approvedPicture(["e2e", "ui", "battle-ui.spec.ts-snapshots", name.replace(/\.png$/, `-ui-${process.platform}.png`)]);
-
 import { expect, test } from "../browser/coverage";
 import { readyPicture } from "./appearance";
+
+const golden = (name: string) => [
+  "e2e",
+  "ui",
+  "battle-ui.spec.ts-snapshots",
+  name.replace(/\.png$/, `-ui-${process.platform}.png`),
+];
 
 test("実素材のattack/healを直接表示時刻から描き、同じ地形で既存FX画像へ比較する", async ({ page }) => {
   await page.setViewportSize({ width: 900, height: 1000 });

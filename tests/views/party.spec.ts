@@ -1,10 +1,12 @@
-import { approvedPicture } from "../browser/pictures";
-
-const golden = (name: string) =>
-  approvedPicture(["e2e", "ui", "party-ui.spec.ts-snapshots", name.replace(/\.png$/, `-ui-${process.platform}.png`)]);
-
 import { collectCoverage, expect, test } from "../browser/coverage";
 import { expectRenderedFont, readyFormation } from "../browser/formationEvidence";
+
+const golden = (name: string) => [
+  "e2e",
+  "ui",
+  "party-ui.spec.ts-snapshots",
+  name.replace(/\.png$/, `-ui-${process.platform}.png`),
+];
 
 // Game input, navigation, details, and draft rules are exercised by the presentation model's real-core
 // headless tests. These cases paint supplied snapshots; native actions below only prepare modality.

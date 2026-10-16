@@ -58,7 +58,7 @@
 | `src/web/battleScene.ts` | 同じシーンへの設定反映、地面レイによる接地高取得、描画、リソース解放 |
 | `src/presentation/battleEditorModel.ts` | raw入力・draft・保存待ち・focus・接地結果からの保存可否 |
 | `src/web/battleEditor.ts` | 確定した設定UIの描画、Storage・JSON出力・保存API・実接地測定の接続 |
-| `scripts/battle-settings-plugin.ts` | Vite開発サーバー専用の保存API。固定ファイルへ書き込み、編集中のプレビューを維持する |
+| `scripts/settings-plugin.ts` | Vite開発サーバー専用の保存API。固定ファイルへ書き込み、編集中のプレビューを維持する |
 
 保存APIは同一オリジンのJSON POSTだけを受け、書き込み先を構図JSONに固定する。入力の形式・数値範囲・カメラと注視点の分離を検証する。一時ファイルを書いてから置き換え、途中のJSONを読ませない。モデルや画像を保存操作で変更することはない。
 

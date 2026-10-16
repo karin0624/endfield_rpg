@@ -15,7 +15,7 @@ export function browserCoverage(project, config) {
   return new CoverageReport({
     name: `Browser execution: ${project}`,
     outputDir: `coverage/browser/${project}`,
-    reports: ["html", "json", "json-summary", "lcovonly"],
+    reports: ["html", "json", "json-summary"],
     sourcePath(filePath, info = {}) {
       let path = filePath;
       if (!path.includes("/") && info.distFile) path = `${dirname(info.distFile)}/${path}`;
@@ -39,7 +39,6 @@ export function browserCoverage(project, config) {
   });
 }
 
-// Keep revision.txt and the independent Vitest report intact.
 export async function setupBrowserCoverage() {
   await rm("coverage/browser", { recursive: true, force: true });
 }
