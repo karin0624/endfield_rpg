@@ -152,7 +152,7 @@ export function projectCampaign(state: CampaignModel, enemyDepths: BattleInput["
             const stats = display.find(({ id }) => id === member.id) ?? base;
             return {
               id: member.id,
-              summary: `${base.name} · HP ${member.hp}/${effectiveMaxHp(stats.maxHp, member.status ?? healthyStatus())} · 攻撃力 ${stats.attackPower}`,
+              summary: `${base.name} · HP ${member.hp}/${effectiveMaxHp(stats.maxHp, member.status)} · 攻撃力 ${stats.attackPower}`,
               slots: (["weapon", "armor"] as const).map((slot) => {
                 let number = 0;
                 return {

@@ -99,7 +99,14 @@ describe("仲間と出撃編成", () => {
 
   it("ロッシだけの新規ゲームから3枠空けて出撃する", () => {
     const state = newGame();
-    expect(state.party.members.map(({ id, hp }) => ({ id, hp }))).toEqual([{ id: "player", hp: 20 }]);
+    expect(state.party.members).toEqual([
+      {
+        id: "player",
+        hp: 20,
+        status: { physicalFatigue: 0, haze: 0, incapacityRecoverySteps: null },
+        mentalFatigue: 0,
+      },
+    ]);
     expect(state.party.slots).toEqual(["player", null, null, null]);
     const entered = act(depart(state), { type: "enter", nodeId: "battle-a" });
     expect(entered.dungeon?.party).toMatchObject([{ id: "player", hp: 20 }]);

@@ -2,7 +2,7 @@ import { mentalFatigueDefinition } from "../content/mentalFatigueDefinition";
 import type { ExpeditionRejection } from "../game/expedition";
 import { mentalFatigueLabel } from "../game/mentalFatigue";
 import { characterById, departureRejection } from "../game/party";
-import { effectiveMaxHp, healthyStatus } from "../game/status";
+import { effectiveMaxHp } from "../game/status";
 import { characterPortraitPath } from "./characterPortrait";
 import type { PartyModel } from "./partyModel";
 import { formatAmount, symptomDescriptions } from "./statusText";
@@ -24,16 +24,16 @@ export function projectParty(state: PartyModel) {
   const party = state.input.game.party;
   const members = party.members.map((member) => {
     const character = characterById(state.input.characters, member.id);
-    const maxHp = effectiveMaxHp(character.maxHp, member.status ?? healthyStatus());
+    const maxHp = effectiveMaxHp(character.maxHp, member.status);
     return {
       id: member.id,
       name: character.name,
       hp: `HP ${formatAmount(member.hp)}/${formatAmount(maxHp)}`,
       ratio: maxHp > 0 ? Math.min(1, Math.max(0, member.hp / maxHp)) : 0,
       symptoms: [
-        ...symptomDescriptions(member.status ?? healthyStatus()).map(({ label }) => label),
-        (member.mentalFatigue ?? 0) > 0
-          ? `精神疲労・${mentalFatigueLabel(member.mentalFatigue ?? 0, mentalFatigueDefinition)}`
+        ...symptomDescriptions(member.status).map(({ label }) => label),
+        member.mentalFatigue > 0
+          ? `精神疲労・${mentalFatigueLabel(member.mentalFatigue, mentalFatigueDefinition)}`
           : "",
       ]
         .filter(Boolean)

@@ -1,16 +1,13 @@
-import { approvedPicture } from "../browser/pictures";
-
-const golden = (name: string) =>
-  approvedPicture([
-    "e2e",
-    "debug",
-    "battle.spec.ts-snapshots",
-    name.replace(/\.png$/, `-built-${process.platform}.png`),
-  ]);
-
 import { expect, test } from "../browser/coverage";
 import { observeWebGLResources, webGLResources } from "../browser/webglResources";
 import { readyPicture } from "./appearance";
+
+const golden = (name: string) => [
+  "e2e",
+  "debug",
+  "battle.spec.ts-snapshots",
+  name.replace(/\.png$/, `-built-${process.platform}.png`),
+];
 
 test("通常minifyの実debug入口から初期戦闘を直接描き、既存PC/mobile画像へ比較する", async ({ page }) => {
   await observeWebGLResources(page);

@@ -4,7 +4,6 @@
   font-weight: 700;
   font-display: swap;
 }
-/* Shared screen geometry and controls. Opt in with ui-screen or ui-dialog. */
 @font-face {
   font-family: "Endfield UI Serif";
   src: url("/assets/fonts/noto-serif-jp-500.woff2") format("woff2");
@@ -54,10 +53,6 @@
   font: var(--ui-body-size) / 1.6 var(--ui-font);
   overflow-wrap: anywhere;
 }
-.ui-heading {
-  border-bottom: 1px solid var(--ui-metal);
-  padding-bottom: 1rem;
-}
 .ui-screen .ui-title,
 .ui-dialog .ui-title {
   margin: 0;
@@ -72,7 +67,7 @@
   min-height: 4rem;
 }
 /* Only the decorative layers are clipped; the keyboard focus outline stays outside. */
-:is(.ui-screen, .ui-dialog) :is(.ui-button, .ui-frame) {
+:is(.ui-screen, .ui-dialog) .ui-button {
   position: relative;
   isolation: isolate;
   --ui-control-fill: var(--ui-surface);
@@ -89,10 +84,9 @@
     0 calc(100% - var(--ui-cut-size)),
     0 var(--ui-cut-size)
   );
-  --ui-inner-cut: calc(var(--ui-cut-size) + var(--ui-frame-line) * 0.4142);
 }
-:is(.ui-screen, .ui-dialog) :is(.ui-button, .ui-frame)::before,
-:is(.ui-screen, .ui-dialog) :is(.ui-button, .ui-frame)::after {
+:is(.ui-screen, .ui-dialog) .ui-button::before,
+:is(.ui-screen, .ui-dialog) .ui-button::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -101,34 +95,7 @@
   background: var(--ui-control-edge);
   pointer-events: none;
 }
-/* A hollow polygon lets translucent card interiors reveal the actual background. */
-:is(.ui-screen, .ui-dialog) .ui-frame::before {
-  clip-path: polygon(
-    evenodd,
-    var(--ui-cut-size) 0,
-    calc(100% - var(--ui-cut-size)) 0,
-    100% var(--ui-cut-size),
-    100% calc(100% - var(--ui-cut-size)),
-    calc(100% - var(--ui-cut-size)) 100%,
-    var(--ui-cut-size) 100%,
-    0 calc(100% - var(--ui-cut-size)),
-    0 var(--ui-cut-size),
-    var(--ui-cut-size) 0,
-    var(--ui-inner-cut) var(--ui-frame-line),
-    var(--ui-frame-line) var(--ui-inner-cut),
-    var(--ui-frame-line) calc(100% - var(--ui-inner-cut)),
-    var(--ui-inner-cut) calc(100% - var(--ui-frame-line)),
-    calc(100% - var(--ui-inner-cut)) calc(100% - var(--ui-frame-line)),
-    calc(100% - var(--ui-frame-line)) calc(100% - var(--ui-inner-cut)),
-    calc(100% - var(--ui-frame-line)) var(--ui-inner-cut),
-    calc(100% - var(--ui-inner-cut)) var(--ui-frame-line),
-    var(--ui-inner-cut) var(--ui-frame-line)
-  );
-}
-:is(.ui-screen, .ui-dialog) .ui-frame::after {
-  box-shadow: none;
-}
-:is(.ui-screen, .ui-dialog) :is(.ui-button, .ui-frame)::after {
+:is(.ui-screen, .ui-dialog) .ui-button::after {
   inset: var(--ui-frame-line);
   z-index: -1;
   background-color: var(--ui-control-fill);

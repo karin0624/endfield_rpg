@@ -1,19 +1,9 @@
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
-import { mkdtemp, realpath, rm, stat } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { stat } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-
-const endpoint = "https://github.com/karin0624/endfield_rpg.git/info/lfs";
-const accessKey = `lfs.${endpoint}.access`;
-// Limit access-learning diagnosis to this endpoint and verified asset identity.
-const recordedAsset = {
-  name: "public/assets/ground/ground1.glb",
-  oid: "0bad77901554e56495e34844a5e63e66380b30d48c732c5c7fbc152c9b976ef9",
-  size: 58790396,
-};
 
 function command(tool, args, cwd) {
   const result = spawnSync(tool, args, {
@@ -52,10 +42,6 @@ async function matches(path, asset) {
   }
 }
 
-function objectPath(storage, asset) {
-  return join(storage, "objects", asset.oid.slice(0, 2), asset.oid.slice(2, 4), asset.oid);
-}
-
 export async function setup({
   root = fileURLToPath(new URL("..", import.meta.url)),
   npmArgs = [],
@@ -81,7 +67,7 @@ export async function setup({
   const assets = JSON.parse(requiredGit("lfs", "ls-files", "--json", ref)).files.filter((asset) =>
     asset.name.startsWith("public/assets/"),
   );
-  if (!assets.some((asset) => asset.name === recordedAsset.name))
+  if (!assets.some((asset) => asset.name === "public/assets/ground/ground1.glb"))
     throw new Error("Required ground LFS pointer missing.");
   for (const asset of assets) {
     if (asset.oid_type !== "sha256" || !/^[a-f0-9]{64}$/.test(asset.oid) || !Number.isSafeInteger(asset.size))
@@ -93,106 +79,8 @@ export async function setup({
   }
   if (missing.length) {
     const paths = missing.map((asset) => asset.name);
-    const fetchArgs = ["lfs", "fetch", `--include=${paths.join(",")}`, "--exclude=", "origin", ref];
-    const settings = git("config", "--null", "--show-origin", "--show-scope", "--get-regexp", "^lfs\\..*\\.access$");
-    if (settings.status !== 0 && settings.status !== 1) requireSuccess(settings, "Read pre-fetch LFS access");
-    const fetched = git(...fetchArgs);
-    if (fetched.status !== 0) {
-      // Diagnose only the matching pre-existing local access setting. A general denial,
-      // quota, other endpoint, version, object or shared configuration stops here.
-      const lfsVersion = requiredGit("lfs", "version");
-      const lfsEnv = requiredGit("lfs", "env");
-      const afterFetch = git(
-        "config",
-        "--null",
-        "--show-origin",
-        "--show-scope",
-        "--get-regexp",
-        "^lfs\\..*\\.access$",
-      );
-      const localConfig = await realpath(resolve(root, requiredGit("rev-parse", "--git-path", "config").trim()));
-      const lfsConfigTracked = requiredGit("ls-files", "--", ".lfsconfig");
-      const lfsConfigPresent = await stat(join(root, ".lfsconfig")).then(
-        () => true,
-        (error) => {
-          if (error.code === "ENOENT") return false;
-          throw error;
-        },
-      );
-      const fields = (settings.stdout || "").split("\0").filter(Boolean);
-      const clearDenial =
-        /quota|bandwidth|rate.limit|access.denied|permission.denied|resource.not.accessible|limit.exceeded/i.test(
-          fetched.stderr || "",
-        );
-      const eligible =
-        !clearDenial &&
-        !lfsConfigTracked.trim() &&
-        !lfsConfigPresent &&
-        requiredGit("remote", "get-url", "origin").trim() === endpoint.replace("/info/lfs", "") &&
-        settings.status === 0 &&
-        afterFetch.status === settings.status &&
-        afterFetch.stdout === settings.stdout &&
-        fields.length === 3 &&
-        fields[0] === "local" &&
-        fields[1].startsWith("file:") &&
-        (await realpath(resolve(root, fields[1].slice(5)))) === localConfig &&
-        fields[2] === `${accessKey}\nbasic` &&
-        /git-lfs\/3\.(?:6|8)\./.test(lfsVersion) &&
-        lfsEnv.split("\n").includes(`Endpoint=${endpoint} (auth=basic)`) &&
-        missing.length === 1 &&
-        missing[0].name === recordedAsset.name &&
-        missing[0].oid === recordedAsset.oid &&
-        missing[0].size === recordedAsset.size &&
-        ((fetched.stderr || "")
-          .split("\n")
-          .includes("batch response: Maximum number of login attempts exceeded. Please try again later.") ||
-          /batch response:.*403/.test(fetched.stderr || "") ||
-          (fetched.stderr || "").includes(
-            "batch response: Git credentials for https://github.com/karin0624/endfield_rpg.git not found.",
-          ));
-      if (!eligible) requireSuccess(fetched, "LFS fetch (outside recorded recovery conditions)");
-
-      process.stdout.write(
-        `LFS recovery candidate: ${accessKey}=basic, local ${localConfig}; same ref ${ref} and recorded object.\n`,
-      );
-      const storage = await mkdtemp(join(tmpdir(), "endfield-lfs-contrast-"));
-      try {
-        requiredGit("-c", `${accessKey}=`, "-c", `lfs.storage=${storage}`, ...fetchArgs);
-        if (!(await matches(objectPath(storage, recordedAsset), recordedAsset)))
-          throw new Error("LFS contrast object oid/size mismatch; learned access preserved.");
-        process.stdout.write("LFS command-scope contrast: recorded oid/size verified.\n");
-        // Do not remove a value that changed during challenge negotiation.
-        const current = requiredGit(
-          "config",
-          "--null",
-          "--show-origin",
-          "--show-scope",
-          "--get-regexp",
-          "^lfs\\..*\\.access$",
-        );
-        if (current !== settings.stdout) throw new Error("LFS access changed during contrast; stopping.");
-        requiredGit("config", "--local", "--unset", accessKey, "^basic$");
-      } finally {
-        await rm(storage, { recursive: true, force: true });
-      }
-      // Prove standard negotiation after repair from an empty, isolated cache.
-      const fresh = await mkdtemp(join(tmpdir(), "endfield-lfs-standard-"));
-      try {
-        requiredGit("-c", `lfs.storage=${fresh}`, ...fetchArgs);
-        if (!(await matches(objectPath(fresh, recordedAsset), recordedAsset)))
-          throw new Error("Standard LFS object oid/size mismatch after recovery.");
-        process.stdout.write(
-          "LFS fresh standard fetch after local learned-value repair: recorded oid/size verified.\n",
-        );
-        requiredGit("-c", `lfs.storage=${fresh}`, "lfs", "checkout", ...paths);
-      } finally {
-        await rm(fresh, { recursive: true, force: true });
-      }
-      const remaining = git("config", "--get-all", accessKey);
-      if (remaining.status !== 1) throw new Error("LFS access relearned or could not be confirmed absent; stopping.");
-    } else {
-      requiredGit("lfs", "checkout", ...paths);
-    }
+    requiredGit("lfs", "fetch", `--include=${paths.join(",")}`, "--exclude=", "origin", ref);
+    requiredGit("lfs", "checkout", ...paths);
   }
   for (const asset of assets) {
     if (!(await matches(join(root, asset.name), asset))) throw new Error(`LFS oid/size mismatch: ${asset.name}`);

@@ -49,6 +49,10 @@ describe("街探索による仲間加入", () => {
       { id: "player", hp: 20 },
       { id: "gilberta", hp: 18 },
     ]);
+    expect(state.party.members.find(({ id }) => id === "gilberta")).toMatchObject({
+      status: { physicalFatigue: 0, haze: 0, incapacityRecoverySteps: null },
+      mentalFatigue: 0,
+    });
     expect(state.party.slots).toEqual(["player", null, null, null]);
     expect(state.adventure.flags).toContain("joined-gilberta");
     expect(joined).toMatchObject({ completion: { recruitedIds: ["gilberta"], calendarHalfDays: 1, recoverySteps: 1 } });

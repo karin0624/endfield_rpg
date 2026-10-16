@@ -13,9 +13,8 @@ export interface CharacterDefinition {
 }
 
 export interface PartyMember {
-  /** Persistent numeric fatigue, separate from staged symptoms; absence means legacy zero. */
-  readonly mentalFatigue?: number;
-  readonly status?: CharacterStatus;
+  readonly mentalFatigue: number;
+  readonly status: CharacterStatus;
   readonly id: string;
   readonly hp: number;
 }
@@ -59,7 +58,12 @@ export function createParty(definitions: readonly CharacterDefinition[], joinedI
     }
   }
   return {
-    members: joinedIds.map((id) => ({ id, hp: characterById(definitions, id).maxHp })),
+    members: joinedIds.map((id) => ({
+      id,
+      hp: characterById(definitions, id).maxHp,
+      status: healthyStatus(),
+      mentalFatigue: 0,
+    })),
     slots: [joinedIds[0] ?? null, null, null, null],
   };
 }
@@ -110,11 +114,11 @@ export function getPartyCombatants(
     const definition = characterById(definitions, id);
     return [
       {
-        mentalFatigue: member.mentalFatigue ?? 0,
+        mentalFatigue: member.mentalFatigue,
         learnedSkills: catalog ? initialLearnedSkills(catalog, id) : [],
         maxHp: definition.maxHp,
         hitRate: definition.hitRate,
-        status: member.status ?? healthyStatus(),
+        status: member.status,
         id,
         team: "ally" as const,
         hp: member.hp,

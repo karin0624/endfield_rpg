@@ -4,15 +4,9 @@ import {
   createBattleState,
   performBasicAttackAndAdvanceToAllyInput,
 } from "../../src/game/battle";
-import {
-  type BattleInput,
-  type BattleModel,
-  createBattleModel,
-  reduceBattleModel,
-} from "../../src/presentation/battleModel";
+import { createBattleModel, reduceBattleModel } from "../../src/presentation/battleModel";
 import { projectBattleActors } from "../../src/presentation/battleProjection";
 import { parseBattleSettings } from "../../src/presentation/battleSettings";
-import { projectBattleView } from "../../src/presentation/battleViewProjection";
 import { campaignMachine, createCampaignModel } from "../../src/presentation/campaignModel";
 import { projectCampaign } from "../../src/presentation/campaignProjection";
 import settings from "../../src/web/battle-settings.json";
@@ -82,20 +76,13 @@ async function run(
   const scene = renderer.beginBattle(initialBattleCombatants, undefined, projectBattleActors(initial.playback));
   await scene.ready;
   const sceneReadyMs = performance.now() - preparation;
-  const view: ReturnType<typeof createBattleView> & {
-    renderModel?: (model: BattleModel, input: BattleInput) => void;
-  } = createBattleView(board, scene, (event) => {
+  const view = createBattleView(board, scene, (event) => {
     state = reduceBattleModel(state, input, event).state;
     return true;
   });
   state = reduceBattleModel(initial, input, { type: "playback", event: { type: "skip" } }).state;
   function applyView() {
-    if (view.renderModel) timed("model-submit", () => view.renderModel?.(state, input));
-    else {
-      const frame = timed("projection", () => projectBattleView(state, input));
-      const measure = timed("dom-submit", () => view.paint(frame));
-      if (measure) state = reduceBattleModel(state, input, { type: "party-measured", measure }).state;
-    }
+    timed("model-submit", () => view.renderModel(state, input));
   }
   applyView();
   await view.settled();

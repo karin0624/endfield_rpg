@@ -17,8 +17,6 @@ export default mergeConfig(
       ground: resolve(import.meta.dirname, "tests/fixtures/ground-view.html"),
       partyApproved: resolve(import.meta.dirname, "tests/fixtures/party-approved.html"),
       partySelection: resolve(import.meta.dirname, "tests/fixtures/party-selection.html"),
-      character: resolve(import.meta.dirname, "tests/fixtures/character-view.html"),
-      reference: resolve(import.meta.dirname, "tests/fixtures/reference-view.html"),
       performance: resolve(import.meta.dirname, "tests/fixtures/performance-view.html"),
     },
     build: { outDir: "dist-views" },

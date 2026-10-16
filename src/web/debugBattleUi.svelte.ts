@@ -1,8 +1,8 @@
 import { mount, unmount, untrack } from "svelte";
 import { initialBattleCombatants } from "../content/initialBattle";
-import { battleMarkerTarget } from "../presentation/battleModel";
 import { projectBattleActors } from "../presentation/battleProjection";
 import type { BattleSettings } from "../presentation/battleSettings";
+import { battleNeedsAnimation, projectBattleSceneStatus } from "../presentation/battleViewProjection";
 import {
   createDebugBattleModel,
   type DebugBattleEvent,
@@ -71,27 +71,14 @@ export function mountDebugBattle(
   }
   function render() {
     const sceneState = state.view.scene;
-    surface.render({
-      ready: sceneState.status === "ready",
-      error: sceneState.status === "error",
-      text:
-        sceneState.status === "ready"
-          ? "表示準備完了"
-          : sceneState.status === "error"
-            ? "戦闘画面を読み込めませんでした。素材の取得とWebGL対応を確認して、再読み込みしてください。"
-            : "戦闘画面を読み込んでいます…",
-    });
+    surface.render(projectBattleSceneStatus(sceneState));
     const battleInput = debugBattleInput(state, input);
     if (sceneState.status === "ready" && scene) {
       scene.paintBattleFrame(projectBattleActors(state.view.playback));
       view ??= createBattleView(board, scene, dispatch);
       view.renderModel(state.view, battleInput);
     }
-    clock(
-      sceneState.status === "ready" &&
-        (state.view.playback.phase !== "finished" ||
-          (battleMarkerTarget(state.view, battleInput) !== null && !state.view.playback.reducedMotion)),
-    );
+    clock(battleNeedsAnimation(state.view, battleInput));
   }
   function releaseScene() {
     clock(false);

@@ -4,8 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createServer } from "vite";
 import { afterEach, describe, expect, it } from "vitest";
-import { adventureSettingsPlugin } from "../../scripts/adventure-settings-plugin";
-import { battleSettingsPlugin } from "../../scripts/battle-settings-plugin";
+import { settingsPlugin } from "../../scripts/settings-plugin";
 
 const cleanup: (() => Promise<unknown>)[] = [];
 afterEach(async () => {
@@ -23,7 +22,7 @@ async function serve(kind: "battle" | "adventure") {
     root,
     configFile: false,
     logLevel: "silent",
-    plugins: [kind === "battle" ? battleSettingsPlugin() : adventureSettingsPlugin()],
+    plugins: [settingsPlugin(kind)],
     server: { middlewareMode: true, watch: null },
   });
   cleanup.push(() => vite.close());

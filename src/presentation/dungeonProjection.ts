@@ -5,7 +5,7 @@ import { previewRecoveryItem } from "../game/itemUse";
 import { effectiveMaxHp, healthyStatus } from "../game/status";
 import { projectAdventure } from "./adventureProjection";
 import { projectBattleActors } from "./battleProjection";
-import { projectBattleView } from "./battleViewProjection";
+import { battleNeedsAnimation, projectBattleSceneStatus, projectBattleView } from "./battleViewProjection";
 import { branchActors, branchItemCount, branchItemUsable, branchSkills } from "./branchRecoveryModel";
 import {
   type DungeonContext,
@@ -207,10 +207,8 @@ export function projectDungeonChrome(
 }
 export function projectDungeonBattle(state: DungeonModel, input: DungeonInput) {
   const battle = state.value === "battle" ? state.context.battle : null;
-  const ready = battle?.scene.status === "ready",
-    error = battle?.scene.status === "error";
   const battleView =
-    battle && ready
+    battle?.scene.status === "ready"
       ? projectBattleView(battle, dungeonBattleInput(input), {
           names: dungeonNames,
           finishLabel: "ルートへ戻る",
@@ -223,19 +221,8 @@ export function projectDungeonBattle(state: DungeonModel, input: DungeonInput) {
         definitions: battle.playback.record.before.combatants,
         actors: projectBattleActors(battle.playback),
         view: battleView,
-        status: {
-          ready,
-          error,
-          text: ready
-            ? "表示準備完了"
-            : error
-              ? "戦闘画面を読み込めませんでした。素材とWebGL対応を確認して、再読み込みしてください。"
-              : "戦闘画面を読み込んでいます…",
-          reason: battle.scene.reason,
-        },
-        animate:
-          ready &&
-          (battle.playback.phase !== "finished" || (battleView?.markerId !== null && !battle.playback.reducedMotion)),
+        status: projectBattleSceneStatus(battle.scene),
+        animate: battleNeedsAnimation(battle, dungeonBattleInput(input)),
       }
     : null;
 }

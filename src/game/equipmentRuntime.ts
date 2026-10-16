@@ -4,7 +4,7 @@ import { assignEquipment, assignedEquipmentStats, type EquipmentSlot } from "./e
 import type { ExpeditionGame } from "./expedition";
 import { growthStats, hasPendingGrowth } from "./growthRuntime";
 import type { CharacterDefinition } from "./party";
-import { effectiveMaxHp, healthyStatus } from "./status";
+import { effectiveMaxHp } from "./status";
 
 export function equippedCharacters(game: ExpeditionGame, definitions: readonly CharacterDefinition[]) {
   return definitions.map((base) =>
@@ -47,7 +47,7 @@ export function editHomeEquipment(
       party: {
         ...game.party,
         members: game.party.members.map((m) =>
-          m.id === characterId ? { ...m, hp: Math.min(m.hp, effectiveMaxHp(maxHp, m.status ?? healthyStatus())) } : m,
+          m.id === characterId ? { ...m, hp: Math.min(m.hp, effectiveMaxHp(maxHp, m.status)) } : m,
         ),
       },
     },
