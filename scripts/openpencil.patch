@@ -1169,3 +1169,53 @@ diff --git a/packages/core/src/io/formats/html/index.ts b/packages/core/src/io/f
 +  expect([...result].sort()).toEqual(['7:42', '8:43'])
 +  expect(references).toEqual([{ assetRef: { key: 'library-component-key', version: 'v2' } }])
 +})
+--- a/vite/server.ts
++++ b/vite/server.ts
+@@ -1,6 +1,7 @@
+ import { resolve } from 'node:path'
++import process from 'node:process'
+
+-import { normalizePath, type ServerOptions } from 'vite'
++import { normalizePath, searchForWorkspaceRoot, type ServerOptions } from 'vite'
+
+ const WATCHED_MARKDOWN_ROOTS = ['/src/', '/packages/core/src/', '/packages/vue/src/']
+
+@@ -25,6 +26,12 @@
+   return {
+     port: 1420,
+     strictPort: true,
++    fs: {
++      allow: [
++        searchForWorkspaceRoot(rootDir),
++        ...(process.env.VITE_OPENPENCIL_STARTUP_FILE ? [process.env.VITE_OPENPENCIL_STARTUP_FILE] : [])
++      ]
++    },
+     host: host || false,
+     hmr: host
+       ? {
+--- a/src/views/WorkspaceView.vue
++++ b/src/views/WorkspaceView.vue
+@@ -27,6 +27,7 @@
+ import { appRuntimeConfig } from '@/app/runtime/config'
+ import { useDocumentDrop } from '@/app/shell/document-drop'
+ import { useKeyboard } from '@/app/shell/keyboard/use'
++import { openBrowserFileFromURL } from '@/app/shell/menu/files'
+ import { useEditorMenu } from '@/app/shell/menu/use'
+ import { toast } from '@/app/shell/ui'
+ import {
+@@ -222,6 +223,15 @@
+   // The browser twin of the deep link: the desktop build takes its links through the
+   // deep-link plugin above, so only a real browser reads them off the address bar.
+   if (IS_BROWSER && !isTauri()) {
++    const startupFile = import.meta.env.DEV && import.meta.env.VITE_OPENPENCIL_STARTUP_FILE
++    if (startupFile && !new URLSearchParams(window.location.search).has('file')) {
++      try {
++        const path = startupFile.split('/').map(encodeURIComponent).join('/')
++        await openBrowserFileFromURL(new URL('/@fs/' + path, window.location.href))
++      } catch (error) {
++        reportOpenFailure(error)
++      }
++    }
+     try {
+       await openWebLinkFromLocation(window.location.search, stripWebLinkParams, {
+         selectByName: selectNodeByName,

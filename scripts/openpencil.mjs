@@ -8,6 +8,7 @@ const project = dirname(dirname(fileURLToPath(import.meta.url)));
 const revision = "ffe2fc5798468988a5943c5f5737905c3c7a28b5";
 const patch = join(project, "scripts/openpencil.patch");
 const fonts = join(project, "art-src/openpencil/fonts");
+const master = join(project, "art-src/openpencil/endfield-rpg.fig");
 const inputs = createHash("sha256").update(await readFile(patch));
 for (const file of (await readdir(fonts)).sort()) inputs.update(file).update(await readFile(join(fonts, file)));
 const inputHash = inputs.digest("hex");
@@ -61,7 +62,9 @@ if (!(await exists(join(source, ".endfield-ready")))) {
 if (process.argv[2] === "--render") {
   await run(bun, [join(project, "scripts/render-openpencil.mjs"), source, ...process.argv.slice(3)], project);
 } else if (process.argv.length === 2 || process.argv[2] === "--app") {
-  await run(bun, ["run", "dev", ...process.argv.slice(3)], source);
+  await access(master);
+  env.VITE_OPENPENCIL_STARTUP_FILE = master.replaceAll("\\", "/");
+  await run(bun, ["run", "dev", "--open", ...process.argv.slice(3)], source);
 } else {
   await run(bun, [join(source, "packages/cli/src/index.ts"), ...process.argv.slice(2)], project);
 }

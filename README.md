@@ -111,7 +111,7 @@ npm run openpencil:render -- art-src/openpencil/endfield-rpg.fig --page Screens 
 npm run openpencil:verify
 ```
 
-引数なしの`npm run openpencil`でGUIが起動する。表示されたローカルURLを開いて原稿を読み込み、編集後は`.fig`として保存して元の原稿を更新する。GUI・CLIともに[フォント](art-src/openpencil/fonts/)を同梱するため、OSへのフォント導入とMCP設定は不要。Figmaで直接開く場合は同じTTFをOSへ導入する。ライセンスと元のWebフォントは[素材メモ](art-src/README.md#共通uiのフォント)を参照する。
+引数なしの`npm run openpencil`でGUIとブラウザが起動し、リポジトリの`endfield-rpg.fig`を自動で読み込む。ブラウザが自動で開かない環境では表示されたローカルURLを開く。原稿の選択・ドロップは不要。編集後は`.fig`として保存して元の原稿を更新する。GUI・CLIともに[フォント](art-src/openpencil/fonts/)を同梱するため、OSへのフォント導入とMCP設定は不要。Figmaで直接開く場合は同じTTFをOSへ導入する。ライセンスと元のWebフォントは[素材メモ](art-src/README.md#共通uiのフォント)を参照する。
 
 公開Web版OpenPencil 0.16.0には、このリポジトリで適用する画像切り抜きの読み込みと文字の保存の修正が含まれない。編集・保存には上記コマンドで起動するローカル版を使う。
 
