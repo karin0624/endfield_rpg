@@ -22,6 +22,8 @@
     "test:all": "sh scripts/run-browser-test.sh all",
     "test:all:inside": "COVERAGE_BROWSER=1 npm run check && COVERAGE_BROWSER=1 vite build --mode debug --outDir dist-debug && COVERAGE_BROWSER=1 vite build --config vite.views.config.ts && sh scripts/run-playwright-quality.sh all",
     "typecheck": "svelte-check --tsgo --tsconfig ./tsconfig.json --fail-on-warnings",
+    "postinstall": "node scripts/openpencil.mjs --setup",
+    "openpencil:setup": "node scripts/openpencil.mjs --setup",
     "openpencil": "node scripts/openpencil.mjs",
     "openpencil:app": "node scripts/openpencil.mjs --app",
     "openpencil:render": "node scripts/openpencil.mjs --render",
