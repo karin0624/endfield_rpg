@@ -1,6 +1,7 @@
 <script lang="ts">
 import type { Snippet } from "svelte";
 import { onMount, tick } from "svelte";
+import art from "../hub-art.json";
 import HubCalendar from "./HubCalendar.svelte";
 import IllustratedAction from "./IllustratedAction.svelte";
 import "../hub.css";
@@ -31,14 +32,15 @@ let {
 let element = $state<HTMLElement>();
 let wide = $state(true);
 let geometry = $state({ width: 1920, height: 1080, unit: 16 });
+let calendarWidth = $derived(art.dates[calendar.endsWith("昼") ? "day" : "night"].displayWidth);
 function anchor(point: readonly number[]): [number, number] {
   const { width, height, unit } = geometry,
     base = 1920 / 1672,
     baseY = (1080 - 941 * base) / 2;
   const scale = Math.max(width / 1672, height / 941);
   return [
-    (width - 1672 * scale) / 2 + (scale * point[0]) / base - 5 * unit,
-    (height - 941 * scale) / 2 + (scale * (point[1] - baseY)) / base - 4 * unit,
+    Math.round((width - 1672 * scale) / 2 + (scale * point[0]) / base - 5 * unit),
+    Math.round((height - 941 * scale) / 2 + (scale * (point[1] - baseY)) / base - 4 * unit),
   ];
 }
 const locationArt = {
@@ -131,6 +133,7 @@ $effect(() => {
   data-scene={scene}
   data-mode={wide ? "wide" : "compact"}
   data-campaign-screen={scene}
+  style:--hub-date-width={`${calendarWidth}px`}
   bind:this={element}
 >
   <img
@@ -164,7 +167,7 @@ $effect(() => {
             onclick={() => command("menu")}
             onfocus={() => focus("menu")}
           >
-            <svg class="ui-glyph" viewBox="0 0 22.5 18" aria-hidden="true">
+            <svg class="ui-glyph" viewBox="0 0 23 18" aria-hidden="true">
               <path d="M1 1H21.5M1 9H21.5M1 17H21.5" />
             </svg><span>メニュー</span>
           </button>

@@ -89,6 +89,25 @@ UI変更の画像レビューには、`test:browser`で撮影した4状態を使
 
 GLBはGit LFS、現在の数MiBのPNG・文書・コードは通常のGitで管理する。CIもLFSの実体を取得する。`build`は素材のヘッダーを確認し、LFSポインタのままなら配布物を作る前にエラーにする。
 
+## OpenPencilでホームの原稿を編集する
+
+ホームのデザインマスタは[Home.fig](art-src/openpencil/Home.fig)。`Foundations`に色変数と文字スタイル、`Components`に共通の記号と拠点部品、`Screens`に画面フレームを置く。画面には部品のインスタンスを配置し、文字・色・図案・状態はそれぞれの標準プロパティから編集する。
+
+`npm ci`後、次のコマンドでGUIとCLIを使える。初回はGitとネットワーク接続が必要で、固定版のOpenPencilソースと依存を`.openpencil/`へ準備する。両方に同じ保存形式の修正と実装と同一のフォントを適用する。
+
+```sh
+npm run openpencil:app -- --host 127.0.0.1
+npm run openpencil -- info art-src/openpencil/Home.fig
+npm run openpencil -- tree art-src/openpencil/Home.fig
+npm run openpencil:render -- art-src/openpencil/Home.fig --page Screens --node Home --output test-results/home.png
+```
+
+GUIが表示するローカルURLを開き、原稿を読み込む。編集後は`.fig`として保存し、元の原稿を更新する。GUI・CLIともに[フォント](art-src/openpencil/fonts/)を同梱するため、OSへのフォント導入とMCP設定は不要。Figmaで直接開く場合は同じTTFをOSへ導入する。ライセンスと元のWebフォントは[素材メモ](art-src/README.md#共通uiのフォント)を参照する。
+
+`openpencil:render`はOpenPencilのHTML出力を、ゲームのVRTと同じ固定PlaywrightコンテナでPNGにする。Dockerが必要で、編集後も同じコマンドを使う。`--compare <比較先PNG>`を加えると、寸法と全RGBAを比較し、差分0のときだけ成功する。Homeの比較先は`tests/long/campaign.spec.ts-snapshots/campaign-04-home-1920-built-linux.png`。出力ログには原稿のSHA256・ブラウザ版・比較結果を記録する。
+
+GUIプレビューと標準のPNG出力はCanvasKitで描画され、ブラウザ描画とは画素差がある。画素一致の検証には`openpencil:render`のPNGを使う。文字・図形・マスク・色変数・部品は原稿のネイティブ構造で管理する。
+
 ## ソース構成
 
 | ディレクトリ | 責務 |

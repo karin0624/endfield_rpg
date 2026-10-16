@@ -9,7 +9,6 @@ let region = $derived(date.numericRegion);
 let crop = $derived(date.crop);
 let scale = $derived(date.displayWidth / crop[2]);
 let raise = $derived(art.button.height - (date.displayHeight - date.textFrameDisplayTop) + 6);
-let offsets = $derived(art.dateInkOffsets[period] as Record<string, number>);
 </script>
 <div
   class="progress-clock"
@@ -32,6 +31,6 @@ let offsets = $derived(art.dateInkOffsets[period] as Record<string, number>);
     class="number-zone"
     style={`color:${period === "night" ? "#fff0c0" : "#3e2b12"};left:${(region[0] - crop[0]) * scale}px;top:${(region[1] - crop[1]) * scale}px;width:${region[2] * scale}px;height:${region[3] * scale}px`}
   >
-    <span class="day" style={`transform:translateX(${offsets[day] ?? 0}px)`}>{day}</span>
+    <span class="day">{day}</span>
   </span>
 </div>

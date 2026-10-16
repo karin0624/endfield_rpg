@@ -1,0 +1,118 @@
+import { spawn } from "node:child_process";
+import { createHash } from "node:crypto";
+import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { dirname, join, relative, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
+import { parseArgs } from "node:util";
+import { PNG } from "pngjs";
+
+const [source, ...args] = process.argv.slice(2);
+const { values, positionals } = parseArgs({
+  args,
+  allowPositionals: true,
+  options: {
+    page: { type: "string" },
+    node: { type: "string" },
+    output: { type: "string" },
+    compare: { type: "string" },
+    lang: { type: "string", default: "ja" },
+  },
+});
+if (positionals.length !== 1 || !values.page || !values.node || !values.output) {
+  throw new Error(
+    "Usage: openpencil:render INPUT.fig --page NAME --node NAME --output FILE.png [--compare FILE.png] [--lang ja]",
+  );
+}
+const project = process.cwd();
+const { parseFigFile, htmlFormat, fontManager } = await import(
+  pathToFileURL(join(source, "packages/core/dist/index.js")).href
+);
+const input = await readFile(resolve(positionals[0]));
+const graph = await parseFigFile(input.buffer.slice(input.byteOffset, input.byteOffset + input.byteLength), {
+  populate: "all",
+});
+const pages = graph.getPages().filter((page) => page.name === values.page);
+if (pages.length !== 1) throw new Error(`Expected one page named ${values.page}; found ${pages.length}`);
+const nodes = graph.getChildren(pages[0].id).filter((node) => node.name === values.node && node.visible);
+if (nodes.length !== 1) throw new Error(`Expected one visible node named ${values.node}; found ${nodes.length}`);
+const node = nodes[0];
+for (const [family, style] of fontManager.collectFontKeys(graph, [node.id])) {
+  if (!(await fontManager.loadFont(family, style))) throw new Error(`Cannot load font ${family} / ${style}`);
+}
+// A node export starts at its own origin even when the frame moves on its page.
+graph.updateNode(node.id, { x: 0, y: 0 });
+const width = Math.ceil(node.width),
+  height = Math.ceil(node.height);
+if (!(width > 0 && height > 0)) throw new Error("The exported node must have positive dimensions");
+const exported = await htmlFormat.exportContent(
+  { graph, target: { scope: "node", nodeId: node.id }, fileName: "frame.html" },
+  { html: "standalone", style: "inline", assets: "inline", fonts: "assets", lang: values.lang },
+);
+const temporary = await mkdtemp(join(project, ".openpencil/render-"));
+try {
+  await writeFile(join(temporary, "frame.html"), exported.data);
+  for (const asset of exported.assets ?? []) {
+    const path = join(temporary, asset.path);
+    await mkdir(dirname(path), { recursive: true });
+    await writeFile(path, asset.content);
+  }
+  await writeFile(join(temporary, "job.json"), JSON.stringify({ width, height }));
+  await new Promise((resolveRun, reject) => {
+    const child = spawn(
+      "docker",
+      [
+        "run",
+        "--rm",
+        "--init",
+        "--ipc=host",
+        "--user",
+        `${process.getuid()}:${process.getgid()}`,
+        "-v",
+        `${project}:/work`,
+        "-w",
+        "/work",
+        "mcr.microsoft.com/playwright:v1.63.0-noble",
+        "node",
+        "scripts/render-openpencil-html.mjs",
+        `/work/${relative(project, temporary)}`,
+      ],
+      { stdio: "inherit" },
+    );
+    child.on("error", reject);
+    child.on("exit", (code, signal) =>
+      code === 0 ? resolveRun() : reject(new Error(`Browser renderer exited with ${signal ?? code}`)),
+    );
+  });
+  const output = resolve(values.output);
+  await mkdir(dirname(output), { recursive: true });
+  await cp(join(temporary, "result.png"), output);
+  const result = {
+    inputSHA256: createHash("sha256").update(input).digest("hex"),
+    node: node.id,
+    width,
+    height,
+    output,
+    ...JSON.parse(await readFile(join(temporary, "result.json"), "utf8")),
+  };
+  if (values.compare) {
+    const expected = PNG.sync.read(await readFile(resolve(values.compare)));
+    const actual = PNG.sync.read(await readFile(output));
+    if (actual.width !== expected.width || actual.height !== expected.height) throw new Error("PNG dimensions differ");
+    let differentPixels = 0,
+      maxChannelDifference = 0;
+    for (let index = 0; index < actual.data.length; index += 4) {
+      let different = false;
+      for (let channel = 0; channel < 4; channel++) {
+        const difference = Math.abs(actual.data[index + channel] - expected.data[index + channel]);
+        different ||= difference !== 0;
+        maxChannelDifference = Math.max(maxChannelDifference, difference);
+      }
+      differentPixels += Number(different);
+    }
+    result.comparison = { reference: resolve(values.compare), differentPixels, maxChannelDifference };
+    if (differentPixels !== 0) process.exitCode = 1;
+  }
+  process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+} finally {
+  await rm(temporary, { recursive: true, force: true });
+}

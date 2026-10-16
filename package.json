@@ -21,7 +21,10 @@
     "review:party": "python3 scripts/compare-party-ui.py test-results test-results/approved-comparison",
     "test:all": "sh scripts/run-browser-test.sh all",
     "test:all:inside": "COVERAGE_BROWSER=1 npm run check && COVERAGE_BROWSER=1 vite build --mode debug --outDir dist-debug && COVERAGE_BROWSER=1 vite build --config vite.views.config.ts && sh scripts/run-playwright-quality.sh all",
-    "typecheck": "svelte-check --tsgo --tsconfig ./tsconfig.json --fail-on-warnings"
+    "typecheck": "svelte-check --tsgo --tsconfig ./tsconfig.json --fail-on-warnings",
+    "openpencil": "node scripts/openpencil.mjs",
+    "openpencil:app": "node scripts/openpencil.mjs --app",
+    "openpencil:render": "node scripts/openpencil.mjs --render"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.14",
@@ -30,7 +33,9 @@
     "@types/node": "^24.13.6",
     "@typescript/native": "npm:typescript@7.0.2",
     "@vitest/coverage-v8": "5.0.1",
+    "bun": "1.4.2",
     "monocart-coverage-reports": "2.13.0",
+    "pngjs": "7.0.0",
     "svelte-check": "^4.7.6",
     "typescript": "^6.0.3",
     "vite": "^8.3.0",

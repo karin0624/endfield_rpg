@@ -1,0 +1,1026 @@
+--- a/packages/fig/src/node-change/paint.ts
++++ b/packages/fig/src/node-change/paint.ts
+@@ -36,7 +36,8 @@
+   }
+   if (fill.gradientTransform) paint.transform = fill.gradientTransform
+   if (fill.imageHash) paint.image = { hash: hexToBytes(fill.imageHash) }
+-  if (fill.imageScaleMode) paint.imageScaleMode = fill.imageScaleMode
++  if (fill.imageScaleMode)
++    paint.imageScaleMode = fill.imageScaleMode === 'CROP' ? 'STRETCH' : fill.imageScaleMode
+   if (fill.imageTransform) paint.transform = fill.imageTransform
+   if (fill.sourceNodeId) paint.sourceNodeId = stringToGuid(fill.sourceNodeId)
+   if (fill.scale) paint.scale = fill.scale
+@@ -124,7 +125,9 @@
+       fill.imageHash = img.hash
+     }
+   }
+-  fill.imageScaleMode = (p.imageScaleMode ?? 'FILL') as ImageScaleMode
++  fill.imageScaleMode = (
++    p.imageScaleMode === 'STRETCH' ? 'CROP' : (p.imageScaleMode ?? 'FILL')
++  ) as ImageScaleMode
+   if (p.transform) fill.imageTransform = convertGradientTransform(p.transform)
+ }
+ 
+--- a/packages/fig/src/node-change/serialize.ts
++++ b/packages/fig/src/node-change/serialize.ts
+@@ -370,7 +370,7 @@
+ function serializeGeometry(node: SceneNode, nc: KiwiNodeChange, blobs: Uint8Array[]): void {
+   if (node.isMask) {
+     nc.mask = true
+-    nc.maskType = node.maskType
++    nc.maskType = node.maskType === 'VECTOR' ? 'OUTLINE' : node.maskType
+     if (node.maskIsOutline) nc.maskIsOutline = true
+   }
+ 
+--- a/packages/fig/src/node-change/convert.ts
++++ b/packages/fig/src/node-change/convert.ts
+@@ -716,7 +716,10 @@
+     maxHeight: maximumSizeDimension(nc.maxSize, 'y'),
+     targetAspectRatio: targetAspectRatio(nc),
+     isMask: nc.mask ?? false,
+-    maskType: (nc.maskType ?? 'ALPHA') as 'ALPHA' | 'VECTOR' | 'LUMINANCE',
++    maskType: (nc.maskType === 'OUTLINE' ? 'VECTOR' : (nc.maskType ?? 'ALPHA')) as
++      | 'ALPHA'
++      | 'VECTOR'
++      | 'LUMINANCE',
+     maskIsOutline: nc.maskIsOutline ?? false,
+     expanded: true,
+     autoRename: (nc.autoRename ?? true) as boolean,
+
+diff --git a/packages/scene-graph/src/index.ts b/packages/scene-graph/src/index.ts
+--- a/packages/scene-graph/src/index.ts
++++ b/packages/scene-graph/src/index.ts
+@@ -672,7 +672,10 @@
+ 
+     const node = this.nodes.get(id)
+     if (!node) return
+-    changes = stripUndefinedProps(styleDetachmentChanges(node, stripUndefinedProps(changes)))
++    changes = stripUndefinedProps(changes)
++    if (!this.isApplyingImportedState) {
++      changes = stripUndefinedProps(styleDetachmentChanges(node, changes))
++    }
+     this.applyNodeChanges(node, changes)
+   }
+ 
+diff --git a/packages/scene-graph/src/instances/sync.ts b/packages/scene-graph/src/instances/sync.ts
+--- a/packages/scene-graph/src/instances/sync.ts
++++ b/packages/scene-graph/src/instances/sync.ts
+@@ -167,7 +167,20 @@
+       ([key, value]) => !isEqual(target[key as keyof SceneNode], value)
+     )
+   ) as Partial<SceneNode>
+-  if (Object.keys(changed).length) graph.updateNode(target.id, changed)
++  if (Object.keys(changed).length) {
++    // Equal style references accompany component-derived values; sync is not an edit
++    // that detaches the copy from its style.
++    for (const field of [
++      'fillStyleId',
++      'strokeStyleId',
++      'textStyleId',
++      'effectStyleId',
++      'gridStyleId'
++    ] as const) {
++      if (!(field in changed) && target[field]) changed[field] = target[field]
++    }
++    graph.updateNode(target.id, changed)
++  }
+ }
+ 
+ function cloneChildInCoordinates(
+
+diff --git a/packages/fig/src/document/component/values.ts b/packages/fig/src/document/component/values.ts
+--- a/packages/fig/src/document/component/values.ts
++++ b/packages/fig/src/document/component/values.ts
+@@ -24,11 +24,18 @@
+     let linked: typeof node.componentPropertyDefinitions | undefined
+     node.componentPropertyDefinitions.forEach((definition, index) => {
+       definitions.set(definition.id, definition.type)
+-      if (definition.type !== 'INSTANCE_SWAP') return
+-      const target = sources.get(definition.defaultValue)
+-      if (!target) return
++      if (definition.type !== 'INSTANCE_SWAP' && definition.type !== 'SLOT') return
++      const defaultValue =
++        definition.type === 'INSTANCE_SWAP'
++          ? (sources.get(definition.defaultValue) ?? definition.defaultValue)
++          : definition.defaultValue
++      const preferredValues = definition.preferredValues?.map((value) => sources.get(value) ?? value)
++      if (
++        defaultValue === definition.defaultValue &&
++        !preferredValues?.some((value, index) => value !== definition.preferredValues?.[index])
++      ) return
+       linked ??= [...node.componentPropertyDefinitions]
+-      linked[index] = { ...definition, defaultValue: target }
++      linked[index] = { ...definition, defaultValue, preferredValues }
+     })
+     if (linked) node.componentPropertyDefinitions = linked
+   }
+diff --git a/packages/fig/src/node-change/export/node.ts b/packages/fig/src/node-change/export/node.ts
+--- a/packages/fig/src/node-change/export/node.ts
++++ b/packages/fig/src/node-change/export/node.ts
+@@ -549,7 +549,8 @@
+ 
+ function componentPropertyPreferredValues(
+   definition: ComponentPropertyDefinition,
+-  context: SceneNodeToKiwiContext
++  context: SceneNodeToKiwiContext,
++  localIdCounter: { value: number }
+ ) {
+   if (
+     (definition.type === 'INSTANCE_SWAP' || definition.type === 'SLOT') &&
+@@ -558,7 +559,11 @@
+     return {
+       instanceSwapValues: definition.preferredValues.map((value) => {
+         const target = context.graph.getNode(value)
+-        const key = target?.componentKey || target?.sourceLibraryKey || value
++        const guid = target ? getOrCreateNodeGuid(context, target.id, localIdCounter) : undefined
++        const key =
++          target?.componentKey ||
++          target?.sourceLibraryKey ||
++          (guid ? `${guid.sessionID}:${guid.localID}` : value)
+         return { type: 'COMPONENT', key }
+       })
+     }
+@@ -673,7 +678,7 @@
+       id: getOrCreatePropertyGuid(context, def.id, localIdCounter),
+       name: def.name,
+       type: componentPropertyTypeForKiwi(def.type),
+-      preferredValues: componentPropertyPreferredValues(def, context)
++      preferredValues: componentPropertyPreferredValues(def, context, localIdCounter)
+     }
+     if (def.type === 'SLOT') Object.assign(record, slotDefinitionFields(def))
+     else {
+diff --git a/packages/core/src/figma-api/components.ts b/packages/core/src/figma-api/components.ts
+--- a/packages/core/src/figma-api/components.ts
++++ b/packages/core/src/figma-api/components.ts
+@@ -10,6 +10,7 @@
+ import {
+   applyComponentPropertyValue,
+   componentPropertyDefinitions as sharedComponentPropertyDefinitions,
++  componentPropertyOwners,
+   removeComponentProperty,
+   createComponentPropertyId,
+   exposedInstances,
+@@ -207,9 +208,14 @@
+ ): FigmaComponentProperties {
+   const node = raw(target, internals)
+   if (node.type !== 'INSTANCE') return {}
++  const scene = graph(target, internals)
++  const component = componentPropertyOwners(scene, node).find((owner) => owner.type === 'COMPONENT')
+   return Object.fromEntries(
+-    sharedComponentPropertyDefinitions(graph(target, internals), node).map((definition) => {
+-      const value = node.componentPropertyAssignments[definition.id] ?? definition.defaultValue
++    sharedComponentPropertyDefinitions(scene, node).map((definition) => {
++      const value =
++        definition.type === 'VARIANT'
++          ? (component?.componentPropertyValues[definition.name] ?? definition.defaultValue)
++          : (node.componentPropertyAssignments[definition.id] ?? definition.defaultValue)
+       return [
+         propertyName(definition),
+         {
+
+diff --git a/packages/scene-graph/src/instances.ts b/packages/scene-graph/src/instances.ts
+--- a/packages/scene-graph/src/instances.ts
++++ b/packages/scene-graph/src/instances.ts
+@@ -14,6 +14,7 @@
+ } from './instances/copies'
+ import { canCreateInstance } from './instances/cycles'
+ import { INSTANCE_OVERRIDE_FIELDS, INSTANCE_SYNC_PROPS } from './instances/fields'
++import { instanceMainComponent } from './instances/main-component'
+ import {
+   bindingProtection,
+   cloneChildrenWithMapping,
+@@ -221,8 +222,7 @@
+ 
+ export function getMainComponent(graph: SceneGraph, instanceId: string): SceneNode | undefined {
+   const node = graph.nodes.get(instanceId)
+-  if (!node?.componentId) return undefined
+-  return graph.nodes.get(node.componentId)
++  return node ? instanceMainComponent(graph, node) : undefined
+ }
+ 
+ export function getInstances(graph: SceneGraph, componentId: string): SceneNode[] {
+diff --git a/packages/core/src/figma-api/proxy.ts b/packages/core/src/figma-api/proxy.ts
+--- a/packages/core/src/figma-api/proxy.ts
++++ b/packages/core/src/figma-api/proxy.ts
+@@ -328,8 +328,7 @@
+ 
+   get mainComponent(): FigmaNodeProxy | null {
+     const n = this._raw()
+-    if (!n.componentId) return null
+-    const comp = this[INTERNAL_GRAPH].getNode(n.componentId)
++    const comp = this[INTERNAL_GRAPH].getMainComponent(n.id)
+     if (!comp) return null
+     return this[INTERNAL_API].wrapNode(comp.id)
+   }
+
+diff --git a/packages/core/src/text/fonts.ts b/packages/core/src/text/fonts.ts
+index 690f461..055de79 100644
+--- a/packages/core/src/text/fonts.ts
++++ b/packages/core/src/text/fonts.ts
+@@ -41,7 +41,9 @@ const BUNDLED_FONTS: Record<string, string> = {
+   'Inter|SemiBold': '/Inter-SemiBold.ttf',
+   'Inter|Bold': '/Inter-Bold.ttf',
+   'Inter|ExtraBold': '/Inter-ExtraBold.ttf',
+-  'Noto Naskh Arabic|Regular': '/NotoNaskhArabic-Regular.ttf'
++  'Noto Naskh Arabic|Regular': '/NotoNaskhArabic-Regular.ttf',
++  'Noto Serif JP|Bold': '/noto-serif-jp-700.ttf',
++  'Noto Sans JP|Regular': '/noto-sans-jp-400.ttf'
+ }
+ 
+ /**
+diff --git a/src/app/editor/fonts/bundled.ts b/src/app/editor/fonts/bundled.ts
+index bb04770..788b78e 100644
+--- a/src/app/editor/fonts/bundled.ts
++++ b/src/app/editor/fonts/bundled.ts
+@@ -4,6 +4,8 @@ import interMedium from '@open-pencil/core/assets/Inter-Medium.ttf?url'
+ import interRegular from '@open-pencil/core/assets/Inter-Regular.ttf?url'
+ import interSemiBold from '@open-pencil/core/assets/Inter-SemiBold.ttf?url'
+ import notoNaskhArabic from '@open-pencil/core/assets/NotoNaskhArabic-Regular.ttf?url'
++import notoSansJpRegular from '@open-pencil/core/assets/noto-sans-jp-400.ttf?url'
++import notoSerifJpBold from '@open-pencil/core/assets/noto-serif-jp-700.ttf?url'
+ import { fontManager } from '@open-pencil/core/text'
+ 
+ /**
+@@ -18,7 +20,9 @@ const BUNDLED_FONT_URLS: Record<string, string> = {
+   'Inter-SemiBold.ttf': interSemiBold,
+   'Inter-Bold.ttf': interBold,
+   'Inter-ExtraBold.ttf': interExtraBold,
+-  'NotoNaskhArabic-Regular.ttf': notoNaskhArabic
++  'NotoNaskhArabic-Regular.ttf': notoNaskhArabic,
++  'noto-sans-jp-400.ttf': notoSansJpRegular,
++  'noto-serif-jp-700.ttf': notoSerifJpBold
+ }
+ 
+ /** Points core at the emitted font files. Call before any font loads. */
+diff --git a/packages/fig/src/node-change/convert.ts b/packages/fig/src/node-change/convert.ts
+--- a/packages/fig/src/node-change/convert.ts
++++ b/packages/fig/src/node-change/convert.ts
+@@ -323,7 +323,10 @@ function importedTextLineHeight(nc: NodeChange): number | null {
+     nc.lineHeight.units === 'PIXELS' &&
+     derivedLineHeight !== undefined &&
+     Number.isFinite(derivedLineHeight) &&
+-    derivedLineHeight < nc.lineHeight.value
++    derivedLineHeight < nc.lineHeight.value &&
++    // SkParagraph rounds its derived line metrics to whole pixels. That cache must not
++    // replace an explicitly authored fractional pixel line height on a save/open cycle.
++    derivedLineHeight !== Math.round(nc.lineHeight.value)
+   )
+     return derivedLineHeight
+   return convertLineHeight(nc.lineHeight, nc.fontSize)
+diff --git a/packages/core/src/io/types.ts b/packages/core/src/io/types.ts
+--- a/packages/core/src/io/types.ts
++++ b/packages/core/src/io/types.ts
+@@ -101,7 +101,9 @@
+   html?: 'fragment' | 'standalone'
+   style?: 'inline' | 'tailwind'
+   assets?: 'inline' | 'external'
+-  /** `assets` ships web fonts with external assets. */
++  /** Language inherited by native text shaping in a standalone document. */
++  lang?: string
++  /** `assets` ships web fonts inline or with external assets. */
+   fonts?: 'assets' | 'none'
+ }
+ 
+diff --git a/packages/core/src/io/formats/html/index.ts b/packages/core/src/io/formats/html/index.ts
+--- a/packages/core/src/io/formats/html/index.ts
++++ b/packages/core/src/io/formats/html/index.ts
+@@ -5,18 +5,22 @@
+ } from '@open-pencil/dom-css/export'
+ import type { SceneGraph } from '@open-pencil/scene-graph'
+ 
++import { getCanvasKit } from '#core/canvaskit'
+ import type { ExportAsset, HTMLExportOptions } from '#core/io/types'
+ import { exportWebFontFaceAssets } from '#core/text/web-font/assets'
+ 
+ import { vectorElement } from './vectors'
+ 
+ function designDocument(graph: SceneGraph, nodeIds: string[]): DesignDocument {
++  const documents = nodeIds.map((id) => sceneNodeToDesignDocument(graph, id, { vectorElement }))
++  const tokens = documents[0]?.tokens
++  for (const document of documents.slice(1))
++    for (const id of document.tokens?.used ?? []) tokens?.used.add(id)
+   return {
+     type: 'document',
+     sourceGraph: graph,
+-    children: nodeIds.flatMap(
+-      (id) => sceneNodeToDesignDocument(graph, id, { vectorElement }).children
+-    )
++    tokens,
++    children: documents.flatMap((document) => document.children)
+   }
+ }
+ 
+@@ -35,8 +39,24 @@
+   options: HTMLExportOptions = {},
+   fileName?: string
+ ): Promise<{ html: string; assets: ExportAsset[] }> {
+-  const bundle = await exportHTMLBundle(designDocument(graph, nodeIds), {
++  const document = designDocument(graph, nodeIds)
++  const sizes = new Map<string, { width: number; height: number }>()
++  if (options.html === 'standalone') {
++    const ck = await getCanvasKit()
++    for (const [hash, bytes] of graph.images) {
++      const image = ck.MakeImageFromEncoded(bytes)
++      if (!image) continue
++      try {
++        sizes.set(hash, { width: image.width(), height: image.height() })
++      } finally {
++        image.delete()
++      }
++    }
++  }
++  const bundle = await exportHTMLBundle(document, {
+     html: options.html,
++    lang: options.lang,
++    imageSize: (hash) => sizes.get(hash),
+     style: options.style,
+     assets: options.assets,
+     fonts:
+diff --git a/packages/core/src/io/formats/html/vectors.ts b/packages/core/src/io/formats/html/vectors.ts
+--- a/packages/core/src/io/formats/html/vectors.ts
++++ b/packages/core/src/io/formats/html/vectors.ts
+@@ -5,6 +5,7 @@
+ import { iconColor } from '#core/icons/render'
+ import { renderNodeSVGElement } from '#core/io/formats/svg/export'
+ import type { SVGNode } from '#core/io/formats/svg/node'
++import { geometryBlobToSVGPath, vectorNetworkToSVGPaths } from '#core/io/formats/svg/paths'
+ 
+ function designNode(node: SVGNode | string): DesignNode {
+   if (typeof node === 'string') return { type: 'text', text: node }
+@@ -43,6 +44,21 @@
+   })
+   const element = drawn && designNode(drawn)
+   if (element?.type !== 'element') return null
++  // Native HTML geometry must keep full stored precision; SVG file export may round for size.
++  const paths = node.fillGeometry.length
++    ? node.fillGeometry.map((geometry) => geometryBlobToSVGPath(geometry.commandsBlob, null))
++    : node.vectorNetwork
++      ? vectorNetworkToSVGPaths(node.vectorNetwork, null)
++      : []
++  const shapes = element.children.filter(
++    (child): child is DesignElement => child.type === 'element' && child.tagName === 'path'
++  )
++  paths.forEach((path, index) => {
++    if (shapes[index]) shapes[index].attrs.d = path
++  })
++  element.attrs.width = String(node.width)
++  element.attrs.height = String(node.height)
++  element.attrs.viewBox = `0 0 ${node.width} ${node.height}`
+   const color = icon ? iconColor(graph, node) : null
+   return {
+     ...element,
+diff --git a/packages/core/src/text/web-font/assets.ts b/packages/core/src/text/web-font/assets.ts
+--- a/packages/core/src/text/web-font/assets.ts
++++ b/packages/core/src/text/web-font/assets.ts
+@@ -2,6 +2,7 @@
+ 
+ import type { WebFontFaceAsset, WebFontFaceRequest } from '@open-pencil/dom-css/export'
+ 
++import { fontManager, weightToStyle } from '#core/text/fonts'
+ import {
+   createProviderUnifont,
+   isRemoteFontSource,
+@@ -58,6 +59,39 @@
+   return slug.endsWith('-') ? slug.slice(0, -1) : slug
+ }
+ 
++function loadedFontAsset(
++  request: WebFontFaceRequest,
++  assetBasePath: string
++): WebFontFaceAsset | undefined {
++  const style = request.style ?? 'normal'
++  const data = fontManager.loadedData(
++    request.family,
++    weightToStyle(request.weight, style === 'italic')
++  )
++  if (!data || data.byteLength < 4) return undefined
++  const signature = new DataView(data).getUint32(0)
++  const format: WebFontFaceAsset['format'] | undefined =
++    signature === 0x774f4632
++      ? 'woff2'
++      : signature === 0x774f4646
++        ? 'woff'
++        : signature === 0x4f54544f
++          ? 'opentype'
++          : signature === 0x00010000 || signature === 0x74727565
++            ? 'truetype'
++            : undefined
++  if (!format) return undefined
++  const extension = format === 'opentype' ? 'otf' : format === 'truetype' ? 'ttf' : format
++  return {
++    family: request.family,
++    weight: request.weight,
++    style,
++    format,
++    path: `${assetBasePath}/${slugFontFamily(request.family)}-${request.weight}-${style}.${extension}`,
++    content: new Uint8Array(data).slice()
++  }
++}
++
+ async function resolveRemoteFontSource(
+   family: string,
+   request: WebFontFaceRequest,
+@@ -96,6 +130,12 @@
+     if (seen.has(key)) continue
+     seen.add(key)
+ 
++    const loaded = loadedFontAsset(request, assetBasePath)
++    if (loaded) {
++      assets.push(loaded)
++      continue
++    }
++
+     for (const provider of providers) {
+       try {
+         const resolved = await resolveRemoteFontSource(family, request, provider)
+diff --git a/packages/dom-css/src/export/bundle.ts b/packages/dom-css/src/export/bundle.ts
+--- a/packages/dom-css/src/export/bundle.ts
++++ b/packages/dom-css/src/export/bundle.ts
+@@ -1,5 +1,5 @@
+ import type { CSSFontFaceRule } from '@acemir/cssom'
+-import { isValid, toUint8Array } from 'js-base64'
++import { fromUint8Array, isValid, toUint8Array } from 'js-base64'
+ import { parseFragment, serialize, type DefaultTreeAdapterTypes } from 'parse5'
+ 
+ import { normalizeFontFamily } from '@open-pencil/scene-graph'
+@@ -7,6 +7,7 @@
+ import { tokenStylesheet, type TokenStylesheetFormat } from '../tokens/stylesheet'
+ import type { DesignDocument, DesignElement, DesignNode, DesignStyleDeclaration } from '../types'
+ import { mergeClassNames, serializeHTML, splitWhitespace } from './html'
++import { nativeStandaloneDocument, type ImageSizeResolver } from './native'
+ 
+ /** A font face the exported text uses. */
+ export interface WebFontFaceRequest {
+@@ -38,9 +39,13 @@
+   html?: 'fragment' | 'standalone'
+   style?: 'inline' | 'tailwind'
+   assets?: 'inline' | 'external'
+-  /** Resolves font files to include with external assets; `none` includes no fonts. */
++  /** Resolves font files to include inline or externally; `none` includes no fonts. */
+   fonts?: 'none' | WebFontFaceResolver
+   assetBasePath?: string
++  /** Language inherited by native text shaping in a standalone document. */
++  lang?: string
++  /** The engine's original encoded-image dimensions, required for native crops. */
++  imageSize?: ImageSizeResolver
+ }
+ 
+ export interface ExportHTMLFile {
+@@ -236,10 +241,19 @@
+   if (node.type === 'text') return
+   const source = node.sourceSceneNode
+   if (source?.type === 'TEXT') {
+-    const family = normalizeFontFamily(firstFontFamily(source.fontFamily))
+-    const style = source.italic ? 'italic' : 'normal'
+-    const key = `${family}|${source.fontWeight}|${style}`
+-    fonts.set(key, { family, weight: source.fontWeight, style })
++    const add = (fontFamily: string, weight: number, italic: boolean) => {
++      const family = normalizeFontFamily(firstFontFamily(fontFamily))
++      const style = italic ? 'italic' : 'normal'
++      fonts.set(`${family}|${weight}|${style}`, { family, weight, style })
++    }
++    add(source.fontFamily, source.fontWeight, source.italic)
++    for (const { style } of source.styleRuns) {
++      add(
++        style.fontFamily ?? source.fontFamily,
++        style.fontWeight ?? source.fontWeight,
++        style.italic ?? source.italic
++      )
++    }
+   }
+   for (const child of node.children) collectFontRequests(child, fonts)
+ }
+@@ -248,7 +262,12 @@
+   return Array.isArray(weight) ? weight.join(' ') : String(weight)
+ }
+ 
+-function fontSourceValue(asset: WebFontFaceAsset, from: string): string {
++function fontSourceValue(asset: WebFontFaceAsset, from: string, inline = false): string {
++  if (inline) {
++    const extension =
++      asset.format === 'opentype' ? 'otf' : asset.format === 'truetype' ? 'ttf' : asset.format
++    return `url(${JSON.stringify(`data:font/${extension};base64,${fromUint8Array(asset.content)}`)}) format(${JSON.stringify(asset.format)})`
++  }
+   // Relative to the stylesheet's folder, which the asset's path may start with.
+   const path =
+     from && asset.path.startsWith(`${from}/`) ? asset.path.slice(from.length + 1) : asset.path
+@@ -262,6 +281,8 @@
+ interface FontFaceCSSOptions {
+   /** The folder the stylesheet is in, which font paths are written relative to. */
+   from: string
++  /** Include the original bytes as a data URL. */
++  inline?: boolean
+   /** `font-display` for every face, rather than each face's own. */
+   display?: string
+ }
+@@ -273,7 +294,7 @@
+ ): string {
+   const rule = new FontFaceRule()
+   rule.style.setProperty('font-family', JSON.stringify(asset.family))
+-  rule.style.setProperty('src', fontSourceValue(asset, options.from))
++  rule.style.setProperty('src', fontSourceValue(asset, options.from, options.inline))
+   rule.style.setProperty('font-weight', serializeFontWeight(asset.weight))
+   rule.style.setProperty('font-style', asset.style)
+   rule.style.setProperty('font-display', options.display ?? asset.display ?? 'swap')
+@@ -306,10 +327,16 @@
+   document: DesignDocument,
+   options: Required<ExportHTMLBundleOptions>
+ ): Promise<{ css: string; files: ExportHTMLFile[] }> {
+-  if (options.fonts === 'none' || options.assets !== 'external') return { css: '', files: [] }
++  if (options.fonts === 'none') return { css: '', files: [] }
+   const assets = await options.fonts(designFontRequests(document), `${options.assetBasePath}/fonts`)
+   // The page's stylesheet sits at the top, so font paths stay as they are.
+-  return { css: await fontFaceStylesheet(assets, { from: '' }), files: assets }
++  return {
++    css: await fontFaceStylesheet(assets, {
++      from: options.assetBasePath,
++      inline: options.assets === 'inline'
++    }),
++    files: options.assets === 'external' ? assets : []
++  }
+ }
+ 
+ function dataImageParts(value: string): { mime: string; base64: string } | undefined {
+@@ -370,7 +397,8 @@
+   options: Required<ExportHTMLBundleOptions>
+ ): Promise<ExportHTMLBundle> {
+   const size = standaloneSize(document)
+-  const doc = standaloneDocument(document, size)
++  const native = nativeStandaloneDocument(document, options.imageSize)
++  const doc = standaloneDocument(native, size)
+   const stageCSS = `.op-stage{position:relative;width:${size.width}px;height:${size.height}px;overflow:hidden;background:transparent}`
+   let body: string
+   let css = `${RESET_CSS}${stageCSS}`
+@@ -393,6 +421,9 @@
+     css += rules.join('')
+   }
+ 
++  const htmlLang = options.lang
++    ? ` lang="${options.lang.replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;')}"`
++    : ''
+   if (options.assets === 'external') {
+     const [extracted, fonts] = await Promise.all([
+       Promise.resolve(extractImageAssets(body, options.assetBasePath)),
+@@ -400,7 +431,7 @@
+     ])
+     body = extracted.html
+     const cssPath = `${options.assetBasePath}/openpencil.css`
+-    const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">${stylesheetLink(cssPath)}</head><body><main data-open-pencil-html="standalone" class="op-stage">${body}</main></body></html>`
++    const html = `<!doctype html><html${htmlLang}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">${stylesheetLink(cssPath)}</head><body><main data-open-pencil-html="standalone" class="op-stage">${body}</main></body></html>`
+     return {
+       entrypoint: 'index.html',
+       files: [
+@@ -412,7 +443,10 @@
+     }
+   }
+ 
+-  const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">${styleTag(css)}</head><body><main data-open-pencil-html="standalone" class="op-stage">${body}</main></body></html>`
++  const fonts = await fontFaceAssets(document, options)
++  css = `${fonts.css}${css}`
++
++  const html = `<!doctype html><html${htmlLang}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">${styleTag(css)}</head><body><main data-open-pencil-html="standalone" class="op-stage">${body}</main></body></html>`
+   return { entrypoint: 'index.html', files: [{ path: 'index.html', content: html }] }
+ }
+ 
+@@ -425,7 +459,9 @@
+     style: options.style ?? 'inline',
+     assets: options.assets ?? 'inline',
+     fonts: options.fonts ?? 'none',
+-    assetBasePath: options.assetBasePath ?? 'assets'
++    assetBasePath: options.assetBasePath ?? 'assets',
++    lang: options.lang ?? '',
++    imageSize: options.imageSize ?? (() => undefined)
+   }
+ 
+   if (resolvedOptions.html === 'standalone') return exportStandaloneHTML(document, resolvedOptions)
+diff --git a/packages/dom-css/src/export/native.ts b/packages/dom-css/src/export/native.ts
+new file mode 100644
+--- /dev/null
++++ b/packages/dom-css/src/export/native.ts
+@@ -0,0 +1,323 @@
++import type { Fill, SceneNode } from '@open-pencil/scene-graph'
++
++import type { DesignDocument, DesignElement, DesignNode, DesignStyleDeclaration } from '../types'
++import { cssColor } from './css'
++
++/** Encoded-image dimensions supplied by the engine, without resampling the original bytes. */
++export type ImageSizeResolver = (hash: string) => { width: number; height: number } | undefined
++
++function element(
++  tagName: string,
++  attrs: Record<string, string> = {},
++  children: DesignNode[] = [],
++  inlineStyle?: DesignStyleDeclaration
++): DesignElement {
++  return { type: 'element', tagName, attrs, children, inlineStyle }
++}
++
++function clone(node: DesignNode): DesignNode {
++  return node.type === 'text'
++    ? { ...node }
++    : {
++        ...node,
++        attrs: { ...node.attrs },
++        inlineStyle: { ...node.inlineStyle },
++        children: node.children.map(clone)
++      }
++}
++
++function cropImage(
++  projected: DesignElement,
++  node: SceneNode,
++  fill: Fill,
++  imageSize: ImageSizeResolver
++) {
++  if (fill.imageScaleMode !== 'CROP' || !fill.imageTransform) return
++  const { m00: a, m01: c, m02: e, m10: b, m11: d, m12: f } = fill.imageTransform
++  const style = (projected.inlineStyle ??= {})
++  if (a === 1 && d === 1 && b === 0 && c === 0 && e === 0 && f === 0) {
++    style['object-fit'] = 'fill'
++    return
++  }
++  const size = fill.imageHash && imageSize(fill.imageHash)
++  if (!size) throw new Error(`Cannot export image crop without image dimensions: ${node.id}`)
++  const { width: iw, height: ih } = size
++  const href = projected.attrs.src
++  projected.tagName = 'svg'
++  delete projected.attrs.src
++  delete style['object-fit']
++  delete style['aspect-ratio']
++  Object.assign(projected.attrs, {
++    xmlns: 'http://www.w3.org/2000/svg',
++    width: String(node.width),
++    height: String(node.height),
++    preserveAspectRatio: 'none'
++  })
++  if (b === 0 && c === 0 && a > 0 && d > 0) {
++    projected.attrs.viewBox = `0 0 ${iw * a} ${ih * d}`
++    projected.children = [
++      element('image', {
++        href,
++        x: String(-iw * e),
++        y: String(-ih * f),
++        width: String(iw),
++        height: String(ih),
++        preserveAspectRatio: 'none'
++      })
++    ]
++  } else {
++    const det = a * d - b * c
++    if (det === 0) throw new Error(`Singular image crop transform: ${node.id}`)
++    const matrix = [
++      (node.width * d) / det / iw,
++      (-node.height * b) / det / iw,
++      (-node.width * c) / det / ih,
++      (node.height * a) / det / ih,
++      (node.width * (c * f - d * e)) / det,
++      (node.height * (b * e - a * f)) / det
++    ]
++    projected.attrs.viewBox = `0 0 ${node.width} ${node.height}`
++    projected.children = [
++      element('image', {
++        href,
++        width: String(iw),
++        height: String(ih),
++        transform: `matrix(${matrix.join(' ')})`,
++        preserveAspectRatio: 'none'
++      })
++    ]
++  }
++}
++
++/** Keep consecutive native vector masks as SVG clipping geometry, not painted layers. */
++function clipChildren(projected: DesignElement, node: SceneNode) {
++  const children = projected.children
++  const result: DesignNode[] = []
++  for (let i = 0; i < children.length; i++) {
++    const child = children[i]
++    if (child.type !== 'element' || !child.sourceSceneNode?.isMask) {
++      result.push(child)
++      continue
++    }
++    const masks: DesignElement[] = []
++    while (i < children.length) {
++      const mask = children[i]
++      if (mask.type !== 'element' || !mask.sourceSceneNode?.isMask) break
++      masks.push(mask)
++      i++
++    }
++    const content: DesignNode[] = []
++    while (i < children.length) {
++      const next = children[i]
++      if (next.type === 'element' && next.sourceSceneNode?.isMask) break
++      content.push(next)
++      i++
++    }
++    i--
++    if (!content.length) continue
++    const id = `op-mask-${node.id.replace(/[^A-Za-z0-9-]/gu, (char) => `_${char.codePointAt(0)?.toString(16)}_`)}-${result.length}`
++    const shapes = masks.flatMap((mask) => {
++      const native = mask.sourceSceneNode!
++      if (native.maskType !== 'VECTOR' || mask.tagName !== 'svg' || native.rotation !== 0)
++        throw new Error(`HTML export requires an unrotated vector mask: ${native.id}`)
++      return mask.children
++        .filter((shape): shape is DesignElement => shape.type === 'element')
++        .map((shape) => ({
++          ...shape,
++          attrs: {
++            ...shape.attrs,
++            transform: `translate(${native.x} ${native.y})${shape.attrs.transform ? ` ${shape.attrs.transform}` : ''}`
++          }
++        }))
++    })
++    const definitions = element('defs', {}, [
++      element('clipPath', { id, clipPathUnits: 'userSpaceOnUse' }, shapes)
++    ])
++    if (
++      content.every(
++        (item): item is DesignElement => item.type === 'element' && item.tagName === 'svg'
++      )
++    ) {
++      const svgContent = content.map((item) => {
++        const native = item.sourceSceneNode!
++        const style = { ...item.inlineStyle }
++        for (const key of ['position', 'left', 'top', 'margin-left', 'margin-top'])
++          delete style[key]
++        return {
++          ...item,
++          sourceSceneNode: undefined,
++          attrs: { ...item.attrs, x: String(native.x), y: String(native.y) },
++          inlineStyle: style
++        }
++      })
++      const nativeMasks = masks.map((mask) => mask.sourceSceneNode!)
++      const x = Math.min(...nativeMasks.map((mask) => mask.x)),
++        y = Math.min(...nativeMasks.map((mask) => mask.y))
++      const right = Math.max(...nativeMasks.map((mask) => mask.x + mask.width)),
++        bottom = Math.max(...nativeMasks.map((mask) => mask.y + mask.height))
++      const boundsId = `${id}-bounds`
++      // Blink represents a path clip together with its precise antialiased bounds.
++      definitions.children.push(
++        element('clipPath', { id: boundsId, clipPathUnits: 'userSpaceOnUse' }, [
++          element('rect', {
++            x: String(x),
++            y: String(y),
++            width: String(right - x),
++            height: String(bottom - y)
++          })
++        ])
++      )
++      result.push(
++        element(
++          'svg',
++          {
++            width: String(node.width),
++            height: String(node.height),
++            viewBox: `0 0 ${node.width} ${node.height}`
++          },
++          [
++            definitions,
++            element('g', { 'clip-path': `url(#${boundsId})` }, [
++              element('g', { 'clip-path': `url(#${id})` }, svgContent)
++            ])
++          ],
++          {
++            position: 'absolute',
++            left: '0',
++            top: '0',
++            width: `${node.width}px`,
++            height: `${node.height}px`
++          }
++        )
++      )
++    } else {
++      result.push(
++        element('svg', { width: '0', height: '0', 'aria-hidden': 'true' }, [definitions], {
++          position: 'absolute',
++          width: '0',
++          height: '0'
++        }),
++        element('div', {}, content, {
++          position: 'absolute',
++          left: '0',
++          top: '0',
++          width: `${node.width}px`,
++          height: `${node.height}px`,
++          'clip-path': `url(#${id})`
++        })
++      )
++    }
++  }
++  projected.children = result
++}
++
++/**
++ * Paint native geometry for a fixed-size standalone export. Responsive fragments keep their
++ * existing auto layout projection; this snapshot uses the graph's measured sizes and positions.
++ */
++export function nativeStandaloneDocument(
++  document: DesignDocument,
++  imageSize: ImageSizeResolver
++): DesignDocument {
++  const graph = document.sourceGraph
++  if (!graph) return document
++  const roots = new Set(
++    document.children.flatMap((node) =>
++      node.type === 'element' && node.sourceSceneNode ? [node.sourceSceneNode.id] : []
++    )
++  )
++  const result = { ...document, children: document.children.map(clone) }
++  const visit = (projected: DesignNode) => {
++    if (projected.type !== 'element') return
++    projected.children.forEach(visit)
++    const node = projected.sourceSceneNode
++    if (!node) return
++    const style = (projected.inlineStyle ??= {})
++    style.width ??= `${node.width}px`
++    style.height ??= `${node.height}px`
++    if (node.type === 'TEXT') {
++      if (node.fontFeatures.length)
++        style['font-feature-settings'] = node.fontFeatures
++          .map((feature) => `"${feature.tag.toLowerCase()}" ${feature.enabled ? 1 : 0}`)
++          .join(', ')
++      if (node.textAlignVertical !== 'TOP') {
++        Object.assign(style, {
++          display: 'flex',
++          'flex-direction': 'column',
++          'justify-content': node.textAlignVertical === 'CENTER' ? 'center' : 'flex-end'
++        })
++        projected.children = [
++          element('span', {}, projected.children, { display: 'block', width: '100%' })
++        ]
++      }
++    }
++    const fill = node.fills.find((paint) => paint.visible)
++    if (fill?.type === 'IMAGE') cropImage(projected, node, fill, imageSize)
++    const parent = node.parentId ? graph.getNode(node.parentId) : undefined
++    // A full-parent image can be composited independently without changing native geometry.
++    if (
++      parent &&
++      fill?.type === 'IMAGE' &&
++      node.x === 0 &&
++      node.y === 0 &&
++      node.width === parent.width &&
++      node.height === parent.height &&
++      parent.childIds[0] === node.id &&
++      projected.tagName === 'img'
++    )
++      style['will-change'] = 'transform'
++    if (node.blendMode === 'NORMAL' && node.childIds.length) style.isolation = 'isolate'
++    if (projected.tagName === 'svg' && node.type === 'VECTOR' && !node.isMask) {
++      let x = node.x,
++        y = node.y,
++        ancestor = parent
++      let unrotated = node.rotation === 0
++      while (ancestor && !roots.has(ancestor.id)) {
++        unrotated &&= ancestor.rotation === 0
++        x += ancestor.x
++        y += ancestor.y
++        ancestor = ancestor.parentId ? graph.getNode(ancestor.parentId) : undefined
++      }
++      if (unrotated) {
++        // An integer SVG viewport preserves fractional path geometry instead of letting Blink
++        // pixel-snap a tight fractional SVG box and scale the drawing inside it.
++        const fx = x - Math.floor(x),
++          fy = y - Math.floor(y)
++        const width = Math.ceil(node.width + fx),
++          height = Math.ceil(node.height + fy)
++        Object.assign(projected.attrs, {
++          width: String(width),
++          height: String(height),
++          viewBox: `${-fx} ${-fy} ${width} ${height}`
++        })
++        Object.assign(style, {
++          width: `${width}px`,
++          height: `${height}px`,
++          'margin-left': `${-fx}px`,
++          'margin-top': `${-fy}px`
++        })
++      }
++    }
++    if (projected.tagName !== 'svg' && node.strokeAlign === 'INSIDE' && style.border) {
++      const stroke = node.strokes.find((paint) => paint.visible)
++      if (stroke && !node.independentStrokeWeights && node.dashPattern.length === 0) {
++        const variable = document.tokens?.names.get(node.boundVariables['strokes/0/color'])
++        const color = variable
++          ? `var(--${variable})`
++          : cssColor({ ...stroke.color, a: stroke.opacity })
++        const shadow = `inset 0 0 0 ${stroke.weight}px ${color}`
++        style['box-shadow'] = style['box-shadow'] ? `${style['box-shadow']},${shadow}` : shadow
++        delete style.border
++        delete style['border-color']
++      }
++    }
++    if (node.clipsContent) {
++      style.overflow = 'visible'
++      const radius = style['border-radius']
++      style['clip-path'] = radius ? `inset(0 round ${radius})` : 'inset(0)'
++    }
++    clipChildren(projected, node)
++  }
++  result.children.forEach(visit)
++  return result
++}
+diff --git a/packages/dom-css/src/tokens/references.ts b/packages/dom-css/src/tokens/references.ts
+--- a/packages/dom-css/src/tokens/references.ts
++++ b/packages/dom-css/src/tokens/references.ts
+@@ -169,7 +169,8 @@
+     if (field.endsWith('/color')) {
+       const paint = boundPaint(node, field)
+       if (!paint?.visible || paint.type !== 'SOLID' || !isColor(value)) return false
+-      return sameColor({ ...paint.color, a: paint.opacity }, value)
++      const resolved = this.#graph.resolveColorVariableForNode(node.id, node.boundVariables[field])
++      return sameColor(resolved ?? { ...paint.color, a: paint.opacity }, value)
+     }
+     const drawn: unknown = Reflect.get(node, field)
+     if (typeof drawn !== 'number' || typeof value !== 'number') return false
+diff --git a/packages/dom-css/src/tokens/references.ts b/packages/dom-css/src/tokens/references.ts
+--- a/packages/dom-css/src/tokens/references.ts
++++ b/packages/dom-css/src/tokens/references.ts
+@@ -85,9 +85,11 @@
+   /** Tokens the output references, with every variable their aliases reach. */
+   readonly used = new Set<string>()
+   readonly #graph: SceneGraph
+-
+-  constructor(graph: SceneGraph) {
++  readonly #resolvePaintBindings: boolean
++
++  constructor(graph: SceneGraph, { resolvePaintBindings = false } = {}) {
+     this.#graph = graph
++    this.#resolvePaintBindings = resolvePaintBindings
+     this.names = variableCSSNames(collectionVariables(graph))
+   }
+ 
+@@ -169,7 +171,9 @@
+     if (field.endsWith('/color')) {
+       const paint = boundPaint(node, field)
+       if (!paint?.visible || paint.type !== 'SOLID' || !isColor(value)) return false
+-      const resolved = this.#graph.resolveColorVariableForNode(node.id, node.boundVariables[field])
++      const resolved = this.#resolvePaintBindings
++        ? this.#graph.resolveColorVariableForNode(node.id, node.boundVariables[field])
++        : undefined
+       return sameColor(resolved ?? { ...paint.color, a: paint.opacity }, value)
+     }
+     const drawn: unknown = Reflect.get(node, field)
+diff --git a/packages/dom-css/src/export/projection.ts b/packages/dom-css/src/export/projection.ts
+--- a/packages/dom-css/src/export/projection.ts
++++ b/packages/dom-css/src/export/projection.ts
+@@ -31,6 +31,8 @@
+   includeSourceIds?: boolean
+   /** Write variable-bound values as `var(--name)` where CSS resolves them as drawn. Default true. */
+   tokens?: boolean
++  /** Native standalone rendering resolves paint bindings rather than their saved fallbacks. */
++  resolvePaintBindings?: boolean
+   /** Vector, boolean, star, polygon, and icon layers as inline SVG; without it they project as boxes. */
+   vectorElement?: VectorElementRenderer
+   /** Hidden layers to project as shown, such as the tab panels a component reveals itself. */
+@@ -506,12 +508,18 @@
+ 
+ function projectionContext(
+   graph: SceneGraph,
+-  { includeSourceIds = true, tokens = true, vectorElement, shown }: SceneGraphToDesignOptions
++  {
++    includeSourceIds = true,
++    tokens = true,
++    resolvePaintBindings = false,
++    vectorElement,
++    shown
++  }: SceneGraphToDesignOptions
+ ): ProjectionContext {
+   return {
+     graph,
+     includeSourceIds,
+-    tokens: tokens ? new DesignTokens(graph) : undefined,
++    tokens: tokens ? new DesignTokens(graph, { resolvePaintBindings }) : undefined,
+     vectorElement,
+     shown
+   }
+diff --git a/packages/core/src/io/formats/html/index.ts b/packages/core/src/io/formats/html/index.ts
+--- a/packages/core/src/io/formats/html/index.ts
++++ b/packages/core/src/io/formats/html/index.ts
+@@ -11,8 +11,14 @@
+ 
+ import { vectorElement } from './vectors'
+ 
+-function designDocument(graph: SceneGraph, nodeIds: string[]): DesignDocument {
+-  const documents = nodeIds.map((id) => sceneNodeToDesignDocument(graph, id, { vectorElement }))
++function designDocument(
++  graph: SceneGraph,
++  nodeIds: string[],
++  resolvePaintBindings: boolean
++): DesignDocument {
++  const documents = nodeIds.map((id) =>
++    sceneNodeToDesignDocument(graph, id, { vectorElement, resolvePaintBindings })
++  )
+   const tokens = documents[0]?.tokens
+   for (const document of documents.slice(1))
+     for (const id of document.tokens?.used ?? []) tokens?.used.add(id)
+@@ -39,7 +45,7 @@
+   options: HTMLExportOptions = {},
+   fileName?: string
+ ): Promise<{ html: string; assets: ExportAsset[] }> {
+-  const document = designDocument(graph, nodeIds)
++  const document = designDocument(graph, nodeIds, options.html === 'standalone')
+   const sizes = new Map<string, { width: number; height: number }>()
+   if (options.html === 'standalone') {
+     const ck = await getCanvasKit()

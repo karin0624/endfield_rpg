@@ -40,6 +40,8 @@ Noto Serif JP（weight 500・700）とNoto Sans JP（weight 400）を`public/ass
 
 編成用の`public/assets/ui/*.svg`は承認画像の罫線・角・材質をHTML部品の背景として再現するためのベクター部品。文字・数値・人物を含まず、完成画面を背景へ貼っていない。生成画像の元レイヤーは未提供であり、元画像との材質一致は未解消。
 
+OpenPencil用の[TTF](openpencil/fonts/)は同じWOFF2を可逆展開したもの。ファミリー名とスタイル名はOSで`Noto Serif JP / Bold`と`Noto Sans JP / Regular`として選べるように揃え、アウトラインとメトリクスは保持する。同じOFLを併置する。
+
 ## 拠点UIの素材
 
 `public/assets/ui/hubs/`の17 PNGは、提供された背景・図案・frame・日付・人物portraitの実行用素材。原画像のbytes・寸法を保持し、表示時の範囲と縮尺は[hub-art.json](../src/web/hub-art.json)で管理する。日付は元画像をSVG clipPathで表示し、数字はHTML。人物の顔だけは楕円viewportを使う。素材ごとの利用方法は[拠点部品仕様](../docs/ui-screens/hub-components.md)を参照する。

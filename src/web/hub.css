@@ -80,7 +80,7 @@
 }
 .hub-scene .disc {
   width: 8rem;
-  height: 135.1111111111px;
+  height: var(--art-height);
   position: relative;
   display: grid;
   place-items: center;
@@ -118,8 +118,6 @@
 }
 .hub-scene .entry.framed {
   display: block;
-  width: 272px;
-  height: 88.3125px;
   min-height: 0;
   padding: 0;
   background: none;
@@ -235,10 +233,10 @@
 }
 .hub-scene .system-entry {
   min-width: 8rem;
-  gap: 5.5px;
+  gap: 5px;
 }
 .hub-scene .system-entry .ui-glyph {
-  width: 22.5px;
+  width: 23px;
   height: 18px;
   transform: translateY(1.125px);
 }
@@ -298,7 +296,6 @@
   display: flex;
   gap: 16px;
   width: 560px;
-  height: 88.3125px;
 }
 .hub-scene[data-mode="wide"] .system-entry,
 .hub-scene[data-mode="wide"] .map-close {
@@ -308,7 +305,7 @@
 }
 .hub-scene[data-mode="wide"] .travel {
   position: absolute;
-  right: calc(24px + 363.9389312977099px + 16px);
+  right: calc(24px + var(--hub-date-width) + 16px);
   bottom: 32px;
 }
 .hub-scene[data-mode="wide"] .progress-clock {
