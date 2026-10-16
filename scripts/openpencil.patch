@@ -1062,3 +1062,110 @@ diff --git a/packages/core/src/io/formats/html/index.ts b/packages/core/src/io/f
    )
    if (node.source.fig.derivedSymbolDataLayoutVersion != null) {
      nc.derivedSymbolDataLayoutVersion = node.source.fig.derivedSymbolDataLayoutVersion
+--- a/packages/fig/src/document/component/dependencies.ts
++++ b/packages/fig/src/document/component/dependencies.ts
+@@ -39,9 +39,12 @@
+       if (definition.type === 'INSTANCE_SWAP' || definition.type === 'SLOT') {
+         for (const preferred of definition.preferredValues?.instanceSwapValues ?? []) {
+           if (!preferred.key) continue
+-          const id = resolveReference?.({
+-            assetRef: { key: preferred.key, version: preferred.version }
+-          })
++          // Local preferred components are stored as GUID strings; library choices use asset keys.
++          const id = /^\d+:\d+$/.test(preferred.key)
++            ? preferred.key
++            : resolveReference?.({
++                assetRef: { key: preferred.key, version: preferred.version }
++              })
+           if (!id) {
+             if (!reportExternalPreferred)
+               throw new Error(`Unresolved preferred component ${preferred.key}`)
+
+--- /dev/null
++++ b/tests/engine/io/fig/import/preferred-components.test.ts
+@@ -0,0 +1,58 @@
++import { expect, test } from 'bun:test'
++
++import { exportFigFile, FigmaAPI, parseFigFile, SceneGraph } from '@open-pencil/core'
++import { populateFigPage } from '@open-pencil/core/io/formats/fig'
++
++function named(graph: SceneGraph, name: string) {
++  const node = [...graph.getAllNodes()].find((node) => node.name === name)
++  if (!node) throw new Error(`Missing ${name}`)
++  return node
++}
++
++function choices(graph: SceneGraph) {
++  const api = new FigmaAPI(graph)
++  const definitions = api.wrapNode(named(graph, 'Button').id).componentPropertyDefinitions
++  const definition = Object.values(definitions).find((definition) => definition.type === 'INSTANCE_SWAP')
++  if (!definition) throw new Error('Missing picture property')
++  expect(graph.getNode(String(definition.defaultValue))?.name).toBe('Choice/Default')
++  return (definition.preferredValues ?? []).map((value) => graph.getNode(value.key)?.name).sort()
++}
++
++for (const populate of ['all', 'first-page', 'none'] as const) {
++  test(`local preferred components on another page survive ${populate} import and save`, async () => {
++    const source = new SceneGraph()
++    const library = source.getPages()[0]
++    const local = source.addPage('Local')
++    const targets = ['Default', 'Unused', 'Alternate'].map((name) =>
++      source.createNode('COMPONENT', local.id, { name: `Choice/${name}`, width: 16, height: 16 })
++    )
++    const button = source.createNode('COMPONENT', library.id, { name: 'Button', width: 64, height: 24 })
++    const api = new FigmaAPI(source)
++    const property = api.wrapNode(button.id).addComponentProperty('picture', 'INSTANCE_SWAP', targets[0].id, {
++      preferredValues: targets.map((target) => ({ type: 'COMPONENT', key: target.id }))
++    })
++    const slot = source.createInstance(targets[0].id, button.id)
++    if (!slot) throw new Error('Missing picture slot')
++    api.wrapNode(slot.id).componentPropertyReferences = { mainComponent: property }
++    source.createInstance(button.id, library.id, { name: 'Button use' })
++    const bytes = await exportFigFile(source)
++    const graph = await parseFigFile(bytes.slice().buffer as ArrayBuffer, { populate })
++    if (populate === 'none') populateFigPage(graph, graph.getPages()[0].id)
++
++    // Two choices are not currently instanced: the picker must still contain all three
++    // before their own page is visited, and after an ordinary property edit/save/reload.
++    const expected = ['Choice/Alternate', 'Choice/Default', 'Choice/Unused']
++    expect(choices(graph)).toEqual(expected)
++    const edit = new FigmaAPI(graph)
++    const use = edit.wrapNode(named(graph, 'Button use').id)
++    const picture = Object.keys(use.componentProperties).find((key) => key.startsWith('picture#'))
++    if (!picture) throw new Error('Missing exposed picture property')
++    use.setProperties({ [picture]: named(graph, 'Choice/Unused').id })
++    const saved = await exportFigFile(graph)
++    const reloaded = await parseFigFile(saved.slice().buffer as ArrayBuffer, { populate: 'all' })
++    expect(choices(reloaded)).toEqual(expected)
++    const fresh = new FigmaAPI(reloaded).wrapNode(named(reloaded, 'Button use').id)
++    expect(reloaded.getNode(String(fresh.componentProperties[picture].value))?.name).toBe('Choice/Unused')
++    expect([...reloaded.getAllNodes()].filter((node) => node.type === 'COMPONENT')).toHaveLength(4)
++  })
++}
+--- a/packages/fig/tests/document/component/dependencies.test.ts
++++ b/packages/fig/tests/document/component/dependencies.test.ts
+@@ -28,3 +28,24 @@
+   expect([...componentDependencies(source)].sort()).toEqual(['1:1', '1:2', '1:3', '1:4'])
+   expect(source).toEqual(before)
+ })
++
++test('distinguishes local GUID choices from versioned library asset keys', () => {
++  const source = {
++    componentPropDefs: [{
++      type: 'INSTANCE_SWAP',
++      preferredValues: { instanceSwapValues: [
++        { key: '7:42' },
++        { key: 'library-component-key', version: 'v2' }
++      ] }
++    }]
++  } as NodeChange
++  const references: unknown[] = []
++  const result = componentDependencies(source, (reference) => {
++    references.push(reference)
++    return reference?.assetRef?.key === 'library-component-key' && reference.assetRef.version === 'v2'
++      ? '8:43'
++      : undefined
++  })
++  expect([...result].sort()).toEqual(['7:42', '8:43'])
++  expect(references).toEqual([{ assetRef: { key: 'library-component-key', version: 'v2' } }])
++})

@@ -91,7 +91,15 @@ GLBはGit LFS、現在の数MiBのPNG・文書・コードは通常のGitで管�
 
 ## OpenPencilでデザインマスターを編集する
 
-ゲームのデザインマスターは[endfield-rpg.fig](art-src/openpencil/endfield-rpg.fig)。一つのファイルに共通定義と複数の画面を管理する。`Foundations`に色変数と文字スタイル、`Components`に部品定義、`Screens`に各画面のフレームを置く。現在の対象画面は`Screens / Home`。画面には部品のインスタンスを配置し、文字・色・図案・状態はそれぞれの標準プロパティから編集する。
+ゲームのデザインマスターは[endfield-rpg.fig](art-src/openpencil/endfield-rpg.fig)。一つのファイルに共通定義と複数の画面を管理する。部品の再利用範囲に合わせ、次のページと区画へ分ける。
+
+| 場所 | 内容 |
+| --- | --- |
+| `Design System` | 色変数・文字スタイル・共通記号。現在収録する拠点用の色・文字は`Hub`の区画で適用範囲を示す |
+| `Components / Hub` | 拠点で共有する`IllustratedAction`・`HubCalendar`・`HubScene/menu`と、部品内部のframe素材 |
+| `Screens` | 各画面のフレームと、その隣の`Local Components`区画。ホーム専用の差し替え図案は`Home / Local Components`に置く |
+
+`Hub`はホーム・街・探索先の画面群を指す実装上の名前で、全画面共通という意味ではない。別の機能領域でも、複数画面で共有する部品は`Components / <領域名>`、一画面専用の部品はその画面の`Local Components`へ置く。現在の対象画面は`Screens / Home`。画面には部品のインスタンスを配置し、文字・色・図案・状態はそれぞれの標準プロパティから編集する。
 
 `npm ci`後、次のコマンドでGUIとCLIを使える。初回はGitとネットワーク接続が必要で、固定版のOpenPencilソースと依存を`.openpencil/`へ準備する。両方に同じ保存形式の修正と実装と同一のフォントを適用する。
 
