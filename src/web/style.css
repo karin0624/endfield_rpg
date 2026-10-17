@@ -343,14 +343,14 @@ input[aria-invalid="true"] {
   z-index: -2;
   inset: 0;
   overflow: hidden;
-  background: linear-gradient(135deg, #52675b, #202923 70%);
+  background: #000;
 }
 .adventure-background img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   object-position: center;
-  filter: saturate(0.78) brightness(0.72);
+  opacity: 0.72;
 }
 .adventure-background::after {
   position: absolute;
@@ -501,7 +501,7 @@ input[aria-invalid="true"] {
   z-index: 1;
 }
 .conversation-portrait.is-muted {
-  filter: brightness(0.68);
+  opacity: 0.68;
 }
 .conversation-portrait[data-position="left"] {
   left: var(--adventure-leftX);
@@ -772,7 +772,7 @@ input[aria-invalid="true"] {
   }
   .adventure-background img {
     object-position: 50% 34%;
-    filter: saturate(0.72) brightness(0.62);
+    opacity: 0.62;
   }
   .town-heading {
     position: static;
@@ -967,8 +967,10 @@ input[aria-invalid="true"] {
   min-height: 42px;
   padding: 3px 4px;
   border: 1px solid transparent;
-  border-bottom-color: #465248;
-  background: var(--surface-base);
+  border-bottom-color: transparent;
+  background:
+    linear-gradient(#465248, #465248) left bottom / 100% 1px no-repeat border-box,
+    var(--surface-base);
 }
 .queue-row.current {
   border-color: var(--trim-metal);
@@ -1114,7 +1116,16 @@ input[aria-invalid="true"] {
 }
 .ally-card.defeated {
   opacity: 0.65;
-  filter: grayscale(0.7);
+  isolation: isolate;
+}
+.ally-card.defeated::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  background: #808080;
+  opacity: 0.7;
+  mix-blend-mode: saturation;
+  pointer-events: none;
 }
 .ally-portrait {
   flex: 0 0 40px;
@@ -1187,7 +1198,17 @@ input[aria-invalid="true"] {
   transform: translate(-50%, -50%);
 }
 .battle-ui .battle-result {
-  border-top: 2px solid var(--trim-metal);
+  border-top: 2px solid var(--border-decorative);
+}
+.battle-result::before {
+  content: "";
+  position: absolute;
+  left: -1px;
+  top: -2px;
+  width: calc(100% + 2px);
+  height: 2px;
+  background: var(--trim-metal);
+  pointer-events: none;
 }
 .battle-result[hidden] {
   display: none;
@@ -1775,14 +1796,19 @@ body.dungeon-mode {
   inset: -6% -80%;
   overflow: hidden;
   pointer-events: none;
-  will-change: transform;
+  width: 260%;
+  right: auto;
+  background: #000;
 }
 .dungeon-route-background img {
-  width: 100%;
-  height: 100%;
+  position: absolute;
+  left: -1.5%;
+  top: -1.5%;
+  width: 103%;
+  height: 103%;
   object-fit: cover;
-  filter: blur(3px) opacity(0.62) brightness(0.82) saturate(0.82);
-  transform: scale(1.03);
+  filter: blur(3px);
+  opacity: 0.5084;
 }
 .dungeon-route-background::after {
   position: absolute;
@@ -1835,7 +1861,6 @@ body.dungeon-mode {
   stroke-width: 17;
   stroke-linecap: round;
   filter: drop-shadow(0 3px 3px #0009);
-  vector-effect: non-scaling-stroke;
 }
 .dungeon-route-edge.is-available {
   stroke: #ece9df;
@@ -1895,7 +1920,7 @@ body.dungeon-mode {
   filter: drop-shadow(0 0 10px #f0b84a66) drop-shadow(0 5px 10px #000b);
 }
 .dungeon-route-node.is-past-unselected img {
-  filter: blur(2.5px) opacity(0.62) drop-shadow(0 5px 10px #000b);
+  filter: opacity(0.62) blur(2.5px) drop-shadow(0 5px 10px #000b);
 }
 .dungeon-route-node.is-current img,
 .dungeon-route-node.is-resolved img {
@@ -1917,7 +1942,7 @@ body.dungeon-mode {
   filter: drop-shadow(0 0 14px #f0b84a99) drop-shadow(0 7px 14px #000d);
 }
 .dungeon-route-node.is-past-unselected:hover img {
-  filter: blur(2.5px) opacity(0.62) drop-shadow(0 0 12px #000b) drop-shadow(0 7px 14px #000d);
+  filter: opacity(0.62) blur(2.5px) drop-shadow(0 0 12px #000b) drop-shadow(0 7px 14px #000d);
 }
 .dungeon-route-node:focus-visible .dungeon-route-node-label {
   box-shadow: 0 0 0 1px var(--focus-ring);

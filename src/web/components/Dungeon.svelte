@@ -23,7 +23,7 @@ let {
   send: (event: DungeonEvent) => boolean;
 } = $props();
 let viewport: HTMLDivElement, world: HTMLDivElement, conversation: HTMLElement;
-let paths = $state.raw<{ from: string; to: string; appearance: string; d: string }[]>([]);
+let paths = $state.raw<({ from: string; to: string; appearance: string } & ReturnType<typeof projectRouteEdge>)[]>([]);
 const assetUrl = (path: string) => `${import.meta.env.BASE_URL}assets/${path}`;
 let nodes = $derived(frame?.route.nodes),
   edges = $derived(frame?.route.edges),
@@ -73,9 +73,7 @@ function measureRoute() {
     paths = edges.flatMap((edge) => {
       const source = nodeElements.get(edge.from),
         target = nodeElements.get(edge.to);
-      return source && target
-        ? [{ ...edge, d: projectRouteEdge(imageMeasure(source), imageMeasure(target), bounds) }]
-        : [];
+      return source && target ? [{ ...edge, ...projectRouteEdge(imageMeasure(source), imageMeasure(target)) }] : [];
     });
 }
 $effect(() => {
@@ -150,7 +148,7 @@ onMount(() => {
       class="dungeon-route-background"
       data-route-background
       aria-hidden="true"
-      style:transform={`translate3d(${(frame?.route.offset ?? 0) * 0.42}px, 0, 0)`}
+      style:left={`calc(-80% + ${(frame?.route.offset ?? 0) * 0.42}px)`}
     >
       <img src={assetUrl("backgrounds/dungeon-route.png")} alt="">
     </div>
@@ -195,19 +193,14 @@ onMount(() => {
         style:width={frame?.route.width === null || frame?.route.width === undefined ? undefined : `${frame.route.width}px`}
         style:transform={`translate3d(${frame?.route.offset ?? 0}px, 0, 0)`}
       >
-        <svg
-          class="dungeon-route-edges"
-          data-route-edges
-          viewBox="0 0 1000 1000"
-          preserveAspectRatio="none"
-          aria-hidden="true"
-        >
+        <svg class="dungeon-route-edges" data-route-edges aria-hidden="true">
           {#each paths as path (`${path.from}:${path.to}`)}
             <path
               class="dungeon-route-edge is-{path.appearance}"
               data-edge-from={path.from}
               data-edge-to={path.to}
               d={path.d}
+              transform={`translate(${path.x} ${path.y})`}
             />
           {/each}
         </svg>

@@ -30,6 +30,13 @@
   border: 1px solid #828b78;
   font: inherit;
 }
+.dungeon-app .item-dialog select {
+  appearance: none;
+  line-height: 22px;
+  padding-left: calc(0.6rem + 4px);
+  padding-right: calc(0.6rem + 16px);
+  background: #101713 url("/assets/ui/select-arrow.svg") right 3px center / 10px 8px no-repeat;
+}
 .item-actions {
   display: flex;
   flex-wrap: wrap;
@@ -63,10 +70,12 @@
 .item-equipment-select {
   display: block;
   width: min(100%, 24rem);
-  padding: 0.6rem;
+  appearance: none;
+  padding: calc(0.6rem + 1px) calc(0.6rem + 16px) calc(0.6rem + 1px) calc(0.6rem + 4px);
   margin: 0.5rem 0 1rem;
   color: inherit;
-  background: #101713;
+  background: #101713 url("/assets/ui/select-arrow.svg") right 3px center / 10px 8px no-repeat;
   border: 1px solid #828b78;
   font: inherit;
+  line-height: 20px;
 }

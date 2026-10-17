@@ -101,6 +101,8 @@ GPUを含む全frameの余裕は実rAF間隔とtraceを合わせて評価する�
 
 [Playwright画像比較](https://playwright.dev/docs/test-snapshots)の固定環境、既存baselineのpath／bytes／許容差を保つ。画像不一致をsleep・許容差増加・無審査baseline生成で隠さない。必要な字体・画像decode・pointer／keyboard modality・viewport・scrollを撮影前に揃える。レビュー資料の撮影やoverlayはVRT成功を代替せず、旧実行参考画像を新たな承認済みgoldenと扱わない。
 
+デザインマスターと実装の同期は、[OpenPencilの共通比較](../README.md#openpencilでデザインマスターを編集する)も全件実行する。`npm run openpencil:verify`は対応表に登録した画面と部品の全状態を通常の原稿出力・実viewで撮影し、全RGBAの差分0を要求する。部分実行や未登録のvariantを残した実行は完了の証拠にしない。戦闘はHUDや操作ボタンなどのUI部品を対象とし、3D画面全体や戦闘エフェクトは対象に含めない。
+
 文書だけの変更は、変更パスが文書に限られること、リンク・見出し参照、specsと設計／制作手順の整合、実際の失敗案を棄却できることをローカルで確認する。製品source・CSS・素材・golden・テスト設定を変更しない文書整備にゲーム全suiteや新しい画像承認を要求せず、未実行の製品検証を成功と報告しない。製品変更を文書のみとして扱わない。
 
 実装中は必要な短い検証で原因と費用を確認する。提出前はsourceを固定し、check・必要な全直接VRT・資源検証・editorをローカルで完走する。代表数件だけで全件をCIへ委ねない。source／LFS実体／CSS・素材・goldenの前後一致、正確なhead／tree、開始・終了・shutdown、実runnerのworker設定、層別時間、failure／retry別記を残す。GitHub権限・required checks・Actions固有のrunner条件等、ローカルで不可能な条件だけを理由付き例外とする。

@@ -1,9 +1,12 @@
 import { preview } from "vite";
+import { initializeDesignPaint } from "./design-paint.mjs";
+import { assertDesignBrowserScreen, DESIGN_BROWSER_SCREEN, designBrowserCapture } from "./verify-design-bindings.mjs";
 
 export async function captureHome(browser, width, height, output) {
   const server = await preview({ preview: { host: "127.0.0.1", port: 4173, strictPort: true } });
   const page = await browser.newPage({
     viewport: { width, height },
+    screen: DESIGN_BROWSER_SCREEN,
     deviceScaleFactor: 1,
     reducedMotion: "reduce",
   });
@@ -14,6 +17,10 @@ export async function captureHome(browser, width, height, output) {
     if (response.status() >= 400) errors.push(`${response.status()} ${response.url()}`);
   });
   try {
+    const client = await page.context().newCDPSession(page);
+    const screenInfos = await client.send("Emulation.getScreenInfos");
+    const physicalScreen = assertDesignBrowserScreen(screenInfos);
+    await client.detach();
     await page.goto("http://127.0.0.1:4173/", { waitUntil: "networkidle" });
     for (const command of ["new-game", "accept", "home"]) {
       await page.locator(`[data-command="${command}"]`).click();
@@ -33,8 +40,15 @@ export async function captureHome(browser, width, height, output) {
     await page.mouse.move(0, 0);
     await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
     if (errors.length) throw new Error(errors.join("\n"));
+    const paintInitialization = await initializeDesignPaint(page);
     await page.screenshot({ path: output, animations: "disabled" });
-    return { url: page.url(), viewport: { width, height, deviceScaleFactor: 1 }, errors };
+    return {
+      url: page.url(),
+      viewport: { width, height, deviceScaleFactor: 1 },
+      environment: { launch: designBrowserCapture(), screen: DESIGN_BROWSER_SCREEN, physicalScreen, screenInfos },
+      paintInitialization,
+      errors,
+    };
   } finally {
     await page.close();
     await new Promise((resolve) => server.httpServer.close(resolve));

@@ -40,7 +40,11 @@ Noto Serif JP（weight 500・700）とNoto Sans JP（weight 400）を`public/ass
 
 編成用の`public/assets/ui/*.svg`は承認画像の罫線・角・材質をHTML部品の背景として再現するためのベクター部品。文字・数値・人物を含まず、完成画面を背景へ貼っていない。生成画像の元レイヤーは未提供であり、元画像との材質一致は未解消。
 
-OpenPencil用の[TTF](openpencil/fonts/)は同じWOFF2を可逆展開したもの。ファミリー名とスタイル名はOSで`Noto Serif JP / Bold`と`Noto Sans JP / Regular`として選べるように揃え、アウトラインとメトリクスは保持する。同じOFLを併置する。
+粒状テクスチャは`public/assets/ui/metal-grain.png`の128×128透明PNGを実装とデザイン原稿の共通素材として使う。標準のimage fillを等倍で繰り返し、文字・枠・ボタン・カードは別の編集可能な部品に保つ。生成元のSVGは[metal-grain.svg](ui/metal-grain.svg)に保持する。PNGはChromium 153、DPR 1、128×128の透明背景でSVGを等倍描画して保存したもので、拡縮・色補正はしていない。
+
+OpenPencil用の[TTF](openpencil/fonts/)は同じWOFF2を可逆展開したもの。ファミリー名とスタイル名はOSで`Noto Serif JP / Medium・Bold`と`Noto Sans JP / Regular`として選べるように揃え、アウトラインとメトリクスは保持する。同じOFLを併置する。
+
+デザインシステム未移行の画面では、固定Playwright環境で現行CSSのフォールバックとして使われるLiberation Serif RegularとWenQuanYi Zen Hei・同Mono Regularを原稿にも使う。共通UIへの採用ではなく、現状を編集可能な文字として保持するための素材であり、原稿の`DS未対応`のページ・区画へ分離する。Liberation Serifは`fonts-liberation 1:2.1.5-3`のTTFを変更せず同梱し、[ライセンス](openpencil/fonts/LiberationSerif-LICENSE.txt)はOFL 1.1。WenQuanYiは`fonts-wqy-zenhei 0.9.45-8`のTTCから各faceを標準TTFとして取り出し、アウトライン・文字対応・メトリクスを含む全テーブルを保持する（standaloneファイルのチェックサムだけ再計算）。[ライセンス](openpencil/fonts/WenQuanYiZenHei-LICENSE.txt)はフォント埋込例外付きGPL 2とM+ FONTS Licenseで、[GPL本文](openpencil/fonts/GPL-2.txt)も同梱する。原稿で使う正式なfamily/style名と混植の扱いは[フォント一覧](openpencil/fonts/README.md)を参照する。
 
 ## 拠点UIの素材
 

@@ -80,6 +80,10 @@ export async function openpencil(
       throw new Error("OpenPencil needs installation or updated patches. Run npm run openpencil:setup (or npm ci).");
     if (args[0] === "--render") {
       await command(bun, [join(root, "scripts/render-openpencil.mjs"), source, ...args.slice(1)], root);
+    } else if (args[0] === "--verify-design") {
+      await command(bun, [join(root, "scripts/verify-design.mjs"), source, ...args.slice(1)], root);
+    } else if (args[0] === "--export-assets") {
+      await command(bun, [join(root, "scripts/export-design-assets.mjs"), source, ...args.slice(1)], root);
     } else if (args.length === 0 || args[0] === "--app") {
       const master = join(root, "art-src/openpencil/endfield-rpg.fig");
       await access(master);

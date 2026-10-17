@@ -95,11 +95,13 @@ GLBはGit LFS、現在の数MiBのPNG・文書・コードは通常のGitで管�
 
 | 場所 | 内容 |
 | --- | --- |
-| `Design System` | 色変数・文字スタイル・共通記号。現在収録する拠点用の色・文字は`Hub`の区画で適用範囲を示す |
-| `Components / Hub` | 拠点で共有する`IllustratedAction`・`HubCalendar`・`HubScene/menu`と、部品内部のframe素材 |
-| `Screens` | 各画面のフレームと、その隣の`Local Components`区画。ホーム専用の差し替え図案は`Home / Local Components`に置く |
+| `Design System` | 色変数・文字スタイル・共通記号。拠点用の定義は`Hub`の区画で適用範囲を示す |
+| `Components / Hub` | ホーム・街・地図で共有する部品と、部品内部のframe素材 |
+| `Screens` | ホーム・街・地図とダイアログの画面フレーム、その隣の`Local Components`区画 |
+| `Components / DS未対応` | 編成・会話・探索・物品・戦闘UIなど、複数画面で使う既存の独自部品。領域ごとに区分する |
+| `Screens / DS未対応` | タイトル・導入・編成・会話・探索・装備・準備・ショップの画面フレームと、画面専用の`Local Components`区画 |
 
-`Hub`はホーム・街・探索先の画面群を指す実装上の名前で、全画面共通という意味ではない。別の機能領域でも、複数画面で共有する部品は`Components / <領域名>`、一画面専用の部品はその画面の`Local Components`へ置く。現在の対象画面は`Screens / Home`。画面には部品のインスタンスを配置し、文字・色・図案・状態はそれぞれの標準プロパティから編集する。
+`Hub`はホーム・街・地図の画面群を指す実装上の名前。部品は再利用する領域に置き、一画面専用の定義はその画面の`Local Components`へ置く。モーダルは画面から開く標準のOverlayフレームで管理する。画面にはインスタンスを配置し、文字・色・図案・状態は標準のテキスト、変数、スタイル、Text／Boolean／Instance swapプロパティとVariantsから編集する。実装の独自フォント・意匠を保つ部品は`DS未対応`で識別する。戦闘はHUDや操作ボタンなどのUI部品だけを管理し、画面フレーム・3D・戦闘エフェクトは含めない。
 
 `npm ci`の`postinstall`で固定版のOpenPencilを準備する。本体はバージョン単位で`.openpencil/`へ保持し、初回または本体のバージョン変更時に取得する。同じ版へのパッチ更新では本体と依存を再利用し、保存済みの旧パッチを戻して新パッチを適用する。適用に失敗した場合は旧パッチへ戻してエラーにする。GUI・CLIともに同じ保存形式の修正と実装と同一のフォントを適用する。
 
@@ -115,17 +117,33 @@ npm run openpencil:verify
 
 引数なしの`npm run openpencil`でGUIとブラウザが起動し、リポジトリの`endfield-rpg.fig`を自動で読み込む。ブラウザが自動で開かない環境では表示されたローカルURLを開く。原稿の選択・ドロップは不要。編集後は`.fig`として保存して元の原稿を更新する。GUI・CLIともに[フォント](art-src/openpencil/fonts/)を同梱するため、OSへのフォント導入とMCP設定は不要。Figmaで直接開く場合は同じTTFをOSへ導入する。ライセンスと元のWebフォントは[素材メモ](art-src/README.md#共通uiのフォント)を参照する。
 
-公開Web版OpenPencil 0.16.0には、このリポジトリで適用する画像切り抜きの読み込みと文字の保存の修正が含まれない。編集・保存には上記コマンドで起動するローカル版を使う。
+公開Web版OpenPencil 0.16.0には、このリポジトリで適用する保存・描画・プロトタイプの修正が含まれない。編集・保存には上記コマンドで起動するローカル版を使う。
 
 `openpencil:render`はOpenPencilのHTML出力を、ゲームのVRTと同じ固定PlaywrightコンテナでPNGにする。Dockerが必要で、編集後も同じコマンドを使う。`--compare <比較先PNG>`を加えると、寸法と全RGBAを比較し、差分0のときだけ成功する。
 
-`openpencil:verify`は現在の実装をbuildし、通常配布のタイトルから新規開始してホームを撮影する。同じ実行でマスターのHomeフレームをPNGへ出力し、独立した`compare-png.mjs`で寸法と全画素・全RGBAを比較する。除外領域・許容差はなく、一つでも異なれば非0で終了する。出力は`test-results/openpencil/design-home.png`、`design-home.implementation.png`、原稿SHA256・ブラウザ版・比較結果を含む`design-home.png.json`。比較だけを再実行するには次を使う。
+`openpencil:verify`は[bindings.json](art-src/openpencil/bindings.json)に登録した全部品・全状態と画面を同じ手順で比較する。対応表には原稿のノード、実装の責務、必要な状態、実viewへ渡すデータと操作を保存する。原稿の標準プロパティを設定したインスタンスを通常のHTML出力で描画し、モーダルは保存済みの標準プロトタイプからOverlayを開く。実装は製品と同じSvelteコンポーネント・CSS・素材で描画する。両方を固定Playwrightの同じviewport／DPRで、部分再描画を無効にして撮影し、部品は外周とfocusを含む整数領域を切り出す。除外領域・許容差・拡縮・色補正はなく、寸法と全画素・全RGBAが一つでも異なれば非0で終了する。原稿内の未登録の部品・variant・画面、比較のない必要状態も全件実行を失敗にする。
+
+fixtureには部品を直接mountするものと、実viewへ状態を与えて対象以外を隠すものがある。後者は親画面のDOM・継承CSS・配置を共有するため、親の配置変更時にも該当部品の再比較が必要になる。対応表はファイルとDOM selector単位の部品も含み、実装のSvelteコンポーネント境界とは一対一になっていない箇所がある。各fixtureと撮影対象は対応表の`fixture`と`capture.selector`で確認する。
+
+出力は`test-results/openpencil/verification/`の実装／原稿PNGと`report.json`。原稿と対応表のSHA256、ブラウザ版・起動条件、各比較の画素数・差分、撮影範囲を記録する。viewportとは別に、ネイティブの選択メニューが参照する実画面も固定し、両方の実測値を検査・保存する。OSの選択メニューへマウスを動かす`pointer`操作では、固定コンテナ内のXvfb上で通常のChromiumを起動する。他の操作はChromiumのheadless shellを使い、比較ごとに実装と原稿の撮影条件が同じことを検査する。`--select`は調査用の部分実行で、成功しても`complete`は`false`になる。HTML・素材と撮影前のviewport PNGも調べる場合は`--keep-export`を使い、`report.json`の`exportDirectory`を参照する。
+
+```sh
+npm run openpencil:verify -- --select items/equipment-select/default --keep-export
+```
+
+実装がSVG素材として使う図案も、原稿では編集可能なベクターの部品として管理する。対応表にSVGの保存先と標準の書出し設定を登録し、`npm run openpencil:export-assets`で通常のSVG出力をそのまま製品の素材へ保存する。図案を編集した場合は、この出力と全件比較を実行する。
+
+`openpencil:render`と`openpencil:verify`で既存の固定Playwrightコンテナを使う場合は`--container NAME`を指定する。リポジトリのマウント先が`/work`以外なら、`--container-root /path/to/project`も指定する。
+
+画面や部品を追加・改名したときは対応表も更新する。書式と検証条件は[scripts/verify-design-bindings.mjs](scripts/verify-design-bindings.mjs)、実viewの入口は[tests/fixtures/design-view.ts](tests/fixtures/design-view.ts)を参照する。編集した`.fig`を保存した後は同じコマンドで比較でき、原稿の再生成は不要。
+
+`openpencil:verify:home`では通常配布のタイトルから新規開始したホームも比較する。比較だけの再実行は次を使う。
 
 ```sh
 npm run compare:png -- test-results/openpencil/design-home.implementation.png test-results/openpencil/design-home.png
 ```
 
-GUIプレビューと標準のPNG出力はCanvasKitで描画され、ブラウザ描画とは画素差がある。Homeの比較用PNGは`openpencil:render`で作り、完了判定は比較スクリプトの差分0に限る。文字・図形・マスク・色変数・部品は原稿のネイティブ構造で管理する。
+GUIプレビューと標準のPNG出力はCanvasKitで描画され、ブラウザ描画とは画素差がある。実装との比較用PNGは`openpencil:render`または`openpencil:verify`で作り、完了判定は全件比較スクリプトの差分0に限る。文字・図形・マスク・色変数・部品は原稿のネイティブ構造で管理する。
 
 ## ソース構成
 

@@ -27,7 +27,9 @@
     "openpencil": "node scripts/openpencil.mjs",
     "openpencil:app": "node scripts/openpencil.mjs --app",
     "openpencil:render": "node scripts/openpencil.mjs --render",
-    "openpencil:verify": "npm run build && node scripts/openpencil.mjs --render art-src/openpencil/endfield-rpg.fig --page Screens --node Home --output test-results/openpencil/design-home.png --verify-home",
+    "openpencil:verify": "node scripts/openpencil.mjs --verify-design",
+    "openpencil:export-assets": "node scripts/openpencil.mjs --export-assets",
+    "openpencil:verify:home": "npm run build && node scripts/openpencil.mjs --render art-src/openpencil/endfield-rpg.fig --page Screens --node Home --output test-results/openpencil/design-home.png --verify-home",
     "compare:png": "node scripts/compare-png.mjs"
   },
   "devDependencies": {

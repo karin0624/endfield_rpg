@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { dirname, join, relative, resolve } from "node:path";
+import { dirname, join, posix, relative, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
 import { comparePNG } from "./compare-png.mjs";
@@ -16,15 +16,19 @@ const { values, positionals } = parseArgs({
     output: { type: "string" },
     compare: { type: "string" },
     lang: { type: "string", default: "ja" },
+    container: { type: "string" },
+    "container-root": { type: "string", default: "/work" },
     "verify-home": { type: "boolean", default: false },
   },
 });
 if (positionals.length !== 1 || !values.page || !values.node || !values.output) {
   throw new Error(
-    "Usage: openpencil:render INPUT.fig --page NAME --node NAME --output FILE.png [--compare FILE.png] [--lang ja]",
+    "Usage: openpencil:render INPUT.fig --page NAME --node NAME --output FILE.png [--compare FILE.png] [--lang ja] [--container NAME] [--container-root /work]",
   );
 }
 const project = process.cwd();
+if (!posix.isAbsolute(values["container-root"])) throw new Error("Container root must be an absolute Linux path");
+const browserRoot = posix.normalize(values["container-root"]);
 const { parseFigFile, htmlFormat, fontManager } = await import(
   pathToFileURL(join(source, "packages/core/dist/index.js")).href
 );
@@ -58,25 +62,38 @@ try {
     await writeFile(path, asset.content);
   }
   await writeFile(join(temporary, "job.json"), JSON.stringify({ width, height, verifyHome: values["verify-home"] }));
+  const browserCommand = [
+    "node",
+    posix.join(browserRoot, "scripts/render-openpencil-html.mjs"),
+    posix.join(browserRoot, relative(project, temporary).split(sep).join("/")),
+  ];
   await new Promise((resolveRun, reject) => {
     const child = spawn(
       "docker",
-      [
-        "run",
-        "--rm",
-        "--init",
-        "--ipc=host",
-        "--user",
-        `${process.getuid()}:${process.getgid()}`,
-        "-v",
-        `${project}:/work`,
-        "-w",
-        "/work",
-        "mcr.microsoft.com/playwright:v1.63.0-noble",
-        "node",
-        "scripts/render-openpencil-html.mjs",
-        `/work/${relative(project, temporary)}`,
-      ],
+      values.container
+        ? [
+            "exec",
+            "--user",
+            `${process.getuid()}:${process.getgid()}`,
+            "-w",
+            browserRoot,
+            values.container,
+            ...browserCommand,
+          ]
+        : [
+            "run",
+            "--rm",
+            "--init",
+            "--ipc=host",
+            "--user",
+            `${process.getuid()}:${process.getgid()}`,
+            "-v",
+            `${project}:${browserRoot}`,
+            "-w",
+            browserRoot,
+            "mcr.microsoft.com/playwright:v1.63.0-noble",
+            ...browserCommand,
+          ],
       { stdio: "inherit" },
     );
     child.on("error", reject);
