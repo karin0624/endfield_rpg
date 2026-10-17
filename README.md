@@ -84,6 +84,8 @@ npm run openpencil:verify
 
 引数なしの`npm run openpencil`でGUIとブラウザが起動し、リポジトリの`endfield-rpg.fig`を自動で読み込む。ブラウザが自動で開かない環境では表示されたローカルURLを開く。原稿の選択・ドロップは不要。編集後は`.fig`として保存して元の原稿を更新する。GUI・CLIともに[フォント](art-src/openpencil/fonts/)を同梱するため、OSへのフォント導入とMCP設定は不要。Figmaで直接開く場合は同じTTFをOSへ導入する。ライセンスと元のWebフォントは[素材メモ](art-src/README.md#共通uiのフォント)を参照する。
 
+通常のGUI起動ではMCPサーバーを起動せず、7600番ポートとMCPソケットを使用しない。上記のファイル指定CLI・描画・比較もMCPなしで使える。実行中のGUIをCLIやMCPから操作する場合だけ、`OPENPENCIL_DEV_MCP=1 npm run openpencil`で有効にする。既定の7600番が使用中なら`OPENPENCIL_DEV_MCP_PORT`で空いているポートを指定する。
+
 公開Web版OpenPencil 0.16.0には、このリポジトリで適用する保存・描画・プロトタイプの修正が含まれない。編集・保存には上記コマンドで起動するローカル版を使う。
 
 `openpencil:render`はOpenPencilのHTML出力を、ゲームのVRTと同じ固定PlaywrightコンテナでPNGにする。Dockerが必要で、編集後も同じコマンドを使う。`--compare <比較先PNG>`を加えると、寸法と全RGBAを比較し、差分0のときだけ成功する。

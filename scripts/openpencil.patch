@@ -8887,9 +8887,18 @@ index 06eda10f993107005277f13885cbb5e896034da2..21734388c16ffd983c58df305a03b925
        </SelectRoot>
      </template>
 diff --git a/src/views/WorkspaceView.vue b/src/views/WorkspaceView.vue
-index 76db353000e7fe7b63fe93524681a510bed8b5e8..09c0d3be900c858bfe1a9b572640282065151df4 100644
+index 76db353000e7fe7b63fe93524681a510bed8b5e8..939158154f7d5784156f6167aaeea84202da8e27 100644
 --- a/src/views/WorkspaceView.vue
 +++ b/src/views/WorkspaceView.vue
+@@ -11,7 +11,7 @@ import {
+   offerAISetupOnFirstRun
+ } from '@/app/ai/models/settings/onboarding/dialog'
+ import { exposeAutomationTestRequests } from '@/app/automation/bridge/test-hooks'
+-import { startMCPRuntime, stopMCPRuntime } from '@/app/automation/mcp/runtime'
++import { localMCPAvailable, startMCPRuntime, stopMCPRuntime } from '@/app/automation/mcp/runtime'
+ import { startWebMCP } from '@/app/automation/webmcp/runtime'
+ import { exposeCollaborationActions } from '@/app/browser-bridge'
+ import { useJoinRoom } from '@/app/collab/join'
 @@ -27,6 +27,7 @@ import { notificationMessages } from '@/app/i18n/notifications'
  import { appRuntimeConfig } from '@/app/runtime/config'
  import { useDocumentDrop } from '@/app/shell/document-drop'
@@ -8898,6 +8907,15 @@ index 76db353000e7fe7b63fe93524681a510bed8b5e8..09c0d3be900c858bfe1a9b5726402820
  import { useEditorMenu } from '@/app/shell/menu/use'
  import { toast } from '@/app/shell/ui'
  import {
+@@ -203,7 +204,7 @@ let stopWebMCP: (() => void) | undefined
+ 
+ onMounted(async () => {
+   stopWebMCP = startWebMCP(getActiveStore)
+-  await startMCPRuntime(getActiveStore)
++  if (localMCPAvailable()) await startMCPRuntime(getActiveStore)
+ 
+   try {
+     await bindAssociatedFileOpen()
 @@ -222,6 +223,15 @@ onMounted(async () => {
    // The browser twin of the deep link: the desktop build takes its links through the
    // deep-link plugin above, so only a real browser reads them off the address bar.
@@ -23684,4 +23702,76 @@ index 0000000000000000000000000000000000000000..6fb37b2cb8ed85396dd29b7ba5f5f57b
 +test('interpolating RGB channels still requires the color helper', async () => {
 +  const source = `const converted = \`rgb(\${r}, \${g}, \${b})\``
 +  expect(ruleDiagnostics(await lint(source, rules), rule)).toHaveLength(1)
++})
+diff --git a/src/app/automation/mcp/runtime.ts b/src/app/automation/mcp/runtime.ts
+index c6390c03673ebe142e995ef0000cf2bedd33425b..38ab2039058cb0e06cbe476d8e3f453a5a6bf8fa 100644
+--- a/src/app/automation/mcp/runtime.ts
++++ b/src/app/automation/mcp/runtime.ts
+@@ -208,7 +208,7 @@ export function createMCPRuntimeService(dependencies: MCPRuntimeDependencies) {
+ 
+ /** The local server runs with the desktop app, and in development with the dev server. */
+ export function localMCPAvailable(): boolean {
+-  return import.meta.env.DEV || isTauri()
++  return import.meta.env.DEV ? typeof __OPENPENCIL_LOCAL_AUTOMATION_TOKEN__ === 'string' : isTauri()
+ }
+ 
+ const appMCPRuntime = createMCPRuntimeService({
+diff --git a/vite/automation.ts b/vite/automation.ts
+index 51961acad1aa3e265980cec52f20af79b883290b..84af3a805d04e677b45389cec42d9bb38841ecc9 100644
+--- a/vite/automation.ts
++++ b/vite/automation.ts
+@@ -9,7 +9,9 @@ import { automationPlugin } from '../src/app/automation/bridge/vite-plugin'
+ const devAutomationAuthToken = process.env.OPENPENCIL_DEV_TOKEN ?? randomUUID()
+ 
+ export function localAutomationToken(command: string): string | null {
+-  return command === 'serve' ? devAutomationAuthToken : null
++  return command === 'serve' && process.env.OPENPENCIL_DEV_MCP !== '0'
++    ? devAutomationAuthToken
++    : null
+ }
+ 
+ export function automationCORSOrigin(host: string | undefined): string {
+@@ -30,5 +32,6 @@ export function localAutomationRoute(host: string | undefined) {
+ }
+ 
+ export function openPencilAutomationPlugin(command: string, host: string | undefined) {
+-  return automationPlugin(localAutomationToken(command), localAutomationRoute(host))
++  const token = localAutomationToken(command)
++  return token ? automationPlugin(token, localAutomationRoute(host)) : null
+ }
+diff --git a/tests/app/automation/dev-mode.test.ts b/tests/app/automation/dev-mode.test.ts
+new file mode 100644
+index 0000000..29ad674
+--- /dev/null
++++ b/tests/app/automation/dev-mode.test.ts
+@@ -0,0 +1,30 @@
++import { afterEach, expect, test } from 'bun:test'
++
++import { localAutomationToken, openPencilAutomationPlugin } from '#vite-config/automation'
++
++const original = process.env.OPENPENCIL_DEV_MCP
++
++afterEach(() => {
++  if (original === undefined) delete process.env.OPENPENCIL_DEV_MCP
++  else process.env.OPENPENCIL_DEV_MCP = original
++})
++
++test('disables the MCP server and browser control token together', () => {
++  process.env.OPENPENCIL_DEV_MCP = '0'
++  expect(localAutomationToken('serve')).toBeNull()
++  expect(openPencilAutomationPlugin('serve', undefined)).toBeNull()
++})
++
++test('supports explicit MCP opt-in without enabling it in builds', () => {
++  process.env.OPENPENCIL_DEV_MCP = '1'
++  expect(localAutomationToken('serve')).toEqual(expect.any(String))
++  expect(openPencilAutomationPlugin('serve', undefined)?.name).toBe('open-pencil-automation')
++  expect(localAutomationToken('build')).toBeNull()
++  expect(openPencilAutomationPlugin('build', undefined)).toBeNull()
++})
++
++test('preserves the upstream development default outside the repository launcher', () => {
++  delete process.env.OPENPENCIL_DEV_MCP
++  expect(localAutomationToken('serve')).toEqual(expect.any(String))
++  expect(openPencilAutomationPlugin('serve', undefined)?.name).toBe('open-pencil-automation')
 +})

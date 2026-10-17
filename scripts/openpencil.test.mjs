@@ -4,7 +4,7 @@ import { mkdtemp, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, relative } from "node:path";
 import { pathToFileURL } from "node:url";
-import { afterEach, expect, it } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
 import { openpencil } from "./openpencil.mjs";
 
 const roots = [];
@@ -18,6 +18,7 @@ const upstreamFiles = {
 };
 
 afterEach(async () => {
+  vi.unstubAllEnvs();
   for (const root of roots.splice(0)) await rm(root, { recursive: true, force: true });
 });
 
@@ -217,6 +218,28 @@ it("reuses a version checkout and dependencies, rebuilding only package or font 
   const cli = env.calls.find((call) => call.args.includes("info"));
   expect(cli.cwd).toBe(env.root);
   expect(cli.args.slice(-2)).toEqual(["info", "art-src/openpencil/endfield-rpg.fig"]);
+});
+
+it("launches the editor without MCP by default and preserves explicit MCP opt-in", async () => {
+  const env = await fixture();
+  await openpencil(["--setup"], env);
+  env.calls.length = 0;
+  vi.stubEnv("OPENPENCIL_DEV_MCP", undefined);
+
+  await openpencil([], env);
+  expect(env.calls[0].env.OPENPENCIL_DEV_MCP).toBe("0");
+  expect(env.calls[0].env.VITE_OPENPENCIL_STARTUP_FILE).toBe(env.master.replaceAll("\\", "/"));
+
+  await openpencil(["info", "art-src/openpencil/endfield-rpg.fig"], env);
+  expect(env.calls[1].env.OPENPENCIL_DEV_MCP).toBeUndefined();
+
+  vi.stubEnv("OPENPENCIL_DEV_MCP", "1");
+  await openpencil(["--app", "--port", "1422"], env);
+  expect(env.calls[2].env.OPENPENCIL_DEV_MCP).toBe("1");
+  expect(env.calls[2].args).toEqual(["run", "dev", "--open", "--port", "1422"]);
+  expect(env.calls.filter((call) => call.tool === "git")).toHaveLength(0);
+  expect(installs(env.calls)).toHaveLength(0);
+  expect(builds(env.calls)).toHaveLength(0);
 });
 
 it("migrates a legacy checkout with an older patch without fetching or reinstalling dependencies", async () => {

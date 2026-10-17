@@ -88,6 +88,7 @@ export async function openpencil(
       const master = join(root, "art-src/openpencil/endfield-rpg.fig");
       await access(master);
       env.VITE_OPENPENCIL_STARTUP_FILE = master.replaceAll("\\", "/");
+      env.OPENPENCIL_DEV_MCP ??= "0";
       await command(bun, ["run", "dev", "--open", ...args.slice(1)]);
     } else {
       await command(bun, [join(source, "packages/cli/src/index.ts"), ...args], root);
