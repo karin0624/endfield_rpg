@@ -15,6 +15,34 @@ index 8c061273c48694e062bec8fb4f95db6428842daa..492ae89c8ae1d41a075c79e61138f167
  [[allowlists]]
  description = "Public Google Fonts browser API key"
  regexTarget = "line"
+diff --git a/packages/core/src/canvas/fills.ts b/packages/core/src/canvas/fills.ts
+index af7a045cced12fcd3b37500917b767ba385733de..4225fd2a8b0a11afd437239f2bf31b750832af47 100644
+--- a/packages/core/src/canvas/fills.ts
++++ b/packages/core/src/canvas/fills.ts
+@@ -289,17 +289,12 @@ function makeGradientLocalMatrix(
+   transform: NonNullable<Fill['gradientTransform']>
+ ) {
+   const t = invertGradientTransform(transform)
+-  return r.ck.Matrix.multiply(r.ck.Matrix.scaled(width, height), [
+-    t.m00,
+-    t.m01,
+-    t.m02,
+-    t.m10,
+-    t.m11,
+-    t.m12,
+-    0,
+-    0,
+-    1
+-  ])
++  return r.ck.Matrix.multiply(
++    // A collapsed axis has no fill area, but lines can still have a visible stroke.
++    // Give only that axis a unit gradient space so Skia receives an invertible matrix.
++    r.ck.Matrix.scaled(width === 0 ? 1 : width, height === 0 ? 1 : height),
++    [t.m00, t.m01, t.m02, t.m10, t.m11, t.m12, 0, 0, 1]
++  )
+ }
+ 
+ /** Resolves one gradient stop's color, so a stroke resolves its own bindings, not a fill's. */
 diff --git a/packages/core/src/canvas/scene.ts b/packages/core/src/canvas/scene.ts
 index 237c50988359124ee704c76ac97a0ece9cb09c8c..b1651d46a62cc9aaefb19ab4ba5af71d46b03154 100644
 --- a/packages/core/src/canvas/scene.ts
@@ -293,12 +321,318 @@ index 60eb3eb63e965dc68fa09d125b22ce67956c628f..a6450cdcc6bf5f26915d35e05cb4d9c3
    const plan = prepareGraphTransfer({
      source: fragment.graph,
      rootIds: fragment.rootIds,
+diff --git a/packages/core/src/editor/components/authoring/context.ts b/packages/core/src/editor/components/authoring/context.ts
+index d0d2fe42888e218e797a5e3b57c9ae69f7ee925e..990b92268636fe9fbe60c0d4614524570ea4e78c 100644
+--- a/packages/core/src/editor/components/authoring/context.ts
++++ b/packages/core/src/editor/components/authoring/context.ts
+@@ -1,3 +1,4 @@
++import { componentPropertyDefinitions, componentPropertyId } from '@open-pencil/scene-graph'
+ import type {
+   ComponentPropertyReferenceField,
+   SceneGraph,
+@@ -78,19 +79,55 @@ export function componentPropertyNameExists(
+     scopes.push(...graph.getChildren(owner.id).filter((node) => node.type === 'COMPONENT'))
+   }
+   return scopes.some((scope) =>
+-    scope.componentPropertyDefinitions.some(
++    componentPropertyDefinitions(graph, scope).some(
+       (definition) => definition.id !== exceptId && definition.name === name
+     )
+   )
+ }
+ 
+ /** The source layers and fields controlled by one component property. */
+-export function componentPropertySources(graph: SceneGraph, ownerId: string, propertyId: string) {
+-  return componentBindingNodes(graph, ownerId).flatMap((node) =>
+-    node.componentPropertyReferences
+-      .filter(
+-        (reference) => reference.propertyId === propertyId && reference.field !== 'SLOT_CONTENT'
+-      )
++export function componentPropertySources(
++  graph: SceneGraph,
++  ownerId: string,
++  propertyId: string,
++  inheritedOnly = false
++) {
++  return componentBindingNodes(graph, ownerId).flatMap((node) => {
++    const component = componentAuthoringContext(graph, node.id)?.component
++    return node.componentPropertyReferences
++      .filter((reference) => {
++        if (reference.field === 'SLOT_CONTENT') return false
++        if (reference.propertyId === propertyId) return true
++        if (
++          !component ||
++          componentPropertyId(graph, component, reference.propertyId) !== propertyId
++        )
++          return false
++        const local = component.componentPropertyDefinitions.find(
++          (definition) => definition.id === reference.propertyId
++        )
++        return !inheritedOnly || !!local?.inheritedFields?.includes('defaultValue')
++      })
+       .map((reference) => ({ node, field: reference.field as ExposableComponentField }))
+-  )
++  })
++}
++
++/** The enclosing instance and public definition a saved local reference addresses. */
++export function boundInstanceProperty(graph: SceneGraph, node: SceneNode, propertyId: string) {
++  const instance = node.parentId
++    ? graph.closest(
++        node.parentId,
++        (item) =>
++          item.type === 'INSTANCE' &&
++          componentPropertyDefinitions(graph, item).some(
++            (definition) => definition.id === componentPropertyId(graph, item, propertyId)
++          )
++      )
++    : undefined
++  const definition = instance
++    ? componentPropertyDefinitions(graph, instance).find(
++        (item) => item.id === componentPropertyId(graph, instance, propertyId)
++      )
++    : undefined
++  return { instance, definition }
+ }
+diff --git a/packages/core/src/editor/components/authoring/index.ts b/packages/core/src/editor/components/authoring/index.ts
+index ea9e4a79208c93c443ef27617aa13891d5ab790c..f7aaed3bfa472dbafa7ffe0cd59d33151a83c264 100644
+--- a/packages/core/src/editor/components/authoring/index.ts
++++ b/packages/core/src/editor/components/authoring/index.ts
+@@ -2,6 +2,9 @@ import { isEqual } from 'es-toolkit'
+ 
+ import {
+   createComponentPropertyId,
++  componentPropertyDefinitions,
++  componentPropertyLocalId,
++  componentPropertyId,
+   exposableInstances,
+   instanceExposureIssue,
+   removeComponentProperty,
+@@ -16,7 +19,6 @@ import type { EditorContext } from '#core/editor/types'
+ import {
+   COMPONENT_FIELD_TYPES,
+   componentAuthoringContext,
+-  componentBindingNodes,
+   componentPropertySources,
+   componentFieldValue,
+   componentPropertyNameExists,
+@@ -92,14 +94,19 @@ export function createComponentAuthoringActions(ctx: EditorContext) {
+   ): boolean {
+     const context = bindingContext(nodeId, field)
+     if (!context) return false
+-    const { node, owners } = context
+-    const definition = owners
+-      .flatMap((item) => item.componentPropertyDefinitions)
+-      .find((item) => item.id === propertyId)
++    const { node, component } = context
++    const publicId = propertyId ? componentPropertyId(ctx.graph, component, propertyId) : null
++    const definition = componentPropertyDefinitions(ctx.graph, component).find(
++      (item) => item.id === publicId
++    )
+     if (propertyId && definition?.type !== COMPONENT_FIELD_TYPES[field]) return false
+     if (definition && !sourceValues.accepts(node, field, definition.defaultValue)) return false
+     const references = node.componentPropertyReferences.filter((item) => item.field !== field)
+-    if (propertyId) references.push({ propertyId, field })
++    if (propertyId)
++      references.push({
++        propertyId: componentPropertyLocalId(ctx.graph, component, propertyId),
++        field
++      })
+     if (isEqual(references, node.componentPropertyReferences)) return true
+ 
+     ctx.undo.runBatch(propertyId ? 'Link component property' : 'Detach component property', () => {
+@@ -200,7 +207,7 @@ export function createComponentAuthoringActions(ctx: EditorContext) {
+     if (definition.type === 'BOOLEAN' && value !== 'true' && value !== 'false') return false
+     if (definition.type === 'INSTANCE_SWAP' && !resolveComponentPropertyValue(ctx.graph, value))
+       return false
+-    const targets = componentPropertySources(ctx.graph, ownerId, propertyId)
++    const targets = componentPropertySources(ctx.graph, ownerId, propertyId, true)
+     if (targets.some(({ node, field }) => !sourceValues.accepts(node, field, value))) return false
+     for (const { node } of targets) assertNodeEditable(ctx.graph, node.id)
+     if (definition.defaultValue === value) return true
+@@ -209,7 +216,19 @@ export function createComponentAuthoringActions(ctx: EditorContext) {
+         ownerId,
+         {
+           componentPropertyDefinitions: owner.componentPropertyDefinitions.map((item) =>
+-            item.id === propertyId ? { ...item, defaultValue: value } : item
++            item.id === propertyId
++              ? {
++                  ...item,
++                  defaultValue: value,
++                  ...(item.inheritedFields
++                    ? {
++                        inheritedFields: item.inheritedFields.filter(
++                          (field) => field !== 'defaultValue'
++                        )
++                      }
++                    : {})
++                }
++              : item
+           )
+         },
+         'Change component property default'
+@@ -221,14 +240,12 @@ export function createComponentAuthoringActions(ctx: EditorContext) {
+ 
+   function deleteComponentProperty(ownerId: string, propertyId: string): boolean {
+     if (!editableProperty(ownerId, propertyId)) return false
++    const snapshots = new Map([...ctx.graph.getAllNodes()].map((node) => [node.id, metadata(node)]))
++    removeComponentProperty(ctx.graph, ownerId, propertyId)
+     const affected = [...ctx.graph.getAllNodes()].filter(
+-      (node) =>
+-        node.id === ownerId ||
+-        node.componentPropertyReferences.some((reference) => reference.propertyId === propertyId) ||
+-        Object.hasOwn(node.componentPropertyAssignments, propertyId)
++      (node) => !isEqual(snapshots.get(node.id), metadata(node))
+     )
+-    const before = new Map(affected.map((node) => [node.id, metadata(node)]))
+-    removeComponentProperty(ctx.graph, ownerId, propertyId)
++    const before = new Map([...snapshots].filter(([id]) => affected.some((node) => node.id === id)))
+     const after = new Map(affected.map((node) => [node.id, metadata(node)]))
+     const apply = (values: Map<string, PropertyMetadata>) => {
+       for (const [id, value] of values) ctx.graph.updateNode(id, structuredClone(value))
+@@ -290,11 +307,11 @@ export function createComponentAuthoringActions(ctx: EditorContext) {
+   return {
+     getComponentPropertyAuthoring: (nodeId: string) => componentAuthoringContext(ctx.graph, nodeId),
+     getComponentPropertyBindings: (ownerId: string, propertyId: string) =>
+-      componentBindingNodes(ctx.graph, ownerId).flatMap((node) =>
+-        node.componentPropertyReferences
+-          .filter((reference) => reference.propertyId === propertyId)
+-          .map((reference) => ({ nodeId: node.id, name: node.name, field: reference.field }))
+-      ),
++      componentPropertySources(ctx.graph, ownerId, propertyId).map(({ node, field }) => ({
++        nodeId: node.id,
++        name: node.name,
++        field
++      })),
+     getExposableInstances: (componentId: string) => exposableInstances(ctx.graph, componentId),
+     createComponentProperty,
+     exposeComponentProperty,
+diff --git a/packages/core/src/editor/components/authoring/text-edit.ts b/packages/core/src/editor/components/authoring/text-edit.ts
+index 170a83bebed1ff8cd41bfd6ae0ca72d0f0ffc920..17769a5fe19f913ebad42cc5912e6bec0c7a9601 100644
+--- a/packages/core/src/editor/components/authoring/text-edit.ts
++++ b/packages/core/src/editor/components/authoring/text-edit.ts
+@@ -3,14 +3,17 @@ import { pick } from 'es-toolkit/object'
+ import {
+   applyComponentPropertyValue,
+   cloneInstanceOverrideState,
+-  componentPropertyDefinitions,
+   findComponentPropertyTargets
+ } from '@open-pencil/scene-graph'
+ import type { SceneNode } from '@open-pencil/scene-graph'
+ 
+ import type { EditorContext } from '#core/editor/types'
+ 
+-import { componentAuthoringContext, componentPropertySources } from './context'
++import {
++  componentAuthoringContext,
++  componentPropertySources,
++  boundInstanceProperty
++} from './context'
+ import { componentPropertyTextChanges } from './values'
+ 
+ /**
+@@ -52,14 +55,27 @@ function setDefault(ctx: EditorContext, node: SceneNode, propertyId: string, tex
+     item.componentPropertyDefinitions.some((definition) => definition.id === propertyId)
+   )
+   const definition = owner?.componentPropertyDefinitions.find((item) => item.id === propertyId)
+-  if (!owner || !definition || definition.defaultValue === text) return
++  if (
++    !owner ||
++    !definition ||
++    (definition.defaultValue === text && !definition.inheritedFields?.includes('defaultValue'))
++  )
++    return
+   const before = structuredClone(owner.componentPropertyDefinitions)
+   const after = before.map((item) =>
+-    item.id === propertyId ? { ...item, defaultValue: text } : item
++    item.id === propertyId
++      ? {
++          ...item,
++          defaultValue: text,
++          ...(item.inheritedFields
++            ? { inheritedFields: item.inheritedFields.filter((field) => field !== 'defaultValue') }
++            : {})
++        }
++      : item
+   )
+   // Every other layer the property drives shows the same default, resized as an edit would be.
+-  const others = componentPropertySources(ctx.graph, owner.id, propertyId).flatMap((source) =>
+-    source.node.id !== node.id && source.node.type === 'TEXT' ? [source.node] : []
++  const others = componentPropertySources(ctx.graph, owner.id, propertyId, true).flatMap(
++    (source) => (source.node.id !== node.id && source.node.type === 'TEXT' ? [source.node] : [])
+   )
+   const { before: othersBefore, after: othersAfter } = layerTextChanges(others, text)
+   const apply = (definitions: typeof before, layers: LayerChanges[]) => {
+@@ -78,19 +94,7 @@ function setDefault(ctx: EditorContext, node: SceneNode, propertyId: string, tex
+ }
+ 
+ function setInstanceValue(ctx: EditorContext, node: SceneNode, propertyId: string, text: string) {
+-  const instance = node.parentId
+-    ? ctx.graph.closest(
+-        node.parentId,
+-        (item) =>
+-          item.type === 'INSTANCE' &&
+-          componentPropertyDefinitions(ctx.graph, item).some(
+-            (definition) => definition.id === propertyId
+-          )
+-      )
+-    : undefined
+-  const definition = instance
+-    ? componentPropertyDefinitions(ctx.graph, instance).find((item) => item.id === propertyId)
+-    : undefined
++  const { instance, definition } = boundInstanceProperty(ctx.graph, node, propertyId)
+   if (!instance || !definition) return
+   const before = {
+     componentPropertyAssignments: { ...instance.componentPropertyAssignments },
+diff --git a/packages/core/src/editor/components/authoring/visibility-edit.ts b/packages/core/src/editor/components/authoring/visibility-edit.ts
+index 4dae52554ad563f4baf709e0df91a47d673fcd42..35cdfc081833477f142a64feedf8f5fc2b6ec63f 100644
+--- a/packages/core/src/editor/components/authoring/visibility-edit.ts
++++ b/packages/core/src/editor/components/authoring/visibility-edit.ts
+@@ -3,13 +3,14 @@ import { isEqual } from 'es-toolkit/predicate'
+ import {
+   applyComponentPropertyValue,
+   cloneInstanceOverrideState,
+-  componentPropertyDefinitions,
+   findComponentPropertyTargets
+ } from '@open-pencil/scene-graph'
+ import type { SceneNode } from '@open-pencil/scene-graph'
+ 
+ import type { EditorContext } from '#core/editor/types'
+ 
++import { boundInstanceProperty } from './context'
++
+ /** Whether a boolean property drives the layer's visibility. */
+ export function bindsVisibility(node: SceneNode): boolean {
+   return node.componentPropertyReferences.some((reference) => reference.field === 'VISIBLE')
+@@ -32,17 +33,7 @@ export function applyBoundVisibilityEdit(
+     (reference) => reference.field === 'VISIBLE'
+   )?.propertyId
+   if (!node?.parentId || !propertyId) return false
+-  const instance = ctx.graph.closest(
+-    node.parentId,
+-    (item) =>
+-      item.type === 'INSTANCE' &&
+-      componentPropertyDefinitions(ctx.graph, item).some(
+-        (definition) => definition.id === propertyId
+-      )
+-  )
+-  const definition = instance
+-    ? componentPropertyDefinitions(ctx.graph, instance).find((item) => item.id === propertyId)
+-    : undefined
++  const { instance, definition } = boundInstanceProperty(ctx.graph, node, propertyId)
+   if (!instance || definition?.type !== 'BOOLEAN') return false
+   const layers = findComponentPropertyTargets(ctx.graph, instance, propertyId).flatMap((target) =>
+     target.field === 'VISIBLE' ? [target.node.id] : []
 diff --git a/packages/core/src/editor/components/properties.ts b/packages/core/src/editor/components/properties.ts
-index a1af6fece6ffc4f2b889b5079cf08d9225c9f0f2..5b97539ace23e8d72877f8f098f3cd43567fac77 100644
+index a1af6fece6ffc4f2b889b5079cf08d9225c9f0f2..a1ea270945a6c7630c86958fa7748d394fd02a80 100644
 --- a/packages/core/src/editor/components/properties.ts
 +++ b/packages/core/src/editor/components/properties.ts
-@@ -4,7 +4,8 @@ import {
+@@ -2,9 +2,12 @@ import {
+   applyComponentPropertyValue,
+   cloneInstanceOverrideState,
    componentPropertyDefinitions,
++  componentPropertyId,
++  componentPropertyAssignment,
    findComponentPropertyTargets,
    resolveComponentPropertyValue,
 -  setInstanceOverride
@@ -307,7 +641,7 @@ index a1af6fece6ffc4f2b889b5079cf08d9225c9f0f2..5b97539ace23e8d72877f8f098f3cd43
  } from '@open-pencil/scene-graph'
  import type {
    ComponentPropertyDefinition,
-@@ -37,26 +38,35 @@ function targetValue(target: ComponentPropertyTarget | null): string {
+@@ -37,26 +40,35 @@ function targetValue(target: ComponentPropertyTarget | null): string {
  export function measurePropertyText(
    ctx: Pick<EditorContext, 'graph'>,
    instanceId: string,
@@ -348,7 +682,30 @@ index a1af6fece6ffc4f2b889b5079cf08d9225c9f0f2..5b97539ace23e8d72877f8f098f3cd43
  }
  
  export function reapplyInstanceComponentProperties(
-@@ -101,7 +111,10 @@ export function createComponentPropertyActions(
+@@ -69,7 +81,7 @@ export function reapplyInstanceComponentProperties(
+     definitionsForInstance(ctx, instance).map((definition) => [definition.id, definition])
+   )
+   for (const [propertyId, value] of Object.entries(instance.componentPropertyAssignments)) {
+-    const definition = definitions.get(propertyId)
++    const definition = definitions.get(componentPropertyId(ctx.graph, instance, propertyId))
+     if (definition && definition.type !== 'VARIANT') {
+       applyPropertyValue(ctx, instanceId, definition, value)
+     }
+@@ -91,17 +103,23 @@ export function createComponentPropertyActions(
+   ): string {
+     const instance = ctx.graph.getNode(instanceId)
+     if (instance?.type !== 'INSTANCE') return definition.defaultValue
++    definition =
++      definitionsForInstance(ctx, instance).find((item) => item.id === definition.id) ?? definition
+     if (definition.type === 'VARIANT') {
+       const component = instance.componentId ? ctx.graph.getNode(instance.componentId) : null
+       return component?.componentPropertyValues[definition.name] ?? definition.defaultValue
+     }
+-    const value = instance.componentPropertyAssignments[definition.id] ?? definition.defaultValue
++    const value =
++      componentPropertyAssignment(ctx.graph, instance, definition.id) ?? definition.defaultValue
+     return definition.type === 'INSTANCE_SWAP' ? (swapTargetId(ctx, value) ?? value) : value
+   }
  
    function restoreTarget(instance: SceneNode, target: ComponentPropertyTarget, value: string) {
      if (target.field === 'TEXT' && target.node.type === 'TEXT') {
@@ -360,6 +717,15 @@ index a1af6fece6ffc4f2b889b5079cf08d9225c9f0f2..5b97539ace23e8d72877f8f098f3cd43
      } else if (target.field === 'VISIBLE') {
        ctx.graph.updateNode(target.node.id, { visible: value === 'true' })
      } else if (target.field === 'INSTANCE_SWAP' && target.node.type === 'INSTANCE') {
+@@ -134,7 +152,7 @@ export function createComponentPropertyActions(
+     const previousOverrides = cloneInstanceOverrideState(instance.instanceOverrides)
+ 
+     // A property can drive several layers; undo restores each one to what it showed.
+-    const assignedValue = instance.componentPropertyAssignments[propertyId]
++    const assignedValue = componentPropertyAssignment(ctx.graph, instance, propertyId)
+     const previousValues = findComponentPropertyTargets(ctx.graph, instance, propertyId).map(
+       (target) =>
+         definition.type === 'INSTANCE_SWAP' && assignedValue
 diff --git a/packages/core/src/editor/text/session.ts b/packages/core/src/editor/text/session.ts
 index 16be762e012cd3be88a6466753d38eb82d6f5b5c..9f46d06315f89935fc4707cb3f5e25d7ca6ff4d6 100644
 --- a/packages/core/src/editor/text/session.ts
@@ -498,20 +864,30 @@ index 1b924071677aa3b343e25018274ea71c43f2eccf..3fb76c1b414f16a30a78d6fe8e34acbc
    | 'setRangeListOptions'
    | 'setRangeIndentation'
 diff --git a/packages/core/src/figma-api/components.ts b/packages/core/src/figma-api/components.ts
-index ca66a5888727adbc338b0c5b9238c44f4923e73b..9a3738d52e5721c1a3fe106cfc9d3fd813c9890c 100644
+index ca66a5888727adbc338b0c5b9238c44f4923e73b..dff383292a613a6bed71b6be69dd9c2a26111e0c 100644
 --- a/packages/core/src/figma-api/components.ts
 +++ b/packages/core/src/figma-api/components.ts
-@@ -8,8 +8,8 @@ import type {
+@@ -1,15 +1,17 @@
+ import { uniq } from 'es-toolkit/array'
+ 
+ import type {
+-  ComponentPropertyReferenceField,
+   ComponentPropertyDefinition,
+   ComponentPropertyType,
+   SceneGraph,
    SceneNode
  } from '@open-pencil/scene-graph'
  import {
 -  applyComponentPropertyValue,
    componentPropertyDefinitions as sharedComponentPropertyDefinitions,
++  componentPropertyLocalId,
++  componentPropertyAssignment,
++  componentPropertyId,
 +  componentPropertyOwners,
    removeComponentProperty,
    createComponentPropertyId,
    exposedInstances,
-@@ -20,7 +20,7 @@ import { cloneNodeProps } from '@open-pencil/scene-graph/copy'
+@@ -20,7 +22,7 @@ import { cloneNodeProps } from '@open-pencil/scene-graph/copy'
  
  import { becomesComponent, componentWrapProps } from '#core/editor/components/create'
  import {
@@ -520,7 +896,20 @@ index ca66a5888727adbc338b0c5b9238c44f4923e73b..9a3738d52e5721c1a3fe106cfc9d3fd8
    reapplyInstanceComponentProperties
  } from '#core/editor/components/properties'
  import { applyVariantProperties, variantSetProps } from '#core/editor/components/variant-set'
-@@ -133,14 +133,12 @@ function findPropertyHost(graph: SceneGraph, nodeId: string | null): SceneNode |
+@@ -33,6 +35,12 @@ import { wrapNodes } from '#core/editor/structure/container-wrap'
+ 
+ import type { NodeProxyInternals, ProxyThis } from './accessor-utils'
+ import { graph, raw, updateNode } from './accessor-utils'
++import {
++  propertyName,
++  getPropertyReferences,
++  propertyReferences,
++  inheritedPropertyDefaults
++} from './component-property-inheritance'
+ import type { FigmaNodeProxy } from './proxy'
+ import {
+   assertSlotSettings,
+@@ -133,21 +141,15 @@ function findPropertyHost(graph: SceneGraph, nodeId: string | null): SceneNode |
  
  function requireDistinctComponents(graph: SceneGraph, nodeIds: ReadonlyArray<string>): SceneNode[] {
    if (nodeIds.length === 0) throw new Error('Need at least 1 component to combine as variants')
@@ -537,7 +926,49 @@ index ca66a5888727adbc338b0c5b9238c44f4923e73b..9a3738d52e5721c1a3fe106cfc9d3fd8
    return nodes
  }
  
-@@ -207,9 +205,14 @@ function componentProperties(
+-function propertyName(definition: ComponentPropertyDefinition): string {
+-  return definition.type === 'VARIANT' ? definition.name : `${definition.name}#${definition.id}`
+-}
+-
+ function preferredValues(graph: SceneGraph, ids: string[]): InstanceSwapPreferredValue[] {
+   return ids.flatMap((id) => {
+     const node = graph.getNode(id)
+@@ -187,17 +189,23 @@ function definitions(
+   const node = raw(target, internals)
+   if (node.type !== 'COMPONENT' && node.type !== 'COMPONENT_SET') return {}
+   return Object.fromEntries(
+-    node.componentPropertyDefinitions.map((definition) => [
+-      propertyName(definition),
+-      {
+-        type: definition.type,
+-        defaultValue:
+-          definition.type === 'BOOLEAN'
+-            ? definition.defaultValue === 'true'
+-            : definition.defaultValue,
+-        ...propertyMetadata(target, internals, definition, true)
+-      }
+-    ])
++    node.componentPropertyDefinitions.map((local) => {
++      const definition =
++        sharedComponentPropertyDefinitions(graph(target, internals), node).find(
++          (item) => item.id === componentPropertyId(graph(target, internals), node, local.id)
++        ) ?? local
++      return [
++        propertyName(definition),
++        {
++          type: definition.type,
++          defaultValue:
++            definition.type === 'BOOLEAN'
++              ? definition.defaultValue === 'true'
++              : definition.defaultValue,
++          ...propertyMetadata(target, internals, definition, true)
++        }
++      ]
++    })
+   )
+ }
+ 
+@@ -207,9 +215,14 @@ function componentProperties(
  ): FigmaComponentProperties {
    const node = raw(target, internals)
    if (node.type !== 'INSTANCE') return {}
@@ -550,11 +981,93 @@ index ca66a5888727adbc338b0c5b9238c44f4923e73b..9a3738d52e5721c1a3fe106cfc9d3fd8
 +      const value =
 +        definition.type === 'VARIANT'
 +          ? (component?.componentPropertyValues[definition.name] ?? definition.defaultValue)
-+          : (node.componentPropertyAssignments[definition.id] ?? definition.defaultValue)
++          : (componentPropertyAssignment(scene, node, definition.id) ?? definition.defaultValue)
        return [
          propertyName(definition),
          {
-@@ -330,7 +333,9 @@ interface PropertyValue {
+@@ -228,17 +241,15 @@ function findDefinition(
+   name: string
+ ): ComponentPropertyDefinition | null {
+   const node = raw(target, internals)
+-  const defs =
+-    node.type === 'INSTANCE'
+-      ? sharedComponentPropertyDefinitions(graph(target, internals), node)
+-      : node.componentPropertyDefinitions
+-  return (
+-    defs.find(
+-      (definition) =>
+-        propertyName(definition) === name ||
+-        (definition.type === 'VARIANT' && definition.name === name)
+-    ) ?? null
++  const scene = graph(target, internals)
++  const found = sharedComponentPropertyDefinitions(scene, node).find(
++    (definition) =>
++      propertyName(definition) === name ||
++      (definition.type === 'VARIANT' && definition.name === name)
+   )
++  if (!found || node.type === 'INSTANCE') return found ?? null
++  const localId = componentPropertyLocalId(scene, node, found.id)
++  return node.componentPropertyDefinitions.find((definition) => definition.id === localId) ?? null
+ }
+ 
+ function editPropertyDefinitions(
+@@ -267,6 +278,12 @@ function editPropertyDefinitions(
+   const updatedName = changes.name?.trim()
+   if (updatedName === '') throw new Error('Property name must not be empty')
+   const updated: ComponentPropertyDefinition = { ...definition }
++  if (definition.inheritedFields)
++    updated.inheritedFields = definition.inheritedFields.filter(
++      (field) =>
++        !Object.hasOwn(changes, field) &&
++        !(field === 'variantOptions' && changes.preferredValues !== undefined)
++    )
+   if (updatedName) updated.name = updatedName
+   if (changes.defaultValue !== undefined) {
+     updated.defaultValue =
+@@ -286,40 +303,11 @@ function editPropertyDefinitions(
+       item.id === definition.id ? updated : item
+     )
+   })
++  if (changes.defaultValue !== undefined)
++    inheritedPropertyDefaults(graph(target, internals), node, updated.id)
+   return propertyName(updated)
+ }
+-function propertyReferenceField(field: string): ComponentPropertyReferenceField {
+-  if (field === 'mainComponent') return 'INSTANCE_SWAP'
+-  if (field === 'slotContentId') return 'SLOT_CONTENT'
+-  return field === 'characters' ? 'TEXT' : 'VISIBLE'
+-}
+ 
+-/**
+- * Definitions a layer's references can name: those of the component it is part of, or of the
+- * instance's component when it is a layer of an instance.
+- */
+-function referableDefinitions(g: SceneGraph, node: SceneNode): ComponentPropertyDefinition[] {
+-  let owner = node.parentId ? g.getNode(node.parentId) : undefined
+-  while (owner && owner.type !== 'CANVAS') {
+-    if (owner.type === 'INSTANCE') return sharedComponentPropertyDefinitions(g, owner)
+-    if (owner.type === 'COMPONENT') {
+-      const set = owner.parentId ? g.getNode(owner.parentId) : undefined
+-      return [
+-        ...owner.componentPropertyDefinitions,
+-        ...(set?.type === 'COMPONENT_SET' ? set.componentPropertyDefinitions : [])
+-      ]
+-    }
+-    owner = owner.parentId ? g.getNode(owner.parentId) : undefined
+-  }
+-  return []
+-}
+-
+-/** Figma's names: `slotContentId` is what a slot frame reports for its slot property. */
+-function propertyReferenceName(field: ComponentPropertyReferenceField): string {
+-  if (field === 'INSTANCE_SWAP') return 'mainComponent'
+-  if (field === 'SLOT_CONTENT') return 'slotContentId'
+-  return field === 'TEXT' ? 'characters' : 'visible'
+-}
+ interface PropertyValue {
+   definition: ComponentPropertyDefinition
+   value: string | boolean
+@@ -330,7 +318,9 @@ interface PropertyValue {
   * `setProperties` does; a combination no variant has fails without changing anything.
   */
  function switchVariant(scene: SceneGraph, instance: SceneNode, values: PropertyValue[]): void {
@@ -565,7 +1078,7 @@ index ca66a5888727adbc338b0c5b9238c44f4923e73b..9a3738d52e5721c1a3fe106cfc9d3fd8
    const setId = component?.parentId
    const target =
      component && setId && getComponentSet(scene, setId)
-@@ -343,7 +348,7 @@ function switchVariant(scene: SceneGraph, instance: SceneNode, values: PropertyV
+@@ -343,7 +333,7 @@ function switchVariant(scene: SceneGraph, instance: SceneNode, values: PropertyV
        : undefined
    if (!target)
      throw new Error('in setProperties: Unable to find a variant with those property values')
@@ -574,7 +1087,7 @@ index ca66a5888727adbc338b0c5b9238c44f4923e73b..9a3738d52e5721c1a3fe106cfc9d3fd8
    scene.swapInstanceComponent(instance.id, target.id)
    reapplyInstanceComponentProperties({ graph: scene }, instance.id)
  }
-@@ -356,9 +361,8 @@ function applyProperty(
+@@ -356,9 +346,8 @@ function applyProperty(
    value: string | boolean
  ): void {
    const scene = graph(target, internals)
@@ -585,6 +1098,43 @@ index ca66a5888727adbc338b0c5b9238c44f4923e73b..9a3738d52e5721c1a3fe106cfc9d3fd8
  }
  export function installComponentPropertyAccessors(
    prototype: object,
+@@ -380,30 +369,19 @@ export function installComponentPropertyAccessors(
+           node.type !== 'TEXT'
+         )
+           return null
+-        // References name properties by key, `Name#id`, as componentPropertyDefinitions does.
+-        const definitions = referableDefinitions(graph(this, internals), node)
+-        return Object.fromEntries(
+-          node.componentPropertyReferences.map((reference) => {
+-            const definition = definitions.find((item) => item.id === reference.propertyId)
+-            return [
+-              propertyReferenceName(reference.field),
+-              definition ? propertyName(definition) : reference.propertyId
+-            ]
+-          })
+-        )
++        return getPropertyReferences(graph(this, internals), node)
+       },
+       set(this: ProxyThis, value: Record<string, string> | null) {
+         if (value === null) {
+           updateNode(this, internals, { componentPropertyReferences: [] })
+           return
+         }
+-        const definitions = referableDefinitions(graph(this, internals), raw(this, internals))
+         updateNode(this, internals, {
+-          componentPropertyReferences: Object.entries(value).map(([field, key]) => ({
+-            propertyId:
+-              definitions.find((definition) => propertyName(definition) === key)?.id ?? key,
+-            field: propertyReferenceField(field)
+-          }))
++          componentPropertyReferences: propertyReferences(
++            graph(this, internals),
++            raw(this, internals),
++            value
++          )
+         })
+       }
+     },
 diff --git a/packages/core/src/figma-api/index.ts b/packages/core/src/figma-api/index.ts
 index 36bc4dd9948b774a98002bb4e064aa59918843d0..b3f3765fea80a35297543ffdff50eb4fa929eebd 100644
 --- a/packages/core/src/figma-api/index.ts
@@ -725,6 +1275,27 @@ index 67f29fb3822ba5f6d4f68fd7c23abbc891011f95..9e9830da1d3efefe04fd5dabf2151dd1
    if (n.letterSpacing !== 0) obj.letterSpacing = n.letterSpacing
    if (n.textCase !== 'ORIGINAL') obj.textCase = n.textCase
    if (n.textDecoration !== 'NONE') obj.textDecoration = n.textDecoration
+diff --git a/packages/core/src/figma-api/slots.ts b/packages/core/src/figma-api/slots.ts
+index 720358f03e64553c19f4406719cbcc984a0571ca..1ac09fd4b87112baf3953d2ee46b1bf9f14c1a51 100644
+--- a/packages/core/src/figma-api/slots.ts
++++ b/packages/core/src/figma-api/slots.ts
+@@ -3,6 +3,7 @@ import {
+   DEFAULT_SLOT_SETTINGS,
+   claimSlotContent,
+   componentPropertyDefinitions,
++  componentPropertyId,
+   createSlotProperty,
+   resetSlotContent,
+   slotLimitViolations,
+@@ -144,7 +145,7 @@ export function installSlotAccessors(prototype: object, internals: NodeProxyInte
+         if (!scope) return []
+         const g = graph(this, internals)
+         const definition = componentPropertyDefinitions(g, scope.instance).find(
+-          (item) => item.id === scope.propertyId
++          (item) => item.id === componentPropertyId(g, scope.instance, scope.propertyId)
+         )
+         if (!definition) return []
+         return slotLimitViolations(g, definition, g.getChildren(scope.frame.id))
 diff --git a/packages/core/src/figma-api/text/index.ts b/packages/core/src/figma-api/text/index.ts
 index da5bb672cab49b6d1478220eb8d0bf87498a782f..e661c4056ecc3e83622ed68b90177087365a370a 100644
 --- a/packages/core/src/figma-api/text/index.ts
@@ -860,6 +1431,41 @@ index c3bcfc89294b3f2855337864b02766d944d4ad35..d23f6d61bb24494c480d1ee51216b5be
            letterSpacing: node.letterSpacing,
            textDecoration: node.textDecoration,
            textCase: node.textCase
+diff --git a/packages/core/src/io/formats/fig/patch/export.ts b/packages/core/src/io/formats/fig/patch/export.ts
+index f27ed1dd9cfe0dc13199034b4bd161651f9f9fd0..7dbb9a7845fe4355c50023664537e72430b231be 100644
+--- a/packages/core/src/io/formats/fig/patch/export.ts
++++ b/packages/core/src/io/formats/fig/patch/export.ts
+@@ -28,7 +28,11 @@ import {
+ import { appendVariableNodeChanges } from '#core/io/formats/fig/variable-export'
+ import { sceneNodeToKiwi } from '#core/kiwi/fig/node-change/serialize'
+ import { figArchive, type FigArchiveAccess } from '#core/kiwi/fig/session/archive'
+-import { archiveChanges, type ArchiveChangeSummary } from '#core/kiwi/fig/session/archive-changes'
++import {
++  archiveBaseline,
++  archiveChanges,
++  type ArchiveChangeSummary
++} from '#core/kiwi/fig/session/archive-changes'
+ import {
+   isReaderPagePending,
+   populateFigPage,
+@@ -184,7 +188,16 @@ function planRecords(
+     if (owner) records.add(owner)
+     return owner
+   }
+-  for (const id of changes.touched) add(id)
++  const before = archiveBaseline(graph)?.before
++  for (const id of changes.touched) {
++    add(id)
++    const node = graph.getNode(id)
++    // Instance contents were implicit in its archive record. Once detached, each descendant
++    // outside a nested instance needs an ordinary record of its own.
++    if (node && node.type !== 'INSTANCE' && before?.get(id)?.type === 'INSTANCE') {
++      for (const entry of graph.flattenTree(id)) add(entry.node.id)
++    }
++  }
+   addComponentInstances(graph, records, add)
+   const replaceVariables = changes.changedVariables.size > 0 || changes.collectionsChanged
+   if (replaceVariables) addVariableUsers(graph, changes, add)
 diff --git a/packages/core/src/io/formats/html/index.ts b/packages/core/src/io/formats/html/index.ts
 index afd7b7fea0927ba6ed14b42c3cb0662ee22b975b..5cf37367628ddc635b1bcd48fd5ee548c728636e 100644
 --- a/packages/core/src/io/formats/html/index.ts
@@ -2554,6 +3160,41 @@ index a265b2f9303ad89f49fe6e100d69b0e5da9ef673..c9706cbeb5ce8edbf31887b8da04cf67
    'letterSpacing'
  ]
  
+diff --git a/packages/core/tests/editor/components/properties.test.ts b/packages/core/tests/editor/components/properties.test.ts
+index b431d619538a3ac33918df2e18972d0863ae8525..e4ee1ce3608acbfe1d78657030d71bb711228198 100644
+--- a/packages/core/tests/editor/components/properties.test.ts
++++ b/packages/core/tests/editor/components/properties.test.ts
+@@ -178,3 +178,30 @@ describe('component property actions', () => {
+     expect(childByName(editor, instance.id, 'Label')?.text).toBe('Custom')
+   })
+ })
++
++test('undo restores an assigned linked instance-swap value using the active local property id', () => {
++  const { editor, component, instance, iconA, iconB } = setupComponentProperties()
++  const iconC = editor.graph.createNode('COMPONENT', editor.state.currentPageId, { name: 'Icon C' })
++  const set = editor.graph.createNode('COMPONENT_SET', editor.state.currentPageId, {
++    componentPropertyDefinitions: [
++      { id: '20:3', name: 'Icon', type: 'INSTANCE_SWAP', defaultValue: iconA.id }
++    ]
++  })
++  editor.graph.reparentNode(component.id, set.id)
++  editor.graph.updateNode(component.id, {
++    componentPropertyDefinitions: component.componentPropertyDefinitions.map((definition) =>
++      definition.id === '10:3' ? { ...definition, parentPropDefId: '20:3' } : definition
++    )
++  })
++  editor.setInstanceComponentProperty(instance.id, '20:3', iconB.id)
++  editor.setInstanceComponentProperty(instance.id, '20:3', iconC.id)
++  editor.undo.undo()
++  expect(
++    editor.graph.getChildren(instance.id).find((node) => node.name === 'Icon B')?.componentId
++  ).toBe(iconB.id)
++  expect(instance.componentPropertyAssignments['10:3']).toBe(iconB.id)
++  editor.undo.redo()
++  expect(
++    editor.graph.getChildren(instance.id).find((node) => node.name === 'Icon C')?.componentId
++  ).toBe(iconC.id)
++})
 diff --git a/packages/core/tests/editor/design-tokens.test.ts b/packages/core/tests/editor/design-tokens.test.ts
 index be88acd225d93a7b5b042e1c8da85c1cd5da0a78..e1ee0580a223f496b50d3fe029ecc169e199f52e 100644
 --- a/packages/core/tests/editor/design-tokens.test.ts
@@ -2985,6 +3626,64 @@ index f166b59bb97581f0f4ef1a1a3adcb6e1c56f0bca..552bfe2f9b269bf451ae8a89f0416901
      const reimportedRect = [...reimported.getAllNodes()].find((node) => node.name === rect.name)
  
      expect(reimportedRect?.exportSettings).toEqual(rect.exportSettings)
+diff --git a/packages/core/tests/io/formats/fig/roundtrip/slots.test.ts b/packages/core/tests/io/formats/fig/roundtrip/slots.test.ts
+index 2292a87e2210df0e54463a14c180b9166f8f00da..d8367fdc07ae342e6682cd46db136ec77f880f26 100644
+--- a/packages/core/tests/io/formats/fig/roundtrip/slots.test.ts
++++ b/packages/core/tests/io/formats/fig/roundtrip/slots.test.ts
+@@ -1,7 +1,5 @@
+ import { beforeAll, describe, expect, test } from 'bun:test'
+ 
+-import { releaseFigPopulationWorker } from '#core/kiwi/fig/population/client'
+-
+ import { FIXTURES } from '#core-tests/helpers/fig/fixtures'
+ 
+ import {
+@@ -15,13 +13,20 @@ import { parseFigBuffer } from '@open-pencil/fig'
+ import type { NodeChange } from '@open-pencil/kiwi/fig/codec'
+ import { slotPropertyId } from '@open-pencil/scene-graph'
+ 
++import { releaseFigPopulationWorker } from '#core/kiwi/fig/population/client'
++
+ let original: SceneGraph
+ let reopened: SceneGraph
+ let records: NodeChange[]
+ 
+ type SlotRecord = NodeChange & {
+   isSlotContent?: boolean
+-  componentPropDefs?: Array<{ type?: string; slotPropConfig?: unknown }>
++  componentPropDefs?: Array<{
++    id?: unknown
++    parentPropDefId?: unknown
++    type?: string
++    slotPropConfig?: unknown
++  }>
+   componentPropAssignments?: Array<{ varValue?: { dataType?: string } }>
+   parameterConsumptionMap?: { entries?: Array<{ variableField?: string }> }
+ }
+@@ -65,10 +70,19 @@ describe('slots round trip', () => {
+   test('slot properties are written as SLOT definitions with their settings', () => {
+     const definitions = records.flatMap((record) => (record as SlotRecord).componentPropDefs ?? [])
+     const slots = definitions.filter((definition) => definition.type === 'SLOT')
+-    // Card empty slot, Card default content, List, Panel, and Panel's two variants. Figma
+-    // links a variant's definition to the set's through `parentPropDefId`; the exporter
+-    // writes every variant definition in full, as it does for the other property types.
+-    expect(slots).toHaveLength(6)
++    // Four native definitions plus Panel's two aliases: aliases keep the parent link
++    // and inherit its SLOT type instead of expanding the parent into a local snapshot.
++    expect(slots).toHaveLength(4)
++    const aliases = definitions.filter((definition) => definition.parentPropDefId)
++    expect(aliases).toHaveLength(2)
++    for (const alias of aliases) {
++      expect(alias.type).toBeUndefined()
++      expect(
++        definitions.find(
++          (definition) => JSON.stringify(definition.id) === JSON.stringify(alias.parentPropDefId)
++        )?.type
++      ).toBe('SLOT')
++    }
+     expect(slots.filter((definition) => definition.slotPropConfig)).toHaveLength(1)
+   })
+ 
 diff --git a/packages/core/tests/io/formats/fig/roundtrip/text/styles.test.ts b/packages/core/tests/io/formats/fig/roundtrip/text/styles.test.ts
 index 056a97de2f49a463366f99b64c4f52bbe88e24af..866612ef9b01b35a92b59f3b8538e596bde5e259 100644
 --- a/packages/core/tests/io/formats/fig/roundtrip/text/styles.test.ts
@@ -4993,6 +5692,58 @@ index 4f033c9bd996f9a4ba8acd708cc53c67cc04861d..c31877a2e78fd7b4592f7a33e0526556
    // These passes apply to the nodes this page added, not to the whole graph.
    const materialized = [...graph.nodes.values()].filter((node) => !existingNodeIds.has(node.id))
    state.definitionTypes ??= seedDefinitionTypes(graph)
+diff --git a/packages/fig/src/document/property-inheritance.ts b/packages/fig/src/document/property-inheritance.ts
+index f3776f9bebf38bab424ba6382201e24abcffe6c6..4019782a04178f513843d1ce206bee641bb1a411 100644
+--- a/packages/fig/src/document/property-inheritance.ts
++++ b/packages/fig/src/document/property-inheritance.ts
+@@ -1,11 +1,13 @@
+ import type { GUID, NodeChange } from '@open-pencil/kiwi/fig/codec'
+ import { guidToString } from '@open-pencil/kiwi/fig/guid'
++import type { ComponentPropertyInheritedField } from '@open-pencil/scene-graph'
+ 
+ import { parentIdOf } from '../instance-overrides/source-index'
+ 
+ interface LinkedPropertyDefinition {
+   id?: GUID
+   parentPropDefId?: GUID
++  inheritedFields?: ComponentPropertyInheritedField[]
+   [field: string]: unknown
+ }
+ 
+@@ -24,7 +26,10 @@ export function inheritFromAncestors(node: NodeChange, ancestors: readonly NodeC
+         (ancestor.componentPropDefs as LinkedPropertyDefinition[] | undefined) ?? []
+       ).filter((candidate) => candidate.id && guidToString(candidate.id) === id)
+       if (matches.length > 1) throw new Error(`Ambiguous parent property ${id}`)
+-      if (matches.length === 1) return { ...structuredClone(matches[0]), ...definition }
++      if (matches.length === 1) {
++        const inheritedFields = definition.inheritedFields ?? inheritedPropertyFields(definition)
++        return { ...structuredClone(matches[0]), ...definition, inheritedFields }
++      }
+     }
+     throw new Error(`Missing parent property ${id}`)
+   })
+@@ -58,3 +63,21 @@ export function inheritComponentPropertyDefinitions(
+   }
+   for (const node of changes) resolve(node)
+ }
++
++/** Keep native omission semantics after completing a record for the interpreter. */
++function inheritedPropertyFields(
++  definition: LinkedPropertyDefinition
++): ComponentPropertyInheritedField[] {
++  const fields: Array<[ComponentPropertyInheritedField, string[]]> = [
++    ['name', ['name']],
++    ['type', ['type']],
++    ['defaultValue', ['initialValue', 'varValue']],
++    ['preferredValues', ['preferredValues']],
++    ['variantOptions', ['preferredValues']],
++    ['description', ['description']],
++    ['slotSettings', ['slotPropConfig']]
++  ]
++  return fields
++    .filter(([, keys]) => !keys.some((key) => Object.hasOwn(definition, key)))
++    .map(([field]) => field)
++}
 diff --git a/packages/fig/src/instance-overrides/fields.ts b/packages/fig/src/instance-overrides/fields.ts
 index 77967a24d79b8414be58216fe439b4389712eda5..fb8f12a95fa066de23d993c9941d35d80838a6b2 100644
 --- a/packages/fig/src/instance-overrides/fields.ts
@@ -5248,7 +5999,7 @@ index 407eacab1463af4a531a70e7dfd93edeaef20c06..9f35f96a1e25571e67bf10da6764af62
    const cos = Math.cos((node.rotation * Math.PI) / 180)
    const sin = Math.sin((node.rotation * Math.PI) / 180)
 diff --git a/packages/fig/src/node-change/convert.ts b/packages/fig/src/node-change/convert.ts
-index b64e3061096f0ff0943e274bcbdbe646d270353c..0b05628ccd11c3b34e033ffb12f90c34fa82a622 100644
+index b64e3061096f0ff0943e274bcbdbe646d270353c..6acb0bf7482c6c4f0521c156737cb294652c0f19 100644
 --- a/packages/fig/src/node-change/convert.ts
 +++ b/packages/fig/src/node-change/convert.ts
 @@ -6,6 +6,7 @@ import {
@@ -5392,7 +6143,75 @@ index b64e3061096f0ff0943e274bcbdbe646d270353c..0b05628ccd11c3b34e033ffb12f90c34
      componentId: extractSymbolId(nc),
      componentPropertyDefinitions: nodeType === 'INSTANCE' ? [] : extractComponentPropertyDefs(nc),
      componentPropertyReferences: extractComponentPropertyRefs(nc),
-@@ -1026,7 +1060,7 @@ function extractFigmaLayoutMetadata(nc: NodeChange): SceneNode['source']['fig'][
+@@ -770,6 +804,7 @@ function componentPropValueToString(value: unknown): string {
+   const propValue = value as {
+     boolValue?: boolean
+     textValue?: string | { characters?: string }
++    textDataValue?: { characters?: string }
+     guidValue?: GUID
+   }
+   if (typeof propValue.boolValue === 'boolean') return String(propValue.boolValue)
+@@ -777,11 +812,14 @@ function componentPropValueToString(value: unknown): string {
+   if (propValue.textValue && typeof propValue.textValue === 'object') {
+     return propValue.textValue.characters ?? ''
+   }
++  if (propValue.textDataValue) return propValue.textDataValue.characters ?? ''
+   return propValue.guidValue ? guidToString(propValue.guidValue) : ''
+ }
+ 
+ interface RawComponentPropDef {
+   id?: GUID
++  parentPropDefId?: GUID
++  inheritedFields?: ComponentPropertyDefinition['inheritedFields']
+   name?: string
+   type?: string
+   initialValue?: unknown
+@@ -840,6 +878,17 @@ interface RawSymbolData {
+   uniformScaleFactor?: number
+ }
+ 
++function componentPropertyPreferredValues(
++  def: RawComponentPropDef,
++  type: ComponentPropertyDefinition['type']
++): string[] | undefined {
++  if (type !== 'INSTANCE_SWAP' && type !== 'SLOT') return undefined
++  const values = def.preferredValues?.instanceSwapValues
++  if (values)
++    return values.map((value) => value.key).filter((value): value is string => value !== undefined)
++  return def.parentPropDefId && def.preferredValues ? [] : undefined
++}
++
+ function extractComponentPropertyDefs(nc: NodeChange): ComponentPropertyDefinition[] {
+   const defs = nc.componentPropDefs as RawComponentPropDef[] | undefined
+   if (!defs?.length) return []
+@@ -853,14 +902,11 @@ function extractComponentPropertyDefs(nc: NodeChange): ComponentPropertyDefiniti
+       type: propType,
+       defaultValue: componentPropValueToString(def.initialValue),
+       variantOptions: propType === 'VARIANT' ? def.preferredValues?.stringValues : undefined,
+-      preferredValues:
+-        propType === 'INSTANCE_SWAP' || propType === 'SLOT'
+-          ? def.preferredValues?.instanceSwapValues
+-              ?.map((value) => value.key)
+-              .filter((value): value is string => value !== undefined)
+-          : undefined
++      preferredValues: componentPropertyPreferredValues(def, propType)
+     }
+-    if (def.description) definition.description = def.description
++    if (def.parentPropDefId) definition.parentPropDefId = guidToString(def.parentPropDefId)
++    if (def.inheritedFields?.length) definition.inheritedFields = [...def.inheritedFields]
++    if (def.description !== undefined) definition.description = def.description
+     if (propType === 'SLOT' && def.slotPropConfig)
+       definition.slotSettings = slotSettings(def.slotPropConfig)
+     result.push(definition)
+@@ -1001,6 +1047,7 @@ function extractComponentMetadata(nc: NodeChange): ComponentMetadataProps {
+ }
+ 
+ function isComponentSet(nc: NodeChange): boolean {
++  if (nc.isStateGroup === true) return true
+   const defs = nc.componentPropDefs as Array<{ type?: string }> | undefined
+   if (!defs?.length) return false
+   return defs.some((d) => d.type === 'VARIANT')
+@@ -1026,7 +1073,7 @@ function extractFigmaLayoutMetadata(nc: NodeChange): SceneNode['source']['fig'][
      stackChildPrimaryGrow: nc.stackChildPrimaryGrow,
      stackChildAlignSelf: nc.stackChildAlignSelf,
      stackCounterSpacing: nc.stackCounterSpacing,
@@ -5401,7 +6220,7 @@ index b64e3061096f0ff0943e274bcbdbe646d270353c..0b05628ccd11c3b34e033ffb12f90c34
      stackReverseZIndex: nc.stackReverseZIndex as boolean | undefined
    }
  }
-@@ -1148,6 +1182,8 @@ export const FIGMA_RAW_NODE_FIELD_KEYS = [
+@@ -1148,6 +1195,8 @@ export const FIGMA_RAW_NODE_FIELD_KEYS = [
    'mask',
    'maskType',
    'maskIsOutline',
@@ -5410,7 +6229,7 @@ index b64e3061096f0ff0943e274bcbdbe646d270353c..0b05628ccd11c3b34e033ffb12f90c34
    'strokeWeight',
    'strokeJoin',
    'borderStrokeWeightsIndependent',
-@@ -1198,6 +1234,9 @@ export const FIGMA_RAW_NODE_FIELD_KEYS = [
+@@ -1198,6 +1247,9 @@ export const FIGMA_RAW_NODE_FIELD_KEYS = [
    'sectionStatusInfo',
    'prototypeStartNodeID',
    'prototypeInteractions',
@@ -5442,7 +6261,7 @@ index 1c0482e3fe969d214daf1108be17fc872faa2a20..478768e0820d314a07f770b480c574d2
    const characters = savedGlyphCharacters(node, glyphs)
    const lines = savedGlyphLines(
 diff --git a/packages/fig/src/node-change/export/node.ts b/packages/fig/src/node-change/export/node.ts
-index f76b20a73c6b3ed33c99f11218eb273e1d3122a2..1670b7213b020f549442b9c90480b296c7c22a62 100644
+index f76b20a73c6b3ed33c99f11218eb273e1d3122a2..7c136bfce184d78b579a22548e54bf0636505fbc 100644
 --- a/packages/fig/src/node-change/export/node.ts
 +++ b/packages/fig/src/node-change/export/node.ts
 @@ -1,5 +1,6 @@
@@ -5515,7 +6334,7 @@ index f76b20a73c6b3ed33c99f11218eb273e1d3122a2..1670b7213b020f549442b9c90480b296
  ) {
    if (
      (definition.type === 'INSTANCE_SWAP' || definition.type === 'SLOT') &&
-@@ -558,7 +579,11 @@ function componentPropertyPreferredValues(
+@@ -558,11 +579,21 @@ function componentPropertyPreferredValues(
      return {
        instanceSwapValues: definition.preferredValues.map((value) => {
          const target = context.graph.getNode(value)
@@ -5528,7 +6347,17 @@ index f76b20a73c6b3ed33c99f11218eb273e1d3122a2..1670b7213b020f549442b9c90480b296
          return { type: 'COMPONENT', key }
        })
      }
-@@ -647,6 +672,32 @@ function applyParameterReferences(nc: KiwiNodeChange, refs: ExportedPropertyRefe
+   }
++  if (
++    definition.parentPropDefId &&
++    definition.preferredValues &&
++    (definition.type === 'INSTANCE_SWAP' || definition.type === 'SLOT')
++  )
++    return { instanceSwapValues: [] }
+   if (definition.type === 'VARIANT' && definition.variantOptions?.length) {
+     return { stringValues: [...definition.variantOptions] }
+   }
+@@ -647,6 +678,78 @@ function applyParameterReferences(nc: KiwiNodeChange, refs: ExportedPropertyRefe
    nc.parameterConsumptionMap = { entries }
  }
  
@@ -5558,19 +6387,93 @@ index f76b20a73c6b3ed33c99f11218eb273e1d3122a2..1670b7213b020f549442b9c90480b296
 +    .filter((assignment): assignment is NonNullable<typeof assignment> => assignment !== null)
 +}
 +
++function componentPropertyDefinitionRecord(
++  context: SceneNodeToKiwiContext,
++  def: ComponentPropertyDefinition,
++  localIdCounter: { value: number }
++): Record<string, unknown> {
++  const record: Record<string, unknown> = {
++    id: getOrCreatePropertyGuid(context, def.id, localIdCounter),
++    name: def.name,
++    type: componentPropertyTypeForKiwi(def.type),
++    preferredValues: componentPropertyPreferredValues(def, context, localIdCounter)
++  }
++  if (def.parentPropDefId)
++    record.parentPropDefId = getOrCreatePropertyGuid(context, def.parentPropDefId, localIdCounter)
++  if (def.type === 'SLOT') Object.assign(record, slotDefinitionFields(def))
++  else {
++    record.initialValue = componentPropertyValue(
++      def.type,
++      def.defaultValue,
++      context,
++      localIdCounter
++    )
++    record.varValue = componentPropertyVariableValue(
++      def.type,
++      def.defaultValue,
++      context,
++      localIdCounter
++    )
++  }
++  if (def.description !== undefined) record.description = def.description
++  const fields: Record<string, string[]> = {
++    defaultValue: ['initialValue', 'varValue'],
++    preferredValues: ['preferredValues'],
++    variantOptions: ['preferredValues'],
++    slotSettings: ['slotPropConfig']
++  }
++  const omitted = new Set((def.inheritedFields ?? []).flatMap((field) => fields[field] ?? [field]))
++  return Object.fromEntries(Object.entries(record).filter(([field]) => !omitted.has(field)))
++}
++
++function shouldSerializeComponentPropertyDefinitions(node: SceneNode, hasValue: boolean): boolean {
++  return (
++    node.componentPropertyDefinitions.some((definition) => definition.parentPropDefId) ||
++    shouldSerializeRawBackedField(node, 'componentPropDefs', hasValue)
++  )
++}
++
  function applyComponentMetadata(
    context: SceneNodeToKiwiContext,
    node: SceneNode,
-@@ -673,7 +724,7 @@ function applyComponentMetadata(
-       id: getOrCreatePropertyGuid(context, def.id, localIdCounter),
-       name: def.name,
-       type: componentPropertyTypeForKiwi(def.type),
+@@ -668,32 +771,10 @@ function applyComponentMetadata(
+   if (node.isExposedInstance) nc.propsAreBubbled = true
+   if (node.symbolDescription) nc.symbolDescription = node.symbolDescription
+   if (node.symbolLinks.length > 0) nc.symbolLinks = structuredClone(node.symbolLinks)
+-  const componentPropDefs = node.componentPropertyDefinitions.map((def) => {
+-    const record: Record<string, unknown> = {
+-      id: getOrCreatePropertyGuid(context, def.id, localIdCounter),
+-      name: def.name,
+-      type: componentPropertyTypeForKiwi(def.type),
 -      preferredValues: componentPropertyPreferredValues(def, context)
-+      preferredValues: componentPropertyPreferredValues(def, context, localIdCounter)
-     }
-     if (def.type === 'SLOT') Object.assign(record, slotDefinitionFields(def))
-     else {
-@@ -710,25 +761,7 @@ function applyComponentMetadata(
+-    }
+-    if (def.type === 'SLOT') Object.assign(record, slotDefinitionFields(def))
+-    else {
+-      record.initialValue = componentPropertyValue(
+-        def.type,
+-        def.defaultValue,
+-        context,
+-        localIdCounter
+-      )
+-      record.varValue = componentPropertyVariableValue(
+-        def.type,
+-        def.defaultValue,
+-        context,
+-        localIdCounter
+-      )
+-    }
+-    if (def.description) record.description = def.description
+-    return record
+-  })
+-  if (shouldSerializeRawBackedField(node, 'componentPropDefs', componentPropDefs.length > 0)) {
++  const componentPropDefs = node.componentPropertyDefinitions.map((def) =>
++    componentPropertyDefinitionRecord(context, def, localIdCounter)
++  )
++  if (shouldSerializeComponentPropertyDefinitions(node, componentPropDefs.length > 0)) {
+     nc.componentPropDefs = componentPropDefs
+   }
+ 
+@@ -710,25 +791,7 @@ function applyComponentMetadata(
    }
  
    applyParameterReferences(nc, parameterRefs)
@@ -5597,7 +6500,7 @@ index f76b20a73c6b3ed33c99f11218eb273e1d3122a2..1670b7213b020f549442b9c90480b296
    if (
      shouldSerializeRawBackedField(
        node,
-@@ -856,6 +889,19 @@ function serializeText(context: SceneNodeToKiwiContext, node: SceneNode, nc: Kiw
+@@ -856,6 +919,19 @@ function serializeText(context: SceneNodeToKiwiContext, node: SceneNode, nc: Kiw
    if (nc.textData) applyTextRunReferences(context, node, nc.textData)
  }
  
@@ -5617,7 +6520,7 @@ index f76b20a73c6b3ed33c99f11218eb273e1d3122a2..1670b7213b020f549442b9c90480b296
  function applyNodeVisualProps(
    context: SceneNodeToKiwiContext,
    node: SceneNode,
-@@ -892,9 +938,9 @@ function applyNodeVisualProps(
+@@ -892,9 +968,9 @@ function applyNodeVisualProps(
    if (node.type === 'TEXT') serializeText(context, node, nc)
  
    if (node.type !== 'VECTOR') nc.frameMaskDisabled = !node.clipsContent
@@ -5629,7 +6532,7 @@ index f76b20a73c6b3ed33c99f11218eb273e1d3122a2..1670b7213b020f549442b9c90480b296
    if (node.strokeCap !== 'NONE') nc.strokeCap = node.strokeCap
    const rawNodeFields = effectiveFigmaRawNodeFields(node)
    if (node.strokeJoin !== 'MITER' || 'strokeJoin' in rawNodeFields) {
-@@ -972,17 +1018,74 @@ function applyNodeStateProps(node: SceneNode, nc: KiwiNodeChange): void {
+@@ -972,17 +1048,74 @@ function applyNodeStateProps(node: SceneNode, nc: KiwiNodeChange): void {
   */
  export function overridableNodeFields(
    context: SceneNodeToKiwiContext,
@@ -5705,7 +6608,7 @@ index f76b20a73c6b3ed33c99f11218eb273e1d3122a2..1670b7213b020f549442b9c90480b296
  export function sceneNodeToKiwiWithContext(
    source: SceneNode,
    parentGuid: GUID,
-@@ -1022,6 +1125,7 @@ export function sceneNodeToKiwiWithContext(
+@@ -1022,6 +1155,7 @@ export function sceneNodeToKiwiWithContext(
    }
    applyNodeStateProps(node, nc)
    applyNodeVisualProps(context, node, nc)
@@ -5713,7 +6616,7 @@ index f76b20a73c6b3ed33c99f11218eb273e1d3122a2..1670b7213b020f549442b9c90480b296
    applyComponentMetadata(context, node, nc, localIdCounter)
    applyInstancePayload(context, node, nc, localIdCounter)
    if (node.type === 'COMPONENT_SET')
-@@ -1035,7 +1139,10 @@ export function sceneNodeToKiwiWithContext(
+@@ -1035,7 +1169,10 @@ export function sceneNodeToKiwiWithContext(
    context.serializeGeometry(nodeForGeometryExport(node), nc, context.blobs)
    context.serializeVariableBindings(node, nc, context.graph, context.varIdToGuid)
    mergeParameterBindings(nc)
@@ -6057,6 +6960,26 @@ index fb7c502c5abf7d17c573cd5ae12a2d307918e884..7400a1311fa60e0f63a28bd422d866a1
 +  expect([...result].sort()).toEqual(['7:42', '8:43'])
 +  expect(references).toEqual([{ assetRef: { key: 'library-component-key', version: 'v2' } }])
 +})
+diff --git a/packages/fig/tests/document/property-inheritance.test.ts b/packages/fig/tests/document/property-inheritance.test.ts
+index e3c93aac0b7257cba73c91270cdd8f548bf67833..229598491508d1e293f204dd60a21290ba98b460 100644
+--- a/packages/fig/tests/document/property-inheritance.test.ts
++++ b/packages/fig/tests/document/property-inheritance.test.ts
+@@ -46,6 +46,15 @@ test('inherits parent definition semantics without replacing local property iden
+     {
+       id: guid(11),
+       parentPropDefId: guid(10),
++      inheritedFields: [
++        'name',
++        'type',
++        'defaultValue',
++        'preferredValues',
++        'variantOptions',
++        'description',
++        'slotSettings'
++      ],
+       name: 'Icon',
+       type: 'INSTANCE_SWAP',
+       initialValue: { guidValue: guid(4) }
 diff --git a/packages/kiwi/src/fig/codec.ts b/packages/kiwi/src/fig/codec.ts
 index 82ab121083e817b1819fe5a87ff629876e001e59..2a58968a01138c107fc5d28019688e7761c8ca5e 100644
 --- a/packages/kiwi/src/fig/codec.ts
@@ -6117,7 +7040,7 @@ index b08c021c616774842ac403c5acbedeb9a20204f5..186931528598c86a4806221bfaf74795
    const { r, g, b } = colorToRgba255(color)
    const a = Number(color.a.toFixed(3))
 diff --git a/packages/scene-graph/src/components/properties.ts b/packages/scene-graph/src/components/properties.ts
-index 1e1396ff1af15432770053efa05829ab02382a8a..4b8602cc7f98650f153c4f675f0a6998fa76c729 100644
+index 1e1396ff1af15432770053efa05829ab02382a8a..20ac8a71f963d3a2178eeb822bc2d23c0864bed5 100644
 --- a/packages/scene-graph/src/components/properties.ts
 +++ b/packages/scene-graph/src/components/properties.ts
 @@ -1,9 +1,9 @@
@@ -6131,7 +7054,113 @@ index 1e1396ff1af15432770053efa05829ab02382a8a..4b8602cc7f98650f153c4f675f0a6998
  import type {
    ComponentPropertyDefinition,
    ComponentPropertyReferenceField,
-@@ -92,8 +92,11 @@ function applyTextProperty(
+@@ -24,14 +24,88 @@ export function componentPropertyOwners(graph: SceneGraph, instance: SceneNode):
+   return parent?.type === 'COMPONENT_SET' ? [parent, component] : [component]
+ }
+ 
++function propertyOwners(graph: SceneGraph, owner: SceneNode): SceneNode[] {
++  if (owner.type === 'INSTANCE') return componentPropertyOwners(graph, owner)
++  const parent = owner.parentId ? graph.getNode(owner.parentId) : undefined
++  return parent?.type === 'COMPONENT_SET' ? [parent, owner] : [owner]
++}
++
++/** The public identity of a definition; variant-local records keep their own saved ids. */
++export function componentPropertyId(
++  graph: SceneGraph,
++  owner: SceneNode,
++  propertyId: string
++): string {
++  const definitions = propertyOwners(graph, owner).flatMap(
++    (node) => node.componentPropertyDefinitions
++  )
++  const byId = new Map(definitions.map((definition) => [definition.id, definition]))
++  const visited = new Set<string>()
++  let id = propertyId
++  for (;;) {
++    if (visited.has(id)) throw new Error(`Cyclic parent property ${id}`)
++    visited.add(id)
++    const definition = byId.get(id)
++    if (!definition?.parentPropDefId) return id
++    const parentId = definition.parentPropDefId
++    if (!definitions.some((candidate) => candidate.id === parentId))
++      throw new Error(`Missing parent property ${parentId}`)
++    id = parentId
++  }
++}
++
++/** The active variant's saved definition id, used by its references and assignments. */
++export function componentPropertyLocalId(
++  graph: SceneGraph,
++  owner: SceneNode,
++  propertyId: string
++): string {
++  const id = componentPropertyId(graph, owner, propertyId)
++  for (const node of propertyOwners(graph, owner).toReversed()) {
++    const local = node.componentPropertyDefinitions.find(
++      (definition) => componentPropertyId(graph, owner, definition.id) === id
++    )
++    if (local) return local.id
++  }
++  return propertyId
++}
++
++/** Read the active local assignment, including explicit empty values and legacy public ids. */
++export function componentPropertyAssignment(
++  graph: SceneGraph,
++  instance: SceneNode,
++  propertyId: string
++): string | undefined {
++  const assignments = instance.componentPropertyAssignments
++  const localId = componentPropertyLocalId(graph, instance, propertyId)
++  if (Object.hasOwn(assignments, localId)) return assignments[localId]
++  if (Object.hasOwn(assignments, propertyId)) return assignments[propertyId]
++  return undefined
++}
++
+ export function componentPropertyDefinitions(
+   graph: SceneGraph,
+   instance: SceneNode
+ ): ComponentPropertyDefinition[] {
+   const definitions = new Map<string, ComponentPropertyDefinition>()
+-  for (const owner of componentPropertyOwners(graph, instance)) {
++  for (const owner of propertyOwners(graph, instance)) {
+     for (const definition of owner.componentPropertyDefinitions) {
+-      if (!definitions.has(definition.id)) definitions.set(definition.id, definition)
++      const id = componentPropertyId(graph, instance, definition.id)
++      const parent = definitions.get(id)
++      if (definition.parentPropDefId && parent) {
++        const { parentPropDefId: _parent, inheritedFields: _inherited, ...local } = definition
++        const resolved = { ...parent, ...local, id, name: parent.name, type: parent.type }
++        for (const field of [
++          'preferredValues',
++          'variantOptions',
++          'description',
++          'slotSettings'
++        ] as const)
++          if (local[field] === undefined) Object.assign(resolved, { [field]: parent[field] })
++        for (const field of definition.inheritedFields ?? [])
++          Object.assign(resolved, { [field]: parent[field] })
++        definitions.set(id, resolved)
++      } else if (!definitions.has(id)) definitions.set(id, definition)
+     }
+   }
+   return [...definitions.values()]
+@@ -69,12 +143,13 @@ export function findComponentPropertyTargets(
+   propertyId: string
+ ): ComponentPropertyTarget[] {
+   const targets: ComponentPropertyTarget[] = []
++  const localId = componentPropertyLocalId(graph, instance, propertyId)
+   walkInstanceSources(
+     graph,
+     instance,
+     (source, target) => {
+       const reference = source.componentPropertyReferences.find(
+-        (candidate) => candidate.propertyId === propertyId
++        (candidate) => candidate.propertyId === localId || candidate.propertyId === propertyId
+       )
+       if (reference) targets.push({ node: target, field: reference.field, source })
+       return true
+@@ -92,8 +167,11 @@ function applyTextProperty(
  ): void {
    for (const item of targets) {
      if (item.field !== 'TEXT' || item.node.type !== 'TEXT') continue
@@ -6145,7 +7174,7 @@ index 1e1396ff1af15432770053efa05829ab02382a8a..4b8602cc7f98650f153c4f675f0a6998
        setInstanceOverride(owner.instanceOverrides, owner.id, item.node.id, 'text', value)
      }
    }
-@@ -107,7 +110,7 @@ function applyBooleanProperty(
+@@ -107,7 +185,7 @@ function applyBooleanProperty(
  ): void {
    for (const item of targets) {
      if (item.field !== 'VISIBLE') continue
@@ -6154,7 +7183,7 @@ index 1e1396ff1af15432770053efa05829ab02382a8a..4b8602cc7f98650f153c4f675f0a6998
      graph.updateNode(item.node.id, { visible: value === 'true' })
      if (instance) {
        setInstanceOverride(
-@@ -130,6 +133,7 @@ function applyInstanceSwapProperty(
+@@ -130,6 +208,7 @@ function applyInstanceSwapProperty(
    for (const item of targets) {
      if (item.field !== 'INSTANCE_SWAP' || item.node.type !== 'INSTANCE') continue
      graph.swapInstanceComponent(item.node.id, target.id)
@@ -6162,8 +7191,20 @@ index 1e1396ff1af15432770053efa05829ab02382a8a..4b8602cc7f98650f153c4f675f0a6998
      setInstanceOverride(owner.instanceOverrides, owner.id, item.node.id, 'name', target.name)
      setInstanceOverride(owner.instanceOverrides, owner.id, item.node.id, 'componentId', target.id)
      setInstanceOverride(
-@@ -169,6 +173,19 @@ export function applyComponentPropertyValue(
-       [definition.id]: definition.type === 'INSTANCE_SWAP' && target ? target.id : value
+@@ -152,6 +231,7 @@ export function applyComponentPropertyValue(
+   const instance = graph.getNode(instanceId)
+   if (instance?.type !== 'INSTANCE') return null
+   if (definition.type === 'VARIANT') return null
++  const localId = componentPropertyLocalId(graph, instance, definition.id)
+   const targets = findComponentPropertyTargets(graph, instance, definition.id)
+   const target =
+     definition.type === 'INSTANCE_SWAP' ? resolveComponentPropertyValue(graph, value) : null
+@@ -166,9 +246,22 @@ export function applyComponentPropertyValue(
+   graph.updateNode(instance.id, {
+     componentPropertyAssignments: {
+       ...instance.componentPropertyAssignments,
+-      [definition.id]: definition.type === 'INSTANCE_SWAP' && target ? target.id : value
++      [localId]: definition.type === 'INSTANCE_SWAP' && target ? target.id : value
      }
    })
 +  const owner = instance.parentId
@@ -6175,11 +7216,48 @@ index 1e1396ff1af15432770053efa05829ab02382a8a..4b8602cc7f98650f153c4f675f0a6998
 +      owner.instanceOverrides,
 +      owner.id,
 +      instance.id,
-+      `componentPropertyAssignments/${definition.id}`
++      `componentPropertyAssignments/${localId}`
 +    )
 +    graph.updateNode(owner.id, { instanceOverrides: owner.instanceOverrides })
 +  }
    return definition.type === 'INSTANCE_SWAP' ? target : instance
+ }
+ 
+@@ -216,11 +309,22 @@ export function removeComponentProperty(
+ ): boolean {
+   const owner = graph.getNode(ownerId)
+   if (!owner || (owner.type !== 'COMPONENT' && owner.type !== 'COMPONENT_SET')) return false
+-  graph.updateNode(owner.id, {
+-    componentPropertyDefinitions: owner.componentPropertyDefinitions.filter(
+-      (definition) => definition.id !== propertyId
+-    )
+-  })
++  const propertyIds = new Set([propertyId])
++  const scope = componentSubtree(graph, owner.id)
++  for (const node of scope)
++    for (const definition of node.componentPropertyDefinitions)
++      if (
++        definition.parentPropDefId &&
++        componentPropertyId(graph, node, definition.id) === propertyId
++      )
++        propertyIds.add(definition.id)
++  for (const node of scope)
++    if (node.componentPropertyDefinitions.some((definition) => propertyIds.has(definition.id)))
++      graph.updateNode(node.id, {
++        componentPropertyDefinitions: node.componentPropertyDefinitions.filter(
++          (definition) => !propertyIds.has(definition.id)
++        )
++      })
+   const nodes = [
+     ...componentSubtree(graph, owner.id),
+     ...componentInstances(graph, owner.id),
+@@ -231,7 +335,7 @@ export function removeComponentProperty(
+         ])
+       : [])
+   ]
+-  for (const node of nodes) removePropertyFromNode(graph, node, propertyId)
++  for (const node of nodes) for (const id of propertyIds) removePropertyFromNode(graph, node, id)
+   return true
  }
  
 diff --git a/packages/scene-graph/src/coordinate.ts b/packages/scene-graph/src/coordinate.ts
@@ -6493,10 +7571,21 @@ index 84e2b3da55e1e533449f182a00a60c065590e2fe..da505fab332d968d19394cba1d6b4dd9
  
    createInstance(
 diff --git a/packages/scene-graph/src/instances.ts b/packages/scene-graph/src/instances.ts
-index 572037243b8249b5909961e614d3c896c36dc68f..32a82947c47579a04953a168560e277061fda2b9 100644
+index 572037243b8249b5909961e614d3c896c36dc68f..a8ca392e57bdcd4773f9f60c940e4f2951f99aad 100644
 --- a/packages/scene-graph/src/instances.ts
 +++ b/packages/scene-graph/src/instances.ts
-@@ -6,6 +6,7 @@ import {
+@@ -1,11 +1,17 @@
+ import type { SceneGraph, SceneNode } from './'
++import {
++  componentPropertyDefinitions,
++  componentPropertyId,
++  componentPropertyLocalId
++} from './components/properties'
+ import type { NodeCloneMode } from './copy'
+ import {
+-  clearInstanceOverrides,
++  createInstanceOverrideState,
+   getInstanceOverride,
    hasInstanceOverride as hasNodeInstanceOverride,
    setInstanceOverride
  } from './instance-overrides'
@@ -6504,7 +7593,7 @@ index 572037243b8249b5909961e614d3c896c36dc68f..32a82947c47579a04953a168560e2770
  import { keepOwnContentSize } from './instances/content-size'
  import {
    createInstanceSyncContext,
-@@ -14,14 +15,13 @@ import {
+@@ -14,14 +20,13 @@ import {
  } from './instances/copies'
  import { canCreateInstance } from './instances/cycles'
  import { INSTANCE_OVERRIDE_FIELDS, INSTANCE_SYNC_PROPS } from './instances/fields'
@@ -6521,7 +7610,7 @@ index 572037243b8249b5909961e614d3c896c36dc68f..32a82947c47579a04953a168560e2770
    syncChildren,
    updateSyncedProps
  } from './instances/sync'
-@@ -124,7 +124,7 @@ export function swapInstanceComponent(
+@@ -124,7 +129,7 @@ export function swapInstanceComponent(
    if (!instance || component?.type !== 'COMPONENT' || instance.type !== 'INSTANCE') return
    if (instance.parentId && !canCreateInstance(graph, componentId, instance.parentId)) return
  
@@ -6530,10 +7619,28 @@ index 572037243b8249b5909961e614d3c896c36dc68f..32a82947c47579a04953a168560e2770
    recordNestedSwap(graph, instance, componentId)
    const updates: Partial<SceneNode> = { componentId }
    const source = sourceInTargetCoordinates(component, instance.componentScale)
-@@ -136,12 +136,15 @@ export function swapInstanceComponent(
+@@ -136,12 +141,33 @@ export function swapInstanceComponent(
    if (!keepName && (!previousComponent || instance.name === previousComponent.name))
      updates.name = component.name
  
++  if (previousComponent?.parentId && previousComponent.parentId === component.parentId) {
++    const definitions = new Map(
++      componentPropertyDefinitions(graph, instance).map((definition) => [definition.id, definition])
++    )
++    const entries = Object.entries(instance.componentPropertyAssignments)
++    const mapped = entries.map(([id, value]) => {
++      const publicId = componentPropertyId(graph, instance, id)
++      // Owned slot content moves through detach/restore, which transfers its local assignment.
++      const nextId =
++        definitions.get(publicId)?.type === 'SLOT'
++          ? id
++          : componentPropertyLocalId(graph, component, publicId)
++      return [nextId, value]
++    })
++    if (mapped.some(([id], index) => id !== entries[index][0]))
++      updates.componentPropertyAssignments = Object.fromEntries(mapped)
++  }
++
 +  const assignments = nestedAssignments(graph, instance, component, previousComponent)
    const childIds = Array.from(instance.childIds)
    const slotContent = detachOwnedSlotContent(graph, instance)
@@ -6546,7 +7653,7 @@ index 572037243b8249b5909961e614d3c896c36dc68f..32a82947c47579a04953a168560e2770
  }
  
  const syncingComponentsByGraph = new WeakMap<SceneGraph, Set<string>>()
-@@ -184,6 +187,7 @@ function syncInstancesOf(
+@@ -184,6 +210,7 @@ function syncInstancesOf(
    try {
      groupCopyRemovals(graph, (removals) => {
        for (const instance of instances) {
@@ -6554,7 +7661,22 @@ index 572037243b8249b5909961e614d3c896c36dc68f..32a82947c47579a04953a168560e2770
          const enclosing = enclosingInstanceOverrideFields(graph, instance)
          enclosing.push(new Set(instance.instanceOverrides.self.keys()))
          const protectedField = bindingProtection(enclosing)
-@@ -221,8 +225,7 @@ export function detachInstance(graph: SceneGraph, instanceId: string): void {
+@@ -211,18 +238,16 @@ function syncInstancesOf(
+ export function detachInstance(graph: SceneGraph, instanceId: string): void {
+   const node = graph.nodes.get(instanceId)
+   if (node?.type !== 'INSTANCE') return
+-  if (node.componentId) {
+-    graph.instanceIndex.get(node.componentId)?.delete(instanceId)
+-  }
+-  node.type = 'FRAME'
+-  node.componentId = null
+-  clearInstanceOverrides(node.instanceOverrides)
++  graph.updateNode(instanceId, {
++    type: 'FRAME',
++    componentId: null,
++    instanceOverrides: createInstanceOverrideState()
++  })
+ }
  
  export function getMainComponent(graph: SceneGraph, instanceId: string): SceneNode | undefined {
    const node = graph.nodes.get(instanceId)
@@ -7058,6 +8180,63 @@ index 5a98e87f9fff4dd2600a393bfc1036a6bb247211..492d2e697723b306ef211a036c625317
    'letterSpacing',
    'textDecoration',
    'textCase',
+diff --git a/packages/scene-graph/src/slots/authoring.ts b/packages/scene-graph/src/slots/authoring.ts
+index 04ae3599d9c0b4597889e19c8bde5ffe2c7eff62..cff0d05b3ce861a8ee0759359a67ba4d094c3d49 100644
+--- a/packages/scene-graph/src/slots/authoring.ts
++++ b/packages/scene-graph/src/slots/authoring.ts
+@@ -1,3 +1,4 @@
++import { componentPropertyDefinitions, componentPropertyId } from '../components/properties'
+ import type { SceneGraph } from '../index'
+ import type { ComponentPropertyDefinition, SceneNode, SlotSettings } from '../types'
+ import { slotPropertyId } from './frames'
+@@ -87,10 +88,18 @@ export function updateSlotProperty(
+   )
+   if (!owner || !current) return false
+   const { slotSettings, ...fields } = patch
++  const effective = componentPropertyDefinitions(graph, owner).find(
++    (definition) => definition.id === componentPropertyId(graph, owner, propertyId)
++  )
++  const changed = new Set(Object.keys(patch))
++  if (changed.has('preferredValues')) changed.add('variantOptions')
+   const next: ComponentPropertyDefinition = {
+     ...current,
+     ...fields,
+-    slotSettings: { ...DEFAULT_SLOT_SETTINGS, ...current.slotSettings, ...slotSettings }
++    slotSettings: { ...DEFAULT_SLOT_SETTINGS, ...effective?.slotSettings, ...slotSettings },
++    ...(current.inheritedFields
++      ? { inheritedFields: current.inheritedFields.filter((field) => !changed.has(field)) }
++      : {})
+   }
+   graph.updateNode(owner.id, {
+     componentPropertyDefinitions: owner.componentPropertyDefinitions.map((definition) =>
+diff --git a/packages/scene-graph/src/slots/frames.ts b/packages/scene-graph/src/slots/frames.ts
+index 86c8bf5d1e22d26c4ccb3d5354d192344107faaa..c7986f9f44fd57e5718e07d4fbe99233fe2b80a3 100644
+--- a/packages/scene-graph/src/slots/frames.ts
++++ b/packages/scene-graph/src/slots/frames.ts
+@@ -1,5 +1,5 @@
++import { componentPropertyDefinitions, componentPropertyId } from '../components/properties'
+ import type { SceneGraph } from '../index'
+-import { instanceMainComponent } from '../instances/main-component'
+ import type { SceneNode } from '../types'
+ 
+ /** The slot property a frame holds the content of, if it is a slot. */
+@@ -26,11 +26,11 @@ export function ownsSlotContent(
+ 
+ /** The name of a slot property as the instance's component (or the component's set) defines it. */
+ function slotName(graph: SceneGraph, instance: SceneNode, propertyId: string) {
+-  const component = instanceMainComponent(graph, instance)
+-  const set = component?.parentId ? graph.nodes.get(component.parentId) : undefined
+-  return [component, set]
+-    .flatMap((node) => node?.componentPropertyDefinitions ?? [])
+-    .find((definition) => definition.id === propertyId && definition.type === 'SLOT')?.name
++  return componentPropertyDefinitions(graph, instance).find(
++    (definition) =>
++      definition.id === componentPropertyId(graph, instance, propertyId) &&
++      definition.type === 'SLOT'
++  )?.name
+ }
+ 
+ /** An instance's slot frames, without entering nested instances, whose slots are their own. */
 diff --git a/packages/scene-graph/src/text/index.ts b/packages/scene-graph/src/text/index.ts
 index 474dd5a621f5079cfd359998b084a71604f29ed1..ea7fdc7d4f43e17292b5f9b0d5f2cf9a1402c2cc 100644
 --- a/packages/scene-graph/src/text/index.ts
@@ -7069,7 +8248,7 @@ index 474dd5a621f5079cfd359998b084a71604f29ed1..ea7fdc7d4f43e17292b5f9b0d5f2cf9a
  export * from './references'
 +export * from './replacement-runs'
 diff --git a/packages/scene-graph/src/types.ts b/packages/scene-graph/src/types.ts
-index 312ce09783f631195c10bd99b0dc6793cf4d5fb7..2ab85c9192463674ce5452729c935c5eb7ba6256 100644
+index 312ce09783f631195c10bd99b0dc6793cf4d5fb7..34f29db40ab811e9c4f7cfee326cc87c93670f4e 100644
 --- a/packages/scene-graph/src/types.ts
 +++ b/packages/scene-graph/src/types.ts
 @@ -4,6 +4,12 @@ import type { ExportFormatId } from './export-format'
@@ -7145,6 +8324,28 @@ index 312ce09783f631195c10bd99b0dc6793cf4d5fb7..2ab85c9192463674ce5452729c935c5e
    letterSpacing: number
    maxLines: number | null
    /**
+@@ -756,8 +780,21 @@ export interface SlotSettings {
+  * For a `SLOT` property, an instance assignment (whatever its value) means the instance owns
+  * that slot's content: the slot frame's children in the instance, which component sync keeps.
+  */
++export type ComponentPropertyInheritedField =
++  | 'name'
++  | 'type'
++  | 'defaultValue'
++  | 'preferredValues'
++  | 'variantOptions'
++  | 'description'
++  | 'slotSettings'
++
+ export interface ComponentPropertyDefinition {
+   id: string
++  /** The shared definition this variant-local definition specializes. */
++  parentPropDefId?: string
++  /** Fields omitted by the local record and read from its parent definition. */
++  inheritedFields?: ComponentPropertyInheritedField[]
+   name: string
+   type: ComponentPropertyType
+   defaultValue: string
 diff --git a/packages/scene-graph/src/variables/units.ts b/packages/scene-graph/src/variables/units.ts
 index 965a66ab6409a026a50bd7a1a96504fa2bb320bb..3a29ad550d242d4e6b003cb87fa9d6246ff58960 100644
 --- a/packages/scene-graph/src/variables/units.ts
@@ -7352,6 +8553,58 @@ index d50c03e50e91003ac1f56f76e365833dcbfa7582..afc2a2ee5c1039f7092d8d416a51d8cd
  }
  
  function clampUnit(value: number): number {
+diff --git a/packages/vue/src/controls/component-props/authoring.ts b/packages/vue/src/controls/component-props/authoring.ts
+index c0c3746fc0f81102f11f32ce32dfb01a797f8b47..732c5a75fa858badff696f32386e4ecc19bfa9a2 100644
+--- a/packages/vue/src/controls/component-props/authoring.ts
++++ b/packages/vue/src/controls/component-props/authoring.ts
+@@ -1,7 +1,11 @@
+ import { uniqBy } from 'es-toolkit/array'
+ import { computed } from 'vue'
+ 
+-import { instanceExposureIssue, type ComponentPropertyType } from '@open-pencil/scene-graph'
++import {
++  componentPropertyId,
++  instanceExposureIssue,
++  type ComponentPropertyType
++} from '@open-pencil/scene-graph'
+ 
+ import { useEditor } from '#vue/editor/context'
+ import { useSceneComputed } from '#vue/internal/scene-computed/use'
+@@ -33,7 +37,7 @@ export function useComponentPropertyAuthoring() {
+   const definitions = useSceneComputed(() =>
+     owners.value.flatMap((owner) =>
+       owner.componentPropertyDefinitions
+-        .filter((definition) => AUTHORED_TYPES.has(definition.type))
++        .filter((definition) => !definition.parentPropDefId && AUTHORED_TYPES.has(definition.type))
+         .map((definition) => {
+           const bindings = editor
+             .getComponentPropertyBindings(owner.id, definition.id)
+@@ -49,6 +53,17 @@ export function useComponentPropertyAuthoring() {
+         })
+     )
+   )
++  const propertyIds = useSceneComputed(() => {
++    const current = context.value
++    return Object.fromEntries(
++      (current?.node.componentPropertyReferences ?? []).map((reference) => [
++        reference.field,
++        current
++          ? componentPropertyId(editor.graph, current.component, reference.propertyId)
++          : reference.propertyId
++      ])
++    )
++  })
+   /** The set the selection belongs to, whose variant properties the list shows too. */
+   const componentSet = computed(() =>
+     context.value?.owner.type === 'COMPONENT_SET' ? context.value.owner : null
+@@ -160,6 +175,7 @@ export function useComponentPropertyAuthoring() {
+   return {
+     context,
+     definitions,
++    propertyIds,
+     rows,
+     componentSet,
+     conflicts,
 diff --git a/packages/vue/src/controls/shared-style/model.ts b/packages/vue/src/controls/shared-style/model.ts
 index 93227126c03d739ec865a856fc1624cfdd9bf504..ddd1b56dedb82a62b6d8d03f87acd4713de69cc4 100644
 --- a/packages/vue/src/controls/shared-style/model.ts
@@ -7364,6 +8617,98 @@ index 93227126c03d739ec865a856fc1624cfdd9bf504..ddd1b56dedb82a62b6d8d03f87acd471
        letterSpacing: style.letterSpacing,
        textDecoration: style.textDecoration,
        textCase: style.textCase
+diff --git a/packages/vue/src/controls/slots/authoring.ts b/packages/vue/src/controls/slots/authoring.ts
+index 2c412cf3c04e80df116965abc20ef312191367e6..9f8bfa27cfa963ad102c6c35a1f707e185e39215 100644
+--- a/packages/vue/src/controls/slots/authoring.ts
++++ b/packages/vue/src/controls/slots/authoring.ts
+@@ -1,4 +1,10 @@
+-import { canCreateSlot, slotOwner, slotPropertyId } from '@open-pencil/scene-graph'
++import {
++  canCreateSlot,
++  componentPropertyDefinitions,
++  componentPropertyId,
++  slotOwner,
++  slotPropertyId
++} from '@open-pencil/scene-graph'
+ import type {
+   ComponentPropertyDefinition,
+   SceneNode,
+@@ -50,10 +56,14 @@ export function useSlotAuthoring() {
+     return current.owner.componentPropertyDefinitions
+       .filter((definition) => definition.type === 'SLOT')
+       .filter((definition) => !current.frame || definition.id === current.propertyId)
+-      .map((definition) => {
++      .map((local) => {
++        const definition =
++          componentPropertyDefinitions(editor.graph, current.owner).find(
++            (item) => item.id === componentPropertyId(editor.graph, current.owner, local.id)
++          ) ?? local
+         const values = new Set(definition.preferredValues)
+         return {
+-          id: definition.id,
++          id: local.id,
+           name: definition.name,
+           description: definition.description ?? '',
+           minChildren: definition.slotSettings?.minChildren,
+@@ -71,11 +81,24 @@ export function useSlotAuthoring() {
+ 
+   function update(propertyId: string, patch: SlotPropertyPatch) {
+     const owner = target.value?.owner
+-    if (owner) editor.updateSlot(owner.id, propertyId, patch)
++    if (!owner) return
++    const publicId = componentPropertyId(editor.graph, owner, propertyId)
++    const parent = owner.parentId ? editor.graph.getNode(owner.parentId) : undefined
++    if (
++      'name' in patch &&
++      parent?.componentPropertyDefinitions.some((item) => item.id === publicId)
++    )
++      editor.updateSlot(parent.id, publicId, patch)
++    else editor.updateSlot(owner.id, propertyId, patch)
+   }
+ 
+   function definition(propertyId: string): ComponentPropertyDefinition | undefined {
+-    return target.value?.owner.componentPropertyDefinitions.find((item) => item.id === propertyId)
++    const owner = target.value?.owner
++    return owner
++      ? componentPropertyDefinitions(editor.graph, owner).find(
++          (item) => item.id === componentPropertyId(editor.graph, owner, propertyId)
++        )
++      : undefined
+   }
+ 
+   /** Components that can be marked preferred, the slot's current choices first. */
+diff --git a/packages/vue/src/controls/slots/instance.ts b/packages/vue/src/controls/slots/instance.ts
+index ae9a8bca1de1c2aef8c548c96c7a8619d43e6224..5d3ac010cdffb863c8bb5dd89346f1d857b1b383 100644
+--- a/packages/vue/src/controls/slots/instance.ts
++++ b/packages/vue/src/controls/slots/instance.ts
+@@ -1,5 +1,6 @@
+ import {
+   instanceSlotFrames,
++  componentPropertyId,
+   isPreferredComponent,
+   nonPreferredLayers,
+   ownsSlotContent,
+@@ -117,7 +118,10 @@ export function useSlotProperties() {
+     if (!owner) return []
+     const frames = instanceSlotFrames(editor.graph, owner)
+     return definitions.value.flatMap((definition) => {
+-      const frame = frames.find((candidate) => slotPropertyId(candidate) === definition.id)
++      const frame = frames.find((candidate) => {
++        const id = slotPropertyId(candidate)
++        return id !== undefined && componentPropertyId(editor.graph, owner, id) === definition.id
++      })
+       if (!frame) return []
+       const content = editor.graph.getChildren(frame.id)
+       const { limits, offendingIds } = slotLimits(editor.graph, definition, content)
+@@ -126,7 +130,7 @@ export function useSlotProperties() {
+           id: definition.id,
+           name: definition.name,
+           frameId: frame.id,
+-          modified: ownsSlotContent(editor.graph, frame, definition.id),
++          modified: ownsSlotContent(editor.graph, frame),
+           itemCount: content.length,
+           limits,
+           preferredOnly: definition.slotSettings?.allowPreferredValuesOnly ?? false,
 diff --git a/skills/open-pencil/SKILL.md b/skills/open-pencil/SKILL.md
 index 123f2bf745753dce41ae0a1b3394e02b5ef54d53..ff69bee630aeef32774c6e325f0a3d9a02cd4b8d 100644
 --- a/skills/open-pencil/SKILL.md
@@ -7427,6 +8772,23 @@ index 535f4b303d7eb9c9b11ff8b49bf914260dfcec73..8d19b47b8d383da3b284d2df5f9dc415
    const response = await request.catch(() => null)
    return response?.ok ?? false
  }
+diff --git a/src/components/properties/component-properties/usePropertyBinding.ts b/src/components/properties/component-properties/usePropertyBinding.ts
+index 1a4d2978c81d9c0a8469c5ee1a9f44db96fd797a..5be14a98a927b4bb75396da7f17b4441843f57e0 100644
+--- a/src/components/properties/component-properties/usePropertyBinding.ts
++++ b/src/components/properties/component-properties/usePropertyBinding.ts
+@@ -11,11 +11,7 @@ export function usePropertyBinding(field: BindableField) {
+   const authoring = useComponentPropertyAuthoring()
+   const panels = usePanelMessages()
+   const context = authoring.context
+-  const propertyId = computed(
+-    () =>
+-      context.value?.node.componentPropertyReferences.find((item) => item.field === field)
+-        ?.propertyId
+-  )
++  const propertyId = computed(() => authoring.propertyIds.value[field])
+   const fieldLabels = computed(() => ({
+     TEXT: panels.value.textContent,
+     VISIBLE: panels.value.layerVisibility,
 diff --git a/src/components/properties/typography/LineHeightField.vue b/src/components/properties/typography/LineHeightField.vue
 index 06eda10f993107005277f13885cbb5e896034da2..21734388c16ffd983c58df305a03b9255cfc7826 100644
 --- a/src/components/properties/typography/LineHeightField.vue
@@ -7942,6 +9304,123 @@ index 0000000000000000000000000000000000000000..7db5ec0682a1886d96bec7ecd5d86586
 +      updateNode(this, internals, { exportSettings: settings })
 +    }
 +  })
++}
+diff --git a/packages/core/src/figma-api/component-property-inheritance.ts b/packages/core/src/figma-api/component-property-inheritance.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..642e811b305b3d675e14dd2ab7d86c9a08bac887
+--- /dev/null
++++ b/packages/core/src/figma-api/component-property-inheritance.ts
+@@ -0,0 +1,111 @@
++import {
++  componentPropertyDefinitions,
++  componentPropertyId,
++  componentPropertyLocalId,
++  resolveComponentPropertyValue,
++  styleRunsForReplacement,
++  type ComponentPropertyDefinition,
++  type ComponentPropertyReferenceField,
++  type SceneGraph,
++  type SceneNode
++} from '@open-pencil/scene-graph'
++
++import { textAutoResizeChanges } from '#core/layout/text-auto-resize'
++
++export function propertyName(definition: ComponentPropertyDefinition): string {
++  return definition.type === 'VARIANT'
++    ? definition.name
++    : `${definition.name}#${definition.parentPropDefId ?? definition.id}`
++}
++
++function referenceOwner(graph: SceneGraph, node: SceneNode): SceneNode | undefined {
++  return node.parentId
++    ? graph.closest(
++        node.parentId,
++        (owner) => owner.type === 'INSTANCE' || owner.type === 'COMPONENT'
++      )
++    : undefined
++}
++
++function referenceField(field: string): ComponentPropertyReferenceField {
++  if (field === 'mainComponent') return 'INSTANCE_SWAP'
++  if (field === 'slotContentId') return 'SLOT_CONTENT'
++  return field === 'characters' ? 'TEXT' : 'VISIBLE'
++}
++
++function referenceName(field: ComponentPropertyReferenceField): string {
++  if (field === 'INSTANCE_SWAP') return 'mainComponent'
++  if (field === 'SLOT_CONTENT') return 'slotContentId'
++  return field === 'TEXT' ? 'characters' : 'visible'
++}
++
++export function getPropertyReferences(graph: SceneGraph, node: SceneNode): Record<string, string> {
++  const owner = referenceOwner(graph, node)
++  const definitions = owner ? componentPropertyDefinitions(graph, owner) : []
++  return Object.fromEntries(
++    node.componentPropertyReferences.map((reference) => {
++      const id = owner
++        ? componentPropertyId(graph, owner, reference.propertyId)
++        : reference.propertyId
++      const definition = definitions.find((item) => item.id === id)
++      return [
++        referenceName(reference.field),
++        definition ? propertyName(definition) : reference.propertyId
++      ]
++    })
++  )
++}
++
++export function propertyReferences(
++  graph: SceneGraph,
++  node: SceneNode,
++  values: Record<string, string>
++) {
++  const owner = referenceOwner(graph, node)
++  const definitions = owner ? componentPropertyDefinitions(graph, owner) : []
++  return Object.entries(values).map(([field, key]) => {
++    const definition = definitions.find((item) => propertyName(item) === key)
++    return {
++      propertyId: definition && owner ? componentPropertyLocalId(graph, owner, definition.id) : key,
++      field: referenceField(field)
++    }
++  })
++}
++
++/** A set default changes inheriting templates, never a local default or an instance edit. */
++export function inheritedPropertyDefaults(
++  graph: SceneGraph,
++  owner: SceneNode,
++  propertyId: string
++): void {
++  if (owner.type !== 'COMPONENT_SET') return
++  for (const component of graph.getChildren(owner.id)) {
++    if (component.type !== 'COMPONENT') continue
++    const local = component.componentPropertyDefinitions.find(
++      (definition) =>
++        definition.parentPropDefId &&
++        componentPropertyId(graph, component, definition.id) === propertyId
++    )
++    if (local && !local.inheritedFields?.includes('defaultValue')) continue
++    const definition = componentPropertyDefinitions(graph, component).find(
++      (item) => item.id === propertyId
++    )
++    if (!definition) continue
++    for (const { node } of graph.flattenTree(component.id)) {
++      for (const reference of node.componentPropertyReferences) {
++        if (reference.propertyId !== local?.id && reference.propertyId !== propertyId) continue
++        const value = definition.defaultValue
++        if (reference.field === 'TEXT' && node.type === 'TEXT' && node.text !== value) {
++          const changes = { text: value, styleRuns: styleRunsForReplacement(node, value) }
++          graph.updateNode(node.id, { ...changes, ...textAutoResizeChanges(node, changes) })
++        } else if (reference.field === 'VISIBLE')
++          graph.updateNode(node.id, { visible: value === 'true' })
++        else if (reference.field === 'INSTANCE_SWAP' && node.type === 'INSTANCE') {
++          const target = resolveComponentPropertyValue(graph, value)
++          if (target) graph.swapInstanceComponent(node.id, target.id)
++        }
++      }
++    }
++    graph.syncInstances(component.id)
++  }
 +}
 diff --git a/packages/core/src/figma-api/reactions.ts b/packages/core/src/figma-api/reactions.ts
 new file mode 100644
@@ -9551,6 +11030,183 @@ index 0000000000000000000000000000000000000000..0482c01048867d1d6058b28593b48f70
 +    )
 +  }
 +}
+diff --git a/packages/core/tests/canvas/gradient-degenerate.test.ts b/packages/core/tests/canvas/gradient-degenerate.test.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..a5675eac46eb499ab201cf3e899551116d944cc2
+--- /dev/null
++++ b/packages/core/tests/canvas/gradient-degenerate.test.ts
+@@ -0,0 +1,171 @@
++import { expect, test } from 'bun:test'
++
++import { expectDefined } from '#core-tests/helpers/assert'
++
++import { SceneGraph } from '@open-pencil/scene-graph'
++import type { Fill } from '@open-pencil/scene-graph'
++
++import { SkiaRenderer } from '#core/canvas/renderer'
++import { getCanvasKit } from '#core/canvaskit'
++
++const gradient: Fill = {
++  type: 'GRADIENT_LINEAR',
++  color: { r: 0, g: 0, b: 0, a: 1 },
++  opacity: 1,
++  visible: true,
++  gradientStops: [
++    { position: 0, color: { r: 1, g: 0, b: 0, a: 1 } },
++    { position: 1, color: { r: 0, g: 0, b: 1, a: 1 } }
++  ],
++  gradientTransform: { m00: 1, m01: 0, m02: 0, m10: 0, m11: 1, m12: 0 }
++}
++
++for (const [width, height] of [
++  [0, 6],
++  [6, 0],
++  [0, 0]
++]) {
++  test(`a ${width} × ${height} gradient rectangle paints no area and allows subsequent fills`, async () => {
++    const ck = await getCanvasKit()
++    const surface = expectDefined(ck.MakeSurface(32, 32), 'surface')
++    const renderer = new SkiaRenderer(ck, surface)
++    const graph = new SceneGraph()
++    const page = expectDefined(graph.getPages()[0], 'page')
++    const node = graph.createNode('RECTANGLE', page.id, {
++      width,
++      height,
++      fills: [gradient]
++    })
++    try {
++      const canvas = surface.getCanvas()
++      canvas.clear(ck.TRANSPARENT)
++      renderer.renderShapeUncached(canvas, node, graph)
++      surface.flush()
++      const image = surface.makeImageSnapshot()
++      try {
++        const pixels = expectDefined(
++          image.readPixels(0, 0, {
++            width: 32,
++            height: 32,
++            colorType: ck.ColorType.RGBA_8888,
++            alphaType: ck.AlphaType.Unpremul,
++            colorSpace: ck.ColorSpace.SRGB
++          }),
++          'pixels'
++        )
++        expect(pixels.every((value) => value === 0)).toBe(true)
++      } finally {
++        image.delete()
++      }
++      node.width = 32
++      node.height = 32
++      renderer.renderShapeUncached(canvas, node, graph)
++      surface.flush()
++      const filled = surface.makeImageSnapshot()
++      try {
++        const pixels = expectDefined(
++          filled.readPixels(0, 0, {
++            width: 32,
++            height: 32,
++            colorType: ck.ColorType.RGBA_8888,
++            alphaType: ck.AlphaType.Unpremul,
++            colorSpace: ck.ColorSpace.SRGB
++          }),
++          'pixels'
++        )
++        expect(pixels[3]).toBe(255)
++        expect(pixels[0]).toBeGreaterThan(240)
++        expect(pixels[31 * 4 + 2]).toBeGreaterThan(240)
++      } finally {
++        filled.delete()
++      }
++    } finally {
++      renderer.destroy()
++    }
++  })
++}
++
++for (const vertical of [false, true]) {
++  test(`a ${vertical ? 'vertical' : 'horizontal'} gradient line retains its visible stroke`, async () => {
++    const ck = await getCanvasKit()
++    const surface = expectDefined(ck.MakeSurface(32, 32), 'surface')
++    const renderer = new SkiaRenderer(ck, surface)
++    const graph = new SceneGraph()
++    const page = expectDefined(graph.getPages()[0], 'page')
++    const fill: Fill = vertical
++      ? {
++          ...gradient,
++          gradientTransform: {
++            m00: 0,
++            m01: 1,
++            m02: 0,
++            m10: -1,
++            m11: 0,
++            m12: 1
++          }
++        }
++      : gradient
++    const node = graph.createNode('LINE', page.id, {
++      width: vertical ? 0 : 32,
++      height: vertical ? 32 : 0,
++      fills: [],
++      strokes: [{ ...fill, weight: 4, align: 'CENTER' }]
++    })
++    try {
++      const canvas = surface.getCanvas()
++      canvas.clear(ck.TRANSPARENT)
++      canvas.translate(vertical ? 16 : 0, vertical ? 0 : 16)
++      renderer.renderShapeUncached(canvas, node, graph)
++      surface.flush()
++      const image = surface.makeImageSnapshot()
++      try {
++        const pixels = expectDefined(
++          image.readPixels(0, 0, {
++            width: 32,
++            height: 32,
++            colorType: ck.ColorType.RGBA_8888,
++            alphaType: ck.AlphaType.Unpremul,
++            colorSpace: ck.ColorSpace.SRGB
++          }),
++          'pixels'
++        )
++        const start = (vertical ? 16 : 16 * 32) * 4
++        const end = (vertical ? 31 * 32 + 16 : 16 * 32 + 31) * 4
++        expect(pixels[start + 3]).toBe(255)
++        expect(pixels[start]).toBeGreaterThan(240)
++        expect(pixels[end + 2]).toBeGreaterThan(240)
++      } finally {
++        image.delete()
++      }
++    } finally {
++      renderer.destroy()
++    }
++  })
++}
++
++test('CanvasKit rejects only singular dimension matrices at the collapsed-axis boundary', async () => {
++  const ck = await getCanvasKit()
++  const colors = [ck.Color4f(1, 0, 0, 1), ck.Color4f(0, 0, 1, 1)]
++  for (const [width, height] of [
++    [0, 6],
++    [6, 0],
++    [0, 0],
++    [0.25, 6],
++    [6, 0.25],
++    [6, 6]
++  ]) {
++    const shader = ck.Shader.MakeLinearGradient(
++      [0, 0.5],
++      [1, 0.5],
++      colors,
++      [0, 1],
++      ck.TileMode.Clamp,
++      ck.Matrix.scaled(width, height)
++    )
++    try {
++      expect(Boolean(shader)).toBe(width !== 0 && height !== 0)
++    } finally {
++      shader?.delete()
++    }
++  }
++})
 diff --git a/packages/core/tests/canvas/skew.test.ts b/packages/core/tests/canvas/skew.test.ts
 new file mode 100644
 index 0000000000000000000000000000000000000000..3323148315f23c84413a708f643c3bee59bd201e
@@ -9635,6 +11291,150 @@ index 0000000000000000000000000000000000000000..3323148315f23c84413a708f643c3bee
 +    renderer.destroy()
 +    reference.delete()
 +  }
++})
+diff --git a/packages/core/tests/editor/components/inherited-authoring.test.ts b/packages/core/tests/editor/components/inherited-authoring.test.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..ef3e07fc8cc134ddc236d108ac6c74beefb089ae
+--- /dev/null
++++ b/packages/core/tests/editor/components/inherited-authoring.test.ts
+@@ -0,0 +1,138 @@
++import { expect, test } from 'bun:test'
++
++import { expectDefined } from '#core-tests/helpers/assert'
++
++import { createEditor } from '@open-pencil/core/editor'
++
++function fixture() {
++  const editor = createEditor(),
++    graph = editor.graph
++  const set = graph.createNode('COMPONENT_SET', editor.state.currentPageId, {
++    componentPropertyDefinitions: [{ id: 'root', name: 'HP', type: 'TEXT', defaultValue: '30' }]
++  })
++  const variants = [false, true].map((explicit) => {
++    const component = graph.createNode('COMPONENT', set.id, {
++      componentPropertyDefinitions: [
++        {
++          id: explicit ? 'zero' : 'inherited',
++          parentPropDefId: 'root',
++          name: 'HP',
++          type: 'TEXT',
++          defaultValue: explicit ? '0' : '30',
++          ...(explicit
++            ? {}
++            : {
++                inheritedFields: ['name', 'type', 'defaultValue'] as (
++                  | 'name'
++                  | 'type'
++                  | 'defaultValue'
++                )[]
++              })
++        }
++      ]
++    })
++    const text = graph.createNode('TEXT', component.id, {
++      text: explicit ? '0' : '30',
++      componentPropertyReferences: [{ propertyId: explicit ? 'zero' : 'inherited', field: 'TEXT' }]
++    })
++    const instance = expectDefined(graph.createInstance(component.id, editor.state.currentPageId))
++    return { component, text, instance }
++  })
++  return { editor, graph, set, variants }
++}
++
++test('GUI parent default edits inherit, preserve local defaults and instance edits, and undo', async () => {
++  const {
++    editor,
++    graph,
++    set,
++    variants: [inherited, zero]
++  } = fixture()
++  const edited = expectDefined(
++    graph.createInstance(inherited.component.id, editor.state.currentPageId)
++  )
++  editor.setInstanceComponentProperty(edited.id, 'root', '17')
++  await Promise.resolve()
++  editor.undo.clear()
++  expect(editor.setComponentPropertyDefault(set.id, 'root', '80')).toBe(true)
++  await Promise.resolve()
++  expect(inherited.text.text).toBe('80')
++  expect(graph.getChildren(inherited.instance.id)[0].text).toBe('80')
++  expect(graph.getChildren(edited.id)[0].text).toBe('17')
++  expect(zero.text.text).toBe('0')
++  expect(graph.getChildren(zero.instance.id)[0].text).toBe('0')
++  editor.undo.undo()
++  await Promise.resolve()
++  expect(inherited.text.text).toBe('30')
++  expect(zero.text.text).toBe('0')
++  editor.undo.redo()
++  await Promise.resolve()
++  expect(inherited.text.text).toBe('80')
++})
++
++test('GUI parent rename and bindings keep one public identity with local saved references', () => {
++  const {
++    editor,
++    set,
++    variants: [inherited, zero]
++  } = fixture()
++  expect(editor.renameComponentProperty(set.id, 'root', 'HP')).toBe(true)
++  expect(editor.renameComponentProperty(set.id, 'root', 'Health')).toBe(true)
++  expect(
++    editor.getInstanceComponentPropertyDefinitions(inherited.instance.id).map((d) => d.name)
++  ).toEqual(['Health'])
++  expect(editor.getComponentPropertyBindings(set.id, 'root')).toHaveLength(2)
++  expect(editor.bindComponentProperty(zero.text.id, 'TEXT', null)).toBe(true)
++  expect(zero.text.componentPropertyReferences).toEqual([])
++  expect(editor.bindComponentProperty(zero.text.id, 'TEXT', 'root')).toBe(true)
++  expect(zero.text.componentPropertyReferences).toEqual([{ propertyId: 'zero', field: 'TEXT' }])
++  expect(zero.text.text).toBe('0')
++  editor.undo.undo()
++  expect(zero.text.componentPropertyReferences).toEqual([])
++  editor.undo.undo()
++  expect(zero.text.componentPropertyReferences).toEqual([{ propertyId: 'zero', field: 'TEXT' }])
++})
++
++test('GUI parent deletion undo restores local definitions, references and edited assignments', () => {
++  const { editor, set, variants } = fixture()
++  editor.setInstanceComponentProperty(variants[0].instance.id, 'root', '17')
++  editor.undo.clear()
++  const before = variants.map(({ component, text, instance }) =>
++    structuredClone({
++      definitions: component.componentPropertyDefinitions,
++      references: text.componentPropertyReferences,
++      assignments: instance.componentPropertyAssignments
++    })
++  )
++  expect(editor.deleteComponentProperty(set.id, 'root')).toBe(true)
++  for (const { component, text, instance } of variants) {
++    expect(component.componentPropertyDefinitions).toEqual([])
++    expect(text.componentPropertyReferences).toEqual([])
++    expect(instance.componentPropertyAssignments).toEqual({})
++  }
++  editor.undo.undo()
++  expect(
++    variants.map(({ component, text, instance }) => ({
++      definitions: component.componentPropertyDefinitions,
++      references: text.componentPropertyReferences,
++      assignments: instance.componentPropertyAssignments
++    }))
++  ).toEqual(before)
++  editor.undo.redo()
++  expect(set.componentPropertyDefinitions).toEqual([])
++  expect(variants[0].text.componentPropertyReferences).toEqual([])
++})
++
++test('one shared GUI definition reads each variant default before multiselect edits', () => {
++  const {
++    editor,
++    variants: [inherited, zero]
++  } = fixture()
++  const definition = expectDefined(
++    editor.getInstanceComponentPropertyDefinitions(inherited.instance.id)[0]
++  )
++  expect(editor.getInstanceComponentPropertyValue(inherited.instance.id, definition)).toBe('30')
++  expect(editor.getInstanceComponentPropertyValue(zero.instance.id, definition)).toBe('0')
++  editor.setInstanceComponentProperty(zero.instance.id, definition.id, '30')
++  expect(editor.getInstanceComponentPropertyValue(zero.instance.id, definition)).toBe('30')
 +})
 diff --git a/packages/core/tests/figma-api/component-text-properties.test.ts b/packages/core/tests/figma-api/component-text-properties.test.ts
 new file mode 100644
@@ -10224,6 +12024,439 @@ index 0000000000000000000000000000000000000000..daf42844047b22b832d5353a15853e31
 +    frame.exportSettings = [{ format: 'PNG', constraint: { type: 'SCALE', value: 0 } }]
 +  }).toThrow('Unsupported export settings')
 +  expect(frame.exportSettings).toEqual(before)
++})
+diff --git a/packages/core/tests/figma-api/inherited-component-properties.test.ts b/packages/core/tests/figma-api/inherited-component-properties.test.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..86726c596b78b2ce5e7bdeae6c8f337a0fc754a4
+--- /dev/null
++++ b/packages/core/tests/figma-api/inherited-component-properties.test.ts
+@@ -0,0 +1,427 @@
++import { afterEach, expect, test } from 'bun:test'
++
++import { expectDefined } from '#core-tests/helpers/assert'
++import { FIXTURES } from '#core-tests/helpers/fig/fixtures'
++import { createAPI, asComponentNode, asInstanceNode } from '#core-tests/helpers/figma-api'
++
++import { exportFigFile, FigmaAPI, parseFigFile, setTextMeasurer } from '@open-pencil/core'
++import type { FigmaNodeProxy, FigmaSlotNode } from '@open-pencil/core/figma-api'
++import { parseFigBuffer, materializeDocument } from '@open-pencil/fig'
++import type { NodeChange } from '@open-pencil/kiwi/fig/codec'
++
++afterEach(() => setTextMeasurer(null))
++function fixture() {
++  const api = createAPI(),
++    graph = api.graph,
++    page = graph.getPages()[0]
++  const set = graph.createNode('COMPONENT_SET', page.id, {
++    name: 'Card',
++    componentPropertyDefinitions: [
++      { id: 'prop:state', name: 'state', type: 'VARIANT', defaultValue: 'active' },
++      { id: 'prop:hp', name: 'HP', type: 'TEXT', defaultValue: '30' }
++    ]
++  })
++  const mains = ['active', 'waiting', 'defeated'].map((state) => {
++    const component = graph.createNode('COMPONENT', set.id, {
++      name: `state=${state}`,
++      width: 100,
++      height: 40,
++      componentPropertyValues: { state },
++      componentPropertyDefinitions: [
++        {
++          id: `prop:hp-${state}`,
++          parentPropDefId: 'prop:hp',
++          name: 'HP',
++          type: 'TEXT',
++          defaultValue: state === 'defeated' ? '0' : '30',
++          ...(state === 'defeated' ? {} : { inheritedFields: ['name', 'type', 'defaultValue'] })
++        }
++      ]
++    })
++    graph.createNode('TEXT', component.id, {
++      name: 'Value',
++      text: state === 'defeated' ? '0' : '30',
++      width: 20,
++      height: 20,
++      componentPropertyReferences: [{ propertyId: `prop:hp-${state}`, field: 'TEXT' }]
++    })
++    return component
++  })
++  return { api, graph, set, mains }
++}
++function component(api: FigmaAPI, id: string) {
++  return asComponentNode(api.wrapNode(id))
++}
++function key(instance: InstanceNode) {
++  const keys = Object.keys(instance.componentProperties).filter((name) => name.startsWith('HP#'))
++  expect(keys).toHaveLength(1)
++  return keys[0]
++}
++test('one public identity carries edited values through all local variant assignments', () => {
++  const { api, graph, mains } = fixture(),
++    instance = component(api, mains[0].id).createInstance(),
++    property = key(instance)
++  instance.setProperties({ [property]: '17' })
++  for (const state of ['waiting', 'defeated', 'active']) {
++    instance.setProperties({ state })
++    expect(key(instance)).toBe(property)
++    expect(instance.componentProperties[property].value).toBe('17')
++    expect(instance.children[0].characters).toBe('17')
++    expect(
++      Object.keys(
++        expectDefined(graph.getNode(instance.id), 'instance').componentPropertyAssignments
++      )
++    ).toEqual([`prop:hp-${state}`])
++  }
++})
++test('unassigned local zero and legacy local assignments are preserved', () => {
++  const { api, graph, mains } = fixture(),
++    defeated = component(api, mains[2].id).createInstance()
++  expect(defeated.componentProperties[key(defeated)].value).toBe('0')
++  expect(defeated.children[0].characters).toBe('0')
++  const active = component(api, mains[0].id).createInstance()
++  graph.updateNode(active.id, { componentPropertyAssignments: { 'prop:hp-active': '9' } })
++  active.setProperties({ state: 'waiting' })
++  expect(active.componentProperties[key(active)].value).toBe('9')
++  expect(active.children[0].characters).toBe('9')
++})
++test('parent default edits update inherited templates and instances, preserving local defaults and edited values', () => {
++  setTextMeasurer(() => ({ width: 20, height: 20 }))
++  const { api, set, mains } = fixture(),
++    active = component(api, mains[0].id).createInstance(),
++    edited = component(api, mains[1].id).createInstance()
++  edited.setProperties({ [key(edited)]: '17' })
++  component(api, set.id).editComponentProperty('HP#prop:hp', { defaultValue: '80' })
++  expect(active.componentProperties[key(active)].value).toBe('80')
++  expect(active.children[0].characters).toBe('80')
++  expect(edited.children[0].characters).toBe('17')
++  const defeated = component(api, mains[2].id).createInstance()
++  expect(defeated.componentProperties[key(defeated)].value).toBe('0')
++  expect(defeated.children[0].characters).toBe('0')
++  expect(component(api, mains[1].id).createInstance().children[0].characters).toBe('80')
++})
++test('FIG roundtrip retains parent GUIDs, inherited omissions, explicit zero and edited assignments', async () => {
++  const { api, mains } = fixture(),
++    instance = component(api, mains[0].id).createInstance()
++  instance.name = 'Edited instance'
++  instance.setProperties({ [key(instance)]: '17', state: 'waiting' })
++  const bytes = await exportFigFile(api.graph),
++    records = parseFigBuffer(bytes.slice().buffer).nodeChanges
++  for (const record of records.filter((record) => record.name?.startsWith('state='))) {
++    const defs = record.componentPropDefs as Array<Record<string, unknown>>
++    expect(defs).toHaveLength(1)
++    expect(defs[0].parentPropDefId).toBeDefined()
++    expect(defs[0].inheritedFields).toBeUndefined()
++    if (record.name === 'state=defeated') expect(defs[0].initialValue).toBeDefined()
++    else
++      for (const field of ['initialValue', 'varValue', 'name', 'type'])
++        expect(defs[0][field]).toBeUndefined()
++  }
++  const reopened = new FigmaAPI(await parseFigFile(bytes.slice().buffer, { populate: 'all' }))
++  const saved = expectDefined(
++      [...reopened.graph.getAllNodes()].find((node) => node.name === 'Edited instance'),
++      'saved instance'
++    ),
++    proxy = asInstanceNode(reopened.wrapNode(saved.id))
++  proxy.setProperties({ state: 'defeated' })
++  expect(proxy.componentProperties[key(proxy)].value).toBe('17')
++  expect(proxy.children[0].characters).toBe('17')
++})
++
++test('native Material 3 TEXT aliases keep parent/default omission through import and save', async () => {
++  // Native Material 3 document: Basic dialog 50723:10929, Icon=True 50723:10930.
++  // These observed property GUIDs and the omitted local name/type/default are unchanged.
++  const guid = (sessionID: number, localID: number) => ({ sessionID, localID })
++  const rootId = guid(56092, 0),
++    localId = guid(56092, 2)
++  const text = {
++    characters: 'Basic dialog title',
++    lines: [
++      {
++        lineType: 'PLAIN',
++        styleId: 0,
++        indentationLevel: 0,
++        sourceDirectionality: 'AUTO',
++        listStartOffset: 0,
++        isFirstLineOfList: false
++      }
++    ]
++  }
++  const changes = [
++    { guid: guid(1, 0), type: 'DOCUMENT' },
++    { guid: guid(1, 1), type: 'CANVAS', parentIndex: { guid: guid(1, 0), position: '!' } },
++    {
++      guid: guid(50723, 10929),
++      type: 'FRAME',
++      isStateGroup: true,
++      name: 'Basic dialog',
++      parentIndex: { guid: guid(1, 1), position: '!' },
++      componentPropDefs: [
++        {
++          id: rootId,
++          name: 'Title',
++          initialValue: { textValue: text },
++          sortPosition: '#',
++          type: 'TEXT',
++          preferredValues: {},
++          varValue: {
++            value: { textDataValue: text },
++            dataType: 'TEXT_DATA',
++            resolvedDataType: 'TEXT_DATA'
++          }
++        }
++      ]
++    },
++    {
++      guid: guid(50723, 10930),
++      type: 'SYMBOL',
++      name: 'Icon=True',
++      parentIndex: { guid: guid(50723, 10929), position: '!' },
++      componentPropDefs: [{ id: localId, parentPropDefId: rootId }]
++    }
++  ] as NodeChange[]
++  const { graph } = materializeDocument(changes)
++  const main = expectDefined(
++    [...graph.getAllNodes()].find((node) => node.name === 'Icon=True'),
++    'materialized main'
++  )
++  expect(main.componentPropertyDefinitions[0].parentPropDefId).toBe('56092:0')
++  expect(main.componentPropertyDefinitions[0].inheritedFields).toContain('defaultValue')
++  const bytes = await exportFigFile(graph)
++  const record = expectDefined(
++    parseFigBuffer(bytes.slice().buffer).nodeChanges.find((record) => record.name === 'Icon=True'),
++    'saved main record'
++  )
++  const defs = record.componentPropDefs as Array<Record<string, unknown>>
++  expect(defs[0].parentPropDefId).toEqual(rootId)
++  for (const field of ['name', 'type', 'initialValue', 'varValue'])
++    expect(defs[0][field]).toBeUndefined()
++  const reopened = await parseFigFile(bytes.slice().buffer, { populate: 'all' })
++  const saved = expectDefined(
++    [...reopened.getAllNodes()].find((node) => node.name === 'Icon=True'),
++    'reopened main'
++  )
++  expect(reopened.getNode(saved.parentId ?? '')?.type).toBe('COMPONENT_SET')
++  const api = new FigmaAPI(reopened)
++  expect(component(api, saved.id).componentPropertyDefinitions['Title#56092:0'].defaultValue).toBe(
++    'Basic dialog title'
++  )
++})
++
++test('deleting the shared control removes linked local definitions, references and assignments', () => {
++  const { api, graph, set, mains } = fixture()
++  const instance = component(api, mains[0].id).createInstance()
++  instance.setProperties({ [key(instance)]: '17' })
++  component(api, set.id).deleteComponentProperty('HP#prop:hp')
++  expect(Object.keys(instance.componentProperties)).toEqual(['state'])
++  for (const main of mains) {
++    expect(main.componentPropertyDefinitions).toEqual([])
++    expect(graph.getChildren(main.id)[0].componentPropertyReferences).toEqual([])
++  }
++  expect(graph.getNode(instance.id)?.componentPropertyAssignments).toEqual({})
++})
++
++test('native Figma SLOT variants expose one shared control and use its inherited limits', async () => {
++  const graph = await parseFigFile(await Bun.file(`${FIXTURES}/slots.fig`).arrayBuffer(), {
++    populate: 'all'
++  })
++  const main = expectDefined(
++    [...graph.getAllNodes()].find(
++      (node) =>
++        node.type === 'COMPONENT' &&
++        node.componentPropertyDefinitions.some(
++          (definition) => definition.parentPropDefId === '14:5'
++        )
++    ),
++    'native Panel variant'
++  )
++  const api = new FigmaAPI(graph),
++    instance = component(api, main.id).createInstance()
++  const slots = Object.entries(instance.componentProperties).filter(
++    ([, property]) => property.type === 'SLOT'
++  )
++  expect(slots.map(([name]) => name)).toEqual(['Content#14:5'])
++  const slot = expectDefined(
++    instance.children.find((node: FigmaNodeProxy): node is FigmaSlotNode => node.type === 'SLOT'),
++    'native slot'
++  )
++  const count = slot.children.length
++  component(api, expectDefined(main.parentId, 'Panel set')).editComponentProperty('Content#14:5', {
++    slotSettings: count ? { maxChildren: count - 1 } : { minChildren: 1 }
++  })
++  expect(slot.limitViolations).toContain(count ? 'ABOVE_MAX' : 'BELOW_MIN')
++})
++
++test('a native varValue-only local zero overrides the inherited parent default', async () => {
++  const guid = (localID: number) => ({ sessionID: 7, localID })
++  const { graph } = materializeDocument([
++    { guid: guid(0), type: 'DOCUMENT' },
++    { guid: guid(1), type: 'CANVAS', parentIndex: { guid: guid(0), position: '!' } },
++    {
++      guid: guid(2),
++      type: 'FRAME',
++      isStateGroup: true,
++      name: 'Parent',
++      parentIndex: { guid: guid(1), position: '!' },
++      componentPropDefs: [
++        { id: guid(10), name: 'HP', type: 'TEXT', initialValue: { textValue: '30' } }
++      ]
++    },
++    {
++      guid: guid(3),
++      type: 'SYMBOL',
++      name: 'Local zero',
++      parentIndex: { guid: guid(2), position: '!' },
++      componentPropDefs: [
++        {
++          id: guid(11),
++          parentPropDefId: guid(10),
++          varValue: {
++            dataType: 'TEXT_DATA',
++            resolvedDataType: 'TEXT_DATA',
++            value: { textDataValue: { characters: '0' } }
++          }
++        }
++      ]
++    }
++  ] as NodeChange[])
++  const main = expectDefined(
++    [...graph.getAllNodes()].find((node) => node.name === 'Local zero'),
++    'local zero'
++  )
++  expect(main.componentPropertyDefinitions[0].defaultValue).toBe('0')
++  expect(main.componentPropertyDefinitions[0].inheritedFields).not.toContain('defaultValue')
++  const bytes = await exportFigFile(graph)
++  const reopened = new FigmaAPI(await parseFigFile(bytes.slice().buffer, { populate: 'all' }))
++  const saved = expectDefined(
++    [...reopened.graph.getAllNodes()].find((node) => node.name === 'Local zero'),
++    'saved zero'
++  )
++  const instance = component(reopened, saved.id).createInstance()
++  expect(instance.componentProperties[key(instance)].value).toBe('0')
++})
++
++test('an explicit empty local description remains cleared after save and reopen', async () => {
++  const { api, graph, set, mains } = fixture()
++  graph.updateNode(set.id, {
++    componentPropertyDefinitions: set.componentPropertyDefinitions.map((definition) =>
++      definition.id === 'prop:hp'
++        ? { ...definition, description: 'Parent documentation' }
++        : definition
++    )
++  })
++  const main = component(api, mains[0].id)
++  expect(main.componentPropertyDefinitions['HP#prop:hp'].description).toBe('Parent documentation')
++  main.editComponentProperty('HP#prop:hp', { description: '' })
++  const bytes = await exportFigFile(graph),
++    reopened = new FigmaAPI(await parseFigFile(bytes.slice().buffer, { populate: 'all' }))
++  const saved = expectDefined(
++    [...reopened.graph.getAllNodes()].find((node) => node.name === 'state=active'),
++    'cleared main'
++  )
++  expect(saved.componentPropertyDefinitions[0].description).toBe('')
++  const definition = expectDefined(
++    Object.entries(component(reopened, saved.id).componentPropertyDefinitions).find(([name]) =>
++      name.startsWith('HP#')
++    ),
++    'saved HP definition'
++  )[1]
++  expect(definition.description).toBeUndefined()
++})
++
++test('a set default also updates variants with direct shared references and preserves edits', () => {
++  setTextMeasurer(() => ({ width: 20, height: 20 }))
++  const { api, graph, set, mains } = fixture()
++  for (const main of mains) {
++    graph.updateNode(main.id, { componentPropertyDefinitions: [] })
++    for (const child of graph.getChildren(main.id))
++      graph.updateNode(child.id, {
++        text: '30',
++        componentPropertyReferences: [{ propertyId: 'prop:hp', field: 'TEXT' }]
++      })
++  }
++  const untouched = component(api, mains[0].id).createInstance(),
++    edited = component(api, mains[1].id).createInstance()
++  edited.setProperties({ [key(edited)]: '17' })
++  component(api, set.id).editComponentProperty('HP#prop:hp', { defaultValue: '80' })
++  expect(untouched.componentProperties[key(untouched)].value).toBe('80')
++  expect(untouched.children[0].characters).toBe('80')
++  expect(edited.children[0].characters).toBe('17')
++  expect(component(api, mains[2].id).createInstance().children[0].characters).toBe('80')
++})
++
++test('changing a native parent-linked SLOT variant preserves its user-owned content', async () => {
++  const graph = await parseFigFile(await Bun.file(`${FIXTURES}/slots.fig`).arrayBuffer(), {
++    populate: 'all'
++  })
++  const main = expectDefined(
++    [...graph.getAllNodes()].find(
++      (node) =>
++        node.type === 'COMPONENT' &&
++        node.name === 'Size=Small' &&
++        node.componentPropertyDefinitions.some(
++          (definition) => definition.parentPropDefId === '14:5'
++        )
++    ),
++    'Small Panel'
++  )
++  const api = new FigmaAPI(graph),
++    instance = component(api, main.id).createInstance()
++  const slot = expectDefined(
++    instance.children.find((node: FigmaNodeProxy): node is FigmaSlotNode => node.type === 'SLOT'),
++    'Small slot'
++  )
++  const added = api.createRectangle()
++  added.name = 'Owned content'
++  slot.appendChild(added)
++  instance.setProperties({ Size: 'Large' })
++  const replacement = expectDefined(
++    instance.children.find((node: FigmaNodeProxy): node is FigmaSlotNode => node.type === 'SLOT'),
++    'Large slot'
++  )
++  expect(
++    replacement.children.some((child) => child.id === added.id && child.name === 'Owned content')
++  ).toBe(true)
++  expect(
++    Object.keys(instance.componentProperties).filter((name) => name.startsWith('Content#'))
++  ).toEqual(['Content#14:5'])
++})
++
++test('explicit empty preferred values on a native local slot stay empty after save', async () => {
++  const graph = await parseFigFile(await Bun.file(`${FIXTURES}/slots.fig`).arrayBuffer(), {
++    populate: 'all'
++  })
++  const main = expectDefined(
++    [...graph.getAllNodes()].find(
++      (node) =>
++        node.type === 'COMPONENT' &&
++        node.name === 'Size=Small' &&
++        node.componentPropertyDefinitions.some(
++          (definition) => definition.parentPropDefId === '14:5'
++        )
++    ),
++    'Small Panel'
++  )
++  const api = new FigmaAPI(graph),
++    icon = api.createComponent()
++  component(api, expectDefined(main.parentId, 'Panel set')).editComponentProperty('Content#14:5', {
++    preferredValues: [{ type: 'COMPONENT', key: icon.id }]
++  })
++  component(api, main.id).editComponentProperty('Content#14:5', { preferredValues: [] })
++  const bytes = await exportFigFile(graph),
++    reopened = new FigmaAPI(await parseFigFile(bytes.slice().buffer, { populate: 'all' }))
++  const saved = expectDefined(
++    [...reopened.graph.getAllNodes()].find(
++      (node) =>
++        node.type === 'COMPONENT' &&
++        node.name === 'Size=Small' &&
++        node.componentPropertyDefinitions.some(
++          (definition) => definition.parentPropDefId === '14:5'
++        )
++    ),
++    'saved Small'
++  )
++  expect(
++    component(reopened, saved.id).componentPropertyDefinitions['Content#14:5'].preferredValues
++  ).toEqual([])
 +})
 diff --git a/packages/core/tests/figma-api/nested-component-properties.test.ts b/packages/core/tests/figma-api/nested-component-properties.test.ts
 new file mode 100644
@@ -11613,6 +13846,107 @@ index 0000000000000000000000000000000000000000..95138a362814513cc57e93f03b89aa80
 +      'Choice/Unused'
 +    )
 +    expect([...reloaded.getAllNodes()].filter((node) => node.type === 'COMPONENT')).toHaveLength(4)
++  })
++}
+diff --git a/packages/core/tests/io/formats/fig/patch/detach-instance.test.ts b/packages/core/tests/io/formats/fig/patch/detach-instance.test.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..cb6deb917cf5f4a1776ca4bf3588e1307095e492
+--- /dev/null
++++ b/packages/core/tests/io/formats/fig/patch/detach-instance.test.ts
+@@ -0,0 +1,95 @@
++import { expect, test } from 'bun:test'
++
++import { expectDefined } from '#core-tests/helpers/assert'
++
++import { FigmaAPI, SceneGraph } from '@open-pencil/core'
++import { exportFigFile, parseFigFile } from '@open-pencil/core/io'
++
++async function open(bytes: Uint8Array) {
++  return parseFigFile(Uint8Array.from(bytes).buffer, { populate: 'all' })
++}
++
++for (const withNestedInstance of [false, true]) {
++  test(`detaching an imported instance preserves its ${withNestedInstance ? 'nested instance and ' : ''}content after deleting its main and saving`, async () => {
++    const source = new SceneGraph()
++    const page = source.getPages()[0]
++    const fill = {
++      type: 'SOLID' as const,
++      blendMode: 'NORMAL' as const,
++      color: { r: 1, g: 0, b: 0, a: 1 },
++      opacity: 1,
++      visible: true
++    }
++    const main = source.createNode('COMPONENT', page.id, {
++      name: 'Main',
++      width: 120,
++      height: 40,
++      fills: [fill]
++    })
++    source.createNode('RECTANGLE', main.id, {
++      name: 'Child',
++      x: 8,
++      y: 6,
++      width: 24,
++      height: 12,
++      fills: [fill]
++    })
++    if (withNestedInstance) {
++      const nestedMain = source.createNode('COMPONENT', page.id, {
++        name: 'Nested main',
++        width: 16,
++        height: 16,
++        fills: [fill]
++      })
++      const nested = expectDefined(source.createInstance(nestedMain.id, main.id), 'nested instance')
++      source.updateNode(nested.id, { name: 'Nested occurrence', x: 40, y: 8 })
++    }
++    const occurrence = expectDefined(source.createInstance(main.id, page.id), 'instance')
++    source.updateNode(occurrence.id, { name: 'Occurrence', x: 160 })
++
++    const imported = await open(await exportFigFile(source))
++    const instance = expectDefined(
++      [...imported.getAllNodes()].find((node) => node.name === 'Occurrence'),
++      'imported instance'
++    )
++    const definition = expectDefined(
++      [...imported.getAllNodes()].find((node) => node.name === 'Main'),
++      'imported main'
++    )
++    expect(instance.type).toBe('INSTANCE')
++    const api = new FigmaAPI(imported)
++    api.wrapNode(instance.id).detachInstance()
++    expect(instance.type).toBe('FRAME')
++    expect(instance.componentId).toBeNull()
++    expect(imported.getInstances(definition.id)).toEqual([])
++    imported.deleteNode(definition.id)
++
++    const reopened = await open(await exportFigFile(imported))
++    const detached = expectDefined(
++      [...reopened.getAllNodes()].find((node) => node.name === 'Occurrence'),
++      'detached frame'
++    )
++    expect(detached.type).toBe('FRAME')
++    expect(detached.componentId).toBeFalsy()
++    expect(detached.fills).toEqual([fill])
++    const children = reopened.getChildren(detached.id)
++    expect(children).toHaveLength(withNestedInstance ? 2 : 1)
++    expect(children[0].name).toBe('Child')
++    expect([children[0].x, children[0].y, children[0].width, children[0].height]).toEqual([
++      8, 6, 24, 12
++    ])
++    expect(children[0].fills).toEqual([fill])
++    const components = [...reopened.getAllNodes()].filter((node) => node.type === 'COMPONENT')
++    const instances = [...reopened.getAllNodes()].filter((node) => node.type === 'INSTANCE')
++    expect(components.map((node) => node.name)).toEqual(withNestedInstance ? ['Nested main'] : [])
++    expect(instances.map((node) => node.name)).toEqual(
++      withNestedInstance ? ['Nested occurrence'] : []
++    )
++    if (withNestedInstance) {
++      expect(instances[0].componentId).toBe(components[0].id)
++      expect(instances[0].parentId).toBe(detached.id)
++      expect(instances[0].fills).toEqual([fill])
++    }
++    expect([...reopened.getAllNodes()].some((node) => node.name === 'Main')).toBe(false)
 +  })
 +}
 diff --git a/packages/core/tests/io/formats/fig/roundtrip/scroll-overrides.test.ts b/packages/core/tests/io/formats/fig/roundtrip/scroll-overrides.test.ts
@@ -20992,11 +23326,15 @@ index 0000000000000000000000000000000000000000..fb4b37cd3feb3595bc458e73df2d5b8b
 +}
 diff --git a/packages/scene-graph/src/instances/swap-properties.ts b/packages/scene-graph/src/instances/swap-properties.ts
 new file mode 100644
-index 0000000000000000000000000000000000000000..41ddd8f72e291af9966b86fad157a3c2a0127952
+index 0000000000000000000000000000000000000000..441df00c8556ba307c87e946b6bafeff00aaac69
 --- /dev/null
 +++ b/packages/scene-graph/src/instances/swap-properties.ts
-@@ -0,0 +1,74 @@
-+import { applyComponentPropertyValue, componentPropertyDefinitions } from '../components/properties'
+@@ -0,0 +1,82 @@
++import {
++  applyComponentPropertyValue,
++  componentPropertyDefinitions,
++  componentPropertyId
++} from '../components/properties'
 +import type { SceneGraph } from '../index'
 +import type { SceneNode } from '../types'
 +
@@ -21036,7 +23374,11 @@ index 0000000000000000000000000000000000000000..41ddd8f72e291af9966b86fad157a3c2
 +        const values = Object.entries(child.componentPropertyAssignments).filter(([id]) =>
 +          fields?.has(`${ASSIGNMENT_PREFIX}${id}`)
 +        )
-+        if (values.length) result.push({ path: next, values })
++        if (values.length)
++          result.push({
++            path: next,
++            values: values.map(([id, value]) => [componentPropertyId(graph, child, id), value])
++          })
 +      }
 +      visit(child, child.type === 'INSTANCE' ? child : owner, next)
 +    }
@@ -21188,6 +23530,138 @@ index 0000000000000000000000000000000000000000..555ab6674cff5f3f0f3b182b115916f3
 +    ...color,
 +    a: 1
 +  })
++})
+diff --git a/packages/vue/tests/controls/component-props/inheritance.test.ts b/packages/vue/tests/controls/component-props/inheritance.test.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..542c285893a69ab42d7b5ed502ce6f0d0b18f061
+--- /dev/null
++++ b/packages/vue/tests/controls/component-props/inheritance.test.ts
+@@ -0,0 +1,126 @@
++import { expect, test } from 'bun:test'
++
++import { createSSRApp, effectScope, reactive } from 'vue'
++
++import { createEditor, createDefaultEditorState } from '@open-pencil/core/editor'
++import { SceneGraph, componentPropertyDefinitions } from '@open-pencil/scene-graph'
++
++import { useComponentPropertyAuthoring } from '#vue/controls/component-props/authoring'
++import { useSlotAuthoring } from '#vue/controls/slots/authoring'
++import { useSlotProperties } from '#vue/controls/slots/instance'
++import { EDITOR_KEY } from '#vue/editor/context'
++
++function fixture() {
++  const graph = new SceneGraph()
++  const editor = createEditor({
++    graph,
++    state: reactive(createDefaultEditorState(graph.getPages()[0].id))
++  })
++  const set = graph.createNode('COMPONENT_SET', editor.state.currentPageId, {
++    componentPropertyDefinitions: [
++      { id: 'root', name: 'HP', type: 'TEXT', defaultValue: '30' },
++      {
++        id: 'slot',
++        name: 'Content',
++        type: 'SLOT',
++        defaultValue: '',
++        description: 'Parent',
++        slotSettings: {
++          minChildren: 1,
++          allowPreferredValuesOnly: false,
++          displayEmptyByDefault: false,
++          stretchChildOnInsert: false
++        }
++      }
++    ]
++  })
++  const component = graph.createNode('COMPONENT', set.id, {
++    componentPropertyDefinitions: [
++      { id: 'local', parentPropDefId: 'root', name: 'HP', type: 'TEXT', defaultValue: '0' },
++      {
++        id: 'local-slot',
++        parentPropDefId: 'slot',
++        name: 'Old name',
++        type: 'SLOT',
++        defaultValue: '',
++        inheritedFields: [
++          'name',
++          'type',
++          'defaultValue',
++          'description',
++          'slotSettings',
++          'preferredValues'
++        ]
++      }
++    ]
++  })
++  const text = graph.createNode('TEXT', component.id, {
++    text: '0',
++    componentPropertyReferences: [{ propertyId: 'local', field: 'TEXT' }]
++  })
++  const frame = graph.createNode('FRAME', component.id, {
++    componentPropertyReferences: [{ propertyId: 'local-slot', field: 'SLOT_CONTENT' }]
++  })
++  const instance = graph.createInstance(component.id, editor.state.currentPageId)
++  if (!instance) throw new Error('Missing instance')
++  const app = createSSRApp({}),
++    scope = effectScope()
++  app.provide(EDITOR_KEY, editor)
++  function control<T>(fn: () => T): T {
++    const result = app.runWithContext(() => scope.run(fn))
++    if (!result) throw new Error('Missing control')
++    return result
++  }
++  return { editor, graph, set, component, text, frame, instance, control, stop: () => scope.stop() }
++}
++
++test('authoring GUI projects one public row and resolves local binding IDs', () => {
++  const f = fixture()
++  f.editor.select([f.text.id])
++  const authoring = f.control(useComponentPropertyAuthoring)
++  expect(authoring.definitions.value.map((d) => d.id)).toEqual(['root'])
++  expect(authoring.propertyIds.value.TEXT).toBe('root')
++  expect(authoring.rows.value.map((row) => row.id)).toEqual(['root'])
++  f.stop()
++})
++
++test('SLOT GUI resolves public controls while ownership remains on the local ID', () => {
++  const f = fixture()
++  f.editor.select([f.instance.id])
++  const slots = f.control(useSlotProperties)
++  expect(slots.slots.value).toHaveLength(1)
++  expect(slots.slots.value[0]).toMatchObject({ id: 'slot', name: 'Content', modified: false })
++  const frame = f.graph.getChildren(f.instance.id)[0]
++  // The actual frame follows the text layer in the component.
++  const slotFrame = f.graph.getChildren(f.instance.id).find((n) => n.type === 'FRAME')
++  if (!slotFrame) throw new Error(`Missing slot frame after ${frame.id}`)
++  slots.clear(slotFrame.id)
++  f.editor.select([f.instance.id])
++  expect(slots.slots.value[0].modified).toBe(true)
++  f.stop()
++})
++
++test('SLOT GUI writes explicit inherited metadata and keeps undo and shared rename', () => {
++  const f = fixture()
++  f.editor.select([f.frame.id])
++  const slots = f.control(useSlotAuthoring)
++  expect(slots.slots.value[0]).toMatchObject({
++    id: 'local-slot',
++    name: 'Content',
++    description: 'Parent',
++    minChildren: 1
++  })
++  slots.describe('local-slot', '')
++  slots.setLimits('local-slot', { maxChildren: 2 })
++  let effective = componentPropertyDefinitions(f.graph, f.component).find((d) => d.id === 'slot')
++  expect(effective?.description).toBe('')
++  expect(effective?.slotSettings).toMatchObject({ minChildren: 1, maxChildren: 2 })
++  f.editor.undo.undo()
++  effective = componentPropertyDefinitions(f.graph, f.component).find((d) => d.id === 'slot')
++  expect(effective?.slotSettings?.maxChildren).toBeUndefined()
++  slots.rename('local-slot', 'Children')
++  expect(
++    componentPropertyDefinitions(f.graph, f.component).find((d) => d.id === 'slot')?.name
++  ).toBe('Children')
++  f.stop()
 +})
 diff --git a/tools/checks/lint/tests/color.test.ts b/tools/checks/lint/tests/color.test.ts
 new file mode 100644

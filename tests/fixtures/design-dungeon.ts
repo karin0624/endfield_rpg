@@ -254,9 +254,6 @@ export const cases: Record<string, DesignCase> = {
   node(root, props) {
     return render(root, props, "node");
   },
-  edge(root, props) {
-    return render(root, props, "edge");
-  },
   branch(root, props) {
     return render(root, props, "branch");
   },

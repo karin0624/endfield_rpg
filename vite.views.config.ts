@@ -12,7 +12,6 @@ export default mergeConfig(
       adventure: resolve(import.meta.dirname, "tests/fixtures/adventure-view.html"),
       battle: resolve(import.meta.dirname, "tests/fixtures/battle-view.html"),
       dungeon: resolve(import.meta.dirname, "tests/fixtures/dungeon-view.html"),
-      editor: resolve(import.meta.dirname, "tests/fixtures/editor-view.html"),
       renderer: resolve(import.meta.dirname, "tests/fixtures/renderer-view.html"),
       ground: resolve(import.meta.dirname, "tests/fixtures/ground-view.html"),
       partyApproved: resolve(import.meta.dirname, "tests/fixtures/party-approved.html"),

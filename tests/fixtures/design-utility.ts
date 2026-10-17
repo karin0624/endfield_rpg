@@ -13,17 +13,6 @@ async function render(root: HTMLElement, props: Record<string, unknown>, kind: "
 }
 
 export const cases: Record<string, DesignCase> = {
-  artwork(root, props) {
-    if (props.filename !== "select-arrow.svg") throw new Error(`Unknown utility artwork: ${props.filename}`);
-    root.style.padding = "32px";
-    const image = document.createElement("img");
-    image.className = "design-utility-artwork";
-    image.src = `/assets/ui/${props.filename}`;
-    image.width = Number(props.width);
-    image.height = Number(props.height);
-    image.style.display = "block";
-    root.append(image);
-  },
   equipment: (root, props) => render(root, props, "equipment"),
   preparation: (root, props) => render(root, props, "preparation"),
   shop: (root, props) => render(root, props, "shop"),

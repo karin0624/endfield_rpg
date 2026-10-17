@@ -4,14 +4,12 @@ import {
   type CampaignModel,
   campaignMachine,
   createCampaignModel,
-  reduceCampaign,
 } from "../../src/presentation/campaignModel";
 import { projectCampaign } from "../../src/presentation/campaignProjection";
 import { createCampaignView } from "../../src/web/campaignView.svelte.ts";
 import HubCalendar from "../../src/web/components/HubCalendar.svelte";
 import HubScene from "../../src/web/components/HubScene.svelte";
 import IllustratedAction from "../../src/web/components/IllustratedAction.svelte";
-import { returnedCampaign } from "./returned-campaign";
 import "../../src/web/hub.css";
 
 function campaignState(name: string): CampaignModel {
@@ -25,16 +23,6 @@ function campaignState(name: string): CampaignModel {
       return initial;
     case "title-loading":
       return resolve("loading");
-    case "title-no-save":
-      return resolve("title", { message: "保存データがありません。" });
-    case "title-read-error":
-      return resolve("title", { message: "読み込めませんでした。ブラウザの保存領域を確認してください。" });
-    case "title-invalid-save":
-      return resolve("title", { message: "保存データを読み込めませんでした。" });
-    case "title-unsupported-save":
-      return resolve("title", { message: "対応していない保存データです。" });
-    case "title-saved":
-      return resolve("title", { message: "保存しました。" });
     case "introduction":
       return resolve("intro");
     case "new-game-confirmation":
@@ -46,27 +34,9 @@ function campaignState(name: string): CampaignModel {
     case "home-title-options":
       return resolve("home", { hubPanel: "title-options", focus: commandFocus("close-panel") });
     case "home-save-confirmation":
-    case "home-save-title-confirmation":
-      return resolve("confirm", {
-        confirmation: name === "home-save-confirmation" ? "save" : "save-title",
-        focus: commandFocus("cancel"),
-      });
-    case "home-discard-confirmation":
-      return resolve("confirm", { confirmation: "title", focus: commandFocus("cancel") });
+      return resolve("confirm", { confirmation: "save", focus: commandFocus("cancel") });
     case "home-saving":
-    case "home-saving-title":
-      return resolve("saving", { confirmation: name === "home-saving" ? "save" : "save-title" });
-    case "home-saved":
-      return resolve("home", { message: "保存しました。", focus: commandFocus("menu") });
-    case "home-save-failure":
-      return resolve("home", {
-        message: "保存できませんでした。ブラウザの保存領域を確認してください。",
-        focus: commandFocus("menu"),
-      });
-    case "home-returned":
-      return resolve("home", { game: returnedCampaign.game, completion: returnedCampaign.completion });
-    case "home-resumed":
-      return resolve("home", { game: returnedCampaign.game, message: "読み込みました。" });
+      return resolve("saving", { confirmation: "save" });
     case "destinations":
       return resolve("destinations");
     case "town":
@@ -77,13 +47,6 @@ function campaignState(name: string): CampaignModel {
       return resolve("town", { hubPanel: "title-options", focus: commandFocus("close-panel") });
     case "town-discard-confirmation":
       return resolve("confirm", { confirmation: "title", confirmOrigin: "town", focus: commandFocus("cancel") });
-    case "town-after-activity": {
-      let state = initial;
-      for (const command of ["new-game", "accept", "home", "destinations", "town"] as const)
-        state = reduceCampaign(state, { type: "command", command }).state;
-      state = reduceCampaign(state, { type: "town", event: { type: "select", placeId: "market" } }).state;
-      return reduceCampaign(state, { type: "town", event: { type: "advance" } }).state;
-    }
     default:
       throw new Error(`Unknown Campaign design screen: ${name}`);
   }
@@ -95,7 +58,7 @@ function screen(root: HTMLElement, props: Record<string, unknown>) {
   createCampaignView(root, () => false).render(projectCampaign(snapshot));
 }
 
-// Artwork masters are verified against the actual production component's part.
+// Whole UI components are captured from the production view.
 // Visibility preserves the source DOM geometry, inheritance and native rendering.
 function isolate(root: HTMLElement, selectors: string) {
   const targets = [...root.querySelectorAll<HTMLElement | SVGElement>(selectors)];
@@ -156,15 +119,6 @@ export const cases: Record<string, (root: HTMLElement, props: Record<string, unk
     root.replaceChildren(button);
   },
   "illustrated-action": illustratedAction,
-  illustrated: illustratedAction,
-  async "illustrated-action-part"(root, props) {
-    illustratedAction(root, props);
-    await tick();
-    const part = String(props.part ?? "frame");
-    if (part !== "frame" && part !== "picture") throw new Error(`Unknown IllustratedAction part: ${part}`);
-    isolate(root, part === "frame" ? ".frame-art" : ".glyph");
-  },
-  "hub-scene": hubScene,
   async feedback(root, props) {
     const text = String(props.text ?? "出撃者のHPが全回復しました。\nロッシ · 精神疲労 8（なし）");
     hubScene(root, { scene: "home", feedback: [text] });

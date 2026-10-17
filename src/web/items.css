@@ -79,3 +79,71 @@
   font: inherit;
   line-height: 20px;
 }
+
+.item-number-control {
+  display: block;
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  border-radius: 4px;
+  --number-background: #101713;
+  --number-border: #828b78;
+  --number-focus: #bce5d7;
+  --number-focus-offset: 3px;
+}
+.item-carry-control {
+  display: inline-block;
+  width: 6rem;
+  margin-left: 0.75rem;
+  --number-border: #48616b;
+}
+.hub-scene .item-carry-control {
+  --number-background: #fff;
+  --number-focus: #28526e;
+  --number-focus-offset: 2px;
+}
+.item-number-control::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  border: 1px solid var(--number-border);
+  border-radius: inherit;
+  background: var(--number-background);
+  pointer-events: none;
+  z-index: -1;
+}
+.item-number-control > input[type="number"],
+.item-number-control > input[type="number"]:focus-visible,
+.hub-scene .item-number-control > input[type="number"],
+.hub-scene .item-number-control > input[type="number"]:focus-visible {
+  background: transparent;
+  border-color: transparent;
+  outline: none;
+  box-shadow: none;
+  margin: 0;
+}
+.item-number-control:has(> input:focus-visible)::before {
+  outline: 2px solid var(--number-focus);
+  outline-offset: var(--number-focus-offset);
+}
+.hub-scene .item-number-control:has(> input:focus-visible)::before {
+  box-shadow: 0 0 0 6px #fff;
+}
+@media (forced-colors: active) {
+  .item-number-control::before {
+    display: none;
+  }
+  .item-number-control > input[type="number"],
+  .hub-scene .item-number-control > input[type="number"] {
+    background: var(--number-background);
+    border-color: var(--number-border);
+  }
+  .item-number-control > input[type="number"]:focus-visible,
+  .hub-scene .item-number-control > input[type="number"]:focus-visible {
+    background: var(--number-background);
+    border-color: var(--number-border);
+    outline: 2px solid var(--number-focus);
+    outline-offset: var(--number-focus-offset);
+  }
+}

@@ -810,6 +810,9 @@ export function validateBindings(manifest, graph, { complete = true } = {}) {
   if (!Array.isArray(manifest.targets) || !manifest.targets.length) errors.push("Expected nonempty targets");
   if (!Array.isArray(manifest.components)) errors.push("Expected components inventory");
   if (!Array.isArray(manifest.targets) || !Array.isArray(manifest.components)) return errors;
+  if (manifest.assets !== undefined && !Array.isArray(manifest.assets)) errors.push("Expected assets inventory");
+  const assets = new Map();
+  const assetNodes = new Set();
   const inventory = new Map();
   const registeredNodes = new Map();
   const componentNodes = new Map();
@@ -838,6 +841,28 @@ export function validateBindings(manifest, graph, { complete = true } = {}) {
       }
     }
   }
+  for (const asset of Array.isArray(manifest.assets) ? manifest.assets : []) {
+    if (!object(asset)) {
+      errors.push("Expected asset inventory entry");
+      continue;
+    }
+    if (typeof asset.id !== "string" || !asset.id.length || assets.has(asset.id) || inventory.has(asset.id))
+      errors.push(`Duplicate or missing asset id: ${asset.id}`);
+    assets.set(asset.id, asset);
+    if (typeof asset.source !== "string" || !asset.source.length) errors.push(`Missing asset source: ${asset.id}`);
+    if (!Array.isArray(asset.nodes) || !asset.nodes.length) errors.push(`Missing asset nodes: ${asset.id}`);
+    for (const reference of Array.isArray(asset.nodes) ? asset.nodes : []) {
+      try {
+        const node = resolveFigmaNode(graph, reference);
+        if (registeredNodes.has(node.id)) errors.push(`Asset node registered more than once: ${node.id}`);
+        registeredNodes.set(node.id, asset.id);
+        assetNodes.add(node.id);
+        if (node.type !== "COMPONENT") errors.push(`Expected native asset COMPONENT: ${node.id}`);
+      } catch (error) {
+        errors.push(`${asset.id}: ${error.message}`);
+      }
+    }
+  }
   const ids = new Set();
   for (const target of manifest.targets ?? []) {
     const label = target.id ?? "(missing id)";
@@ -853,6 +878,8 @@ export function validateBindings(manifest, graph, { complete = true } = {}) {
     } catch (error) {
       errors.push(`${label}: ${error.message}`);
     }
+    if (assets.has(target.component) || assetNodes.has(node?.id) || assetNodes.has(captureSource?.id))
+      errors.push(`Design assets must not be comparison targets: ${label}`);
     if (node && target.kind === "component" && node.type !== "COMPONENT")
       errors.push(`Component target must reference a native COMPONENT: ${label}`);
     else if (node && target.kind === "screen" && !["FRAME", "COMPONENT"].includes(node.type))
@@ -888,7 +915,9 @@ export function validateBindings(manifest, graph, { complete = true } = {}) {
       const identities = new Set();
       for (const cover of target.covers ?? []) {
         try {
+          if (assets.has(cover.component)) throw new Error("Design assets must not be covered components");
           const resolved = resolveCompositeComponent(graph, target, cover);
+          if (assetNodes.has(resolved.main.id)) throw new Error("Design assets must not be covered components");
           const component = inventory.get(cover.component);
           if (!component || !componentNodes.get(cover.component)?.has(resolved.main.id))
             throw new Error("Covered main is not registered to the declared component responsibility");

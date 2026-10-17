@@ -1,9 +1,10 @@
-import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { PNG } from "pngjs";
 import { afterEach, expect, it } from "vitest";
 import { comparePNG } from "./compare-png.mjs";
+import { exportDesignAssets } from "./export-design-assets.mjs";
 import {
   assertCompositeCoverage,
   assertDesignBrowserScreen,
@@ -350,6 +351,118 @@ function contract() {
   };
   return { graph, manifest };
 }
+
+function addArtwork(manifest, graph) {
+  graph.getAllNodes().push({ id: "artwork", type: "COMPONENT", name: "Artwork", parentId: "page" });
+  manifest.assets = [{ id: "artwork", source: "public/assets/artwork.png", nodes: [{ path: ["Screens", "Artwork"] }] }];
+}
+
+it("registers editable artwork without requiring comparison states and keeps UI coverage strict", () => {
+  const { graph, manifest } = contract();
+  addArtwork(manifest, graph);
+  graph.getAllNodes().push({
+    id: "placed-artwork",
+    type: "INSTANCE",
+    name: "Artwork instance",
+    componentId: "artwork",
+    parentId: "button-default",
+  });
+  expect(validateBindings(manifest, graph)).toEqual([]);
+  manifest.targets.pop();
+  expect(validateBindings(manifest, graph)).toEqual(
+    expect.arrayContaining([
+      "Unverified native component/variant: button-hover",
+      "Unverified implemented state: button/hover",
+    ]),
+  );
+  graph.getAllNodes().push({ id: "unregistered-ui", type: "COMPONENT", name: "New UI", parentId: "page" });
+  expect(validateBindings(manifest, graph)).toContain("Unregistered native component: unregistered-ui New UI");
+});
+
+it("rejects assets as direct comparison targets or covered component responsibilities", () => {
+  const { graph, manifest } = contract();
+  addArtwork(manifest, graph);
+  const target = structuredClone(manifest.targets[1]);
+  Object.assign(target, { id: "asset-target", component: "artwork", figma: { path: ["Screens", "Artwork"] } });
+  manifest.targets.push(target);
+  expect(validateBindings(manifest, graph)).toContain("Design assets must not be comparison targets: asset-target");
+  target.kind = "screen";
+  expect(validateBindings(manifest, graph)).toContain("Design assets must not be comparison targets: asset-target");
+  manifest.targets.pop();
+  manifest.targets[0].covers = [{ component: "artwork" }];
+  expect(validateBindings(manifest, graph)).toContain("home: Design assets must not be covered components");
+});
+
+it("rejects malformed asset inventories and duplicate component or asset ownership", () => {
+  const { graph, manifest } = contract();
+  manifest.assets = {};
+  expect(validateBindings(manifest, graph)).toContain("Expected assets inventory");
+  manifest.assets = [null, { id: "broken" }];
+  expect(validateBindings(manifest, graph)).toEqual(
+    expect.arrayContaining([
+      "Expected asset inventory entry",
+      "Missing asset source: broken",
+      "Missing asset nodes: broken",
+    ]),
+  );
+  addArtwork(manifest, graph);
+  manifest.assets.push(structuredClone(manifest.assets[0]));
+  expect(validateBindings(manifest, graph)).toEqual(
+    expect.arrayContaining(["Duplicate or missing asset id: artwork", "Asset node registered more than once: artwork"]),
+  );
+  manifest.assets.pop();
+  manifest.assets[0].id = "button";
+  manifest.assets[0].nodes = [{ path: ["Screens", "state=default"] }];
+  expect(validateBindings(manifest, graph)).toEqual(
+    expect.arrayContaining([
+      "Duplicate or missing asset id: button",
+      "Asset node registered more than once: button-default",
+    ]),
+  );
+  manifest.assets[0].nodes = [{ path: ["Screens", "Home"] }, { path: ["Screens", "Missing"] }];
+  expect(validateBindings(manifest, graph)).toEqual(
+    expect.arrayContaining([
+      "Expected native asset COMPONENT: screen",
+      'button: Expected one Figma path step ["Screens","Missing"]; found 0',
+    ]),
+  );
+});
+
+it("exports only explicitly inventoried SVG assets and preserves the ordinary exporter bytes", async () => {
+  const path = await mkdtemp(join(tmpdir(), "design-assets-"));
+  temporary.push(path);
+  await mkdir(join(path, "packages/core/dist"), { recursive: true });
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0L1 1"/></svg>\n';
+  await writeFile(
+    join(path, "packages/core/dist/index.js"),
+    `
+    const main = {id:"artwork",source:{id:"artwork"},type:"COMPONENT",exportSettings:[{format:"svg"}]};
+    export const parseFigFile = async () => ({getAllNodes:()=>[main]});
+    export const svgFormat = {exportContent:async()=>({data:${JSON.stringify(svg)}})};
+  `,
+  );
+  const document = join(path, "design.fig"),
+    bindings = join(path, "bindings.json");
+  await writeFile(document, "test document");
+  const asset = { id: "artwork", source: "public/assets/artwork.svg", nodes: [{ sourceId: "artwork" }] };
+  const manifest = {
+    document,
+    assets: [asset, { id: "photo", source: "public/assets/photo.png", nodes: [{ sourceId: "photo" }] }],
+    components: [{ id: "ui", source: "public/assets/must-not-export.svg", nodes: [{ sourceId: "missing" }] }],
+  };
+  await writeFile(bindings, JSON.stringify(manifest));
+  const report = await exportDesignAssets(path, { bindings, output: path });
+  expect(report.assets).toEqual([
+    expect.objectContaining({ asset: "artwork", filename: "public/assets/artwork.svg", bytes: Buffer.byteLength(svg) }),
+  ]);
+  expect(await readFile(join(path, "public/assets/artwork.svg"), "utf8")).toBe(svg);
+  expect(await readdir(join(path, "public/assets"))).toEqual(["artwork.svg"]);
+  asset.source = "public/assets/../../escape.svg";
+  await writeFile(bindings, JSON.stringify(manifest));
+  await expect(exportDesignAssets(path, { bindings, output: path })).rejects.toThrow(
+    "project-relative public/assets path",
+  );
+});
 
 it("captures a saved instance of the registered main without substituting another component", () => {
   const { graph, manifest } = contract();

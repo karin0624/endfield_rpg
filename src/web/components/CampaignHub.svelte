@@ -82,21 +82,23 @@ function trap(event: KeyboardEvent) {
           </div>
           <div class="quantity">
             <label
-              >持込む個数<input
-                class="item-carry-input"
-                required
-                aria-label="HP回復品の持込み個数"
-                type="number"
-                min="0"
-                max={hub.carry.stock}
-                step="1"
-                value={hub.carry.quantity ?? ""}
-                oninput={(e) =>
+              >持込む個数<span class="item-number-control item-carry-control"
+                ><input
+                  class="item-carry-input"
+                  required
+                  aria-label="HP回復品の持込み個数"
+                  type="number"
+                  min="0"
+                  max={hub.carry.stock}
+                  step="1"
+                  value={hub.carry.quantity ?? ""}
+                  oninput={(e) =>
   send({
     type: "carry-changed",
     quantity: Number.isNaN(e.currentTarget.valueAsNumber) ? null : e.currentTarget.valueAsNumber,
   })}
-                onfocus={() => send({ type: "focused", target: { kind: "carry" } })}
+                  onfocus={() => send({ type: "focused", target: { kind: "carry" } })}
+                ></span
               ></label
             >
           </div>

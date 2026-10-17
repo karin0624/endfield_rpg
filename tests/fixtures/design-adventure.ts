@@ -92,24 +92,4 @@ export const cases: Record<string, DesignCase> = {
   dialogue(root, props) {
     return render(root, props, ".dialogue-panel");
   },
-  portrait(root, props) {
-    const id = text(props, "id", "rossi");
-    const position = text(props, "position", "center");
-    if (!["left", "center", "right"].includes(position)) throw new Error(`Unknown portrait position: ${position}`);
-    return render(
-      root,
-      {
-        ...props,
-        portraits: [
-          {
-            id,
-            position,
-            speaking: props.speaking !== false,
-            path: text(props, "path", `characters/${id}/expressions/${text(props, "expression", "neutral")}.png`),
-          },
-        ],
-      },
-      ".conversation-portrait",
-    );
-  },
 };

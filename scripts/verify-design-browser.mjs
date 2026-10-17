@@ -1248,6 +1248,25 @@ async function captureImplementation({ name, target, padding }) {
     await ready(page);
     result.animationPreparation = await prepareCapture(page, target.capture?.background, target.capture?.animations);
     await observeImplementationState(page, target, result);
+    // Initialize layout and compositor diagnostics before holding a native control.
+    // Native spinner auto-repeat must not advance while this setup runs.
+    if (result.bounds)
+      result.layoutInitialization = await initializeComponentLayout(
+        page,
+        target.capture.selector,
+        result.subjectEnvironment.platformControl,
+      );
+    result.paintInitialization = await initializePaint(
+      page,
+      target.capture?.selector,
+      result.bounds?.paintContexts,
+      target.capture?.anchor ?? target.capture?.selector,
+      target.covers,
+    );
+    for (const context of result.bounds?.paintContexts ?? [])
+      context.compositing = result.paintInitialization.cameraBackings.find(
+        (backing) => backing.depth === context.depth,
+      );
     if (deferredPress) {
       pressedElement = await page.locator(deferredPress.selector).evaluateHandle((element) => element);
       const started = performance.now();
@@ -1269,23 +1288,6 @@ async function captureImplementation({ name, target, padding }) {
       };
     }
     if (result.errors.length) throw new Error(result.errors.join("\n"));
-    if (result.bounds)
-      result.layoutInitialization = await initializeComponentLayout(
-        page,
-        target.capture.selector,
-        result.subjectEnvironment.platformControl,
-      );
-    result.paintInitialization = await initializePaint(
-      page,
-      target.capture?.selector,
-      result.bounds?.paintContexts,
-      target.capture?.anchor ?? target.capture?.selector,
-      target.covers,
-    );
-    for (const context of result.bounds?.paintContexts ?? [])
-      context.compositing = result.paintInitialization.cameraBackings.find(
-        (backing) => backing.depth === context.depth,
-      );
     const sourceComposites = await observeSourceComposites(page, target, result.paintInitialization.caretLayers);
     result.composites = (target.covers ?? []).map((cover, index) => ({
       component: cover.component,

@@ -1,4 +1,4 @@
-import { mount, tick } from "svelte";
+import { tick } from "svelte";
 import { characters } from "../../src/content/characters";
 import { growthRules } from "../../src/content/growthRules";
 import { initialAdventure } from "../../src/content/initialAdventure";
@@ -12,7 +12,6 @@ import { effectiveMaxHp, healthyStatus } from "../../src/game/status";
 import { reduceCharacterDetails } from "../../src/presentation/characterDetails";
 import { createPartyModel, type PartyModel } from "../../src/presentation/partyModel";
 import { projectParty } from "../../src/presentation/partyProjection";
-import Portrait from "../../src/web/components/Portrait.svelte";
 import { createPartyView } from "../../src/web/partyView.svelte.ts";
 import type { DesignCase } from "./design-view";
 
@@ -115,9 +114,6 @@ async function paint(root: HTMLElement, props: Record<string, unknown>, panel: "
   }
   view.render(projectParty(snapshot));
   await tick();
-  if (props.backgroundOnly) {
-    for (const child of root.children) (child as HTMLElement).style.visibility = "hidden";
-  }
   if (typeof props.isolate === "string") {
     const target = root.querySelector<HTMLElement>(props.isolate);
     if (!target) throw new Error(`Party design part not found: ${props.isolate}`);
@@ -141,47 +137,9 @@ async function paint(root: HTMLElement, props: Record<string, unknown>, panel: "
 }
 
 export const cases: Record<string, DesignCase> = {
-  artwork(root, props) {
-    const filename = String(props.filename);
-    if (
-      ![
-        "name-rule.svg",
-        "card-metal.svg",
-        "card-selected.svg",
-        "selection-panel.svg",
-        "selection-footer.svg",
-        "amber-etching.svg",
-        "empty-slot-rule.svg",
-      ].includes(filename)
-    )
-      throw new Error(`Unknown Party vector asset: ${filename}`);
-    root.style.padding = "32px";
-    const image = document.createElement("img");
-    image.className = "design-party-artwork";
-    image.src = `/assets/ui/${filename}`;
-    image.width = Number(props.width);
-    image.height = Number(props.height);
-    image.style.display = "block";
-    root.append(image);
-  },
   screen: (root, props) => paint(root, props, "formation"),
-  background: (root, props) => paint(root, { ...props, backgroundOnly: true }, "formation"),
   selection: (root, props) => paint(root, props, "selection"),
   details: (root, props) => paint(root, props, "details"),
-  portrait(root, props) {
-    const id = props.characterId === "gilberta" ? "gilberta" : "rossi";
-    root.style.cssText = "width:1088px;height:1600px;padding:32px";
-    mount(Portrait, {
-      target: root,
-      props: {
-        path: props.fallback ? undefined : `characters/${id}/expressions/neutral.png`,
-        characterId: id,
-        generation: 0,
-        failed: () => {},
-        imageClass: "",
-      },
-    });
-  },
   "ui-button"(root, props) {
     root.className = "ui-screen";
     root.style.padding = "32px";
@@ -192,17 +150,5 @@ export const cases: Record<string, DesignCase> = {
     if (typeof props.width === "number") button.style.width = `${props.width}px`;
     if (typeof props.height === "number") button.style.height = `${props.height}px`;
     root.append(button);
-  },
-  "ui-heading"(root, props) {
-    root.className = "ui-screen";
-    root.style.padding = "32px";
-    const header = document.createElement("header");
-    header.className = "ui-heading";
-    header.style.width = "500px";
-    const title = document.createElement("h2");
-    title.className = "ui-title";
-    title.textContent = String(props.title ?? "ロッシ");
-    header.append(title);
-    root.append(header);
   },
 };

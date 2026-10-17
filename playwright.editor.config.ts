@@ -1,7 +1,7 @@
 import { defineConfig } from "@playwright/test";
-import config, { editorProjects, viewServer } from "./playwright.config";
+import config, { editorProjects } from "./playwright.config";
 
-// Developer-only detail checks run when editors, authored settings or HMR change.
+// Developer-only Native WebGL resource checks; editor appearance is not a visual contract.
 export default defineConfig({
   ...config,
   outputDir: "test-results/editor",
@@ -11,5 +11,5 @@ export default defineConfig({
     ["json", { outputFile: "test-results/playwright-editor.json" }],
   ],
   projects: editorProjects,
-  webServer: [viewServer],
+  webServer: [],
 });

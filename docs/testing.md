@@ -31,7 +31,7 @@ Node.jsは `.nvmrc` の24系、ブラウザは `mcr.microsoft.com/playwright:v1.
 | `npm run typecheck` | `svelte-check --tsgo`によるTS・Svelteテンプレートの検査。TypeScript 7のnative checkerを使い、警告も失敗にする |
 | `npm run check` | Biome・型・素材検査・現在の通常minified build・全Vitest／V8 coverage／発見と実行の照合。ブラウザなし |
 | `npm run test:browser` | ゲーム本体CIの全工程。checkに続けて異なるdebug／直接view入口を各一度buildし、views／rendererの直接VRT・Native資源検証・native V8を一回実行し、既存結果から品質summaryを生成 |
-| `npm run test:editor` | checkとview build、開発者専用の直接構図VRT・Native HMRを必要時に全実行 |
+| `npm run test:editor` | checkと開発時のNative HMR資源検証を必要時に実行 |
 | `npm run test:all` | check・必要な3build・既定とeditorの全projectを同じ一回の直列ブラウザ実行で確認 |
 | `npm run review:party` | UI変更時の画像レビュー用。直近の4状態の実撮影と承認資料を同解像度で直接比較し、raw diff・overlay・数値を明示生成（Python／Pillowが必要） |
 
@@ -47,7 +47,7 @@ CIは固定コンテナの単一jobで`npm ci`後に`test:browser:inside`を実�
 
 通常 `dist/` の初期タイトル、debug `dist-debug/` の初期戦闘を実際に描く。attack／healのFXは同じrendererの実地形を保持し、実コアから別々の直接snapshot・BattleScene・UIを生成して既存6画像を比較する。editorの初期2対2はconstructorの準備済み構図を使い、人数変更とresizeだけを再描画する。任意の画面状態は標準Viteの[multi-page build](https://vite.dev/guide/build.html#multi-page-app)で `dist-views/` へ生成する。同じ標準minifierを使い、通常配布へfixtureを混入しない。3出力は異なる実入口の検証であり、coverage専用の解析buildではない。通常4173、debug4175、直接view4174。viewの実 `BASE_URL=/rpg/` で素材を取得し、非root専用buildやURL書換えを重ねない。
 
-開発エディター・標準構図・HMR変更時は `tests/editor/` も必要になる。低頻度の詳細操作は純粋モデルで、構図と会話の見た目は必要時VRTで担う。単独control構図は条件ごとに独立caseとfresh rendererを生成し、default更新後の次BattleSceneへの設定引継ぎも確認する。editor-viewsの各caseは独立pageを持ち、Playwrightの標準 `fullyParallel` でcase単位に割り当てられる。worker数が1なら直列に実行する。同じsceneの内部／preview更新では既存の画面状態とviewを保持し、準備完了や初期選択をやり直さない。四隅の構図VRTは最初だけrendererを生成し、次の構図は同じ地面へ設定を適用して次BattleSceneとUIを生成する。4枚の同じ基準画像を保ち、共通地形の再importとshader準備を反復しない。初期設定をconstructorへ渡す保証は独立した5つの単独control構図に残す。任意四隅・内部／previewは必要時、本編のPC／mobile・既知素材と材質fallbackは既定に残す。通常結果へskipとして混ぜない。
+開発エディターの状態・設定反映・保存失敗はモデルとAPI境界で検証し、Native HMRと資源寿命は`tests/editor/renderer/`で検証する。エディタ画面・構図のVRTは設けず、Figmaでも管理しない。本編のPC／mobile・既知素材と材質fallbackの直接VRTは通常ゲームの検査として残す。
 
 ## Coverageと実行漏れ
 
@@ -104,3 +104,19 @@ GPUを含むframe費用は実rAF間隔とtraceを合わせて評価する。Swif
 デザインマスターと実装の同期は、[OpenPencilの共通比較](../README.md#openpencilでデザインマスターを編集する)も全件実行する。`npm run openpencil:verify`は対応表に登録した画面と部品の全状態を通常の原稿出力・実viewで撮影し、全RGBAの差分0を要求する。部分実行や未登録のvariantを残した実行は完了の証拠にしない。戦闘はHUDや操作ボタンなどのUI部品を対象とし、3D画面全体や戦闘エフェクトは対象に含めない。
 
 文書だけの変更は、差分が文書に限られること、リンク・見出し、要求・仕様・設計・制作手順の整合を確認する。規則の変更では既知の失敗案を引き続き棄却できるか確かめる。製品source・CSS・素材・golden・テスト設定を変えなければ、ゲーム全suiteや新しい画像承認は不要。
+
+実装中は必要な短い検証で原因と費用を確認する。提出前はsourceを固定し、check・必要な全直接VRT・資源検証・editorをローカルで完走する。代表数件だけで全件をCIへ委ねない。source／LFS実体／CSS・素材・goldenの前後一致、正確なhead／tree、開始・終了・shutdown、実runnerのworker設定、層別時間、failure／retry別記を残す。GitHub権限・required checks・Actions固有のrunner条件等、ローカルで不可能な条件だけを理由付き例外とする。
+
+ゲーム本体CI対象（`npm run test:browser`）の時間条件は、品質を維持したローカル全工程が起動から終了まで5分以内、または同品質で5分以内にできない明確な根拠が成立すること。条件の充足を実測と検討結果で示し、未確認点を残したまま達成扱いにしない。開発時の`editor-resources`はこの判定へ含めず、`npm run test:editor`で必要時に明示実行する。`test:all`は両scopeを検証するコマンドであり、5分の判定対象ではない。部分成功、実描画が多い事実、未測定の推測を不可避の根拠へ置き換えない。公開・マージはユーザー判断に従う。
+
+実runner固有のreport生成・古いJSONの再利用拒否・list-onlyは実CLIで検証する。未登録ファイル、部分結果、coverage欠落はその実reportを入力として実行照合を検証し、同じfixtureを再実行して準備を重複させない。ケース別coverage annotationには回収のwall msを含め、ブラウザcase全体や終了時の集計費用と区別する。共有fixtureは実初期viewport／DPR、標準CDPのGPU deviceと共有page fixture内のprocess CPU累積値も記録する。CPU累積値は全threadの消費量であり、GPU elapsedや排他的なcase CPU時間と扱わない。
+
+VRTは既存画像との回帰を検出し、絶対コントラストやWCAG全体への適合を保証しない。画像背景・半透明・halo上の文字と重要な非文字の読取りは、実際の合成結果と適用条件を別途確認する。設計上の目標、現在のassertion、未確認の範囲を混同しない。
+
+自動検査は自然言語仕様の完全性やassertionの意味を証明しない。レビューでは、公開入力・独立した期待結果・担当層・旧保証の移行先・未確認事項を具体的に読む。
+
+実装と必要な全ローカル検証後に、Codexがpush・通常PRの作成を行う。その後、実装会話を継承しない新しいsubagentを起動し、独立レビューを依頼する。レビュアーはPRの正確なbase／headを確認し、対応するコード・仕様・テスト・依存関係を直接調査する。作業treeを読む場合は対象headと一致させる。親は読取範囲を限定せず、実装担当の自己確認だけで済ませない。
+
+指摘の根拠と実害から必要な修正を選び、再検証・PR更新後のheadを再レビューする。最終headのCI、レビュー結果、未解決事項、現在の許可を確認してマージする。
+
+複雑なPRでChatGPT Proへ補助レビューを依頼する場合は、新しいセッションで対象コードを直接調査させ、回答の根拠を確認する。これは独立subagentのレビューとは別に扱う。マージ担当は、その時点のmain保護・required checks・権限も確認する。設定で強制される条件と運用で確認する条件を分け、CI成功だけで仕様の充足・画像の承認・レビュー判断を代用しない。

@@ -20,18 +20,21 @@ export async function exportDesignAssets(
   });
   const assets = [];
   const names = new Set();
-  for (const component of manifest.components ?? []) {
-    const filename = component.source;
+  if (!Array.isArray(manifest.assets)) throw new Error("Expected assets inventory");
+  for (const asset of manifest.assets) {
+    if (!asset || typeof asset.id !== "string" || !asset.id.length || typeof asset.source !== "string")
+      throw new Error("Expected asset id and source");
+    const filename = asset.source;
     if (typeof filename !== "string" || !filename.endsWith(".svg")) continue;
     if (!filename.startsWith("public/assets/") || posix.normalize(filename) !== filename || filename.includes("\\"))
       throw new Error(`SVG asset must use a project-relative public/assets path: ${filename}`);
-    if (names.has(filename) || component.nodes.length !== 1)
+    if (names.has(filename) || asset.nodes?.length !== 1)
       throw new Error(`SVG asset must have one registered main and one output: ${filename}`);
     names.add(filename);
-    const main = resolveFigmaNode(graph, component.nodes[0]);
+    const main = resolveFigmaNode(graph, asset.nodes[0]);
     if (main.type !== "COMPONENT" || !main.exportSettings.some((setting) => setting.format === "svg"))
       throw new Error(`SVG asset requires an ordinary component with an SVG export preset: ${filename}`);
-    const options = component.svgExport ?? { preserveAspectRatio: "none" };
+    const options = asset.svgExport ?? { preserveAspectRatio: "none" };
     if (
       !options ||
       typeof options !== "object" ||
@@ -46,7 +49,7 @@ export async function exportDesignAssets(
     if (typeof exported.data !== "string" || exported.assets?.length)
       throw new Error(`Expected one standalone SVG artifact: ${filename}`);
     assets.push({
-      component: component.id,
+      asset: asset.id,
       filename,
       svgExport: options,
       bytes: Buffer.byteLength(exported.data),
