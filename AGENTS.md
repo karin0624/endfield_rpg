@@ -6,10 +6,10 @@
 | 環境構築・実行 | [README](README.md) |
 | Git同期・認証・LFS取得 | [Git認証skill](.agents/skills/endfield-git-auth/SKILL.md) |
 | UI設計・変更 | [画面設計](docs/ui-screen-design.md)、[共通デザイン](docs/design-guidelines.md)、[制作手順](docs/ui-asset-production.md) |
-| 検証・PR・レビュー | [テスト設計](docs/testing.md) |
+| 検証・PR・レビュー | [テスト設計](docs/testing.md)、[reviewer定義](.codex/agents/reviewer.toml) |
 
 - 開発段階ではセーブを含む後方互換・旧データ移行は不要。旧形式は明示的に拒否し、既存データを自動削除しない。
-- 既存ライブラリ・設定・設計を見直し、自作範囲を減らす。現在の要求に必要な実装と仕様保証を残し、将来用の機能や抽象化を追加しない。
+- 保守負担の小さい設計を選び、不要な自作・将来用の機能や抽象化を増やさない。テスト整理では仕様保証を失わない。
 - 検証と例外処理は、変更の影響と現実的な失敗に合わせる。テストは公開入力・結果・状態遷移を、実装から独立した期待値で確認する。
 - TS・JS・Svelte・CSS・JSONを変更したら`npm run check`を実行する。影響するブラウザ検証と、提出前の全ローカル検証・独立レビュー・最終CI確認は[テスト設計](docs/testing.md#外観と提出前検証)に従う。
 - 仕様を変えたら`specs/`・実装・テストを整合させ、結果と未確認事項を報告する。
