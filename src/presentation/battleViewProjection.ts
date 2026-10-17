@@ -18,6 +18,29 @@ import { battleActionText } from "./battleProjection";
 import { formatAmount, loadSymptomText, mentalFatigueText, symptomNames } from "./statusText";
 import { projectSymptoms } from "./symptomProjection";
 
+export function projectBattleSceneStatus(scene: BattleModel["scene"]) {
+  const ready = scene.status === "ready";
+  const error = scene.status === "error";
+  return {
+    ready,
+    error,
+    text: ready
+      ? "表示準備完了"
+      : error
+        ? "戦闘画面を読み込めませんでした。素材とWebGL対応を確認して、再読み込みしてください。"
+        : "戦闘画面を読み込んでいます…",
+    reason: scene.reason,
+  };
+}
+
+export function battleNeedsAnimation(state: BattleModel, input: BattleInput): boolean {
+  return (
+    state.scene.status === "ready" &&
+    (state.playback.phase !== "finished" ||
+      (battleMarkerTarget(state, input) !== null && !state.playback.reducedMotion))
+  );
+}
+
 const appearances: Readonly<Record<string, { readonly name: string; readonly portrait: string }>> = {
   player: { name: "ロッシ", portrait: "characters/rossi/face.png" },
   gilberta: { name: "ギルベルタ", portrait: "characters/gilberta/face.png" },

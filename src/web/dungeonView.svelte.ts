@@ -1,7 +1,7 @@
 import { flushSync, mount, unmount } from "svelte";
-import { battleMarkerTarget } from "../presentation/battleModel";
 import { projectBattleActors } from "../presentation/battleProjection";
 import { parseBattleSettings } from "../presentation/battleSettings";
+import { battleNeedsAnimation, projectBattleSceneStatus } from "../presentation/battleViewProjection";
 import {
   type DungeonEffect,
   type DungeonEvent,
@@ -35,21 +35,7 @@ export function createDungeonView(root: HTMLDivElement, send: (event: DungeonEve
   let chrome = $derived(model ? presentation.frame : frame);
   let battleSceneState = $derived(model?.value === "battle" ? (model.context.battle?.scene ?? null) : null);
   let status = $derived(
-    model
-      ? battleSceneState
-        ? {
-            ready: battleSceneState.status === "ready",
-            error: battleSceneState.status === "error",
-            text:
-              battleSceneState.status === "ready"
-                ? "表示準備完了"
-                : battleSceneState.status === "error"
-                  ? "戦闘画面を読み込めませんでした。素材とWebGL対応を確認して、再読み込みしてください。"
-                  : "戦闘画面を読み込んでいます…",
-            reason: battleSceneState.reason,
-          }
-        : null
-      : (frame?.battle?.status ?? null),
+    model ? (battleSceneState ? projectBattleSceneStatus(battleSceneState) : null) : (frame?.battle?.status ?? null),
   );
   const component = mount(Dungeon, {
     target: root,
@@ -154,11 +140,7 @@ export function createDungeonView(root: HTMLDivElement, send: (event: DungeonEve
         });
         view.renderModel(battle, battleInput);
       }
-      clock(
-        battle?.scene.status === "ready" &&
-          (battle.playback.phase !== "finished" ||
-            (battleMarkerTarget(battle, battleInput) !== null && !battle.playback.reducedMotion)),
-      );
+      clock(battle ? battleNeedsAnimation(battle, battleInput) : false);
     },
     dispose() {
       closeScene();

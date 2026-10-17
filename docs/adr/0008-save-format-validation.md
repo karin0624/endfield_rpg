@@ -8,7 +8,7 @@
 
 ## 判断
 
-承認済みの整理方針に従い、Valibotのstrict object・strict tuple・variantで現行JSONの形式を一度検査する。共通の数値制約だけを共有し、保存schemaは各責務のmoduleに置く。形式から推論した型を復元処理へ直接渡し、自作validatorや汎用adapterは設けない。
+Valibotのstrict object・strict tuple・variantで現行JSONの形式を一度検査する。共通の数値制約だけを共有し、保存schemaは各責務のmoduleに置く。形式から推論した型を復元処理へ直接渡し、自作validatorや汎用adapterは設けない。
 
 装備定義・所有・枠対応・排他割当て、成長補正・習得元・保証技・消費権利、加入・PT・HP上限・時計の整合はdomain復元で確認する。これらを構造schemaへ埋め込む案は、保存形式とゲーム規則の責務を混ぜるため採らない。HP・症状・疲労・乱数・成長計算は純粋TypeScriptを維持する。
 
@@ -16,4 +16,4 @@
 
 ## 結果
 
-保存の公開拒否理由と安定した街保存の範囲を保ち、壊れた入力でゲームを復元しない。外部I/Oは確定済みbytesだけを扱う既存の境界に残す。追加依存とschema処理の費用が生じるため、通常minified buildと既存品質ゲートで検証する。
+保存の公開拒否理由とホーム保存の範囲を保ち、壊れた入力でゲームを復元しない。外部I/Oは確定済みbytesだけを扱う既存の境界に残す。追加依存とschema処理の費用が生じるため、通常minified buildと既存品質ゲートで検証する。

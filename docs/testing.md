@@ -1,10 +1,10 @@
 # テスト設計と実行
 
-仕様の正本は `specs/`。デザインガイドラインは設計指針であり、実装仕様・必須テスト・マージ条件とは区別する。品質維持とは必要な実装仕様の保証を保つことで、assertion・ケース件数・ファイル構造の不変を意味しない。同じ保証を実証できる統合・移動・書換え・削除を認める。
+仕様は`specs/`に定める。同じ入力と結果を保証できれば、テストの統合・移動・書換え・削除を認める。件数やファイル構成を維持すること自体を目的にしない。
 
 ## 責務と観測結果
 
-ゲーム規則と画面の状態・入力・focus・dialog・演出はブラウザ非依存の明示状態と意味イベントで扱う。イベントを現在状態へ同期適用してから次のイベントを受ける。A→B→Aと戻った後の有効入力も受理し、クリック回数・時間窓・直前履歴・汎用ID台帳で抑止しない。外部I/Oは状態確定後に開始し、完了結果を意味イベントとして適用する。
+ゲームと画面モデルの公開入力・結果を検証する。現在状態への同期適用、A→B→Aの往復後の再入力、commit後の外部I/Oと同期・遅着完了も対象とする。
 
 | 層 | 保証する結果 |
 | --- | --- |
@@ -35,11 +35,11 @@ Node.jsは `.nvmrc` の24系、ブラウザは `mcr.microsoft.com/playwright:v1.
 | `npm run test:all` | check・必要な3build・既定とeditorの全projectを同じ一回の直列ブラウザ実行で確認 |
 | `npm run review:party` | UI変更時の画像レビュー用。直近の4状態の実撮影と承認資料を同解像度で直接比較し、raw diff・overlay・数値を明示生成（Python／Pillowが必要） |
 
-CIは固定コンテナの単一jobで `npm ci` の後に `test:browser:inside` を実行する。checkで作った通常配布を同じworkspaceから使い、job間の配布受渡し・結果保存artifactは設けない。ローカルの `test:browser` も同じ `run-game-quality.sh` をworkspace所有者で実行する。従来の単体coverage閾値、全git spec／無filter collection／実行・全project・各case coverage照合を維持する。結果とrevision、失敗・skip・retry・global error、0-hit込みのsource数とcoverageをログへ出し、Actionsではjob summaryにも残す。summaryは既存JSONを読み取るだけで、テスト・coverage変換・実行gateを再実行しない。生成JSON・画像・trace・mapは同じローカルworkspaceで確認できる。失敗前に未生成のreportを成功に数えず、旧runner reportを消してから開始し、summary処理の成否で元の品質失敗を成功へ変えない。
+CIは固定コンテナの単一jobで`npm ci`後に`test:browser:inside`を実行する。ローカルも同じ`run-game-quality.sh`をworkspace所有者で使い、通常buildをその場で再利用する。結果・revision・失敗・skip・retry・global errorと、0-hitを含むsource数・coverageをログとActions summaryへ残す。summaryは既存JSONを読むだけで、品質検証を再実行せず、元の失敗を成功へ変えない。JSON・画像・trace・mapは同じworkspaceで確認する。
 
-承認資料のraw比較は人が評価する診断であり、既存goldenとの正式VRT合否やWCAG適合とは区別する。UI変更時に必要な画像レビューは[UI開発の必須ゲート](ui-asset-production.md#ui開発の必須ゲート)を満たす。通常CIにはこの診断と専用のPillow導入を含めず、撮影後にPython／Pillow環境で `npm run review:party` を明示実行する。既定で28枚の原画・実画面・overlay／差分・領域PNGと4状態のJSONを `test-results/approved-comparison/` へ生成する。数値だけが必要な診断では `npm run review:party -- --metrics-only` を使える。全画素・注記領域・診断領域の差分、寸法、hashと診断コードは保持する。
+固定版とのraw比較は撮影後にPython／Pillow環境で`npm run review:party`を明示実行する。全体・注記領域・診断領域のdiff、原画・実画面・overlay、寸法・hash・JSONを`test-results/approved-comparison/`へ生成する。数値だけなら`--metrics-only`を指定する。通常CIには含めず、[制作手順](ui-asset-production.md#ui開発の必須ゲート)の画像レビューに使う。
 
-コンテナ内では対応する `:inside` scriptを使う。`test:browser`／`test:all` はcheckが作った通常配布を共用し、素材・型の前処理を後続buildで反復しない。単独の `build`／`build:debug`／`build:views` は前処理を含む。Vitestのfile並列設定は変更しない。check・必要build・Native・終了時集計の工程順を保ち、gameのNativeだけ共有entryで既定 `--workers=2` を渡す。Playwrightのfile単位の標準配分を使い、gameへ `fullyParallel` は追加しない。`test:editor`／`test:all`の既定はconfigの1workerを保持する。`npm run test:browser -- --workers=1` は後続CLI引数として優先され、直列条件を再現できる。
+コンテナ内では対応する`:inside` scriptを使う。全工程はcheck→必要build→Native→集計の順。通常配布と素材・型の前処理は再利用し、異なる入口だけを追加buildする。gameのNativeは2workersでfile単位に配分し、editor・allは既定1worker。直列条件は`npm run test:browser -- --workers=1`で再現できる。単独の各buildは素材・型の前処理を含む。
 
 並行するcaseはそれぞれcontext／pageと出力先を持ち、coverageは全worker終了後に一度集計する。実行時間は同じsource・scope・環境・worker条件で比較し、起動からshutdownまでの全工程を記録する。共有cgroupのCPU／memory／throttle観測はgameの専有消費やGPU elapsedではない。単一runの時間を安定したCI時間のSLA、直列での短縮不可能性、Actions runner上の実測へ読み替えない。
 
@@ -60,6 +60,8 @@ Vitest 5の標準 `@vitest/coverage-v8` で `src/**/*.{ts,svelte}` と `scripts/
 生成JSから対応づけられた分岐の指標であり、元TSの全分岐分母を保証しない。[Monocart 2.13](https://github.com/cenfun/monocart-coverage-reports/blob/v2.13.0/lib/converter/converter.js#L620-L672)はmapping不能な分岐群を除く。`all`は未収集ファイルを追加するが、読込済みTSのtree shaking削除分・未mapping分岐は補完しない。source集合一致は欠落確認であり、全分岐維持の証明ではない。
 
 git上の全品質spec、runnerの実collection、今回の実JSONを照合する。Playwright discoveryは実行引数によるfilterを掛けずに取得する。Vitestは公開Reporterの `onTestModuleCollected` で、実行前の全ケースをprimitiveなfile／fullNameへ記録する。実CLIのname filterで未実行になるケースも残し、発見用の別起動と全test moduleの再importを省く。既定はeditorだけ明示scope除外、editor単独はそのscope、allは全specを照合する。未知のディレクトリへ置いた品質specも未発見なら失敗する。ファイル解決はnative reportの `config.rootDir`、必須projectとcoverageのproject集合は実configから導く。手書きの仕様ID／case台帳は作らない。
+
+開始時に旧runner reportを消し、未生成のreportを成功に数えない。空／未発見ファイル、重複名、未実行、skip/todo/only、失敗・retry・期待失敗・global errorを拒否する。実CLI filterやlist-onlyに過去JSONを流用して成功としない。共有coverage fixtureを必須にし、追加context／page・遷移前回収漏れ・map欠落／不正・各caseの収集欠落を拒否する。[Playwright coverage](https://playwright.dev/docs/api/class-coverage)は `resetOnNavigation:false` でも旧documentの保持を保証しないため、必要なdocument移動前にcheckpointを置く。
 
 ## 表示負荷の計測
 
@@ -93,9 +95,7 @@ docker run --rm --init --ipc=host --name endfield-view-profile --user "$(id -u):
 
 結果JSONの`measurementWindows`に各区間を記録する。CPU・割当samplingはtraceの180frame区間と一致しない。DOM mutation、強制GC前後のheapとNodesも保存するが、これらは割当samplingとは別の観測である。
 
-GPUを含む全frameの余裕は実rAF間隔とtraceを合わせて評価する。SwiftShaderでの低いDOM時間を実機60fpsの証明にせず、長い描画区間とphysical GPU未確認を明記する。採用前後は同じDocker・viewport・DPR・素材・workload・profiling条件で比較する。旧revisionへharnessを持ち込む場合はview importのファイル名を合わせるだけで、optional `renderModel`がない旧viewには同じモデルから全frameを投影して`paint`する。
-
-空／未発見ファイル、重複名、未実行、skip/todo/only、失敗・retry・期待失敗・global errorを拒否する。実CLI filterやlist-onlyに過去JSONを流用して成功としない。共有coverage fixtureを必須にし、追加context／page・遷移前回収漏れ・map欠落／不正・各caseの収集欠落を拒否する。[Playwright coverage](https://playwright.dev/docs/api/class-coverage)は `resetOnNavigation:false` でも旧documentの保持を保証しないため、必要なdocument移動前にcheckpointを置く。
+GPUを含むframe費用は実rAF間隔とtraceを合わせて評価する。SwiftShaderの結果と実機の60fps保証を区別し、描画区間と未確認の実GPU条件を示す。採用前後は同じDocker・viewport・DPR・素材・workload・profiling条件で比較する。
 
 ## 外観と提出前検証
 
@@ -103,20 +103,4 @@ GPUを含む全frameの余裕は実rAF間隔とtraceを合わせて評価する�
 
 デザインマスターと実装の同期は、[OpenPencilの共通比較](../README.md#openpencilでデザインマスターを編集する)も全件実行する。`npm run openpencil:verify`は対応表に登録した画面と部品の全状態を通常の原稿出力・実viewで撮影し、全RGBAの差分0を要求する。部分実行や未登録のvariantを残した実行は完了の証拠にしない。戦闘はHUDや操作ボタンなどのUI部品を対象とし、3D画面全体や戦闘エフェクトは対象に含めない。
 
-文書だけの変更は、変更パスが文書に限られること、リンク・見出し参照、specsと設計／制作手順の整合、実際の失敗案を棄却できることをローカルで確認する。製品source・CSS・素材・golden・テスト設定を変更しない文書整備にゲーム全suiteや新しい画像承認を要求せず、未実行の製品検証を成功と報告しない。製品変更を文書のみとして扱わない。
-
-実装中は必要な短い検証で原因と費用を確認する。提出前はsourceを固定し、check・必要な全直接VRT・資源検証・editorをローカルで完走する。代表数件だけで全件をCIへ委ねない。source／LFS実体／CSS・素材・goldenの前後一致、正確なhead／tree、開始・終了・shutdown、実runnerのworker設定、層別時間、failure／retry別記を残す。GitHub権限・required checks・Actions固有のrunner条件等、ローカルで不可能な条件だけを理由付き例外とする。
-
-ゲーム本体CI対象（`npm run test:browser`）の時間条件は、品質を維持したローカル全工程が起動から終了まで5分以内、または同品質で5分以内にできない明確な根拠が成立すること。条件の充足を実測と検討結果で示し、未確認点を残したまま達成扱いにしない。設定画面の`editor-views`／`editor-resources`はこの判定へ含めず、`npm run test:editor`で必要時に明示実行する。`test:all`は両scopeを検証するコマンドであり、5分の判定対象ではない。部分成功、実描画が多い事実、未測定の推測を不可避の根拠へ置き換えない。公開・マージはユーザー判断に従う。
-
-実runner固有のreport生成・古いJSONの再利用拒否・list-onlyは実CLIで検証する。未登録ファイル、部分結果、coverage欠落はその実reportを入力として実行照合を検証し、同じfixtureを再実行して準備を重複させない。ケース別coverage annotationには回収のwall msを含め、ブラウザcase全体や終了時の集計費用と区別する。共有fixtureは実初期viewport／DPR、標準CDPのGPU deviceと共有page fixture内のprocess CPU累積値も記録する。CPU累積値は全threadの消費量であり、GPU elapsedや排他的なcase CPU時間と扱わない。
-
-VRTは既存画像との回帰を検出し、絶対コントラストやWCAG全体への適合を保証しない。画像背景・半透明・halo上の文字と重要な非文字の読取りは、実際の合成結果と適用条件を別途確認する。設計上の目標、現在のassertion、未確認の範囲を混同しない。
-
-自動検査は自然言語仕様の完全性やassertionの意味を証明しない。レビューでは、公開入力・独立した期待結果・担当層・旧保証の移行先・未確認事項を具体的に読む。
-
-実装と全必要ローカル検証を終えてからまとめてpushし、通常のPRを作成する。完了通知を受けたdotが、実装の会話を引き継がないdot側のfresh-context subagentを起動する。レビュアーはGitHubコネクタでPR、正確なbase／head、リポジトリのコード・仕様・テスト・依存関係を直接深く調査する。親が読むファイルや調査範囲を限定しない。Codexの実装環境内のレビュー、実装担当の自己確認、ファイルの取り次ぎ、選別した差分だけで代替しない。
-
-指摘は根拠と実害を吟味し、必要な修正だけを実装担当へ戻す。修正と必要なローカル検証を完了してPRを更新し、dot側で更新後のheadを再レビューする。最終headのCIとレビュー結果、未解決の重要事項、現在の許可条件を確認してマージする。実装途中の確認や古いheadのレビュー・CI成功を最終確認と呼ばない。
-
-複雑なPRでは適宜ChatGPT Proへ補助PRレビューを依頼する。別の話題や新しい独立レビューは新規セッションとし、ProにもGitHubからコードを深く直接調査させる。親が読む範囲を限定せず、参照範囲と回答の根拠を確認する。完成前の設計相談と完成後のPRレビューを区別し、Proでdot側の独立レビューを代替しない。すべてのPRでProを必須にはしない。マージ担当はその時点のmain保護・required checks・権限も確認する。設定で強制される条件と運用で確認する条件を分け、強制されていない確認を強制済みと報告しない。成功チェックだけで仕様の充足・画像の承認・レビュー判断を代用しない。
+文書だけの変更は、差分が文書に限られること、リンク・見出し、要求・仕様・設計・制作手順の整合を確認する。規則の変更では既知の失敗案を引き続き棄却できるか確かめる。製品source・CSS・素材・golden・テスト設定を変えなければ、ゲーム全suiteや新しい画像承認は不要。

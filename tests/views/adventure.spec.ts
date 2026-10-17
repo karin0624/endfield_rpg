@@ -1,15 +1,12 @@
-import { approvedPicture } from "../browser/pictures";
-
-const golden = (name: string) =>
-  approvedPicture([
-    "e2e",
-    "debug",
-    "battle.spec.ts-snapshots",
-    name.replace(/\.png$/, `-built-${process.platform}.png`),
-  ]);
-
 import { collectCoverage, expect, test } from "../browser/coverage";
 import { readyPicture } from "./appearance";
+
+const golden = (name: string) => [
+  "e2e",
+  "debug",
+  "battle.spec.ts-snapshots",
+  name.replace(/\.png$/, `-built-${process.platform}.png`),
+];
 
 test("話者と選択肢を直接描き、既存390px画像へ比較する", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });

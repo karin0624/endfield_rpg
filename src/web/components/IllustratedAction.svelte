@@ -70,7 +70,7 @@ let height = $derived(round ? art.bubble.display[1] : art.button.height);
         </defs>
       {/if}
       <image
-        href={asset(`ui/hubs/${isFace ? "gilberta-source" : picture}.png`)}
+        href={asset(isFace ? "characters/gilberta/expressions/neutral.png" : `ui/hubs/${picture}.png`)}
         x={placement.imagePositionCss[0]}
         y={placement.imagePositionCss[1]}
         width={placement.displaySize[0]}

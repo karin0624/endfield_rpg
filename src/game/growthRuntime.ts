@@ -5,7 +5,7 @@ import type { CharacterDefinition } from "./party";
 import type { ExperienceReward, ProgressionDefinition } from "./progression";
 import { chooseSkill, createExplorationSkills, type ExplorationSkills, grantSkillExperience } from "./skillAcquisition";
 import { passiveSkillAmount, skillById } from "./skills";
-import { canParticipate, effectiveMaxHp, healthyStatus } from "./status";
+import { canParticipate, effectiveMaxHp } from "./status";
 
 export interface GrowthRules {
   readonly characters: readonly CharacterDefinition[];
@@ -60,7 +60,7 @@ export function projectGrowth(
   const members = game.party.members.map((member) => {
     const base = equippedCharacters(game, rules.growth?.characters ?? []).find(({ id }) => id === member.id);
     if (!base) throw new Error("成長のキャラクター定義がありません");
-    const status = member.status ?? healthyStatus();
+    const status = member.status;
     const before = effectiveMaxHp(base.maxHp + growthStats(member.id, previous, rules).maxHp, status);
     const after = effectiveMaxHp(base.maxHp + growthStats(member.id, game.growth, rules).maxHp, status);
     return {

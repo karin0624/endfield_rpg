@@ -7,7 +7,8 @@ import {
   projectPartyOverflow,
   projectTargetMarker,
 } from "./battlePlacement";
-import { createDebugBattleModel, projectDebugBattle, reduceDebugBattle } from "./debugBattleModel";
+import { projectBattleView } from "./battleViewProjection";
+import { createDebugBattleModel, debugBattleInput, reduceDebugBattle } from "./debugBattleModel";
 
 const input = { combatants: initialBattleCombatants, enemyDepths: [{ id: "slime-2", depth: 5 }], editor: false };
 const sprite = { left: 100, top: 110, width: 80, height: 90, markerX: 140, markerY: 117, spriteTop: 117 };
@@ -31,7 +32,7 @@ describe("実寸からの戦闘札と演出位置の投影", () => {
 
   it("現在の選択に札とmarkerを結び、狭幅でも札の上へmarkerを配置する", () => {
     const state = reduceDebugBattle(createDebugBattleModel(input), input, { type: "scene-ready", owner: 0 }).state;
-    const frame = projectDebugBattle(state, input).view;
+    const frame = projectBattleView(state.view, debugBattleInput(state, input));
     expect(frame?.markerId).toBe("slime-2");
     const desktop = projectEnemyOverlay(sprite, true, 0, 1440);
     expect(desktop).toEqual({ box: sprite, x: 140, y: 109 });
@@ -75,7 +76,9 @@ describe("実寸からの戦闘札と演出位置の投影", () => {
       state = reduceDebugBattle(state, input, { type: "attack" }).state;
       state = reduceDebugBattle(state, input, { type: "playback", event: { type: "advance", elapsedMs: 3000 } }).state;
     }
-    const enemy = projectDebugBattle(state, input).view?.enemies.find(({ id }) => id === "slime-2");
+    const enemy = projectBattleView(state.view, debugBattleInput(state, input)).enemies.find(
+      ({ id }) => id === "slime-2",
+    );
     expect(enemy?.visible).toBe(false);
     expect(projectEnemyOverlay(sprite, enemy?.visible ?? false, 1, 390)).toBeNull();
     expect(projectTargetMarker(sprite, { visible: false, top: 79, height: 30 }, 40)).toBeNull();
@@ -87,7 +90,7 @@ describe("実寸からの戦闘札と演出位置の投影", () => {
   it("確定攻撃のactorと着弾cueを実寸へ合わせ、画面外のspriteにはステージ内の位置を与える", () => {
     let state = reduceDebugBattle(createDebugBattleModel(input), input, { type: "scene-ready", owner: 0 }).state;
     state = reduceDebugBattle(state, input, { type: "attack" }).state;
-    const frame = projectDebugBattle(state, input).view;
+    const frame = projectBattleView(state.view, debugBattleInput(state, input));
     expect(frame?.sequence).toMatchObject({
       actorId: "player",
       targetId: "slime-2",

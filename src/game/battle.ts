@@ -69,7 +69,7 @@ export interface BattleCombatant {
   readonly startOrder: number;
   readonly hp: number;
   readonly attackPower: number;
-  readonly basicAttackBonus?: number;
+  readonly basicAttackBonus: number;
 }
 
 export interface BattleState extends Omit<BattleTimelineState, "combatants"> {
@@ -358,7 +358,7 @@ export function performBasicAttack(state: BattleState, actorId: string, targetId
   }
 
   const hitRate = effectiveHitRate(actor.hitRate, actor.status);
-  const basicPower = actor.attackPower + (actor.basicAttackBonus ?? 0);
+  const basicPower = actor.attackPower + actor.basicAttackBonus;
   const draw = basicPower > 0 && hitRate > 0 && hitRate < 1 ? nextGameRandom(state.randomState) : null;
   const hit = hitRate === 1 || (hitRate > 0 && (draw === null || draw.value < hitRate));
   const targetHpBefore = target.hp;

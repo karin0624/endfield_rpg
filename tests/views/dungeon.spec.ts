@@ -1,15 +1,12 @@
-import { approvedPicture } from "../browser/pictures";
-
-const golden = (name: string) =>
-  approvedPicture([
-    "e2e",
-    "debug",
-    "dungeon.spec.ts-snapshots",
-    name.replace(/\.png$/, `-built-${process.platform}.png`),
-  ]);
-
 import { collectCoverage, expect, test } from "../browser/coverage";
 import { readyPicture } from "./appearance";
+
+const golden = (name: string) => [
+  "e2e",
+  "debug",
+  "dungeon.spec.ts-snapshots",
+  name.replace(/\.png$/, `-built-${process.platform}.png`),
+];
 
 test("通常探索の直接状態で回復品ボタンがルート面の上からポインターを受ける", async ({ page }) => {
   for (const width of [390, 1440]) {

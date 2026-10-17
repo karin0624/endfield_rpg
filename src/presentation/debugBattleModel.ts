@@ -14,8 +14,6 @@ import {
   createBattleModel,
   reduceBattleModel,
 } from "./battleModel";
-import { projectBattleActors } from "./battleProjection";
-import { projectBattleView } from "./battleViewProjection";
 
 export interface DebugBattleInput {
   readonly combatants: readonly BattleCombatantDefinition[];
@@ -114,26 +112,4 @@ export function reduceDebugBattle(
     effects.push({ type: "replace-scene", owner: next.view.scene.owner });
   }
   return { state: next, effects, handled: transition.focusExit === "previous" ? false : transition.handled };
-}
-export function projectDebugBattle(state: DebugBattleModel, input: DebugBattleInput) {
-  const ready = state.view.scene.status === "ready";
-  const error = state.view.scene.status === "error";
-  const view = ready ? projectBattleView(state.view, debugBattleInput(state, input)) : null;
-  return {
-    view,
-    utilityFocus: state.utilityFocus,
-    actors: projectBattleActors(state.view.playback),
-    animate:
-      ready &&
-      (state.view.playback.phase !== "finished" || (view?.markerId !== null && !state.view.playback.reducedMotion)),
-    status: {
-      ready,
-      error,
-      text: ready
-        ? "表示準備完了"
-        : error
-          ? "戦闘画面を読み込めませんでした。素材の取得とWebGL対応を確認して、再読み込みしてください。"
-          : "戦闘画面を読み込んでいます…",
-    },
-  };
 }

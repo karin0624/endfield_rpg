@@ -1,15 +1,12 @@
-import { approvedPicture } from "../../browser/pictures";
-
-const golden = (name: string) =>
-  approvedPicture([
-    "e2e",
-    "settings",
-    "settings.spec.ts-snapshots",
-    name.replace(/\.png$/, `-settings-${process.platform}.png`),
-  ]);
-
 import { collectCoverage, expect, test } from "../../browser/coverage";
 import { pointerFocusAppearance, readyPicture } from "../../views/appearance";
+
+const golden = (name: string) => [
+  "e2e",
+  "settings",
+  "settings.spec.ts-snapshots",
+  name.replace(/\.png$/, `-settings-${process.platform}.png`),
+];
 
 test("設定済みの構図と人数を直接描き、既存の3画像へ比較する", async ({ page }) => {
   await page.goto("http://127.0.0.1:4174/rpg/tests/fixtures/editor-view.html");
