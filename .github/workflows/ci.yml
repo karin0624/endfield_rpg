@@ -90,6 +90,7 @@ jobs:
           const scope = process.env.PR_NUMBER ? `pr-${process.env.PR_NUMBER}` : "main";
           appendFileSync(process.env.GITHUB_OUTPUT, [
             `key=${prefix}-${scope}-${process.env.TESTED_SHA}`,
+            `previous=${process.env.PR_NUMBER ? `${prefix}-${scope}-` : ""}`,
             `base=${prefix}-main-${process.env.BASE_SHA}`,
             `main=${prefix}-main-`,
             "",
@@ -102,6 +103,7 @@ jobs:
           path: .openpencil/design-snapshot.json
           key: ${{ steps.signature-key.outputs.key }}
           restore-keys: |
+            ${{ steps.signature-key.outputs.previous }}
             ${{ steps.signature-key.outputs.base }}
             ${{ steps.signature-key.outputs.main }}
       - name: Test isolated component rendering and interactions

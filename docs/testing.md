@@ -75,7 +75,7 @@ CIは共通の固定Dockerイメージを解決した後、ゲームとデザイ
 
 比較に成功した入力signatureは`.openpencil/design-snapshot.json`へ保存する。全件、または成功済みsignatureから選んだ変更対象の全件が一致した場合だけ更新し、失敗・明示選択・差分表示では更新しない。JSONには入力hashと依存関係を保存し、参照・実装PNGのキャッシュは持たない。選ばれた対象の参照・実装PNGは毎回生成する。削除・破損・未検証・非互換のsignatureは再利用せず、初回と同様に全件を選択する。提出前はこの差分選択にかかわらず全件比較を行う。
 
-デザイン差分判定のCIキャッシュも成功したsignatureのJSON一つだけを対象とし、PNG・HTML・原稿本体は含めない。保存keyはmainとPR番号・検証commitを分ける。同じ検証commitの成功済みkeyがなければ、PRのbase main SHAのkey、同じ共通pipelineのmain keyの順に復元する。共通のexport・撮影・比較・差分判定、Storybook設定、依存lockfileの変更でキャッシュのnamespaceを変え、初回の全件比較へ戻す。Storybookの操作テストと原稿比較が成功したjobだけがsignatureを保存する。
+デザイン差分判定のCIキャッシュも成功したsignatureのJSON一つだけを対象とし、PNG・HTML・原稿本体は含めない。保存keyはmainとPR番号・検証commitを分ける。同じ検証commitの成功済みkeyがなければ、同じPRの直近成功key、PRのbase main SHAのkey、同じ共通pipelineのmain keyの順に復元する。main実行ではPRのkeyを使わない。共通のexport・撮影・比較・差分判定、Storybook設定、依存lockfileの変更でキャッシュのnamespaceを変え、初回の全件比較へ戻す。Storybookの操作テストと原稿比較が成功したjobだけがsignatureを保存する。
 
 結果は`test-results/openpencil/verification/report.json`へ保存する。CIは成功時にPNGをアップロードしない。失敗時だけ[scripts/design-artifacts.mjs](../scripts/design-artifacts.mjs)で失敗対象の参照・実装・差分PNGと診断JSONを`test-results/design-failures/`へまとめ、1日だけ保存する。PNGの合計予算は一実行20MiBで、超過時は画像だけを省き、全失敗一覧と画像の省略対象はJSONに残す。比較件数を減らして予算へ合わせることはしない。
 
