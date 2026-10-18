@@ -1,5 +1,5 @@
 import { flushSync, mount, unmount } from "svelte";
-import BattleSurface from "./components/BattleSurface.svelte";
+import BattleSurface from "./components/BattleSurface/BattleSurface.svelte";
 export function createBattleSurface(app: HTMLElement) {
   let ready = $state(false),
     error = $state(false),

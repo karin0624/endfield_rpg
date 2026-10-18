@@ -5,6 +5,7 @@ import { dirname, join, posix, relative, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
 import { comparePNG } from "./compare-png.mjs";
+import { DESIGN_IMAGE } from "./design-environment.mjs";
 
 const [source, ...args] = process.argv.slice(2);
 const { values, positionals } = parseArgs({
@@ -18,7 +19,6 @@ const { values, positionals } = parseArgs({
     lang: { type: "string", default: "ja" },
     container: { type: "string" },
     "container-root": { type: "string", default: "/work" },
-    "verify-home": { type: "boolean", default: false },
   },
 });
 if (positionals.length !== 1 || !values.page || !values.node || !values.output) {
@@ -61,10 +61,17 @@ try {
     await mkdir(dirname(path), { recursive: true });
     await writeFile(path, asset.content);
   }
-  await writeFile(join(temporary, "job.json"), JSON.stringify({ width, height, verifyHome: values["verify-home"] }));
+  await writeFile(
+    join(temporary, "job.json"),
+    JSON.stringify({
+      mode: "render",
+      viewport: { width, height },
+      output: posix.join(browserRoot, relative(project, temporary).split(sep).join("/")),
+    }),
+  );
   const browserCommand = [
     "node",
-    posix.join(browserRoot, "scripts/render-openpencil-html.mjs"),
+    posix.join(browserRoot, "scripts/verify-design-browser.mjs"),
     posix.join(browserRoot, relative(project, temporary).split(sep).join("/")),
   ];
   await new Promise((resolveRun, reject) => {
@@ -91,7 +98,7 @@ try {
             `${project}:${browserRoot}`,
             "-w",
             browserRoot,
-            "mcr.microsoft.com/playwright:v1.63.0-noble",
+            DESIGN_IMAGE,
             ...browserCommand,
           ],
       { stdio: "inherit" },
@@ -110,17 +117,11 @@ try {
     width,
     height,
     output,
-    ...JSON.parse(await readFile(join(temporary, "result.json"), "utf8")),
+    ...JSON.parse(await readFile(join(temporary, "job.result.json"), "utf8")),
   };
   if (values.compare) {
     result.comparison = await comparePNG(output, resolve(values.compare));
     if (!result.comparison.identical) process.exitCode = 1;
-  }
-  if (values["verify-home"]) {
-    const implementation = output.replace(/(\.png)?$/, ".implementation.png");
-    await cp(join(temporary, "implementation.png"), implementation);
-    result.homeComparison = await comparePNG(implementation, output);
-    if (!result.homeComparison.identical) process.exitCode = 1;
   }
   await writeFile(`${output}.json`, `${JSON.stringify(result, null, 2)}\n`);
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);

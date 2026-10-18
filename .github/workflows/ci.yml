@@ -37,65 +37,19 @@ jobs:
           lfs: true
       - name: Trust checked-out workspace for container shell
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
-      - uses: actions/setup-node@v7
+      - name: Cache npm downloads using the container's Node
+        uses: actions/setup-node@v7
         with:
-          node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
-      - name: Check, build each entry once, and run the complete game scope
-        env:
-          PR_HEAD: ${{ github.event.pull_request.head.sha }}
-          PR_BASE: ${{ github.event.pull_request.base.sha }}
-        run: npm run test:browser:inside
-
-  design:
-    needs: environment
-    runs-on: ubuntu-latest
-    container:
-      image: ${{ needs.environment.outputs.design_image }}
-      options: --init --ipc=host
-    steps:
-      - run: apt-get update && apt-get install -y --no-install-recommends git-lfs
-      - uses: actions/checkout@v7
-        with:
-          lfs: true
-      - name: Trust checked-out workspace for container shell
-        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
-      - uses: actions/cache@v4
-        with:
-          path: ~/.npm
-          key: design-npm-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('package-lock.json') }}
-          restore-keys: design-npm-${{ runner.os }}-${{ runner.arch }}-
       - id: dependencies
         run: npm ci
       - id: signature-key
         name: Resolve verified input cache keys
         env:
-          PIPELINE_HASH: >-
-            ${{ hashFiles(
-            'package-lock.json', '.storybook/**', 'vitest.storybook.config.ts',
-            'scripts/design-environment.mjs', 'scripts/design-paint.mjs',
-            'scripts/design-diff.mjs', 'scripts/design-selection.mjs',
-            'scripts/verify-design*.mjs', 'scripts/run-design-verification.mjs',
-            'scripts/compare-png.mjs', 'scripts/render-openpencil*.mjs',
-            'scripts/openpencil.mjs', 'scripts/openpencil.patch',
-            'scripts/storybook-design-dependencies.ts') }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           TESTED_SHA: ${{ github.sha }}
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
-        run: |
-          node --input-type=module <<'NODE'
-          import { appendFileSync } from "node:fs";
-          const prefix = `design-signatures-v1-${process.env.PIPELINE_HASH}`;
-          const scope = process.env.PR_NUMBER ? `pr-${process.env.PR_NUMBER}` : "main";
-          appendFileSync(process.env.GITHUB_OUTPUT, [
-            `key=${prefix}-${scope}-${process.env.TESTED_SHA}`,
-            `previous=${process.env.PR_NUMBER ? `${prefix}-${scope}-` : ""}`,
-            `base=${prefix}-main-${process.env.BASE_SHA}`,
-            `main=${prefix}-main-`,
-            "",
-          ].join("\n"));
-          NODE
+        run: node scripts/design-pipeline.mjs --github-output
       - id: design-cache
         name: Restore verified design inputs only
         uses: actions/cache/restore@v4
@@ -106,7 +60,13 @@ jobs:
             ${{ steps.signature-key.outputs.previous }}
             ${{ steps.signature-key.outputs.base }}
             ${{ steps.signature-key.outputs.main }}
+      - name: Check, build each entry once, and run the complete game scope
+        env:
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+        run: npm run test:browser:inside
       - name: Test isolated component rendering and interactions
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
         run: npm run test:storybook:inside
       - name: Compare affected design components and screens
         if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
@@ -129,6 +89,8 @@ jobs:
             `Document SHA256: \`${report.inputSHA256}\``,
             `Bindings SHA256: \`${report.bindingsSHA256}\``,
             `Docker image: \`${report.environment.image}\``,
+            `Workers: export ${report.parallelism?.export.workers ?? 0}, capture ${report.parallelism?.capture?.workers ?? 0}`,
+            `Seconds: ${JSON.stringify(report.timings)}`,
             "",
           ].join("\n"));
           NODE

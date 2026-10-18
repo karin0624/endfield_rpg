@@ -35,7 +35,8 @@ export function designDependencies(): Plugin {
       };
       const common = new Set<string>();
       for (const id of this.getModuleIds())
-        if (localPath(id)?.startsWith(".storybook/")) for (const file of closure(id)) common.add(file);
+        if ([".storybook/preview.ts", ".storybook/preview-head.html"].includes(localPath(id) ?? ""))
+          for (const file of closure(id)) common.add(file);
       const stories: Record<string, string[]> = {};
       for (const id of this.getModuleIds()) {
         const name = localPath(id);

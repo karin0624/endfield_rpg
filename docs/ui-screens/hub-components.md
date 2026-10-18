@@ -11,9 +11,9 @@
 | ホームのデザインマスタ・共通スタイル・部品 | [endfield-rpg.fig](../../art-src/openpencil/endfield-rpg.fig) |
 | 形状・文字・色・配置の実装 | [hub.css](../../src/web/hub.css) |
 | 素材の表示範囲・縮尺・図案位置・日付領域 | [hub-art.json](../../src/web/hub-art.json) |
-| 部品構造 | [IllustratedAction](../../src/web/components/IllustratedAction.svelte)、[HubCalendar](../../src/web/components/HubCalendar.svelte) |
-| 背景と画面構成 | [HubScene](../../src/web/components/HubScene.svelte) |
-| 準備・メニュー・確認・focus接続 | [CampaignHub](../../src/web/components/CampaignHub.svelte) |
+| 部品構造 | [IllustratedAction](../../src/web/components/IllustratedAction/IllustratedAction.svelte)、[HubCalendar](../../src/web/components/HubCalendar/HubCalendar.svelte) |
+| 背景と画面構成 | [HubScene](../../src/web/components/HubScene/HubScene.svelte) |
+| 準備・メニュー・確認・focus接続 | [CampaignHub](../../src/web/components/CampaignHub/CampaignHub.svelte) |
 | 意味入力と状態遷移 | [campaignModel](../../src/presentation/campaignModel.ts)、[townModel](../../src/presentation/townModel.ts) |
 
 設計上のIllustratedAction／PlaceEntryは、実装では同じ`IllustratedAction.svelte`の`round`・`movement`・`picture`で構成する。設計familyの区別は別モジュールの追加指示ではない。

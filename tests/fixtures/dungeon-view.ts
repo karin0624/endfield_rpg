@@ -5,8 +5,7 @@ import { dungeonPicture } from "../dungeonPictures";
 import "../../src/web/style.css";
 import "../../src/web/debug.css";
 
-const query = new URLSearchParams(location.search);
-const picture = dungeonPicture(query.has("items") ? "items" : query.has("progressed") ? "progressed" : "initial");
+const picture = dungeonPicture();
 let state = picture.state;
 const root = document.querySelector<HTMLDivElement>("#app");
 if (!root) throw new Error("Missing dungeon picture root");

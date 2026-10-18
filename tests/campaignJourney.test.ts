@@ -8,9 +8,9 @@ import {
   reduceCampaign,
 } from "../src/presentation/campaignModel";
 import { projectCampaign } from "../src/presentation/campaignProjection";
-import { returnedCampaign as returnedPicture } from "./fixtures/returned-campaign";
+import { returnedCampaign } from "./fixtures/returned-campaign";
 
-it("実コアで街・分岐成長・ボス戦・帰還・保存再開を確定し、帰還画像に渡す状態を保証する", () => {
+it("実コアで街・分岐成長・ボス戦・帰還・保存再開を確定し、帰還後の公開状態を保証する", () => {
   const initial = createCampaignModel();
   const initialGame = structuredClone(initial.context.game);
   let state = initial;
@@ -80,11 +80,10 @@ it("実コアで街・分岐成長・ボス戦・帰還・保存再開を確定�
     randomState: 2388811721,
   });
   expect(state.context.completion).toMatchObject({ outcome: "cleared", returnedIds: ["player"], calendarHalfDays: 1 });
-  // The visual fixture supplies this already-confirmed public state; it never plays these inputs in a browser.
-  expect(state.context.game.party).toEqual(returnedPicture.game.party);
-  expect(state.context.game.clock).toEqual(returnedPicture.game.clock);
-  expect(state.context.game.inventory).toEqual(returnedPicture.game.inventory);
-  expect(state.context.completion).toEqual(returnedPicture.completion);
+  expect(state.context.game.party).toEqual(returnedCampaign.game.party);
+  expect(state.context.game.clock).toEqual(returnedCampaign.game.clock);
+  expect(state.context.game.inventory).toEqual(returnedCampaign.game.inventory);
+  expect(state.context.completion).toEqual(returnedCampaign.completion);
   expect(projectCampaign(state)).toMatchObject({
     kind: "home",
     calendar: "2日目 · 昼",

@@ -1,7 +1,7 @@
 import type { StorybookConfig } from "@storybook/svelte-vite";
 
 const config: StorybookConfig = {
-  stories: ["../tests/stories/**/*.stories.ts"],
+  stories: ["../src/web/components/**/*.stories.ts"],
   staticDirs: ["../public"],
   framework: {
     name: "@storybook/svelte-vite",

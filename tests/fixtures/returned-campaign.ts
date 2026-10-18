@@ -1,15 +1,8 @@
 import type { ExpeditionGame, GameActionCompletion } from "../../src/game/expedition";
 
-/** Confirmed results of the headless campaign scenario, supplied directly for painting. */
+/** Expected public results of the headless campaign scenario. */
 export const returnedCampaign = {
   game: {
-    adventure: {
-      mode: "town",
-      currentPlaceId: "market",
-      conversationId: null,
-      conversationPosition: null,
-      flags: ["marked-ruins-route", "scouted-ruins"],
-    },
     party: {
       members: [
         {
@@ -25,7 +18,6 @@ export const returnedCampaign = {
       ],
       slots: ["player", null, null, null],
     },
-    dungeon: null,
     inventory: {
       items: {
         home: [],
@@ -61,73 +53,6 @@ export const returnedCampaign = {
 
       pendingAction: null,
     },
-    randomState: 2388811721,
-    growth: {
-      townExperienceClaimed: true,
-      closed: true,
-      growth: {
-        characters: [
-          {
-            characterId: "player",
-            level: 1,
-            experience: 0,
-            bonus: {
-              maxHp: 0,
-              attackPower: 0,
-            },
-            pendingChoiceLevels: [],
-          },
-          {
-            characterId: "gilberta",
-            level: 1,
-            experience: 0,
-            bonus: {
-              maxHp: 0,
-              attackPower: 0,
-            },
-            pendingChoiceLevels: [],
-          },
-        ],
-      },
-      characters: [
-        {
-          characterId: "player",
-          learned: [
-            {
-              skillId: "test-strike",
-              type: "active",
-              origin: "initial",
-              acquisition: "initial",
-            },
-            {
-              skillId: "test-heal",
-              type: "active",
-              origin: "initial",
-              acquisition: "initial",
-            },
-          ],
-        },
-        {
-          characterId: "gilberta",
-          learned: [
-            {
-              skillId: "test-strike",
-              type: "active",
-              origin: "initial",
-              acquisition: "initial",
-            },
-            {
-              skillId: "test-heal",
-              type: "active",
-              origin: "initial",
-              acquisition: "initial",
-            },
-          ],
-        },
-      ],
-      choice: null,
-      randomState: 1587069247,
-    },
   },
   completion: {
     kind: "dungeon-expedition",
@@ -138,4 +63,7 @@ export const returnedCampaign = {
     returnedIds: ["player"],
     outcome: "cleared",
   },
-} satisfies { readonly game: ExpeditionGame; readonly completion: GameActionCompletion };
+} satisfies {
+  readonly game: Pick<ExpeditionGame, "party" | "inventory" | "clock">;
+  readonly completion: GameActionCompletion;
+};

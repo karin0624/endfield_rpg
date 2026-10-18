@@ -1,5 +1,5 @@
 import { defineConfig } from "@playwright/test";
-import config, { editorProjects } from "./playwright.config";
+import config, { editorProjects } from "./playwright.config.ts";
 
 // One serial run when a change affects both user rendering and developer editors.
 export default defineConfig({

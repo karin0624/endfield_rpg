@@ -22,7 +22,6 @@
     "test:storybook:inside": "vitest run --config vitest.storybook.config.ts",
     "test:browser": "sh scripts/run-browser-test.sh browser",
     "test:browser:inside": "sh scripts/run-game-quality.sh",
-    "review:party": "python3 scripts/compare-party-ui.py test-results test-results/approved-comparison",
     "test:all": "sh scripts/run-browser-test.sh all",
     "test:all:inside": "COVERAGE_BROWSER=1 npm run check && COVERAGE_BROWSER=1 vite build --mode debug --outDir dist-debug && COVERAGE_BROWSER=1 vite build --config vite.views.config.ts && sh scripts/run-playwright-quality.sh all",
     "typecheck": "svelte-check --tsgo --tsconfig ./tsconfig.json --fail-on-warnings",
@@ -33,7 +32,6 @@
     "openpencil:render": "node scripts/openpencil.mjs --render",
     "openpencil:verify": "node scripts/openpencil.mjs --verify-design",
     "openpencil:export-assets": "node scripts/openpencil.mjs --export-assets",
-    "openpencil:verify:home": "npm run build && node scripts/openpencil.mjs --render art-src/openpencil/endfield-rpg.fig --page Screens --node Home --output test-results/openpencil/design-home.png --verify-home",
     "compare:png": "node scripts/compare-png.mjs"
   },
   "devDependencies": {

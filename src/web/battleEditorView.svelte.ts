@@ -1,6 +1,6 @@
 import { mount, unmount } from "svelte";
 import type { BattleEditorEvent, projectBattleEditor } from "../presentation/battleEditorModel";
-import BattleEditor from "./components/BattleEditor.svelte";
+import BattleEditor from "./components/BattleEditor/BattleEditor.svelte";
 import { requiredElement } from "./requiredElement";
 export function createBattleEditorView(
   app: HTMLDivElement,

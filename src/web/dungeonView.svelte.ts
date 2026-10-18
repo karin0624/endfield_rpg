@@ -13,7 +13,7 @@ import { type DungeonFrame, dungeonNames } from "../presentation/dungeonProjecti
 import savedBattleSettings from "./battle-settings.json";
 import { type BattleScene, createBattleRenderer, initialBattleEnvironment } from "./battleScene";
 import { createBattleView } from "./battleView.svelte.ts";
-import Dungeon from "./components/Dungeon.svelte";
+import Dungeon from "./components/Dungeon/Dungeon.svelte";
 import { deriveDungeonChrome } from "./dungeonPresentation.svelte.ts";
 import { requiredElement } from "./requiredElement";
 /** Browser owns real handles; committed semantic state remains synchronous and browser-free. */

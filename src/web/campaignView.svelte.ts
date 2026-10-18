@@ -1,7 +1,7 @@
 import { mount, unmount } from "svelte";
 import type { CampaignEvent } from "../presentation/campaignModel";
 import type { CampaignFrame } from "../presentation/campaignProjection";
-import Campaign from "./components/Campaign.svelte";
+import Campaign from "./components/Campaign/Campaign.svelte";
 export function createCampaignView(root: HTMLDivElement, send: (event: CampaignEvent) => boolean) {
   let frame = $state.raw<CampaignFrame | null>(null);
   const component = mount(Campaign, {

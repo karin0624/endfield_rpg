@@ -36,7 +36,7 @@ wideでは管理入口を仲間→アイテムの横1列とし、画面左24px�
 | 保存／保存してタイトルへ | 上書き確認後に保存I/O | 取消を初期focus。保存成功後だけ完了／タイトルへ。失敗は現在状態と旧保存を保持 |
 | 保存せずタイトルへ | 破棄確認後にタイトルへ | 取消／Escはホームと現在状態を保持 |
 
-確認dialogの外側クリックは無視し、保存待機中は取消・再確定を受理しない。初期focus、Tab範囲、背面抑止は[CampaignHub](../../src/web/components/CampaignHub.svelte)、状態は[campaignModel](../../src/presentation/campaignModel.ts)を参照する。時間・所持・保存の規則は[時間](../../specs/time.md)、[物品](../../specs/items.md)、[保存](../../specs/save.md)を正本とする。
+確認dialogの外側クリックは無視し、保存待機中は取消・再確定を受理しない。初期focus、Tab範囲、背面抑止は[CampaignHub](../../src/web/components/CampaignHub/CampaignHub.svelte)、状態は[campaignModel](../../src/presentation/campaignModel.ts)を参照する。時間・所持・保存の規則は[時間](../../specs/time.md)、[物品](../../specs/items.md)、[保存](../../specs/save.md)を正本とする。
 
 ## 読む順と復帰
 

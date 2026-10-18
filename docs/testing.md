@@ -13,7 +13,7 @@
 | 実HTTP／ファイル／Storage境界 | 開発設定APIの保存と失敗時旧bytes保持、通常配布への開発機能・fixture混入禁止、確定済み保存bytesのI/O |
 | StorybookとVitest Browser | 製品Svelte部品の単体描画、実入力から意味イベントへの接続、入力・選択・focus・dialogなどの部品間の結合。CSFの公開propsと`play`を同じ状態の再現に使う |
 | デザイン原稿との比較 | `.fig`の部品・variant・画面と、対応する独立Storyを同じ固定環境で描画し、寸法と全RGBAの差分0を確認する |
-| 直接状態VRT | 正当な代表状態・phase・表示時刻を実view／実素材へ与え、既存画像と比較。ゲーム進行、クリック連鎖、実時間待機を使わず到達する |
+| 直接状態VRT | Fig対象外の戦闘3D・FX・地形を実素材と正当な表示時刻で描画し、既存画像と比較する |
 | 直接Native WebGL | 実Buffer／Texture／Programの生成・切替・解放、warm再利用、取得回数、DPR割当、失敗・遅着・pagehide・必要時HMRの資源寿命。ゲーム操作journeyは通さない |
 
 本編・探索のXState設定はゲームの公開入力を通して検証する。state machineやValibot自体の一般的な挙動を再検証するテストは作らない。一方、現行保存の厳密なキー集合・数値範囲、保存拒否理由、所有・権利のdomain整合、無効入力で現在gameを変えない保証は、このプロジェクトの契約として残す。snapshot内部の関数等をcloneや期待値へ含めず、モードとcontextの意味データ、外部処理へ返す確定結果を観測する。
@@ -38,13 +38,10 @@ Node.jsは `.nvmrc` の24系、ブラウザ・ネイティブライブラリ・�
 | `npm run storybook` | 製品部品・画面のCSFストーリーを手動確認する開発UI |
 | `npm run test:storybook` | Vitest BrowserのChromiumでストーリーの描画と`play`を実行。Storybookサーバーの起動・ビルドは不要 |
 | `npm run openpencil:verify` | 原稿を標準HTML出力し、独立Storyの描画と全件比較する。export・撮影・比較を同じ固定Docker内で実行 |
-| `npm run review:party` | UI変更時の画像レビュー用。直近の4状態の実撮影と承認資料を同解像度で直接比較し、raw diff・overlay・数値を明示生成（Python／Pillowが必要） |
 
-CIは共通の固定Dockerイメージを解決した後、ゲームとデザインのjobを分ける。ゲームjobは`npm ci`後に`test:browser:inside`を実行する。デザインjobは`test:storybook:inside`の後に`DESIGN_IN_CONTAINER=1 npm run openpencil:verify -- --changed`を実行し、後述の成功済み入力signatureを使う。利用可能なsignatureがなければ全件を比較する。結果の件数・失敗・原稿hash・実行環境をActions summaryへ残し、成功時にPNGをアップロードしない。
+CIは共通の固定Dockerイメージを解決した後、一つの検証jobでLFSと`npm ci`を各一度準備し、Nodeはイメージ内の固定版を使う。`test:browser:inside`、`test:storybook:inside`、`DESIGN_IN_CONTAINER=1 npm run openpencil:verify -- --changed`を実行し、後述の成功済み入力signatureを使う。利用可能なsignatureがなければ全件を比較する。結果の件数・失敗・原稿hash・実行環境をActions summaryへ残し、成功時にPNGをアップロードしない。
 
 ローカルのゲーム検証も同じ`run-game-quality.sh`をworkspace所有者で使い、通常buildをその場で再利用する。結果・revision・失敗・skip・retry・global errorと、0-hitを含むsource数・coverageをログとActions summaryへ残す。summaryは既存JSONを読むだけで、品質検証を再実行せず、元の失敗を成功へ変えない。JSON・画像・trace・mapは同じworkspaceで確認する。
-
-固定版とのraw比較は撮影後にPython／Pillow環境で`npm run review:party`を明示実行する。全体・注記領域・診断領域のdiff、原画・実画面・overlay、寸法・hash・JSONを`test-results/approved-comparison/`へ生成する。数値だけなら`--metrics-only`を指定する。通常CIには含めず、[制作手順](ui-asset-production.md#ui開発の必須ゲート)の画像レビューに使う。
 
 コンテナ内では対応する`:inside` scriptを使う。全工程はcheck→必要build→Native→集計の順。通常配布と素材・型の前処理は再利用し、異なる入口だけを追加buildする。gameのNativeは2workersでfile単位に配分し、editor・allは既定1worker。直列条件は`npm run test:browser -- --workers=1`で再現できる。単独の各buildは素材・型の前処理を含む。
 
@@ -52,38 +49,42 @@ CIは共通の固定Dockerイメージを解決した後、ゲームとデザイ
 
 画像比較を持たないrenderer／editor-resourcesは既存DPR検証と同じ800×900 viewportを使う。実GLB・PNG・PBR・shaderを準備して実drawを行い、viewportを変えてもcanvasの16:9比率とカメラ構図は保つ。DPR1／3と800→640のresize、資源生成・warm切替・遅着／失敗・HMR・退出時0の保証を維持する。性能の改善でもVRTのviewport・DPR・基準画像・許容差を保持する。
 
-通常 `dist/` の初期タイトル、debug `dist-debug/` の初期戦闘を実際に描く。attack／healのFXは同じrendererの実地形を保持し、実コアから別々の直接snapshot・BattleScene・UIを生成して既存6画像を比較する。editorの初期2対2はconstructorの準備済み構図を使い、人数変更とresizeだけを再描画する。任意の画面状態は標準Viteの[multi-page build](https://vite.dev/guide/build.html#multi-page-app)で `dist-views/` へ生成する。同じ標準minifierを使い、通常配布へfixtureを混入しない。3出力は異なる実入口の検証であり、coverage専用の解析buildではない。通常4173、debug4175、直接view4174。viewの実 `BASE_URL=/rpg/` で素材を取得し、非root専用buildやURL書換えを重ねない。
+通常 `dist/` の初期タイトルは画像比較なしの起動検証を行い、debug `dist-debug/` の初期戦闘は3DのVRTで確認する。attack／healのFXは同じrendererの実地形を保持し、実コアから別々の直接snapshot・BattleScene・UIを生成して既存6画像を比較する。editorの初期2対2はconstructorの準備済み構図を使い、人数変更とresizeだけを再描画する。任意の画面状態は標準Viteの[multi-page build](https://vite.dev/guide/build.html#multi-page-app)で `dist-views/` へ生成する。同じ標準minifierを使い、通常配布へfixtureを混入しない。3出力は異なる実入口の検証であり、coverage専用の解析buildではない。通常4173、debug4175、直接view4174。viewの実 `BASE_URL=/rpg/` で素材を取得し、非root専用buildやURL書換えを重ねない。
 
 開発エディターの状態・設定反映・保存失敗はモデルとAPI境界で検証し、Native HMRと資源寿命は`tests/editor/renderer/`で検証する。エディタ画面・構図のVRTは設けず、Figmaでも管理しない。本編のPC／mobile・既知素材と材質fallbackの直接VRTは通常ゲームの検査として残す。
 
 ## デザイン原稿と実装の比較
 
-デザインの正本は[単一の`.fig`](../art-src/openpencil/endfield-rpg.fig)で、部品・variant・画面は編集可能な標準ノードとして保持する。[対応表](../art-src/openpencil/bindings.json)の製品Svelte部品・Story ID・原稿ノードから比較対象を解決する。部品は[CSFストーリー](../tests/stories/)へ実propsを直接与えて描画する。共通hostはテーマと利用可能な幅・高さ・paddingを与え、他の画面を描いて隠す方法や親画面の実測座標には依存しない。画面は部品を配置する画面コンポーネントとして別に比較する。
+デザインの正本は[単一の`.fig`](../art-src/openpencil/endfield-rpg.fig)で、部品・variant・画面は編集可能な標準ノードとして保持する。製品部品と同居する`*.stories.ts`の`parameters.design`に原稿ノード・variant・比較条件を定義する。Storybook標準のprepared parametersとindexの`componentPath`から対応一覧を自動集計し、別の手書き対応表は持たない。[原稿設定](../art-src/openpencil/bindings.json)はdocumentと素材だけを保持する。部品はCSFストーリーへ実propsを直接与えて描画する。専用の操作テストも同じディレクトリに置き、複数部品で共有するfixtureは`.storybook/fixtures/`に置く。共通hostはテーマと利用可能な幅・高さ・paddingを与え、他の画面を描いて隠す方法や親画面の実測座標には依存しない。画面は部品を配置する画面コンポーネントとして別に比較する。
 
 画像比較の対象は部品全体と外観が変わるvariant・表示状態で、hover・focus・pressedも通常のブラウザ操作で再現する。任意の文字列・数値・座標の全組合せ、内部の文字・アイコン、素材画像そのものを独立した比較対象にしない。操作結合テスト用のストーリーには、見た目のvariantでない操作手順だけを理由に`.fig`や画像比較を追加しない。戦闘はHUD・操作ボタンなどのUI部品だけを扱い、3D画面全体・戦闘エフェクト・開発エディターをデザイン原稿の比較に含めない。既存のゲーム用VRTとNative WebGLの資源検証は別の保証として維持する。
 
 標準`select`の候補行の強調表示は、一覧を開いて上下キーで再現する。確定済みの`value`が変わらないことを`expectedValue`で検査し、本体の一時表示ラベルは原稿の通常のテキストプロパティへ指定する。候補一覧も含む部品全体を全RGBAで比較する。OSポインタ操作やXvfbは使わない。
 
-参照PNGはOpenPencilの標準HTML出力を固定Chromiumで撮影する。CanvasKitの直接PNG exportとは別の方式で、標準の比較にはHTML経由の出力を使う。原稿と実装の寸法・全画素・全RGBAが一致した場合だけ成功し、許容差・除外領域・拡縮・色補正を使わない。PNGは実行時の生成物であり、承認して更新するbaselineとしてコミットしない。
+参照PNGはOpenPencilの標準HTML出力を固定Chromiumで撮影する。Figの部品は自身の原点から独立してexportし、実装と参照の各DOMの描画領域とpaddingをそれぞれ撮影する。親の座標・合成レイヤーを転写せず、画面は全viewportを比較する。CanvasKitの直接PNG exportとは別の方式で、標準の比較にはHTML経由の出力を使う。原稿と実装の寸法・全画素・全RGBAが一致した場合だけ成功し、許容差・除外領域・拡縮・色補正を使わない。PNGは実行時の生成物であり、承認して更新するbaselineとしてコミットしない。
 
 | 引数 | 実行内容 |
 | --- | --- |
 | なし | 登録した全部品・必要状態・画面を比較する |
+| `--list` | Story設定から部品・variant・画面の対応一覧を`report.json`へ集計する。画像生成・比較・signature更新は行わない |
 | `--diff` | 成功済み入力との差分、選択対象と理由を`report.json`へ出す。撮影・画素比較・signature更新は行わない |
 | `--changed` | 変更に依存する対象だけを生成・撮影・比較する。有効な成功済みsignatureがない初回は全件を選択する |
 | `--select ID,ID` | 指定IDだけの調査用実行。成功しても全体の`complete`は`false`で、共有signatureを更新しない |
+| `--workers auto\|N` | CPU割当と利用可能メモリによる自動並列数、または指定した正整数の並列数で実行 |
 
 引数は`npm run openpencil:verify -- --changed`のように渡す。差分判定は、原稿のノードツリーと参照する部品定義・variant・色変数とalias・文字等のスタイル・画像bytes・フォントを辿る。独立した部品の原稿上の配置座標と編集用メタデータは判定から外し、その部品を含む画面内の配置は画面の入力として扱う。実装側はViteの解決済みimport依存にあるSvelte・TS・CSSと、撮影時に利用した公開素材のファイルhashを使う。ファイル単位の依存なので、共通CSSなどの変更ではそのファイルを利用する複数部品を保守的に再比較する。`--diff`でも依存を解決するStorybookのbuildは必要になる。
 
 比較に成功した入力signatureは`.openpencil/design-snapshot.json`へ保存する。全件、または成功済みsignatureから選んだ変更対象の全件が一致した場合だけ更新し、失敗・明示選択・差分表示では更新しない。JSONには入力hashと依存関係を保存し、参照・実装PNGのキャッシュは持たない。選ばれた対象の参照・実装PNGは毎回生成する。削除・破損・未検証・非互換のsignatureは再利用せず、初回と同様に全件を選択する。提出前はこの差分選択にかかわらず全件比較を行う。
 
-デザイン差分判定のCIキャッシュも成功したsignatureのJSON一つだけを対象とし、PNG・HTML・原稿本体は含めない。保存keyはmainとPR番号・検証commitを分ける。同じ検証commitの成功済みkeyがなければ、同じPRの直近成功key、PRのbase main SHAのkey、同じ共通pipelineのmain keyの順に復元する。main実行ではPRのkeyを使わない。共通のexport・撮影・比較・差分判定、Storybook設定、依存lockfileの変更でキャッシュのnamespaceを変え、初回の全件比較へ戻す。Storybookの操作テストと原稿比較が成功したjobだけがsignatureを保存する。
+デザイン差分判定のCIキャッシュも成功したsignatureのJSON一つだけを対象とし、PNG・HTML・原稿本体は含めない。保存keyはmainとPR番号・検証commitを分ける。同じ検証commitの成功済みkeyがなければ、同じPRの直近成功key、PRのbase main SHAのkey、同じ共通pipelineのmain keyの順に復元する。main実行ではPRのkeyを使わない。共通のexport・撮影・比較・差分判定、Storybook設定、依存lockfileの変更でキャッシュのnamespaceを変え、初回の全件比較へ戻す。全検証scopeが成功したjobだけがsignatureを保存する。ローカルとCIは[scripts/design-pipeline.mjs](../scripts/design-pipeline.mjs)で同じfingerprintを計算する。CI専用のhash定義を持たない。
+
+並列数は[scripts/design-workers.mjs](../scripts/design-workers.mjs)で実行先のCPU割当・cgroup quota・利用可能メモリから決め、環境別の固定上限を設けない。ローカルから新しいDockerを起動するときもホストのCPU・メモリ制限を引き継ぐ。exportと撮影では必要メモリが異なるため、各工程の開始時に並列数を再計算する。各export workerは独立したFig graphを持ち、各撮影workerは独立したブラウザを持つ。対象・出力先を分離し、失敗時は開始済みworkerの終了を待ってから終了する。`report.json`には資源情報・実並列数・build／集計／差分判定／export／撮影と比較／終了までの全体時間を記録する。
 
 結果は`test-results/openpencil/verification/report.json`へ保存する。CIは成功時にPNGをアップロードしない。失敗時だけ[scripts/design-artifacts.mjs](../scripts/design-artifacts.mjs)で失敗対象の参照・実装・差分PNGと診断JSONを`test-results/design-failures/`へまとめ、1日だけ保存する。PNGの合計予算は一実行20MiBで、超過時は画像だけを省き、全失敗一覧と画像の省略対象はJSONに残す。比較件数を減らして予算へ合わせることはしない。
 
 ## Coverageと実行漏れ
 
-Vitest 5の標準 `@vitest/coverage-v8` で `src/**/*.{ts,svelte}` と `scripts/*.{ts,mjs}` をincludeし、未読込も分母へ含める。ゲームとpresentationは行97・文95・関数100・分岐93の閾値を適用する。率のために来ない入力・不可能状態・冗長防御を作らない。
+Vitest 5の標準 `@vitest/coverage-v8` で `src/**/*.{ts,svelte}` と `scripts/*.{ts,mjs}` をincludeし、未読込も分母へ含める。部品と同居する`*.stories.ts`とStory専用の`*.stories.svelte`は検証用コードとして除外する。ゲームとpresentationは行97・文95・関数100・分岐93の閾値を適用する。率のために来ない入力・不可能状態・冗長防御を作らない。
 
 ブラウザは同じ必要実行へPlaywright native V8を付随させ、Monocartで自前srcへmappingする。buildの[hidden sourcemap](https://vite.dev/config/build-options.html#build-sourcemap)は実行JSへ注釈を加えない。共有fixtureが各chunkの隣接mapを渡す。実HMRのdev sourceだけはinline mapを使う。全srcの未読込を0-hitとして残し、vendor・テスト・CSSを混ぜない。Svelteコンポーネントと`.svelte.ts`もsource集合に含め、`.svelte`の未読込分は公式Svelte compilerのJS／mapから補う。実行分は通常Vite pluginのmapを使う。`coverage/browser/<実project名>/` は由来別のreportであり、同じ分母を合算・平均したりunit率へ統合したりしない。
 

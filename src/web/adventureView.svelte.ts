@@ -2,7 +2,7 @@ import { mount, unmount } from "svelte";
 import type { AdventureEvent } from "../presentation/adventureModel";
 import type { AdventureFrame } from "../presentation/adventureProjection";
 import type { AdventureSettings } from "../presentation/adventureSettings";
-import Adventure from "./components/Adventure.svelte";
+import Adventure from "./components/Adventure/Adventure.svelte";
 export function createAdventureView(
   root: HTMLDivElement,
   utilities: AdventureFrame["utilities"],

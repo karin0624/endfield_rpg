@@ -1,7 +1,7 @@
 import { mount, unmount } from "svelte";
 import type { PartyEvent } from "../presentation/partyModel";
 import type { PartyFrame } from "../presentation/partyProjection";
-import Party from "./components/Party.svelte";
+import Party from "./components/Party/Party.svelte";
 
 export function createPartyView(root: HTMLElement, send: (event: PartyEvent) => boolean) {
   let frame = $state.raw<PartyFrame | null>(null);

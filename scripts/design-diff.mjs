@@ -336,12 +336,12 @@ export function createDesignSnapshot(
     const figma = { ...target.figma };
     delete figma.path;
     delete figma.sourceId;
-    delete figma.instance;
     const reference = {
       kind: target.kind,
       viewport: target.viewport,
       figma,
       capture,
+      renderFrame: target.renderFrame,
       environment,
       documentColorSpace: graph.documentColorSpace,
       inheritedModes,

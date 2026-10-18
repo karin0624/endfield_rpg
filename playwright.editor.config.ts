@@ -1,5 +1,5 @@
 import { defineConfig } from "@playwright/test";
-import config, { editorProjects } from "./playwright.config";
+import config, { editorProjects } from "./playwright.config.ts";
 
 // Developer-only Native WebGL resource checks; editor appearance is not a visual contract.
 export default defineConfig({

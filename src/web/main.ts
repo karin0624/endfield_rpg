@@ -10,7 +10,7 @@ if (
     !["battle", "dungeon", "edit", "adventureEdit"].some((key) => new URLSearchParams(location.search).get(key) === "1")
   ) {
     const { mount } = await import("svelte");
-    const { default: DebugBadge } = await import("./components/DebugBadge.svelte");
+    const { default: DebugBadge } = await import("./components/DebugBadge/DebugBadge.svelte");
     mount(DebugBadge, { target: document.body, anchor: document.body.firstChild ?? undefined });
   }
   document.title = "デバッグ · ENDFIELD RPG";

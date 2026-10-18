@@ -198,6 +198,18 @@ describe("design dependency selection", () => {
     });
   });
 
+  it("rechecks the reference when its shared Story frame changes", () => {
+    const doc = document();
+    doc.manifest.targets[0].renderFrame = { padding: 32 };
+    const before = snapshot(doc);
+    doc.manifest.targets[0].renderFrame.padding = 64;
+    expect(compareDesignSnapshots(before, snapshot(doc))).toMatchObject({
+      selected: ["button/default"],
+      referenceChanged: ["button/default"],
+      implementationChanged: [],
+    });
+  });
+
   it("does not include temporary export instances or their deletion in the master signature", () => {
     const doc = document();
     const before = snapshot(doc);

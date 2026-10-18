@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import { resolve } from "node:path";
 import { DESIGN_IMAGE } from "./design-environment.mjs";
+import { designConcurrency } from "./design-workers.mjs";
 import { OPENPENCIL_REVISION } from "./openpencil.mjs";
 
 const args = process.argv.slice(2);
@@ -15,10 +16,10 @@ const inside = [
   `${root}/node_modules/bun/bin/bun.exe`,
   `${root}/scripts/verify-design.mjs`,
   `${root}/${source}`,
-  "--inside",
   ...args,
 ];
 const command = process.env.DESIGN_IN_CONTAINER === "1" ? inside.shift() : "docker";
+const resources = process.env.DESIGN_IN_CONTAINER === "1" || container ? undefined : designConcurrency();
 const options =
   process.env.DESIGN_IN_CONTAINER === "1"
     ? inside
@@ -31,6 +32,10 @@ const options =
           "--ipc=host",
           "--platform",
           "linux/amd64",
+          "--cpus",
+          String(Math.min(resources.cpus, resources.cpuQuota ?? resources.cpus)),
+          "--memory",
+          String(Math.floor(resources.availableMemory)),
           "--user",
           `${process.getuid()}:${process.getgid()}`,
           "-v",

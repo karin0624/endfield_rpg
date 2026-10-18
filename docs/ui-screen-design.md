@@ -40,14 +40,14 @@
 
 | 対象 | 仕様 | 実装 |
 | --- | --- | --- |
-| ホーム | [管理・任意準備・保存](ui-screens/home.md) | [CampaignHub](../src/web/components/CampaignHub.svelte) |
-| 探索先 | [行き先選択](ui-screens/map.md) | [HubScene](../src/web/components/HubScene.svelte) |
-| 街 | [場所・人物から活動を開始](ui-screens/town.md) | [HubScene](../src/web/components/HubScene.svelte)、[townModel](../src/presentation/townModel.ts) |
-| 拠点部品 | [上記3画面の値と状態](ui-screens/hub-components.md) | [IllustratedAction](../src/web/components/IllustratedAction.svelte)、[HubCalendar](../src/web/components/HubCalendar.svelte)、[hub.css](../src/web/hub.css)、[hub-art.json](../src/web/hub-art.json) |
-| 編成・人物詳細 | [編成](../specs/party.md)、[固定版画像](ui-concepts/approved/README.md) | [Party](../src/web/components/Party.svelte)、[CharacterDetails](../src/web/components/CharacterDetails.svelte)、[party.css](../src/web/party.css) |
-| タイトル・装備 | [本編](../specs/overview.md)、[物品](../specs/items.md)、[保存](../specs/save.md) | [Campaign](../src/web/components/Campaign.svelte)、[campaign.css](../src/web/campaign.css)、[items.css](../src/web/items.css) |
-| 会話・買物 | [会話](../specs/adventure.md)、[物品](../specs/items.md) | [Conversation](../src/web/components/Conversation.svelte)、[ItemShop](../src/web/components/ItemShop.svelte) |
-| ルート・成長 | [ダンジョン](../specs/dungeon.md)、[成長](../specs/progression.md) | [Dungeon](../src/web/components/Dungeon.svelte)、[GrowthChoice](../src/web/components/GrowthChoice.svelte) |
-| 戦闘・演出 | [戦闘画面](../specs/visuals.md) | [BattleHud](../src/web/components/BattleHud.svelte)、[BattleSequence](../src/web/components/BattleSequence.svelte)、[style.css](../src/web/style.css)、[battleSequence.css](../src/web/battleSequence.css) |
+| ホーム | [管理・任意準備・保存](ui-screens/home.md) | [CampaignHub](../src/web/components/CampaignHub/CampaignHub.svelte) |
+| 探索先 | [行き先選択](ui-screens/map.md) | [HubScene](../src/web/components/HubScene/HubScene.svelte) |
+| 街 | [場所・人物から活動を開始](ui-screens/town.md) | [HubScene](../src/web/components/HubScene/HubScene.svelte)、[townModel](../src/presentation/townModel.ts) |
+| 拠点部品 | [上記3画面の値と状態](ui-screens/hub-components.md) | [IllustratedAction](../src/web/components/IllustratedAction/IllustratedAction.svelte)、[HubCalendar](../src/web/components/HubCalendar/HubCalendar.svelte)、[hub.css](../src/web/hub.css)、[hub-art.json](../src/web/hub-art.json) |
+| 編成・人物詳細 | [編成](../specs/party.md)、[固定版画像](ui-concepts/approved/README.md) | [Party](../src/web/components/Party/Party.svelte)、[CharacterDetails](../src/web/components/CharacterDetails/CharacterDetails.svelte)、[party.css](../src/web/party.css) |
+| タイトル・装備 | [本編](../specs/overview.md)、[物品](../specs/items.md)、[保存](../specs/save.md) | [Campaign](../src/web/components/Campaign/Campaign.svelte)、[campaign.css](../src/web/campaign.css)、[items.css](../src/web/items.css) |
+| 会話・買物 | [会話](../specs/adventure.md)、[物品](../specs/items.md) | [Conversation](../src/web/components/Conversation/Conversation.svelte)、[ItemShop](../src/web/components/ItemShop/ItemShop.svelte) |
+| ルート・成長 | [ダンジョン](../specs/dungeon.md)、[成長](../specs/progression.md) | [Dungeon](../src/web/components/Dungeon/Dungeon.svelte)、[GrowthChoice](../src/web/components/GrowthChoice/GrowthChoice.svelte) |
+| 戦闘・演出 | [戦闘画面](../specs/visuals.md) | [BattleHud](../src/web/components/BattleHud/BattleHud.svelte)、[BattleSequence](../src/web/components/BattleSequence/BattleSequence.svelte)、[style.css](../src/web/style.css)、[battleSequence.css](../src/web/battleSequence.css) |
 
 通常UIの共通値は[ui.css](../src/web/ui.css)。状態・意味入力は`src/presentation/`、ゲーム規則は`src/game/`が担う。承認元と対象版の検証結果は対象Issue／PRへ記録する。
