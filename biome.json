@@ -6,7 +6,8 @@
     "useIgnoreFile": true
   },
   "files": {
-    "ignoreUnknown": false
+    "ignoreUnknown": false,
+    "maxSize": 2097152
   },
   "formatter": {
     "enabled": true,
@@ -49,6 +50,16 @@
     }
   },
   "overrides": [
+    {
+      "includes": ["public/assets/ui/*.svg"],
+      "linter": {
+        "rules": {
+          "a11y": {
+            "noSvgWithoutTitle": "off"
+          }
+        }
+      }
+    },
     {
       "includes": ["tests/views/**/*.spec.ts", "tests/renderer/**/*.spec.ts", "tests/editor/**/*.spec.ts"],
       "linter": {

@@ -19,7 +19,7 @@ let {
   shop,
   shopSend,
 }: {
-  root: HTMLElement;
+  root?: HTMLElement;
   frame: AdventureFrame | null;
   utilities: AdventureFrame["utilities"];
   settings: AdventureSettings;
@@ -28,6 +28,7 @@ let {
   shopSend?: (event: TownEvent) => boolean;
 } = $props();
 let partyRoot = $state<HTMLElement>();
+let host: HTMLElement;
 const assetUrl = (path: string) => `${import.meta.env.BASE_URL}assets/${path}`;
 let style = $derived(adventureSettingsStyle(settings));
 let focus = $derived(frame?.focus);
@@ -39,7 +40,7 @@ $effect(() => {
       : focus.kind === "choice"
         ? `[data-option-id="${CSS.escape(focus.optionId)}"]`
         : ".dungeon-entry";
-  const node = root.querySelector<HTMLElement>(selector);
+  const node = (root ?? host).querySelector<HTMLElement>(selector);
   if (node && node !== document.activeElement) node.focus();
 });
 onMount(() => {
@@ -66,7 +67,7 @@ onMount(() => {
   return () => events.abort();
 });
 </script>
-<main class="adventure-shell">
+<main class="adventure-shell" bind:this={host}>
   <div
     class="adventure-screen"
     data-adventure-screen

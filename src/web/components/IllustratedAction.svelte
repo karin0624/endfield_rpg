@@ -1,5 +1,6 @@
 <script lang="ts">
 import art from "../hub-art.json";
+import "../hub.css";
 
 let {
   id,
@@ -39,6 +40,9 @@ let height = $derived(round ? art.bubble.display[1] : art.button.height);
   class:round
   class:framed={!round}
   class:movement
+  style:width={!round ? `${width}px` : undefined}
+  style:height={!round ? `${height}px` : undefined}
+  style:--art-height={`${height}px`}
   style={position ? `--anchor-x:${position[0]}px;--anchor-y:${position[1]}px` : undefined}
   aria-label={accessibleName}
   {onclick}
@@ -70,8 +74,8 @@ let height = $derived(round ? art.bubble.display[1] : art.button.height);
         href={asset(isFace ? "characters/gilberta/expressions/neutral.png" : `ui/hubs/${picture}.png`)}
         x={placement.imagePositionCss[0]}
         y={placement.imagePositionCss[1]}
-        width={(isFace ? 1024 : 1254) * placement.scaleCssPerSourcePixel}
-        height={(isFace ? 1536 : 1254) * placement.scaleCssPerSourcePixel}
+        width={placement.displaySize[0]}
+        height={placement.displaySize[1]}
         clip-path={isFace ? "url(#hub-face)" : undefined}
       />
     </svg>

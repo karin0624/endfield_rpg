@@ -1,4 +1,6 @@
 <script lang="ts">
+import BattleLoading from "./BattleLoading.svelte";
+
 let {
   ready,
   error,
@@ -10,9 +12,7 @@ let {
   <div class="game-board" data-board>
     <section class="stage" aria-label="荒野の戦闘画面">
       <canvas aria-label={label} data-ready={ready ? "true" : undefined}></canvas>
-      <div class="loading" class:sr-only={ready} role="status" data-status data-error={error ? "true" : undefined}>
-        {message}
-      </div>
+      <BattleLoading {ready} {error} {message} />
     </section>
   </div>
 </main>

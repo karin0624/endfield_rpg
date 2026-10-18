@@ -469,13 +469,12 @@ describe("探索画面の同期意味入力", () => {
     const edge = projectRouteEdge(
       { ...dimensions, centerX: 316, centerY: 287 },
       { ...dimensions, centerX: 687, centerY: 422 },
-      { width: 928.4, height: 844 },
     );
-    const points = (edge.match(/-?\d+(?:\.\d+)?/g) ?? []).map(Number);
-    expect((points[0] * 928.4) / 1000).toBeCloseTo(396, 8);
-    expect((points[1] * 844) / 1000).toBeCloseTo(272.5, 8);
-    expect((points[6] * 928.4) / 1000).toBeCloseTo(607, 8);
-    expect((points[7] * 844) / 1000).toBeCloseTo(407.5, 8);
+    const points = (edge.d.match(/-?\d+(?:\.\d+)?/g) ?? []).map(Number);
+    expect(edge.x + points[0]).toBe(396);
+    expect(edge.y + points[1]).toBe(272.5);
+    expect(edge.x + points[6]).toBe(607);
+    expect(edge.y + points[7]).toBe(407.5);
     expect(points[2]).toBeGreaterThan(points[0]);
     expect(points[4]).toBeLessThan(points[6]);
     app.send({ type: "focused", target: { kind: "return" } });

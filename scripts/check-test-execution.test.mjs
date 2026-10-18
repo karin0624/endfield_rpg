@@ -97,7 +97,7 @@ it("rejects passed Vitest JSON cases retaining errors from an earlier attempt", 
 
 it("tracks case-level browser collection and resolves files from native report rootDir", () => {
   const report = (annotations) => ({
-    config: { rootDir: "/repo/tests/editor/views", projects: [{ name: "developer-images" }] },
+    config: { rootDir: "/repo/tests/editor/renderer", projects: [{ name: "developer-resources" }] },
     suites: [
       {
         specs: [
@@ -122,7 +122,7 @@ it("tracks case-level browser collection and resolves files from native report r
     playwrightCases(report([{ type: "browser-coverage", description: "documents=1,mappedEntries=1" }]))[0]
       .coverageRecorded,
   ).toBe(true);
-  expect(playwrightCases(report([]), false, "/repo")[0].file).toBe("tests/editor/views/campaign.spec.ts");
+  expect(playwrightCases(report([]), false, "/repo")[0].file).toBe("tests/editor/renderer/campaign.spec.ts");
 });
 
 it("derives every required project from native discovery and rejects empty or different configurations", () => {
