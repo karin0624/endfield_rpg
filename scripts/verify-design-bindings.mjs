@@ -896,9 +896,8 @@ export function validateBindings(manifest, graph, { complete = true } = {}) {
     if (typeof target.state !== "string") errors.push(`Missing state: ${label}`);
     if (!positiveInteger(target.viewport?.width) || !positiveInteger(target.viewport?.height))
       errors.push(`Viewport must use positive integer pixels: ${label}`);
-    if (!target.fixture?.module || !target.fixture?.case) errors.push(`Missing implementation fixture: ${label}`);
-    if (target.fixture?.props !== undefined && !object(target.fixture.props))
-      errors.push(`Invalid fixture props: ${label}`);
+    if (typeof target.storyId !== "string" || !target.storyId.length)
+      errors.push(`Missing implementation story: ${label}`);
     if (target.figma?.properties !== undefined && !object(target.figma.properties))
       errors.push(`Invalid Figma properties: ${label}`);
     try {
@@ -996,14 +995,8 @@ export function validateBindings(manifest, graph, { complete = true } = {}) {
       !["reduce", "no-preference"].includes(target.capture.reducedMotion)
     )
       errors.push(`Invalid capture reduced-motion preference: ${label}`);
-    if (
-      target.capture?.phase !== undefined &&
-      (!object(target.capture.phase) ||
-        ![target.capture.phase.x, target.capture.phase.y].every(
-          (value) => Number.isFinite(value) && value >= 0 && value < 1,
-        ))
-    )
-      errors.push(`Capture phase must contain x/y in [0,1): ${label}`);
+    if (target.capture?.phase !== undefined)
+      errors.push(`Manual capture phase is unsupported; render an independent story: ${label}`);
     if (
       target.kind === "screen" &&
       (target.capture?.selector || target.capture?.padding || target.capture?.phase || target.capture?.anchor)

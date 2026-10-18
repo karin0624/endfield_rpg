@@ -1,6 +1,7 @@
 <script lang="ts">
 import type { GrowthEvent, GrowthFocus } from "../../presentation/growthModel";
 import type { GrowthFrame } from "../../presentation/growthProjection";
+import GrowthCandidate from "./GrowthCandidate.svelte";
 
 let { frame, focus, send }: { frame: GrowthFrame; focus: GrowthFocus; send: (event: GrowthEvent) => boolean } =
   $props();
@@ -34,14 +35,6 @@ function key(event: KeyboardEvent) {
     <p role="alert">{frame.error}</p>
   {/if}
   {#each frame.candidates as candidate (candidate.skillId)}
-    <button
-      type="button"
-      data-skill-id={candidate.skillId}
-      onclick={() => send({ type: "choose", skillId: candidate.skillId })}
-      onfocus={() => send({ type: "focused", target: { kind: "candidate", skillId: candidate.skillId } })}
-    >
-      <strong>{candidate.name}</strong><span class="growth-choice-detail">{candidate.detail}</span
-      ><span class="growth-choice-detail">{candidate.description}</span>
-    </button>
+    <GrowthCandidate {candidate} {send} />
   {/each}
 </section>

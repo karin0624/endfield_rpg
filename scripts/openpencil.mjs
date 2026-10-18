@@ -5,7 +5,7 @@ import { delimiter, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const project = dirname(dirname(fileURLToPath(import.meta.url)));
-const pinnedRevision = "ffe2fc5798468988a5943c5f5737905c3c7a28b5";
+export const OPENPENCIL_REVISION = "ffe2fc5798468988a5943c5f5737905c3c7a28b5";
 const upstream = "https://github.com/open-pencil/open-pencil.git";
 
 async function optionalFile(path) {
@@ -52,7 +52,7 @@ function execute(command, args, cwd, { env, quiet = false, capture = false } = {
 
 export async function openpencil(
   args = [],
-  { root = project, revision = pinnedRevision, repository = upstream, run = execute } = {},
+  { root = project, revision = OPENPENCIL_REVISION, repository = upstream, run = execute } = {},
 ) {
   const patch = await readFile(join(root, "scripts/openpencil.patch"));
   const fonts = [];
@@ -81,7 +81,7 @@ export async function openpencil(
     if (args[0] === "--render") {
       await command(bun, [join(root, "scripts/render-openpencil.mjs"), source, ...args.slice(1)], root);
     } else if (args[0] === "--verify-design") {
-      await command(bun, [join(root, "scripts/verify-design.mjs"), source, ...args.slice(1)], root);
+      await command(process.execPath, [join(root, "scripts/run-design-verification.mjs"), ...args.slice(1)], root);
     } else if (args[0] === "--export-assets") {
       await command(bun, [join(root, "scripts/export-design-assets.mjs"), source, ...args.slice(1)], root);
     } else if (args.length === 0 || args[0] === "--app") {

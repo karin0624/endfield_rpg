@@ -11,18 +11,33 @@
   font-size: var(--font-size-body);
   line-height: 1.6;
 }
-.item-dialog::backdrop {
+.item-dialog::backdrop,
+.item-modal::backdrop {
   background: #0a100dd4;
+}
+.item-modal {
+  width: min(30rem, calc(100vw - 2rem));
+  max-height: calc(100dvh - 2rem);
+  box-sizing: border-box;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  overflow: visible;
+}
+.item-modal > .item-dialog {
+  width: 100%;
 }
 .item-dialog label,
 .item-dialog select,
-.item-dialog input {
+.battle-item-target,
+.item-quantity-input[type="number"] {
   display: block;
   width: 100%;
   box-sizing: border-box;
 }
 .item-dialog select,
-.item-dialog input,
+.battle-item-target,
+.item-quantity-input[type="number"],
 .item-carry-input {
   color: inherit;
   background: #101713;
@@ -30,12 +45,28 @@
   border: 1px solid #828b78;
   font: inherit;
 }
-.dungeon-app .item-dialog select {
+.branch-item-dialog select,
+select.battle-item-target {
   appearance: none;
   line-height: 22px;
   padding-left: calc(0.6rem + 4px);
   padding-right: calc(0.6rem + 16px);
   background: #101713 url("/assets/ui/select-arrow.svg") right 3px center / 10px 8px no-repeat;
+}
+.branch-item-modal {
+  width: min(30rem, calc(100vw - 2rem));
+  max-height: calc(100dvh - 2rem);
+  box-sizing: border-box;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  overflow: visible;
+}
+.branch-item-modal::backdrop {
+  background: #0a100dd4;
+}
+.branch-item-dialog {
+  width: 100%;
 }
 .item-actions {
   display: flex;
@@ -49,13 +80,18 @@
 .item-trigger {
   margin-top: 0.5rem;
 }
-.dungeon-route-screen > .item-trigger {
+.dungeon-route-screen > .item-trigger-position {
   position: absolute;
   left: 1rem;
   top: 5rem;
   z-index: 4;
+  width: 100%;
 }
 .item-shop-trigger {
+  width: 100%;
+}
+.conversation-view > .item-shop-trigger,
+:is(.hub-scene, .hub-theme) > .item-shop-trigger {
   position: absolute;
   width: calc(100% - 2rem);
   left: 1rem;
@@ -65,6 +101,13 @@
 .item-carry-input {
   width: 6rem;
   margin-left: 0.75rem;
+}
+/* Keep the native spinner size independent of the input's fractional layout origin. */
+input.item-carry-input::-webkit-inner-spin-button {
+  height: 24px;
+}
+input.item-quantity-input::-webkit-inner-spin-button {
+  height: 26px;
 }
 
 .item-equipment-select {
@@ -97,7 +140,7 @@
   margin-left: 0.75rem;
   --number-border: #48616b;
 }
-.hub-scene .item-carry-control {
+:is(.hub-scene, .hub-theme) .item-carry-control {
   --number-background: #fff;
   --number-focus: #28526e;
   --number-focus-offset: 2px;
@@ -115,8 +158,8 @@
 }
 .item-number-control > input[type="number"],
 .item-number-control > input[type="number"]:focus-visible,
-.hub-scene .item-number-control > input[type="number"],
-.hub-scene .item-number-control > input[type="number"]:focus-visible {
+:is(.hub-scene, .hub-theme) .item-number-control > input[type="number"],
+:is(.hub-scene, .hub-theme) .item-number-control > input[type="number"]:focus-visible {
   background: transparent;
   border-color: transparent;
   outline: none;
@@ -127,7 +170,7 @@
   outline: 2px solid var(--number-focus);
   outline-offset: var(--number-focus-offset);
 }
-.hub-scene .item-number-control:has(> input:focus-visible)::before {
+:is(.hub-scene, .hub-theme) .item-number-control:has(> input:focus-visible)::before {
   box-shadow: 0 0 0 6px #fff;
 }
 @media (forced-colors: active) {
@@ -135,12 +178,12 @@
     display: none;
   }
   .item-number-control > input[type="number"],
-  .hub-scene .item-number-control > input[type="number"] {
+  :is(.hub-scene, .hub-theme) .item-number-control > input[type="number"] {
     background: var(--number-background);
     border-color: var(--number-border);
   }
   .item-number-control > input[type="number"]:focus-visible,
-  .hub-scene .item-number-control > input[type="number"]:focus-visible {
+  :is(.hub-scene, .hub-theme) .item-number-control > input[type="number"]:focus-visible {
     background: var(--number-background);
     border-color: var(--number-border);
     outline: 2px solid var(--number-focus);

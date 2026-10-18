@@ -101,6 +101,10 @@ async function fixture(initialPatch = patch()) {
       if (result.status !== 0) throw new Error(`git ${args[0]} failed: ${result.stderr}`);
       return options.capture ? result.stdout : true;
     }
+    if (basename(tool) === "node") {
+      expect(args[0]).toBe(join(root, "scripts/run-design-verification.mjs"));
+      return true;
+    }
     expect(basename(tool)).toMatch(/^bun(?:\.exe)?$/);
     if (args[0] === "install") {
       put(cwd, "node_modules/.bin/vite", "installed vite");
@@ -208,7 +212,7 @@ it("reuses a version checkout and dependencies, rebuilding only package or font 
   expect(env.calls).toHaveLength(4);
   const verification = env.calls.find((call) => call.args.includes("--select"));
   expect(verification.cwd).toBe(env.root);
-  expect(verification.args).toEqual([join(env.root, "scripts/verify-design.mjs"), env.source, "--select", "home"]);
+  expect(verification.args).toEqual([join(env.root, "scripts/run-design-verification.mjs"), "--select", "home"]);
   const assets = env.calls.find((call) => call.args.includes("preview"));
   expect(assets.cwd).toBe(env.root);
   expect(assets.args).toEqual([join(env.root, "scripts/export-design-assets.mjs"), env.source, "--output", "preview"]);

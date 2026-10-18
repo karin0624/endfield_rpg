@@ -24,9 +24,8 @@ canvas {
   height: 100%;
 }
 .loading {
-  position: absolute;
-  inset: 0;
   display: grid;
+  height: 100%;
   place-items: center;
   padding: 30px;
   text-align: center;
@@ -514,21 +513,24 @@ input[aria-invalid="true"] {
 }
 .dialogue-panel {
   user-select: none;
-  position: absolute;
+  position: relative;
   z-index: 3;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  min-height: var(--adventure-panelHeight);
-  padding: var(--adventure-panelPaddingTop) var(--adventure-panelPaddingX) 45px;
+  min-height: var(--adventure-panelHeight, 297px);
+  padding: var(--adventure-panelPaddingTop, 24px) var(--adventure-panelPaddingX, 8%) 45px;
   background: linear-gradient(180deg, #171d1900 0%, #171d19d9 24%, #171d19f5 100%);
   cursor: pointer;
   max-height: 80%;
   overflow-y: auto;
 }
+.conversation-stage > .dialogue-panel {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+}
 .dialogue-speaker {
   min-height: 1.4em;
-  margin-bottom: var(--adventure-speakerGap);
+  margin-bottom: var(--adventure-speakerGap, 8px);
   color: var(--text-primary);
   font: 500 var(--font-size-emphasis) / 1.4 var(--serif);
   letter-spacing: 0.04em;
@@ -540,7 +542,7 @@ input[aria-invalid="true"] {
 }
 .dialogue-text {
   max-width: 84ch;
-  margin: var(--adventure-textGap) 0 0;
+  margin: var(--adventure-textGap, 16px) 0 0;
   color: var(--text-primary);
   font-size: var(--font-size-body);
   line-height: 1.6;
@@ -549,8 +551,8 @@ input[aria-invalid="true"] {
 }
 .dialogue-next {
   position: absolute;
-  right: var(--adventure-arrowRight);
-  bottom: var(--adventure-arrowBottom);
+  right: var(--adventure-arrowRight, 12%);
+  bottom: var(--adventure-arrowBottom, 22px);
   width: 12px;
   height: 12px;
   border-right: 2px solid var(--action-primary);
@@ -571,8 +573,9 @@ input[aria-invalid="true"] {
   max-height: 58%;
   overflow-y: auto;
 }
-.adventure-screen .conversation-choice {
+.conversation-choice {
   position: relative;
+  width: 100%;
   min-height: 66px;
   display: grid;
   grid-template-columns: 26px 36px 1fr;
@@ -588,12 +591,12 @@ input[aria-invalid="true"] {
     inset 0 0 0 4px #445045,
     0 3px 10px #0004;
 }
-.adventure-screen .conversation-choice:hover,
-.adventure-screen .conversation-choice:active {
+.conversation-choice:hover,
+.conversation-choice:active {
   border-color: var(--selection-edge);
   background: var(--surface-selected);
 }
-.adventure-screen .conversation-choice:focus-visible,
+.conversation-choice:focus-visible,
 .adventure-screen .town-place:focus-visible,
 .battle-entry:focus-visible,
 .adventure-editor-entry:focus-visible {
@@ -816,7 +819,7 @@ input[aria-invalid="true"] {
     width: var(--adventure-mobileChoicesWidth);
     gap: 9px;
   }
-  .adventure-screen .conversation-choice {
+  .conversation-choice {
     min-height: 58px;
     grid-template-columns: 19px 32px 1fr;
     gap: 8px;
@@ -897,15 +900,21 @@ input[aria-invalid="true"] {
 .loading {
   z-index: 20;
 }
+.stage > .loading {
+  position: absolute;
+  inset: 0;
+}
 .loading.sr-only {
   z-index: -1;
 }
 .battle-ui {
+  color: var(--text-primary);
+  font-family: "Noto Sans JP", "Yu Gothic", system-ui, sans-serif;
+}
+.battle-layout {
   position: absolute;
   z-index: 4;
   inset: 0;
-  color: var(--text-primary);
-  font-family: "Noto Sans JP", "Yu Gothic", system-ui, sans-serif;
   pointer-events: none;
 }
 .battle-ui > * {
@@ -937,11 +946,13 @@ input[aria-invalid="true"] {
   outline-offset: 3px;
 }
 .timeline {
+  width: 210px;
+  padding: 13px 8px 10px;
+}
+.battle-layout > .timeline {
   position: absolute;
   left: 14px;
   top: 16px;
-  width: 210px;
-  padding: 13px 8px 10px;
 }
 .queue {
   display: flex;
@@ -1020,13 +1031,15 @@ input[aria-invalid="true"] {
   background: var(--status-danger);
 }
 .commands {
-  position: absolute;
-  top: 224px;
-  right: 16px;
   width: 181px;
   padding: 17px 10px 13px;
 }
-.commands h2 {
+.battle-layout > .commands {
+  position: absolute;
+  top: 224px;
+  right: 16px;
+}
+:is(.commands, .battle-item-dialog) h2 {
   text-align: center;
   margin-bottom: 11px;
   padding-bottom: 12px;
@@ -1179,13 +1192,18 @@ input[aria-invalid="true"] {
   margin-top: 4px;
 }
 .battle-result {
+  position: relative;
+  width: 380px;
+  max-width: 100%;
+  padding: 24px 28px;
+  text-align: center;
+}
+.battle-layout > .battle-result {
   position: absolute;
   z-index: 6;
   left: 50%;
   top: 50%;
-  width: min(380px, calc(100% - 32px));
-  padding: 24px 28px;
-  text-align: center;
+  max-width: calc(100% - 32px);
   transform: translate(-50%, -50%);
 }
 .battle-ui .battle-result {
@@ -1211,7 +1229,7 @@ input[aria-invalid="true"] {
   margin: 0 0 17px;
   color: var(--text-secondary);
 }
-.battle-result .primary {
+.battle-finish {
   width: auto;
   min-width: 132px;
   padding: 10px 20px;
@@ -1221,7 +1239,8 @@ input[aria-invalid="true"] {
   font-weight: 600;
 }
 .enemy-hitbox {
-  position: absolute;
+  width: 100%;
+  height: 100%;
   z-index: 2;
   padding: 0;
   border: 1px solid transparent;
@@ -1240,7 +1259,6 @@ input[aria-invalid="true"] {
   cursor: default;
 }
 .enemy-world-label {
-  position: absolute;
   z-index: 4;
   width: max-content;
   min-width: 170px;
@@ -1250,8 +1268,14 @@ input[aria-invalid="true"] {
   background: var(--surface-base);
   color: var(--text-primary);
   box-shadow: 0 1px 4px #0007;
-  transform: translate(-50%, -100%);
   pointer-events: none;
+}
+.stage > .enemy-world-label {
+  position: absolute;
+  transform: translate(-50%, -100%);
+}
+.stage > .enemy-hitbox {
+  position: absolute;
 }
 .enemy-world-label[hidden] {
   display: none;
@@ -1387,7 +1411,7 @@ input[aria-invalid="true"] {
     height: auto;
     aspect-ratio: 16 / 9;
   }
-  .battle-ui {
+  .battle-layout {
     position: relative;
     inset: auto;
     display: grid;
@@ -1396,18 +1420,6 @@ input[aria-invalid="true"] {
     gap: 8px;
     padding: 8px;
     background: var(--surface-pressed);
-  }
-  .timeline,
-  .commands,
-  .party,
-  .battle-result {
-    position: static;
-    inset: auto;
-    width: auto;
-    max-width: none;
-    min-width: 0;
-    margin: 0;
-    transform: none;
   }
   .timeline {
     min-height: 100%;
@@ -1440,7 +1452,7 @@ input[aria-invalid="true"] {
   .commands {
     padding: 9px;
   }
-  .commands h2 {
+  :is(.commands, .battle-item-dialog) h2 {
     margin-bottom: 6px;
     padding-bottom: 7px;
   }
@@ -1462,6 +1474,18 @@ input[aria-invalid="true"] {
   }
   .battle-result {
     padding: 17px;
+  }
+  .battle-layout > .timeline,
+  .battle-layout > .commands,
+  .party,
+  .battle-layout > .battle-result {
+    position: static;
+    inset: auto;
+    width: auto;
+    max-width: none;
+    min-width: 0;
+    margin: 0;
+    transform: none;
   }
 
   .event-toast {
@@ -1497,7 +1521,7 @@ input[aria-invalid="true"] {
 }
 
 @media (max-width: 540px) {
-  .battle-ui {
+  .battle-layout {
     grid-template-columns: minmax(0, 1fr);
   }
   .timeline {
@@ -1540,11 +1564,13 @@ input[aria-invalid="true"] {
 /* Desktop battle UI scales with the 16:9 board, with readable minimums. */
 @media (min-width: 901px) {
   .timeline {
-    left: clamp(14px, min(1.07vw, 1.9vh), 28px);
-    top: clamp(16px, min(1.23vw, 2.2vh), 32px);
     width: clamp(210px, min(15vw, 27vh), 380px);
     padding: clamp(13px, min(0.995vw, 1.769vh), 24px) clamp(8px, min(0.612vw, 1.088vh), 16px)
       clamp(10px, min(0.765vw, 1.36vh), 20px);
+  }
+  .battle-layout > .timeline {
+    left: clamp(14px, min(1.07vw, 1.9vh), 28px);
+    top: clamp(16px, min(1.23vw, 2.2vh), 32px);
   }
   .queue {
     gap: clamp(3px, min(0.23vw, 0.41vh), 7px);
@@ -1561,13 +1587,15 @@ input[aria-invalid="true"] {
   }
 
   .commands {
-    top: clamp(224px, min(17.31vw, 30.77vh), 500px);
-    right: clamp(16px, min(1.22vw, 2.17vh), 32px);
     width: clamp(181px, min(13.84vw, 24.6vh), 400px);
     padding: clamp(17px, min(1.3vw, 2.34vh), 34px) clamp(10px, min(0.765vw, 1.36vh), 20px)
       clamp(13px, min(0.995vw, 1.79vh), 26px);
   }
-  .commands h2 {
+  .battle-layout > .commands {
+    top: clamp(224px, min(17.31vw, 30.77vh), 500px);
+    right: clamp(16px, min(1.22vw, 2.17vh), 32px);
+  }
+  :is(.commands, .battle-item-dialog) h2 {
     margin-bottom: clamp(11px, min(0.84vw, 1.51vh), 22px);
     padding-bottom: clamp(12px, min(0.92vw, 1.65vh), 24px);
     font-size: clamp(14px, min(1.07vw, 1.93vh), 23px);
@@ -1636,14 +1664,14 @@ input[aria-invalid="true"] {
     padding: clamp(12px, min(0.92vw, 1.65vh), 24px) clamp(20px, min(1.53vw, 2.75vh), 40px);
   }
   .battle-result {
-    width: min(clamp(380px, min(29.05vw, 51.98vh), 680px), calc(100% - 32px));
+    width: clamp(380px, min(29.05vw, 51.98vh), 680px);
     padding: clamp(24px, min(1.83vw, 3.3vh), 48px) clamp(28px, min(2.14vw, 3.85vh), 56px);
   }
 
   .battle-result p {
     margin-bottom: clamp(17px, min(1.3vw, 2.34vh), 34px);
   }
-  .battle-result .primary {
+  .battle-finish {
     min-width: clamp(132px, min(10.09vw, 18.13vh), 220px);
     padding: clamp(10px, min(0.765vw, 1.36vh), 20px) clamp(20px, min(1.53vw, 2.75vh), 40px);
   }
@@ -1664,7 +1692,7 @@ input[aria-invalid="true"] {
 .queue-value b,
 .command span:last-child,
 #app .enemy-world-label .enemy-world-hp,
-.battle-result .primary {
+.battle-finish {
   font-size: var(--font-size-decision);
   line-height: 1.4;
 }
@@ -1827,10 +1855,15 @@ body.dungeon-mode {
 .dungeon-route-nodes {
   z-index: 2;
 }
-.dungeon-route-node {
+.dungeon-route-node-position {
   position: absolute;
-  display: flex;
   width: clamp(152px, 11vw, 210px);
+  transform: translate(-50%, -50%);
+}
+.dungeon-route-node {
+  position: relative;
+  display: flex;
+  width: 100%;
   min-height: 0;
   flex-direction: column;
   align-items: center;
@@ -1842,14 +1875,13 @@ body.dungeon-mode {
   color: var(--text-primary);
   text-align: center;
   text-shadow: 0 2px 5px #000;
-  transform: translate(-50%, -50%);
   transition: transform 140ms ease;
   touch-action: none;
   cursor: pointer;
 }
 .dungeon-route-node:hover {
   background: transparent;
-  transform: translate(-50%, calc(-50% - 5px));
+  transform: translateY(-5px);
 }
 .dungeon-route-node:focus-visible {
   outline: none;
@@ -1910,11 +1942,14 @@ body.dungeon-mode {
   font: 500 var(--font-size-title) / 1.4 var(--serif);
   letter-spacing: 0.04em;
 }
-.dungeon-town-link {
+.dungeon-town-link-position {
   position: absolute;
+  display: flex;
   z-index: 5;
   top: 20px;
   right: 24px;
+}
+.dungeon-town-link {
   padding: 8px 12px;
   border: 1px solid var(--border-decorative);
   background: var(--surface-base);
@@ -1979,8 +2014,11 @@ body.dungeon-mode {
   font-size: var(--font-size-body);
   line-height: 1.6;
 }
-.dungeon-outcome-return {
+.dungeon-outcome-return-position {
+  display: flex;
   margin-top: 12px;
+}
+.dungeon-outcome-return {
   padding: 10px 18px;
   border: 1px solid var(--border-decorative);
   background: var(--surface-base);
@@ -1989,12 +2027,14 @@ body.dungeon-mode {
   text-decoration: none;
 }
 @media (max-width: 640px) {
-  .dungeon-town-link {
+  .dungeon-town-link-position {
     top: 14px;
     right: 14px;
+  }
+  .dungeon-town-link {
     padding: 7px 10px;
   }
-  .dungeon-route-node {
+  .dungeon-route-node-position {
     width: 156px;
   }
 }
@@ -2173,6 +2213,9 @@ body.dungeon-mode {
   display: none;
 }
 .with-skills .commands {
+  width: min(22rem, 100%);
+}
+.battle-layout.with-skills > .commands {
   top: 1rem;
   width: min(22rem, 32%);
   max-height: calc(100% - 12rem);
@@ -2193,7 +2236,7 @@ body.dungeon-mode {
 .skill-result {
   margin: 0.75rem 0;
 }
-.skill-panel select {
+.battle-ally-target {
   width: 100%;
   min-height: 44px;
   font: inherit;
@@ -2202,7 +2245,7 @@ body.dungeon-mode {
   border: 1px solid var(--border-control);
 }
 @media (max-width: 900px) {
-  .with-skills .commands {
+  .battle-layout.with-skills > .commands {
     position: static;
     width: auto;
     max-height: none;
@@ -2228,32 +2271,34 @@ body.dungeon-mode {
   font-size: 1rem;
   line-height: 1.6;
 }
-.growth-choice button {
+.growth-candidate {
   display: grid;
   gap: 0.5rem;
   width: 100%;
   padding: 1rem;
-  margin-block: 1rem;
   text-align: left;
   color: var(--text-primary);
   background: var(--surface-base);
   border: 1px solid var(--trim-metal);
   cursor: pointer;
 }
-.growth-choice strong {
+.growth-choice > .growth-candidate {
+  margin-block: 1rem;
+}
+.growth-candidate strong {
   font-size: 1.125rem;
 }
 .growth-choice-detail {
   font-size: 1rem;
   line-height: 1.5;
 }
-.growth-choice button:hover {
+.growth-candidate:hover {
   background: var(--surface-hover);
 }
-.growth-choice button:active {
+.growth-candidate:active {
   background: var(--surface-pressed);
 }
-.growth-choice button:focus-visible {
+.growth-candidate:focus-visible {
   outline: 2px solid var(--text-primary);
   outline-offset: 3px;
 }
@@ -2315,12 +2360,15 @@ body.dungeon-mode {
   margin: 0 0 0.5rem;
 }
 
-.branch-skill-trigger {
-  font-size: var(--font-size-decision);
+.branch-skill-trigger-position {
   position: absolute;
+  display: flex;
   z-index: 3;
   bottom: 1rem;
   left: 1rem;
+}
+.branch-skill-trigger {
+  font-size: var(--font-size-decision);
   padding: 0.75rem 1rem;
 }
 .branch-skill-result {
@@ -2335,29 +2383,40 @@ body.dungeon-mode {
 .branch-skill-result:empty {
   display: none;
 }
+.branch-skill-modal {
+  width: min(32rem, calc(100% - 2rem));
+  max-height: calc(100% - 2rem);
+  box-sizing: border-box;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  overflow: visible;
+}
 .branch-skill-dialog {
   color: #f4eddb;
   background: #202a23;
   border: 1px solid #b29864;
-  width: min(32rem, calc(100% - 2rem));
+  width: 100%;
   box-sizing: border-box;
-  max-height: calc(100% - 2rem);
+  max-height: calc(100dvh - 2rem);
   overflow-y: auto;
   padding: 1rem;
 }
-.branch-skill-dialog::backdrop {
+.branch-skill-modal::backdrop {
   background: #0009;
 }
-.branch-skill-dialog button {
+.branch-skill-button {
   display: block;
   width: 100%;
-  margin-top: 0.75rem;
   padding: 0.75rem;
   white-space: normal;
   overflow-wrap: anywhere;
   font-size: var(--font-size-decision);
 }
-.branch-skill-dialog button:focus-visible,
+.branch-skill-dialog > .branch-skill-button {
+  margin-top: 0.75rem;
+}
+.branch-skill-button:focus-visible,
 .branch-skill-trigger:focus-visible {
   outline: 2px solid white;
   outline-offset: 2px;

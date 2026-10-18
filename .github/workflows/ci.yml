@@ -9,11 +9,27 @@ permissions:
   contents: read
 
 jobs:
+  environment:
+    runs-on: ubuntu-latest
+    outputs:
+      design_image: ${{ steps.design-image.outputs.image }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          filter: blob:none
+          sparse-checkout: scripts/design-environment.mjs
+          sparse-checkout-cone-mode: false
+      - id: design-image
+        name: Resolve the shared Docker image
+        run: |
+          node --input-type=module -e 'import { DESIGN_IMAGE } from "./scripts/design-environment.mjs"; process.stdout.write(`image=${DESIGN_IMAGE}\n`)' >> "$GITHUB_OUTPUT"
+
   verify:
+    needs: environment
     runs-on: ubuntu-latest
     container:
-      image: mcr.microsoft.com/playwright:v1.63.0-noble
-      options: --ipc=host
+      image: ${{ needs.environment.outputs.design_image }}
+      options: --init --ipc=host
     steps:
       - run: apt-get update && apt-get install -y --no-install-recommends git-lfs
       - uses: actions/checkout@v7
@@ -31,3 +47,103 @@ jobs:
           PR_HEAD: ${{ github.event.pull_request.head.sha }}
           PR_BASE: ${{ github.event.pull_request.base.sha }}
         run: npm run test:browser:inside
+
+  design:
+    needs: environment
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ needs.environment.outputs.design_image }}
+      options: --init --ipc=host
+    steps:
+      - run: apt-get update && apt-get install -y --no-install-recommends git-lfs
+      - uses: actions/checkout@v7
+        with:
+          lfs: true
+      - name: Trust checked-out workspace for container shell
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: design-npm-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: design-npm-${{ runner.os }}-${{ runner.arch }}-
+      - id: dependencies
+        run: npm ci
+      - id: signature-key
+        name: Resolve verified input cache keys
+        env:
+          PIPELINE_HASH: >-
+            ${{ hashFiles(
+            'package-lock.json', '.storybook/**', 'vitest.storybook.config.ts',
+            'scripts/design-environment.mjs', 'scripts/design-paint.mjs',
+            'scripts/design-diff.mjs', 'scripts/design-selection.mjs',
+            'scripts/verify-design*.mjs', 'scripts/run-design-verification.mjs',
+            'scripts/compare-png.mjs', 'scripts/render-openpencil*.mjs',
+            'scripts/openpencil.mjs', 'scripts/openpencil.patch',
+            'scripts/storybook-design-dependencies.ts') }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          TESTED_SHA: ${{ github.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { appendFileSync } from "node:fs";
+          const prefix = `design-signatures-v1-${process.env.PIPELINE_HASH}`;
+          const scope = process.env.PR_NUMBER ? `pr-${process.env.PR_NUMBER}` : "main";
+          appendFileSync(process.env.GITHUB_OUTPUT, [
+            `key=${prefix}-${scope}-${process.env.TESTED_SHA}`,
+            `base=${prefix}-main-${process.env.BASE_SHA}`,
+            `main=${prefix}-main-`,
+            "",
+          ].join("\n"));
+          NODE
+      - id: design-cache
+        name: Restore verified design inputs only
+        uses: actions/cache/restore@v4
+        with:
+          path: .openpencil/design-snapshot.json
+          key: ${{ steps.signature-key.outputs.key }}
+          restore-keys: |
+            ${{ steps.signature-key.outputs.base }}
+            ${{ steps.signature-key.outputs.main }}
+      - name: Test isolated component rendering and interactions
+        run: npm run test:storybook:inside
+      - name: Compare affected design components and screens
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
+        env:
+          DESIGN_IN_CONTAINER: "1"
+        run: npm run openpencil:verify -- --changed --container-root "$GITHUB_WORKSPACE"
+      - name: Summarize design comparison
+        if: ${{ !cancelled() && hashFiles('test-results/openpencil/verification/report.json') != '' }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { appendFileSync, readFileSync } from "node:fs";
+          const report = JSON.parse(readFileSync("test-results/openpencil/verification/report.json", "utf8"));
+          const failures = report.targets.filter((target) => target.error || !target.comparison?.identical).length;
+          appendFileSync(process.env.GITHUB_STEP_SUMMARY, [
+            "| Compared | Failed | Complete | Identical |",
+            "| --- | --- | --- | --- |",
+            `| ${report.targets.length} | ${failures} | ${report.complete} | ${report.identical} |`,
+            "",
+            `Errors: ${report.errors.length}`,
+            `Document SHA256: \`${report.inputSHA256}\``,
+            `Bindings SHA256: \`${report.bindingsSHA256}\``,
+            `Docker image: \`${report.environment.image}\``,
+            "",
+          ].join("\n"));
+          NODE
+      - name: Save successful design inputs only
+        if: ${{ success() && steps.design-cache.outputs.cache-hit != 'true' && hashFiles('.openpencil/design-snapshot.json') != '' }}
+        uses: actions/cache/save@v4
+        with:
+          path: .openpencil/design-snapshot.json
+          key: ${{ steps.signature-key.outputs.key }}
+      - name: Prepare bounded failure diagnostics
+        if: ${{ failure() && hashFiles('test-results/openpencil/verification/report.json') != '' }}
+        run: node scripts/design-artifacts.mjs test-results/openpencil/verification/report.json
+      - name: Upload failed design comparisons only
+        if: ${{ failure() && hashFiles('test-results/design-failures/report.json') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: design-failures
+          path: test-results/design-failures/
+          retention-days: 1
+          if-no-files-found: error

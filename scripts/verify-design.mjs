@@ -4,8 +4,10 @@ import { access, cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/pro
 import { join, posix, relative, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
-import { build } from "vite";
 import { comparePNG } from "./compare-png.mjs";
+import { DESIGN_IMAGE } from "./design-environment.mjs";
+import { prepareDesignSelection } from "./design-selection.mjs";
+import { OPENPENCIL_REVISION } from "./openpencil.mjs";
 import {
   assertCompositeCoverage,
   clearCaptureBoundary,
@@ -27,7 +29,7 @@ import {
   writeSharedExport,
 } from "./verify-design-bindings.mjs";
 
-const image = "mcr.microsoft.com/playwright:v1.63.0-noble";
+const image = DESIGN_IMAGE;
 const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
 
 async function run(command, args) {
@@ -49,6 +51,10 @@ export async function verifyDesign(
     container,
     containerRoot = "/work",
     keepExport = false,
+    inside = false,
+    changed = false,
+    diffOnly = false,
+    snapshot = ".openpencil/design-snapshot.json",
   } = {},
 ) {
   const project = process.cwd();
@@ -72,6 +78,7 @@ export async function verifyDesign(
     bindingsSHA256: sha256(bindingBytes),
     environment: {
       image,
+      openpencilRevision: OPENPENCIL_REVISION,
       deviceScaleFactor: 1,
       browserArgs: DESIGN_BROWSER_ARGS,
       screen: DESIGN_BROWSER_SCREEN,
@@ -83,12 +90,18 @@ export async function verifyDesign(
     errors: validateBindings(manifest, graph, { complete: selected.size === 0 }),
     targets: [],
   };
-  const targets = (Array.isArray(manifest.targets) ? manifest.targets : []).filter(
+  let targets = (Array.isArray(manifest.targets) ? manifest.targets : []).filter(
     (target) => selected.size === 0 || selected.has(target.id),
   );
   for (const id of selected)
     if (!targets.some((target) => target.id === id)) report.errors.push(`Unknown selected target: ${id}`);
   const saveReport = () => writeFile(join(destination, "report.json"), `${JSON.stringify(report, null, 2)}\n`);
+  const assertSavedInputsUnchanged = async () => {
+    if (sha256(await readFile(resolve(manifest.document))) !== report.inputSHA256)
+      throw new Error("Design master changed during verification");
+    if (sha256(await readFile(resolve(bindings))) !== report.bindingsSHA256)
+      throw new Error("Design bindings changed during verification");
+  };
   if (report.errors.length) {
     await saveReport();
     return report;
@@ -115,11 +128,13 @@ export async function verifyDesign(
   await mkdir(references);
   const api = new FigmaAPI(graph);
   const writtenAssets = new Map();
-  const jobs = targets.map((target, index) => ({
+  let jobs = targets.map((target, index) => ({
     name: String(index).padStart(4, "0"),
     target,
     padding: target.kind === "component" ? (target.capture?.padding ?? 16) : 0,
   }));
+  let selection;
+  let selectionEnvironment;
   let browserContainer = container;
   let ownsBrowserContainer = false;
   const capture = async (mode) => {
@@ -133,6 +148,14 @@ export async function verifyDesign(
       posix.join(browserRoot, "scripts/verify-design-browser.mjs"),
       browserDirectory,
     ];
+    if (inside) {
+      const localCommand = command.map((part) =>
+        typeof part === "string" ? part.replaceAll(browserRoot, project) : part,
+      );
+      const executable = localCommand.shift();
+      await run(executable, localCommand);
+      return JSON.parse(await readFile(join(temporary, mode === "actual" ? "actual.json" : "browser.json"), "utf8"));
+    }
     if (!browserContainer) {
       browserContainer = `endfield-design-${process.pid}-${sha256(temporary).slice(0, 12)}`;
       await run("docker", [
@@ -177,13 +200,83 @@ export async function verifyDesign(
     );
     for (const [family, style] of fontManager.collectFontKeys(graph, [...fontRoots]))
       if (!(await fontManager.loadFont(family, style))) throw new Error(`Cannot load font ${family} / ${style}`);
-    await build({
-      configFile: resolve("vite.config.ts"),
-      base: "/implementation/",
-      publicDir: false,
-      input: { design: resolve("tests/fixtures/design-view.html") },
-      build: { outDir: join(temporary, "implementation"), emptyOutDir: true },
+    await run("node", [
+      resolve("node_modules/storybook/dist/bin/dispatcher.js"),
+      "build",
+      "--quiet",
+      "--output-dir",
+      join(temporary, "implementation"),
+    ]);
+    const patch = await readFile(resolve("scripts/openpencil.patch"));
+    selectionEnvironment = {
+      ...report.environment,
+      openpencilPatch: sha256(patch),
+      dependencies: sha256(await readFile("package-lock.json")),
+      pipeline: Object.fromEntries(
+        await Promise.all(
+          [
+            "scripts/verify-design.mjs",
+            "scripts/verify-design-browser.mjs",
+            "scripts/verify-design-bindings.mjs",
+            "scripts/compare-png.mjs",
+            "scripts/design-paint.mjs",
+            "scripts/design-diff.mjs",
+            "scripts/design-selection.mjs",
+            "scripts/design-environment.mjs",
+            "scripts/run-design-verification.mjs",
+            "scripts/storybook-design-dependencies.ts",
+            ".storybook/main.ts",
+            ".storybook/vite.config.ts",
+            ".storybook/preview-head.html",
+          ].map(async (file) => {
+            const bytes = await readFile(file).catch((error) => {
+              if (file === ".storybook/preview-head.html" && error.code === "ENOENT") return null;
+              throw error;
+            });
+            return [file, bytes === null ? null : sha256(bytes)];
+          }),
+        ),
+      ),
+    };
+    selection = await prepareDesignSelection({
+      graph,
+      manifest,
+      storybookDirectory: join(temporary, "implementation"),
+      snapshotPath: resolve(snapshot),
+      select,
+      changed,
+      diffOnly,
+      environment: selectionEnvironment,
     });
+    report.scope = selection.scope;
+    report.selection = {
+      total: manifest.targets.length,
+      selected: selection.selectedTargetIds.length,
+      unchanged: selection.unchangedCount,
+      changes: selection.changes,
+      baseline: selection.baseline,
+    };
+    const chosen = new Set(selection.selectedTargetIds);
+    targets = manifest.targets.filter((target) => chosen.has(target.id));
+    jobs = targets.map((target, index) => ({
+      name: String(index).padStart(4, "0"),
+      target,
+      padding: target.kind === "component" ? (target.capture?.padding ?? 16) : 0,
+    }));
+    if (diffOnly) {
+      report.diffOnly = true;
+      return report;
+    }
+    if (!targets.length) {
+      await assertSavedInputsUnchanged();
+      report.identical = true;
+      report.complete = selection.baseline.available && select.length === 0;
+      if (report.complete && selection.changes.removed.length) {
+        selection.snapshot.verified = true;
+        await writeFile(resolve(snapshot), `${JSON.stringify(selection.snapshot)}\n`);
+      }
+      return report;
+    }
     // Capture the real UI first. Native SVG export needs the final world origin
     // before it chooses integer viewports; moving the export afterwards loses it.
     const actual = await capture("actual");
@@ -194,7 +287,6 @@ export async function verifyDesign(
       if (measured.error || measured.errors.length) continue;
       const original = resolveCaptureSource(graph, target);
       const registered = resolveFigmaNode(graph, target.figma);
-      const phase = target.kind === "component" ? (target.capture?.phase ?? null) : { x: 0, y: 0 };
       const wrapper = graph.createNode("FRAME", graph.getPages()[0].id, {
         name: `Verification/${target.id}`,
         x: 0,
@@ -393,7 +485,7 @@ export async function verifyDesign(
         cameraContexts: measured.bounds ? cameraContexts : undefined,
         nativeScroll,
         nativeInteractions,
-        sourceGeometry: { ...nativeSizing(current), phase },
+        sourceGeometry: nativeSizing(current),
       });
       const memory = process.memoryUsage();
       process.stdout.write(
@@ -412,7 +504,7 @@ export async function verifyDesign(
         error: result.error ?? (result.errors.length ? result.errors.join("\n") : undefined),
         kind: job.target.kind,
         component: job.target.component,
-        fixture: job.target.fixture,
+        storyId: job.target.storyId,
         interaction: job.target.interaction,
         viewport: job.target.viewport,
         capture: job.target.capture,
@@ -454,7 +546,50 @@ export async function verifyDesign(
       report.targets.length === targets.length &&
       report.targets.every((target) => !target.error && target.comparison?.identical);
     report.complete = selected.size === 0 && report.identical && report.errors.length === 0;
+    if (report.complete) {
+      await assertSavedInputsUnchanged();
+      const resourceFiles = { ...(selection.snapshot.resourceFiles ?? {}) };
+      for (const target of report.targets) {
+        const resources = [];
+        for (const file of target.resources ?? []) {
+          try {
+            await access(resolve(file));
+            resources.push(file);
+          } catch {
+            /* A bundled resource is already covered by Vite's module graph. */
+          }
+        }
+        resourceFiles[target.id] = resources;
+      }
+      const verified = await prepareDesignSelection({
+        graph,
+        manifest,
+        storybookDirectory: join(temporary, "implementation"),
+        snapshotPath: resolve(snapshot),
+        environment: selectionEnvironment,
+        resourceFiles,
+      });
+      for (const [id, target] of Object.entries(selection.snapshot.targets))
+        if (verified.snapshot.targets[id]?.referenceHash !== target.referenceHash)
+          throw new Error(`Reference inputs changed during verification: ${id}`);
+      for (const [file, hash] of Object.entries(selection.fileHashes))
+        if (verified.fileHashes[file] !== hash)
+          throw new Error(`Implementation input changed during verification: ${file}`);
+      for (const [file, hash] of Object.entries(selectionEnvironment.pipeline)) {
+        const current = await readFile(file).catch((error) => {
+          if (file === ".storybook/preview-head.html" && error.code === "ENOENT") return null;
+          throw error;
+        });
+        if ((current === null ? null : sha256(current)) !== hash)
+          throw new Error(`Verification input changed during verification: ${file}`);
+      }
+      // Publish signatures only after every affected comparison has succeeded.
+      verified.snapshot.verified = true;
+      await mkdir(resolve(snapshot, ".."), { recursive: true });
+      await writeFile(resolve(snapshot), `${JSON.stringify(verified.snapshot)}\n`);
+    }
   } catch (error) {
+    report.complete = false;
     report.errors.push(error.message);
   } finally {
     if (ownsBrowserContainer) {
@@ -481,19 +616,24 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
       container: { type: "string" },
       "container-root": { type: "string" },
       "keep-export": { type: "boolean", default: false },
+      inside: { type: "boolean", default: false },
+      changed: { type: "boolean", default: false },
+      diff: { type: "boolean", default: false },
+      snapshot: { type: "string" },
     },
   });
   if (positionals.length !== 1)
     throw new Error(
       "Usage: verify-design OPENPENCIL_SOURCE [--bindings FILE.json] [--output DIRECTORY] [--select ID,ID] [--container NAME] [--container-root /work] [--keep-export]",
     );
-  const { "keep-export": keepExport, "container-root": containerRoot, ...options } = values;
+  const { "keep-export": keepExport, "container-root": containerRoot, diff: diffOnly, ...options } = values;
   const report = await verifyDesign(positionals[0], {
     ...options,
     keepExport,
+    diffOnly,
     select: values.select?.split(",") ?? [],
     containerRoot,
   });
   process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
-  if (!report.identical || report.errors.length) process.exitCode = 1;
+  if ((!report.diffOnly && !report.identical) || report.errors.length) process.exitCode = 1;
 }

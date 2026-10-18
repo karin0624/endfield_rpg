@@ -52,9 +52,9 @@ it("uses an OS browser only for the pointer action capability in both capture ph
   const source = designBrowserCapture({ interaction: [{ type: "focus", selector: "select" }, pointer] });
   expect(source).toMatchObject({ channel: "chromium", headless: false });
   expect(designBrowserCapture({ interaction: pointer })).toEqual(source);
-  expect(
-    designBrowserCapture({ id: "another-control", fixture: { props: { value: 123 } }, interaction: pointer }),
-  ).toEqual(source);
+  expect(designBrowserCapture({ id: "another-control", storyId: "control--default", interaction: pointer })).toEqual(
+    source,
+  );
   expect(designBrowserCapture({ interaction: { type: "hover", selector: "input" } }).channel).toBeUndefined();
 });
 
@@ -333,7 +333,7 @@ function contract() {
         source: "src/Home.svelte",
         state: "default",
         figma: { path: ["Screens", "Home"] },
-        fixture: { module: "home", case: "screen" },
+        storyId: "screens-home--default",
         viewport: { width: 1920, height: 1080 },
       },
       ...["default", "hover"].map((state) => ({
@@ -342,7 +342,7 @@ function contract() {
         component: "button",
         state,
         figma: { path: ["Screens", `state=${state}`] },
-        fixture: { module: "home", case: "button" },
+        storyId: "hub-button--default",
         viewport: { width: 640, height: 480 },
         capture: { selector: "button", padding: 16, background: "transparent" },
         ...(state === "hover" ? { interaction: { type: "hover", selector: "button" } } : {}),
@@ -356,6 +356,14 @@ function addArtwork(manifest, graph) {
   graph.getAllNodes().push({ id: "artwork", type: "COMPONENT", name: "Artwork", parentId: "page" });
   manifest.assets = [{ id: "artwork", source: "public/assets/artwork.png", nodes: [{ path: ["Screens", "Artwork"] }] }];
 }
+
+it("rejects manual capture coordinates for independently rendered components", () => {
+  const { graph, manifest } = contract();
+  manifest.targets[1].capture.phase = { x: 0.5, y: 0.25 };
+  expect(validateBindings(manifest, graph)).toContain(
+    "Manual capture phase is unsupported; render an independent story: button-default",
+  );
+});
 
 it("registers editable artwork without requiring comparison states and keeps UI coverage strict", () => {
   const { graph, manifest } = contract();

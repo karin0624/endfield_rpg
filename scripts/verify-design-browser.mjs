@@ -349,6 +349,15 @@ async function pressedState(element) {
 }
 
 function watch(page, result) {
+  page.on("requestfinished", (request) => {
+    const path = new URL(request.url()).pathname;
+    const asset = path.replace(/^\/implementation\//, "/");
+    if (asset.startsWith("/assets/") && /\.(png|jpe?g|webp|svg|woff2?|ttf|otf)$/.test(asset)) {
+      const file = `public${decodeURIComponent(asset)}`;
+      result.resources ??= [];
+      if (!result.resources.includes(file)) result.resources.push(file);
+    }
+  });
   page.on("pageerror", (error) => result.errors.push(error.message));
   page.on("requestfailed", (request) => result.errors.push(`${request.failure()?.errorText} ${request.url()}`));
   page.on("response", (response) => {
@@ -1088,16 +1097,24 @@ async function captureImplementation({ name, target, padding }) {
   watch(page, result);
   let pressedElement;
   try {
-    const query = new URLSearchParams({
-      module: target.fixture.module,
-      case: target.fixture.case,
-      props: JSON.stringify(target.fixture.props ?? {}),
-    });
-    await page.goto(`${origin}/implementation/tests/fixtures/design-view.html?${query}`, { waitUntil: "load" });
+    const query = new URLSearchParams({ id: target.storyId, viewMode: "story" });
+    await page.goto(`${origin}/implementation/iframe.html?${query}`, { waitUntil: "load" });
+    await page.waitForFunction(
+      (id) =>
+        document.documentElement.dataset.designStoryReady === id ||
+        document.body.classList.contains("sb-show-errordisplay") ||
+        document.body.classList.contains("sb-show-nopreview"),
+      target.storyId,
+    );
+    if (
+      await page.evaluate(
+        () =>
+          document.body.classList.contains("sb-show-errordisplay") ||
+          document.body.classList.contains("sb-show-nopreview"),
+      )
+    )
+      throw new Error("Storybook could not render the registered component");
     if (result.errors.length) throw new Error(result.errors.join("\n"));
-    await page.waitForFunction(() => window.designStatus && window.designStatus.state !== "pending");
-    const status = await page.evaluate(() => window.designStatus);
-    if (status.state !== "ready") throw new Error(status.error ?? "Implementation fixture failed");
     const pointerOrigin = designBrowserCapture(target).headless
       ? undefined
       : await page.evaluateHandle(() => {
@@ -1133,13 +1150,6 @@ async function captureImplementation({ name, target, padding }) {
       const nominal = await bounds(anchor);
       if (!nominal) throw new Error("Capture anchor must have nominal visible bounds before interaction");
       const geometry = captureGeometry(nominal, padding);
-      if (
-        target.capture.phase &&
-        (target.capture.phase.x !== geometry.phase.x || target.capture.phase.y !== geometry.phase.y)
-      )
-        throw new Error(
-          `Declared capture phase differs from the nominal implementation: ${JSON.stringify({ declared: target.capture.phase, actual: geometry.phase })}`,
-        );
       const clip = geometry.clip;
       if (
         clip.x < 0 ||

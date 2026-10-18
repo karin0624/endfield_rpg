@@ -1,5 +1,5 @@
 <script lang="ts">
-import { onMount, untrack } from "svelte";
+import { onDestroy, onMount, untrack } from "svelte";
 import { on } from "svelte/events";
 import { parseAdventureSettings } from "../../presentation/adventureSettings";
 import type { DungeonEvent } from "../../presentation/dungeonModel";
@@ -9,6 +9,9 @@ import savedAdventureSettings from "../adventure-settings.json";
 import { applyAdventureSettings } from "../adventureSettings";
 import BranchRecovery from "./BranchRecovery.svelte";
 import Conversation from "./Conversation.svelte";
+import DungeonOutcomeReturn from "./DungeonOutcomeReturn.svelte";
+import DungeonReturn from "./DungeonReturn.svelte";
+import DungeonRouteNode from "./DungeonRouteNode.svelte";
 import GrowthChoice from "./GrowthChoice.svelte";
 
 let {
@@ -17,13 +20,18 @@ let {
   battleStatus,
   send,
 }: {
-  root: HTMLElement;
+  root?: HTMLElement;
   frame: DungeonChromeFrame | null;
   battleStatus: NonNullable<DungeonFrame["battle"]>["status"] | null;
   send: (event: DungeonEvent) => boolean;
 } = $props();
 let viewport: HTMLDivElement, world: HTMLDivElement, conversation: HTMLElement;
+let host = $state<HTMLElement>();
 let paths = $state.raw<({ from: string; to: string; appearance: string } & ReturnType<typeof projectRouteEdge>)[]>([]);
+let disposed = false;
+onDestroy(() => {
+  disposed = true;
+});
 const assetUrl = (path: string) => `${import.meta.env.BASE_URL}assets/${path}`;
 let nodes = $derived(frame?.route.nodes),
   edges = $derived(frame?.route.edges),
@@ -33,9 +41,11 @@ let nodes = $derived(frame?.route.nodes),
 function imageMeasure(button: HTMLElement): RouteImageMeasure {
   const image = button.querySelector("img");
   if (!image) throw new Error("Route node image is required");
+  const position = button.parentElement;
+  if (!position) throw new Error("Route node position is required");
   return {
-    centerX: button.offsetLeft,
-    centerY: button.offsetTop,
+    centerX: position.offsetLeft,
+    centerY: position.offsetTop,
     buttonWidth: button.offsetWidth,
     buttonHeight: button.offsetHeight,
     imageLeft: image.offsetLeft,
@@ -45,6 +55,9 @@ function imageMeasure(button: HTMLElement): RouteImageMeasure {
   };
 }
 function measureRoute() {
+  // An image load can already be queued when this screen is removed. Do not
+  // read the destroyed frame derivations or element bindings from that event.
+  if (disposed) return;
   if (kind !== "route" || !nodes || !edges) return;
   const requested = world.style.width;
   world.style.width = "";
@@ -63,7 +76,12 @@ function measureRoute() {
         nodes: nodes.map((node) => {
           const button = nodeElements.get(node.id);
           if (!button) throw new Error("Route node is required");
-          return { id: node.id, fraction: node.position.x / 100, center: button.offsetLeft, width: button.offsetWidth };
+          return {
+            id: node.id,
+            fraction: node.position.x / 100,
+            center: button.parentElement?.offsetLeft ?? 0,
+            width: button.offsetWidth,
+          };
         }),
       },
     },
@@ -96,7 +114,8 @@ $effect(() => {
           : focus.kind === "choice"
             ? `[data-option-id="${CSS.escape(focus.id)}"]`
             : null;
-  const node = selector ? root.querySelector<HTMLElement>(selector) : null;
+  const scope = root ?? host;
+  const node = selector && scope ? scope.querySelector<HTMLElement>(selector) : null;
   if (node && node !== document.activeElement) node.focus();
 });
 function routeKey(event: KeyboardEvent) {
@@ -142,7 +161,7 @@ onMount(() => {
   };
 });
 </script>
-<main class="dungeon-app" data-dungeon-app>
+<main class="dungeon-app" data-dungeon-app bind:this={host}>
   <section class="dungeon-route-screen" data-route-screen aria-label="遺跡の進路" hidden={frame?.kind !== "route"}>
     <div
       class="dungeon-route-background"
@@ -152,16 +171,13 @@ onMount(() => {
     >
       <img src={assetUrl("backgrounds/dungeon-route.png")} alt="">
     </div>
-    <button
-      type="button"
-      class="dungeon-town-link"
-      data-return-town
-      data-single-activation
-      onclick={() => send({ type: "return" })}
-      onfocus={() => send({ type: "focused", target: { kind: "return" } })}
-    >
-      {frame?.returnLabel ?? "街へ戻る"}
-    </button>
+    <div class="dungeon-town-link-position">
+      <DungeonReturn
+        label={frame?.returnLabel ?? "街へ戻る"}
+        onclick={() => send({ type: "return" })}
+        onfocus={() => send({ type: "focused", target: { kind: "return" } })}
+      />
+    </div>
     <p class="dungeon-calendar" data-calendar>{frame?.calendar ?? ""}</p>
     <!-- Keyboard pan is a documented operation in addition to pointer dragging. -->
     <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
@@ -206,44 +222,26 @@ onMount(() => {
         </svg>
         <div role="group" class="dungeon-route-nodes" data-route-nodes aria-label="ルート上のノード">
           {#each frame?.route.nodes ?? [] as node (node.id)}
-            <button
-              type="button"
-              class="dungeon-route-node type-{node.type}"
-              class:is-current={node.current}
-              class:is-available={node.enabled}
-              class:is-past-unselected={node.past}
-              class:is-resolved={node.resolved}
-              disabled={!node.enabled}
+            <div
+              class="dungeon-route-node-position"
               style:left={`${node.position.x}%`}
               style:top={`${node.position.y}%`}
-              data-node-id={node.id}
-              data-node-type={node.type}
-              data-node-state={node.status}
-              aria-label={node.label}
-              aria-current={node.current ? "location" : undefined}
-              onclick={() => send({ type: "enter", nodeId: node.id })}
-              onfocus={() => send({ type: "focused", target: { kind: "node", id: node.id } })}
             >
-              <img
-                src={assetUrl(node.icon)}
-                alt=""
-                draggable="false"
-                decoding="sync"
-                aria-hidden="true"
-                onload={measureRoute}
-              >
-              {#if node.title !== null}
-                <span class="dungeon-route-node-label">{node.title}</span>
-              {/if}
-            </button>
+              <DungeonRouteNode
+                {node}
+                enter={(nodeId) => send({ type: "enter", nodeId })}
+                focused={(id) => send({ type: "focused", target: { kind: "node", id } })}
+                loaded={measureRoute}
+              />
+            </div>
           {/each}
         </div>
       </div>
     </div>
     <!-- biome-ignore-end lint/a11y/noNoninteractiveTabindex lint/a11y/useSemanticElements: End of keyboard scroll region. -->
-    {#if frame}
+    {#if frame && host}
       <BranchRecovery
-        {root}
+        root={root ?? host}
         frame={frame.branch}
         result={frame.branchResult}
         send={(event) => send({ type: "branch", event })}
@@ -305,16 +303,13 @@ onMount(() => {
     <p class="dungeon-eyebrow">EXPEDITION RESULT</p>
     <h1 id="dungeon-outcome-title" data-outcome-title>{frame?.outcome.title ?? ""}</h1>
     <p data-outcome-detail>{frame?.outcome.detail ?? ""}</p>
-    <button
-      type="button"
-      class="dungeon-outcome-return"
-      data-return-town
-      data-single-activation
-      onclick={() => send({ type: "return" })}
-      onfocus={() => send({ type: "focused", target: { kind: "return" } })}
-    >
-      {frame?.returnLabel ?? "街へ戻る"}
-    </button>
+    <div class="dungeon-outcome-return-position">
+      <DungeonOutcomeReturn
+        label={frame?.returnLabel ?? "街へ戻る"}
+        onclick={() => send({ type: "return" })}
+        onfocus={() => send({ type: "focused", target: { kind: "return" } })}
+      />
+    </div>
   </section>
   <section data-growth-screen hidden={frame?.kind !== "growth"}>
     {#if frame?.growth}

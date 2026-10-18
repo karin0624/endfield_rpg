@@ -9,6 +9,8 @@ import {
 } from "../../presentation/battlePlacement";
 import type { BattleHudFrame, BattleMotionFrame } from "../../presentation/battleViewProjection";
 import type { BattleScene } from "../battleScene";
+import BattleEnemyHitbox from "./BattleEnemyHitbox.svelte";
+import BattleEnemyLabel from "./BattleEnemyLabel.svelte";
 import BattleSequence from "./BattleSequence.svelte";
 
 let {
@@ -130,32 +132,6 @@ onMount(() => {
 </div>
 <BattleSequence frame={motion.sequence} {stage} {scene} />
 {#each hud.enemies as member (member.id)}
-  <!-- biome-ignore lint/a11y/useSemanticElements: A positioned combatant label is a group, not a form fieldset. -->
-  <div
-    class="enemy-world-label"
-    class:defeated={member.defeated}
-    class:selected={member.selected}
-    data-enemy-label={member.id}
-    role="group"
-    aria-label={member.label}
-  >
-    <div class="enemy-world-heading">
-      <strong data-enemy-name>{member.name}</strong><span class="enemy-world-hp" data-enemy-hp>{member.hp}</span>
-    </div>
-    <span class="enemy-world-state" data-enemy-state>{member.defeated ? "戦闘不能" : ""}</span
-    ><span class="hp-track enemy-world-track" aria-hidden="true"
-      ><span style:width={`${member.fraction * 100}%`}></span></span
-    >
-  </div>
-  <button
-    type="button"
-    class="enemy-hitbox"
-    data-combatant-id={member.id}
-    aria-describedby="battle-screen-reader-status"
-    disabled={member.disabled}
-    aria-pressed={member.pressed}
-    aria-label={`${member.label}、攻撃対象に選択`}
-    onclick={() => dispatch({ type: "select-enemy", id: member.id })}
-    onfocus={() => dispatch({ type: "focused", target: { kind: "enemy", id: member.id } })}
-  ></button>
+  <BattleEnemyLabel {member} />
+  <BattleEnemyHitbox {member} {dispatch} />
 {/each}

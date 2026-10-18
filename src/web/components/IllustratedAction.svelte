@@ -1,5 +1,6 @@
 <script lang="ts">
 import art from "../hub-art.json";
+import "../hub.css";
 
 let {
   id,

@@ -1,6 +1,9 @@
 <script lang="ts">
 import type { CampaignCommand, CampaignEvent } from "../../presentation/campaignModel";
 import type { CampaignFrame } from "../../presentation/campaignProjection";
+import CarryInput from "./CarryInput.svelte";
+import HubAction from "./HubAction.svelte";
+import HubDialog from "./HubDialog.svelte";
 import HubScene from "./HubScene.svelte";
 
 let { root, frame, send }: { root: HTMLElement; frame: CampaignFrame; send: (event: CampaignEvent) => boolean } =
@@ -81,25 +84,22 @@ function trap(event: KeyboardEvent) {
             <span>保管 {hub.carry.stock}個</span>
           </div>
           <div class="quantity">
-            <label
-              >持込む個数<span class="item-number-control item-carry-control"
-                ><input
-                  class="item-carry-input"
-                  required
-                  aria-label="HP回復品の持込み個数"
-                  type="number"
-                  min="0"
-                  max={hub.carry.stock}
-                  step="1"
-                  value={hub.carry.quantity ?? ""}
-                  oninput={(e) =>
+            <label for="preparation-carry-quantity"
+              >持込む個数<CarryInput
+                id="preparation-carry-quantity"
+                required
+                aria-label="HP回復品の持込み個数"
+                min="0"
+                max={hub.carry.stock}
+                step="1"
+                value={hub.carry.quantity ?? ""}
+                oninput={(e) =>
   send({
     type: "carry-changed",
     quantity: Number.isNaN(e.currentTarget.valueAsNumber) ? null : e.currentTarget.valueAsNumber,
   })}
-                  onfocus={() => send({ type: "focused", target: { kind: "carry" } })}
-                ></span
-              ></label
+                onfocus={() => send({ type: "focused", target: { kind: "carry" } })}
+              /></label
             >
           </div>
         </section>
@@ -110,15 +110,9 @@ function trap(event: KeyboardEvent) {
    ["destinations", "行き先へ"],
    ["close-panel", "ホームへ戻る"],
  ] as [id, label]}
-            <button
-              type="button"
-              class="ui-action"
-              data-command={id}
-              onclick={() => command(id)}
-              onfocus={() => focus(id)}
-            >
+            <HubAction type="button" data-command={id} onclick={() => command(id)} onfocus={() => focus(id)}>
               {label}
-            </button>
+            </HubAction>
           {/each}
         </div>
       </div>
@@ -132,109 +126,7 @@ function trap(event: KeyboardEvent) {
   if (hub.panel === "menu") command("close-panel");
 }}
       ></button>
-      <div
-        class="hub-dialog"
-        class:command={hub.panel === "menu"}
-        role="dialog"
-        aria-modal="true"
-        aria-label={hub.panel === "menu"
-  ? "メニュー"
-  : hub.panel === "title-options"
-    ? "タイトルへ戻りますか"
-    : hub.confirmation === "title"
-      ? "未保存の変更を破棄しますか"
-      : waiting
-        ? "保存しています…"
-        : "上書き保存しますか"}
-      >
-        {#if hub.panel === "menu"}
-          <button
-            type="button"
-            class="ui-action icon-button"
-            data-command="close-panel"
-            aria-label="メニューを閉じる"
-            onclick={() => command("close-panel")}
-            onfocus={() => focus("close-panel")}
-          >
-            <svg class="ui-glyph" viewBox="4 4 16 16" aria-hidden="true"><path d="M5 5L19 19M19 5L5 19" /></svg>
-          </button>
-          <div class="stack">
-            <button
-              type="button"
-              class="ui-action"
-              data-command="save"
-              disabled={scene === "town"}
-              aria-describedby={scene === "town" ? "hub-save-reason" : undefined}
-              onclick={() => command("save")}
-              onfocus={() => focus("save")}
-            >
-              保存
-            </button>
-            {#if scene === "town"}
-              <p id="hub-save-reason">保存はホームで行えます。</p>
-            {/if}
-            <button
-              type="button"
-              class="ui-action"
-              data-command="title-options"
-              onclick={() => command("title-options")}
-              onfocus={() => focus("title-options")}
-            >
-              タイトルへ
-            </button>
-          </div>
-        {:else if hub.panel === "title-options"}
-          <h2>タイトルへ戻りますか</h2>
-          <p>未保存の変更は失われます。</p>
-          <div class="stack">
-            {#if scene === "town"}
-              <p>保存はホームで行えます。</p>
-            {/if}
-            {#each [
-   ["save-title", "保存してタイトルへ"],
-   ["title", "保存せずタイトルへ"],
-   ["close-panel", "取り消す"],
- ] as [id, label]}
-              <button
-                type="button"
-                class="ui-action"
-                data-command={id}
-                disabled={scene === "town" && id === "save-title"}
-                onclick={() => command(id)}
-                onfocus={() => focus(id)}
-              >
-                {label}
-              </button>
-            {/each}
-          </div>
-        {:else}
-          <h2>
-            {hub.confirmation === "title" ? "未保存の変更を破棄しますか" : waiting ? "保存しています…" : "上書き保存しますか"}
-          </h2>
-          <div class="buttons">
-            <button
-              type="button"
-              class="ui-action"
-              data-command="cancel"
-              disabled={waiting}
-              onclick={() => command("cancel")}
-              onfocus={() => focus("cancel")}
-            >
-              取り消す
-            </button>
-            <button
-              type="button"
-              class="ui-action primary"
-              data-command="accept"
-              disabled={waiting}
-              onclick={() => command("accept")}
-              onfocus={() => focus("accept")}
-            >
-              {hub.confirmation === "title" ? "タイトルへ戻る" : "保存"}
-            </button>
-          </div>
-        {/if}
-      </div>
+      <HubDialog panel={hub.panel} confirmation={hub.confirmation} {scene} {waiting} {command} focused={focus} />
     {/if}
   </HubScene>
 {/if}

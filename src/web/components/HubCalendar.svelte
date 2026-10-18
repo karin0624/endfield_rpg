@@ -1,5 +1,6 @@
 <script lang="ts">
 import art from "../hub-art.json";
+import "../hub.css";
 
 let { calendar }: { calendar: string } = $props();
 let day = $derived(calendar.split(" · ")[0].replace("日目", ""));

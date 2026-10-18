@@ -1,5 +1,7 @@
 <script lang="ts">
 import type { AdventureFrame } from "../../presentation/adventureProjection";
+import ConversationChoice from "./ConversationChoice.svelte";
+import DialoguePanel from "./DialoguePanel.svelte";
 
 let {
   scene,
@@ -42,27 +44,8 @@ const assetUrl = (path: string) => `${import.meta.env.BASE_URL}assets/${path}`;
     hidden={!scene?.choices.length}
   >
     {#each scene?.choices ?? [] as option (option.id)}
-      <button
-        type="button"
-        class="conversation-choice"
-        data-option-id={option.id}
-        onclick={(event) => {
-  event.stopPropagation();
-  choose(option.id);
-}}
-        onfocus={() => focused(option.id)}
-      >
-        <svg class="choice-tetrahedron" viewBox="0 0 32 32" aria-hidden="true">
-          <polygon points="30,16 4,3 4,29" fill="#394438" stroke="#f0b84a" stroke-width="1.5" />
-          <path d="M30 16H4M4 3l12 13L4 29" fill="none" stroke="#f0b84a" stroke-width="1.2" />
-        </svg><span class="choice-number">{option.number}</span><span class="choice-label">{option.label}</span>
-      </button>
+      <ConversationChoice {option} {choose} {focused} />
     {/each}
   </div>
-  <div class="dialogue-panel" data-dialogue-panel aria-live="polite">
-    <div class="dialogue-speaker" data-speaker>{scene?.speaker ?? ""}</div>
-    <div class="dialogue-divider"></div>
-    <p class="dialogue-text" data-dialogue-text>{scene?.text ?? ""}</p>
-    <span class="dialogue-next" data-dialogue-next aria-hidden="true" hidden={scene?.type !== "line"}></span>
-  </div>
+  <DialoguePanel type={scene?.type ?? "choice"} speaker={scene?.speaker ?? ""} text={scene?.text ?? ""} />
 </div>
