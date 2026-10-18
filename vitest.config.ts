@@ -11,7 +11,7 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       include: ["src/**/*.{ts,svelte}", "scripts/*.{ts,mjs}"],
-      exclude: ["**/*.test.{ts,mjs}", "**/*.d.ts"],
+      exclude: ["**/*.test.{ts,mjs}", "**/*.stories.{ts,svelte}", "**/*.stories.fixture.ts", "**/*.d.ts"],
       reporter: ["text-summary", "html", "json", "json-summary"],
       reportsDirectory: "coverage/unit",
       reportOnFailure: true,

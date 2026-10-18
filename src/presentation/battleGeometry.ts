@@ -46,7 +46,13 @@ export function projectTetraFaces(angle: number) {
             : [0.35, 0.58].map((amount) => {
                 const first = rim[0].map((value, i) => value * (1 - amount) + tip[i] * amount);
                 const second = rim[1].map((value, i) => value * (1 - amount) + tip[i] * amount);
-                return `M${first[0]},${first[1]} Q${(first[0] + second[0]) / 2},${(first[1] + second[1]) / 2 + 2.2} ${second[0]},${second[1]}`;
+                const controlX = (first[0] + second[0]) / 2;
+                const controlY = (first[1] + second[1]) / 2 + 2.2;
+                const firstX = first[0] + (2 / 3) * (controlX - first[0]);
+                const firstY = first[1] + (2 / 3) * (controlY - first[1]);
+                const secondX = second[0] + (2 / 3) * (controlX - second[0]);
+                const secondY = second[1] + (2 / 3) * (controlY - second[1]);
+                return `M${first[0]},${first[1]} C${firstX},${firstY} ${secondX},${secondY} ${second[0]},${second[1]}`;
               }),
       };
     });

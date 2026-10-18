@@ -8,9 +8,8 @@ import {
   reduceCampaign,
 } from "../src/presentation/campaignModel";
 import { projectCampaign } from "../src/presentation/campaignProjection";
-import { returnedCampaign as returnedPicture } from "./fixtures/returned-campaign";
 
-it("実コアで街・分岐成長・ボス戦・帰還・保存再開を確定し、帰還画像に渡す状態を保証する", () => {
+it("実コアで街・分岐成長・ボス戦・帰還・保存再開を確定し、帰還後の公開状態を保証する", () => {
   const initial = createCampaignModel();
   const initialGame = structuredClone(initial.context.game);
   let state = initial;
@@ -80,11 +79,40 @@ it("実コアで街・分岐成長・ボス戦・帰還・保存再開を確定�
     randomState: 2388811721,
   });
   expect(state.context.completion).toMatchObject({ outcome: "cleared", returnedIds: ["player"], calendarHalfDays: 1 });
-  // The visual fixture supplies this already-confirmed public state; it never plays these inputs in a browser.
-  expect(state.context.game.party).toEqual(returnedPicture.game.party);
-  expect(state.context.game.clock).toEqual(returnedPicture.game.clock);
-  expect(state.context.game.inventory).toEqual(returnedPicture.game.inventory);
-  expect(state.context.completion).toEqual(returnedPicture.completion);
+  expect(state.context.game.party).toEqual({
+    members: [
+      {
+        id: "player",
+        hp: 20,
+        mentalFatigue: 8,
+        status: { physicalFatigue: 0, haze: 0, incapacityRecoverySteps: null },
+      },
+    ],
+    slots: ["player", null, null, null],
+  });
+  expect(state.context.game.clock).toEqual({ elapsedHalfDays: 2, recoverySteps: 1, pendingAction: null });
+  expect(state.context.game.inventory).toEqual({
+    items: { home: [], importantIds: [], exploration: null },
+    balance: 30,
+    equipment: {
+      owned: [
+        { instanceId: "weapon-1", definitionId: "trial-weapon" },
+        { instanceId: "weapon-2", definitionId: "trial-weapon" },
+        { instanceId: "armor-1", definitionId: "trial-armor" },
+        { instanceId: "armor-2", definitionId: "trial-armor" },
+      ],
+      assignments: [],
+    },
+  });
+  expect(state.context.completion).toEqual({
+    kind: "dungeon-expedition",
+    calendarHalfDays: 1,
+    recoverySteps: 0,
+    lostItems: [],
+    recovery: [],
+    returnedIds: ["player"],
+    outcome: "cleared",
+  });
   expect(projectCampaign(state)).toMatchObject({
     kind: "home",
     calendar: "2日目 · 昼",

@@ -126,19 +126,21 @@ export interface RouteImageMeasure {
   readonly imageWidth: number;
   readonly imageHeight: number;
 }
-export function projectRouteEdge(
-  source: RouteImageMeasure,
-  target: RouteImageMeasure,
-  world: { readonly width: number; readonly height: number },
-): string {
+export function projectRouteEdge(source: RouteImageMeasure, target: RouteImageMeasure) {
   const anchor = (node: RouteImageMeasure, right: boolean) => ({
-    x:
-      ((node.centerX - node.buttonWidth / 2 + node.imageLeft + (right ? node.imageWidth + 10 : -10)) / world.width) *
-      1000,
-    y: ((node.centerY - node.buttonHeight / 2 + node.imageTop + node.imageHeight / 2) / world.height) * 1000,
+    x: node.centerX - node.buttonWidth / 2 + node.imageLeft + (right ? node.imageWidth + 10 : -10),
+    y: node.centerY - node.buttonHeight / 2 + node.imageTop + node.imageHeight / 2,
   });
-  const from = anchor(source, true),
-    to = anchor(target, false),
+  const sourceAnchor = anchor(source, true),
+    targetAnchor = anchor(target, false),
+    x = Math.min(sourceAnchor.x, targetAnchor.x),
+    y = Math.min(sourceAnchor.y, targetAnchor.y),
+    from = { x: sourceAnchor.x - x, y: sourceAnchor.y - y },
+    to = { x: targetAnchor.x - x, y: targetAnchor.y - y },
     handle = (to.x - from.x) * 0.45;
-  return `M ${from.x} ${from.y} C ${from.x + handle} ${from.y}, ${to.x - handle} ${to.y}, ${to.x} ${to.y}`;
+  return {
+    x,
+    y,
+    d: `M ${from.x} ${from.y} C ${from.x + handle} ${from.y}, ${to.x - handle} ${to.y}, ${to.x} ${to.y}`,
+  };
 }

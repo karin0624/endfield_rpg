@@ -3,8 +3,8 @@ import type { BattleInput, BattleModel, BattleModelEvent } from "../presentation
 import { type BattleAppearance, type BattleViewFrame, projectBattleMotion } from "../presentation/battleViewProjection";
 import { deriveBattleHud } from "./battlePresentation.svelte.ts";
 import type { BattleScene } from "./battleScene";
-import BattleHud from "./components/BattleHud.svelte";
-import BattleOverlay from "./components/BattleOverlay.svelte";
+import BattleHud from "./components/BattleHud/BattleHud.svelte";
+import BattleOverlay from "./components/BattleOverlay/BattleOverlay.svelte";
 import { requiredElement } from "./requiredElement";
 
 type SceneProjection = Pick<BattleScene, "getCombatantScreenRect" | "refreshCombatantScreenPositions">;

@@ -9,3 +9,4 @@ dist-debug/
 dist-views/
 
 .svelte-check/
+.openpencil/

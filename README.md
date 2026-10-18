@@ -8,9 +8,7 @@
 | --- | --- |
 | [AGENTS.md](AGENTS.md) | 作業と文書更新の規約 |
 | [仕様概要](specs/overview.md) | 本編の流れ、責務境界、各ゲーム仕様への入口 |
-| [画面設計](docs/ui-screen-design.md) | 画面の目的・情報・操作と、画面仕様・実装への案内 |
-| [デザインシステム](docs/design-guidelines.md) | 共通の文字・色・部品・状態の規則 |
-| [制作手順](docs/ui-asset-production.md) | Figmaからの実装、素材制作、実画像の確認 |
+| [Figからの実装skill](.agents/skills/design-to-code/SKILL.md) | 人が変更した原稿の調査、製品・Storyへの反映、不一致の切り分け |
 | [テスト設計](docs/testing.md) | 保証する結果、検証層、実行方法、PRと独立レビュー |
 | [コンテンツ追加](docs/content-authoring.md) | 仲間・会話・既存効果を増やす手順 |
 | [ADR](docs/adr/) | 技術的な選択の理由 |
@@ -31,7 +29,7 @@ node scripts/setup.mjs
 npm run dev
 ```
 
-setupは現在のcheckoutでGit LFSと依存を準備し、配布素材の実体を検証して`check`を実行する。Git同期・認証は[Git認証skill](.agents/skills/endfield-git-auth/SKILL.md)を参照する。
+setupは現在のcheckoutでGit LFSと依存を準備し、配布素材の実体を検証して`check`を実行する。Git同期・認証は[Git認証skill](.agents/skills/git-auth/SKILL.md)を参照する。
 
 環境のセットアップコマンドはrepositoryを作業ディレクトリにする。npm cacheを指定する場合は次を使う。
 
@@ -49,12 +47,71 @@ node scripts/setup.mjs --cache /workspace/.npm
 | `npm run build` | 通常配布を`dist/`へ生成 |
 | `npm run build:debug` | debug版を`dist-debug/`へ生成 |
 | `npm run build:views` | 直接状態fixtureを`dist-views/`へ生成 |
+| `npm run storybook` | 実製品コンポーネントのStorybookを起動 |
+| `npm run build:storybook` | Storybookを`test-results/storybook/`へ生成 |
+| `npm run test:storybook` | 部品の描画・操作結合テストを固定Dockerで実行 |
 | `npm run test:browser` | ゲーム本体の全品質検証を固定Dockerで実行 |
-| `npm run test:editor` | 開発エディターの構図・資源検証 |
+| `npm run test:editor` | 開発時のNative HMR資源検証 |
 | `npm run test:all` | ゲーム本体とエディターの全品質検証 |
-| `npm run review:party` | 撮影済みの編成4状態と比較元のdiff・overlayを生成（Python／Pillow） |
 
 一部のファイルだけ整形する場合は`npx biome check --write path/to/file`を使う。ブラウザ検証は上記wrapperから固定コンテナで実行し、画像・trace・JSONは`test-results/`へ保存する。対象範囲と提出前の確認は[テスト設計](docs/testing.md)を参照する。
+
+## OpenPencilでデザインマスターを編集する
+
+ゲームのデザインマスターは[endfield-rpg.fig](art-src/openpencil/endfield-rpg.fig)。デザイン・素材制作・原稿編集は人が行い、AIは原稿を読んで実装と検証を行う。構成の不備は指摘し、原稿を勝手に修正しない。ゲームや操作の契約は[仕様](specs/overview.md)、AIの作業手順は[実装skill](.agents/skills/design-to-code/SKILL.md)を参照する。
+
+一つのファイルに共通定義と複数の画面を管理する。現在のページと区画は次のとおり。
+
+| 場所 | 内容 |
+| --- | --- |
+| `Design System` | 色変数・文字スタイル・共通記号。拠点用の定義は`Hub`の区画で適用範囲を示す |
+| `Components / Hub` | ホーム・街・地図で共有する部品と、部品内部のframe素材 |
+| `Screens` | ホーム・街・地図とダイアログの画面フレーム、その隣の`Local Components`区画 |
+| `Components / DS未対応` | 編成・会話・探索・物品・戦闘UIなど、複数画面で使う既存の独自部品。領域ごとに区分する |
+| `Screens / DS未対応` | タイトル・導入・編成・会話・探索・装備・準備・ショップの画面フレームと、画面専用の`Local Components`区画 |
+
+`Hub`はホーム・街・地図の画面群を指す実装上の名前。共通部品と画面専用の`Local Components`を分け、画面にはインスタンスを配置している。モーダルは標準のOverlayフレーム、文字・色・図案・状態は標準のテキスト、変数、スタイル、Text／Boolean／Instance swapプロパティとVariantsで保持する。既存の独自フォント・意匠は`DS未対応`で識別する。戦闘はHUDや操作ボタンなどのUI部品だけを管理し、画面フレーム・3D・戦闘エフェクトは含めない。
+
+`npm ci`の`postinstall`で固定版のOpenPencilを準備する。本体はバージョン単位で`.openpencil/`へ保持し、初回または本体のバージョン変更時に取得する。同じ版へのパッチ更新では本体と依存を再利用し、保存済みの旧パッチを戻して新パッチを適用する。適用に失敗した場合は旧パッチへ戻してエラーにする。GUI・CLIともに同じ保存形式の修正と実装と同一のフォントを適用する。
+
+通常起動では取得・依存導入・ビルドを行わない。パッチやフォントを更新した後は`npm ci`または`npm run openpencil:setup`で反映する。変更がなければ準備処理を省略し、GUIだけのパッチ変更ではパッケージの再ビルドも省略する。初回の準備にはGitとネットワーク接続が必要。
+
+```sh
+npm run openpencil
+npm run openpencil -- info art-src/openpencil/endfield-rpg.fig
+npm run openpencil -- tree art-src/openpencil/endfield-rpg.fig
+npm run openpencil:render -- art-src/openpencil/endfield-rpg.fig --page Screens --node Home --output test-results/home.png
+npm run openpencil:verify
+```
+
+引数なしの`npm run openpencil`でGUIとブラウザが起動し、リポジトリの`endfield-rpg.fig`を自動で読み込む。ブラウザが自動で開かない環境では表示されたローカルURLを開く。原稿の選択・ドロップは不要。編集後は`.fig`として保存して元の原稿を更新する。GUI・CLIともに[フォント](art-src/openpencil/fonts/)を同梱するため、OSへのフォント導入とMCP設定は不要。Figmaで直接開く場合は同じTTFをOSへ導入する。ライセンスと元のWebフォントは[素材メモ](art-src/README.md#共通uiのフォント)を参照する。
+
+通常のGUI起動ではMCPサーバーを起動せず、7600番ポートとMCPソケットを使用しない。上記のファイル指定CLI・描画・比較もMCPなしで使える。実行中のGUIをCLIやMCPから操作する場合だけ、`OPENPENCIL_DEV_MCP=1 npm run openpencil`で有効にする。既定の7600番が使用中なら`OPENPENCIL_DEV_MCP_PORT`で空いているポートを指定する。
+
+公開Web版OpenPencil 0.16.0には、このリポジトリで適用する保存・描画・プロトタイプの修正が含まれない。編集・保存には上記コマンドで起動するローカル版を使う。
+
+`openpencil:render`はOpenPencilのHTML出力を、ゲームのVRTと同じ固定PlaywrightコンテナでPNGにする。Dockerが必要で、編集後も同じコマンドを使う。`--compare <比較先PNG>`を加えると、寸法と全RGBAを比較し、差分0のときだけ成功する。
+
+`openpencil:verify`は、製品部品と同居するStoryの`parameters.design`から対応を集計し、Figの部品・variant・画面と実装を比較する。通常の変更確認と提出前には`--changed`を使い、有効な成功済み入力signatureがなければ全件を比較する。対応一覧は`--list`、撮影せず影響対象と理由を調べる場合は`--diff`、指定IDの調査には`--select`を使う。
+
+出力は`test-results/openpencil/verification/`。比較範囲・条件、差分判定、signature、完了判定、CI成果物は[テスト設計](docs/testing.md#デザイン原稿と実装の比較)を参照する。
+
+```sh
+npm run openpencil:verify -- --list
+npm run openpencil:verify -- --diff
+npm run openpencil:verify -- --changed
+npm run openpencil:verify -- --select items/equipment-select/default --keep-export
+```
+
+並列数は実行先の資源から自動で決め、`--workers 1`などでも指定できる。標準HTML出力と素材を調べる場合は`--keep-export`を使う。
+
+画像・SVG図案は[原稿設定](art-src/openpencil/bindings.json)の`assets`で管理し、素材単体の画素比較は行わない。UI部品内の素材は通常のインスタンスとして再利用し、その部品全体の比較に含める。SVG図案は原稿で編集可能なベクターとして保持し、`assets`に保存先と標準の書出し設定を登録する。`npm run openpencil:export-assets`は通常のSVG出力を変更せず製品の素材へ保存する。図案を編集した場合は、この出力と使用部品・画面の比較を実行する。
+
+`openpencil:render`と`openpencil:verify`で既存の固定Playwrightコンテナを使う場合は`--container NAME`を指定する。リポジトリのマウント先が`/work`以外なら、`--container-root /path/to/project`も指定する。
+
+部品・画面の実装とStory・部品テストは`src/web/components/<Name>/`にまとめる。対応設定の書式は[scripts/verify-design-bindings.mjs](scripts/verify-design-bindings.mjs)、集計は[scripts/storybook-design-manifest.mjs](scripts/storybook-design-manifest.mjs)を参照する。編集した`.fig`を保存した後は同じコマンドで比較でき、原稿の再生成は不要。
+
+GUIプレビューと標準のPNG出力はCanvasKitで描画され、ブラウザ描画とは画素差がある。実装との比較用PNGは`openpencil:render`または`openpencil:verify`で作り、完了判定は[比較スクリプトの結果](docs/testing.md#デザイン原稿と実装の比較)に従う。文字・図形・マスク・色変数・部品は原稿のネイティブ構造で保持する。
 
 ## ソース構成
 
@@ -76,7 +133,7 @@ node scripts/setup.mjs --cache /workspace/.npm
 3. 行き先で「街」を選び、場所・人物との会話、加入、街探索による療養を試す。
 4. ホームのメニューで保存し、タイトルの「続きから」で再開する。リロードはタイトルへ戻るため、未保存の変更は失われる。
 
-詳しい操作は[画面仕様](docs/ui-screen-design.md#現行画面への入口)、試用値と対象外の範囲は[ゲーム仕様](specs/overview.md)を参照する。
+詳しい操作、試用値と対象外の範囲は[ゲーム仕様](specs/overview.md)を参照する。
 
 ## デバッグと配置設定
 

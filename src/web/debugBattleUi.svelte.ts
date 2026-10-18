@@ -13,7 +13,7 @@ import {
 import { type BattleScene, createBattleRenderer, initialBattleEnvironment } from "./battleScene";
 import type { createBattleSurface } from "./battleSurface.svelte.ts";
 import { createBattleView } from "./battleView.svelte.ts";
-import DebugBattleChrome from "./components/DebugBattleChrome.svelte";
+import DebugBattleChrome from "./components/DebugBattleChrome/DebugBattleChrome.svelte";
 import { requiredElement } from "./requiredElement";
 
 /** Actual handles and clock measurements only; the synchronous model owns the game and screen. */

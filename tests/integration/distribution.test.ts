@@ -5,7 +5,7 @@ import { afterAll, beforeAll, expect, it } from "vitest";
 let server: Awaited<ReturnType<typeof preview>>;
 let origin: string;
 
-// npm run check builds the current normal entry before Vitest. The same dist is used by direct title VRT.
+// npm run check builds the current normal entry before Vitest. Browser tests also use this distribution.
 beforeAll(async () => {
   server = await preview({ configFile: false, build: { outDir: "dist" }, preview: { host: "127.0.0.1", port: 0 } });
   const address = server.httpServer.address();
@@ -41,7 +41,7 @@ it("通常配布の実ファイルには開発entry・fixture・保存APIの実�
   expect(scripts.length).toBeGreaterThan(0);
   for (const script of scripts) {
     expect(script).not.toMatch(
-      /__dev\/(?:battle|adventure)-settings|data-battle-editor|data-adventure-editor|デバッグ保存|標準として保存/,
+      /__dev\/(?:battle|adventure)-settings|data-battle-editor|data-adventure-editor|デバッグ保存|標準として保存|data-design-host|designStoryReady|storybook\/test/,
     );
   }
 });

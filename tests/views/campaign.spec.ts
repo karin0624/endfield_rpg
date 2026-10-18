@@ -1,43 +1,18 @@
 import { collectCoverage, expect, test } from "../browser/coverage";
-import { pointerFocusAppearance, readyPicture } from "./appearance";
+import { readyPicture } from "./appearance";
 
-const golden = (name: string) => [
-  "long",
-  "campaign.spec.ts-snapshots",
-  name.replace(/\.png$/, `-built-${process.platform}.png`),
-];
-
-test("通常配布の初期タイトルと9つの直接状態を既存画像へ比較する", async ({ page }) => {
-  await page.setViewportSize({ width: 1920, height: 1080 });
+test("通常配布のentryが初期タイトルを起動し、スクリプトと素材の取得に失敗しない", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   page.on("response", (response) => {
     if (response.url().includes("/assets/") && response.status() >= 400)
       errors.push(`${response.status()} ${response.url()}`);
   });
-  for (const [state, name] of [
-    ["title", "01-title"],
-    ["confirmation", "02-new-game-confirmation"],
-    ["introduction", "03-introduction"],
-    ["home", "04-home"],
-    ["destinations", "05-destinations"],
-    ["town", "06-town"],
-    ["returned", "07-returned-home"],
-    ["save", "08-save-confirmation"],
-    ["saved", "09-saved-title"],
-    ["resumed", "10-resumed-home"],
-  ] as const) {
-    await collectCoverage(page);
-    await page.goto(
-      state === "title"
-        ? "http://127.0.0.1:4173/"
-        : `http://127.0.0.1:4174/rpg/tests/fixtures/campaign-view.html?state=${state}`,
-    );
-    await readyPicture(page);
-    if (state !== "title") await pointerFocusAppearance(page);
-    await page.mouse.move(0, 0);
-    await expect.soft(page).toHaveScreenshot(golden(`campaign-${name}-1920.png`));
-  }
+  await page.goto("http://127.0.0.1:4173/");
+  await readyPicture(page);
+  await expect(page.getByRole("heading", { name: "ENDFIELD RPG", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "新規開始", exact: true })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "続きから", exact: true })).toBeEnabled();
   expect(errors).toEqual([]);
 });
 

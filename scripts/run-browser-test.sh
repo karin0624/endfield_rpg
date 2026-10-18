@@ -5,13 +5,15 @@ case "${1:-}" in
   browser) inside_script=test:browser:inside ;;
   editor) inside_script=test:editor:inside ;;
   all) inside_script=test:all:inside ;;
-  *) echo "Usage: $0 {browser|editor|all} [Playwright options]" >&2; exit 2 ;;
+  storybook) inside_script=test:storybook:inside ;;
+  *) echo "Usage: $0 {browser|editor|all|storybook} [Playwright options]" >&2; exit 2 ;;
 esac
 shift
 
 repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 container_user="$(id -u):$(id -g)"
-set -- mcr.microsoft.com/playwright:v1.63.0-noble \
+browser_image=$(node --input-type=module -e 'import { DESIGN_IMAGE } from "./scripts/design-environment.mjs"; console.log(DESIGN_IMAGE)')
+set -- "$browser_image" \
   sh -c 'npm ci && inside_script=$1 && shift && npm run "$inside_script" -- "$@"' \
   sh "$inside_script" "$@"
 

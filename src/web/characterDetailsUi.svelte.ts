@@ -4,7 +4,7 @@ import {
   type CharacterDetailsModel,
   createCharacterDetailsModel,
 } from "../presentation/characterDetails";
-import CharacterDetails from "./components/CharacterDetails.svelte";
+import CharacterDetails from "./components/CharacterDetails/CharacterDetails.svelte";
 
 export function createCharacterDetailsView(
   root: HTMLElement,
