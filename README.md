@@ -64,13 +64,16 @@ node scripts/setup.mjs --cache /workspace/.npm
 
 | 場所 | 内容 |
 | --- | --- |
-| `Design System` | 色変数・文字スタイル・共通記号。拠点用の定義は`Hub`の区画で適用範囲を示す |
+| `Design System` | 機能や画面に依存しない基盤の色トークン・Typography・共通記号。特定機能名を持つ定義は置かない |
 | `Components / Hub` | ホーム・街・地図で共有する部品と、部品内部のframe素材 |
-| `Screens` | ホーム・街・地図とダイアログの画面フレーム、その隣の`Local Components`区画 |
+| `Components/Dungeon` | 探索で共有する部品 |
+| `Screens` | ホーム・街・地図とダイアログの画面フレーム、画面専用のローカル要素 |
 | `Components / DS未対応` | 編成・会話・探索・物品・戦闘UIなど、複数画面で使う既存の独自部品。領域ごとに区分する |
-| `Screens / DS未対応` | タイトル・導入・編成・会話・探索・装備・準備・ショップの画面フレームと、画面専用の`Local Components`区画 |
+| `Screens / DS未対応` | タイトル・導入・編成・会話・探索・装備・準備・ショップの画面フレームと、画面専用のローカル要素 |
 
-`Hub`はホーム・街・地図の画面群を指す実装上の名前。共通部品と画面専用の`Local Components`を分け、画面にはインスタンスを配置している。モーダルは標準のOverlayフレーム、文字・色・図案・状態は標準のテキスト、変数、スタイル、Text／Boolean／Instance swapプロパティとVariantsで保持する。既存の独自フォント・意匠は`DS未対応`で識別する。戦闘はHUDや操作ボタンなどのUI部品だけを管理し、画面フレーム・3D・戦闘エフェクトは含めない。
+`Design System`は機能群の共有部品より上の基盤層、`Components`は機能群の共有部品を置く層とする。アセット・コンポーネント・変数・スタイルの共通登録は、この2層の定義に限定する。`Screens`配下は画面とローカルな非登録要素だけを置き、共通定義の登録元にしない。ネイティブ形式が内部ページに保持する変数・スタイルも、この配置方針の定義から作る。
+
+`Hub`はホーム・街・地図の画面群を指す実装上の名前。画面には共有部品のインスタンスを配置する。モーダルは標準のOverlayフレーム、文字・色・図案・状態は標準のテキスト、変数、スタイル、Text／Boolean／Instance swapプロパティとVariantsで保持する。既存の独自フォント・意匠は`DS未対応`で識別する。戦闘はHUDや操作ボタンなどのUI部品だけを管理し、画面フレーム・3D・戦闘エフェクトは含めない。
 
 `npm ci`の`postinstall`で固定版のOpenPencilを準備する。本体はバージョン単位で`.openpencil/`へ保持し、初回または本体のバージョン変更時に取得する。同じ版へのパッチ更新では本体と依存を再利用し、保存済みの旧パッチを戻して新パッチを適用する。適用に失敗した場合は旧パッチへ戻してエラーにする。GUI・CLIともに同じ保存形式の修正と実装と同一のフォントを適用する。
 
@@ -105,7 +108,7 @@ npm run openpencil:verify -- --select items/equipment-select/default --keep-expo
 
 並列数は実行先の資源から自動で決め、`--workers 1`などでも指定できる。標準HTML出力と素材を調べる場合は`--keep-export`を使う。
 
-画像・SVG図案は[原稿設定](art-src/openpencil/bindings.json)の`assets`で管理し、素材単体の画素比較は行わない。UI部品内の素材は通常のインスタンスとして再利用し、その部品全体の比較に含める。SVG図案は原稿で編集可能なベクターとして保持し、`assets`に保存先と標準の書出し設定を登録する。`npm run openpencil:export-assets`は通常のSVG出力を変更せず製品の素材へ保存する。図案を編集した場合は、この出力と使用部品・画面の比較を実行する。
+共通の画像・SVG図案は[原稿設定](art-src/openpencil/bindings.json)の`assets`で管理し、登録元は`Design System`または`Components`配下に限定する。素材単体の画素比較は行わない。UI部品内の共有素材は通常のインスタンスとして再利用し、その部品全体の比較に含める。SVG図案は原稿で編集可能なベクターとして保持し、`assets`に保存先と標準の書出し設定を登録する。`npm run openpencil:export-assets`は通常のSVG出力を変更せず製品の素材へ保存する。図案を編集した場合は、この出力と使用部品・画面の比較を実行する。
 
 `openpencil:render`と`openpencil:verify`で既存の固定Playwrightコンテナを使う場合は`--container NAME`を指定する。リポジトリのマウント先が`/work`以外なら、`--container-root /path/to/project`も指定する。
 

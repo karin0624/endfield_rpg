@@ -3,101 +3,11 @@
   "document": "art-src/openpencil/endfield-rpg.fig",
   "assets": [
     {
-      "id": "hub/artwork/picture/tavern",
-      "source": "src/web/components/IllustratedAction/IllustratedAction.svelte",
-      "nodes": [
-        {
-          "path": ["Screens", "Town / Local Components", "Town/Artwork/picture/tavern"]
-        }
-      ]
-    },
-    {
-      "id": "hub/artwork/picture/fountain",
-      "source": "src/web/components/IllustratedAction/IllustratedAction.svelte",
-      "nodes": [
-        {
-          "path": ["Screens", "Town / Local Components", "Town/Artwork/picture/fountain"]
-        }
-      ]
-    },
-    {
-      "id": "hub/artwork/picture/market",
-      "source": "src/web/components/IllustratedAction/IllustratedAction.svelte",
-      "nodes": [
-        {
-          "path": ["Screens", "Town / Local Components", "Town/Artwork/picture/market"]
-        }
-      ]
-    },
-    {
-      "id": "hub/artwork/picture/gilberta",
-      "source": "src/web/components/IllustratedAction/IllustratedAction.svelte",
-      "nodes": [
-        {
-          "path": ["Screens", "Town / Local Components", "Town/Artwork/picture/gilberta"]
-        }
-      ]
-    },
-    {
-      "id": "hub/artwork/picture/town-icon",
-      "source": "src/web/components/IllustratedAction/IllustratedAction.svelte",
-      "nodes": [
-        {
-          "path": ["Screens", "Destinations / Local Components", "Destinations/Artwork/picture/town-icon"]
-        }
-      ]
-    },
-    {
-      "id": "hub/artwork/picture/dungeon",
-      "source": "src/web/components/IllustratedAction/IllustratedAction.svelte",
-      "nodes": [
-        {
-          "path": ["Screens", "Destinations / Local Components", "Destinations/Artwork/picture/dungeon"]
-        }
-      ]
-    },
-    {
-      "id": "hub/artwork/picture/house",
-      "source": "src/web/components/IllustratedAction/IllustratedAction.svelte",
-      "nodes": [
-        {
-          "path": ["Screens", "Town / Local Components", "Town/Artwork/picture/house"]
-        }
-      ]
-    },
-    {
       "id": "hub/artwork/bubble",
       "source": "src/web/components/IllustratedAction/IllustratedAction.svelte",
       "nodes": [
         {
           "path": ["Components / Hub", "PlaceEntry / Internal frame artwork", "Hub/Artwork/frame/bubble"]
-        }
-      ]
-    },
-    {
-      "id": "hub/artwork/picture/companions",
-      "source": "src/web/components/IllustratedAction/IllustratedAction.svelte",
-      "nodes": [
-        {
-          "path": ["Screens", "Home / Local Components", "Home/Artwork/picture/companions"]
-        }
-      ]
-    },
-    {
-      "id": "hub/artwork/picture/items",
-      "source": "src/web/components/IllustratedAction/IllustratedAction.svelte",
-      "nodes": [
-        {
-          "path": ["Screens", "Home / Local Components", "Home/Artwork/picture/items"]
-        }
-      ]
-    },
-    {
-      "id": "hub/artwork/picture/map-icon",
-      "source": "src/web/components/IllustratedAction/IllustratedAction.svelte",
-      "nodes": [
-        {
-          "path": ["Screens", "Home / Local Components", "Home/Artwork/picture/map-icon"]
         }
       ]
     },
