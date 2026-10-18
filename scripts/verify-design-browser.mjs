@@ -1,4 +1,3 @@
-import { execFileSync } from "node:child_process";
 import { createReadStream } from "node:fs";
 import { readFile, stat, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
@@ -14,8 +13,8 @@ import {
   captureGeometry,
   cropPNG,
   DESIGN_BROWSER_ARGS,
+  DESIGN_BROWSER_LAUNCH,
   DESIGN_BROWSER_SCREEN,
-  designBrowserCapture,
   nativeAnimationTime,
   nativeGeometryMatches,
   observeCaretBitmap,
@@ -222,58 +221,9 @@ async function clickVisibleTrigger(page, trigger) {
   }
 }
 
-async function movePlatformPointer(page, clientPoint) {
-  const initial = page.platformPointerOrigin;
-  if (!initial?.trusted) throw new Error("Platform pointer requires a measured trusted viewport origin");
-  const origin = {
-    x: initial.screen.x - initial.client.x,
-    y: initial.screen.y - initial.client.y,
-  };
-  const point = { x: Math.round(origin.x + clientPoint.x), y: Math.round(origin.y + clientPoint.y) };
-  const client = await page.context().newCDPSession(page);
-  let window;
-  try {
-    window = await client.send("Browser.getWindowForTarget");
-  } finally {
-    await client.detach();
-  }
-  if (
-    ![origin.x, origin.y, point.x, point.y].every(Number.isFinite) ||
-    origin.x < window.bounds.left ||
-    origin.y < window.bounds.top ||
-    origin.x >= window.bounds.left + window.bounds.width ||
-    origin.y >= window.bounds.top + window.bounds.height ||
-    point.x < 0 ||
-    point.y < 0 ||
-    point.x >= DESIGN_BROWSER_SCREEN.width ||
-    point.y >= DESIGN_BROWSER_SCREEN.height
-  )
-    throw new Error("Platform pointer position is outside its measured window or physical display");
-  const observation = JSON.parse(
-    execFileSync("python3", [resolve("scripts/design-pointer.py"), String(point.x), String(point.y)], {
-      encoding: "utf8",
-    }),
-  );
-  if (
-    observation.point?.[0] !== point.x ||
-    observation.point?.[1] !== point.y ||
-    observation.after?.[0]?.rootPointer?.[0] !== point.x ||
-    observation.after?.[0]?.rootPointer?.[1] !== point.y
-  )
-    throw new Error("Platform pointer did not reach the declared physical position");
-  page.platformPointer ??= [];
-  page.platformPointer.push({ origin, clientPoint, point, window, observation });
-}
-
 async function interaction(page, action, deferPress = false) {
   const target = page.locator(action.selector);
   if ((await target.count()) !== 1) throw new Error(`Interaction selector must match one element: ${action.selector}`);
-  if (action.type === "pointer") {
-    const box = await bounds(target);
-    if (!box) throw new Error(`Pointer anchor has no bounds: ${action.selector}`);
-    await movePlatformPointer(page, { x: box.x + action.position.x, y: box.y + action.position.y });
-    return;
-  }
   if (action.type === "release") {
     if (!(await target.evaluate((element) => element.matches(":active"))))
       throw new Error(`Mouse release requires an active element: ${action.selector}`);
@@ -286,6 +236,8 @@ async function interaction(page, action, deferPress = false) {
     if (!(await target.evaluate((element) => element === document.activeElement)))
       throw new Error(`Key interaction requires the focused element: ${action.selector}`);
     await page.keyboard.press(action.key);
+    if (action.expectedValue !== undefined && (await target.inputValue()) !== action.expectedValue)
+      throw new Error(`Key interaction changed the expected control value: ${action.selector}`);
     return;
   }
   if (action.type === "focus" || action.method === "keyboard") {
@@ -1115,30 +1067,7 @@ async function captureImplementation({ name, target, padding }) {
     )
       throw new Error("Storybook could not render the registered component");
     if (result.errors.length) throw new Error(result.errors.join("\n"));
-    const pointerOrigin = designBrowserCapture(target).headless
-      ? undefined
-      : await page.evaluateHandle(() => {
-          const observer = { initial: null };
-          observer.listener = (event) => {
-            if (event.isTrusted && !observer.initial)
-              observer.initial = {
-                trusted: true,
-                client: { x: event.clientX, y: event.clientY },
-                screen: { x: event.screenX, y: event.screenY },
-              };
-          };
-          document.addEventListener("mousemove", observer.listener, true);
-          return observer;
-        });
-    try {
-      await page.mouse.move(0, 0);
-      if (pointerOrigin) page.platformPointerOrigin = await pointerOrigin.evaluate((observer) => observer.initial);
-    } finally {
-      if (pointerOrigin) {
-        await pointerOrigin.evaluate((observer) => document.removeEventListener("mousemove", observer.listener, true));
-        await pointerOrigin.dispose();
-      }
-    }
+    await page.mouse.move(0, 0);
     await page.evaluate(() => {
       if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
     });
@@ -1342,7 +1271,6 @@ async function captureImplementation({ name, target, padding }) {
         result.pressedCapture.expectedValue,
       );
     }
-    if (page.platformPointer) result.platformPointer = page.platformPointer;
     if (popupFiles)
       await screenshot(
         page,
@@ -1378,20 +1306,6 @@ async function captureImplementation({ name, target, padding }) {
             proof.source.before,
             cover.source.highlightedIndex,
           );
-        const pointerActions = (Array.isArray(target.interaction) ? target.interaction : [target.interaction]).filter(
-          (action) => action?.type === "pointer" && action.selector === cover.source.selector,
-        );
-        if (pointerActions.length) {
-          if (pointerActions.length !== 1 || page.platformPointer?.length !== 1)
-            throw Error("Popup coverage requires one unambiguous platform pointer action");
-          const pointer = page.platformPointer[0],
-            received = pointer.observation.after.at(-1);
-          proof.source.pointer = {
-            origin: pointer.origin,
-            point: pointer.point,
-            window: { x: received.origin[0], y: received.origin[1], width: received.size[0], height: received.size[1] },
-          };
-        }
       }
     }
   } catch (error) {
@@ -1790,59 +1704,42 @@ async function captureReference(job, result) {
 try {
   const captured =
     mode === "reference" ? JSON.parse(await readFile(join(directory, "actual.json"), "utf8")) : undefined;
-  const groups = new Map();
-  for (const job of jobs) {
-    const launch = designBrowserCapture(job.target);
-    const key = JSON.stringify(launch);
-    if (!groups.has(key)) groups.set(key, { launch, jobs: [] });
-    groups.get(key).jobs.push(job);
+  const launch = DESIGN_BROWSER_LAUNCH;
+  browser = await chromium.launch(launch);
+  const version = browser.version();
+  if (!version.startsWith("153.")) throw new Error(`Expected fixed Chromium 153; got ${version}`);
+  if (captured && captured.browser !== version) throw new Error("Capture phases must use the same browser version");
+  report.browser = version;
+  const displayPage = await browser.newPage({
+    viewport: DESIGN_BROWSER_SCREEN,
+    screen: DESIGN_BROWSER_SCREEN,
+    deviceScaleFactor: 1,
+  });
+  let context;
+  try {
+    const client = await displayPage.context().newCDPSession(displayPage);
+    const screens = await client.send("Emulation.getScreenInfos");
+    context = { launch, physicalScreen: assertDesignBrowserScreen(screens) };
+    report.screenInfos = { ...screens, browserContexts: [{ launch, ...screens }] };
+    report.environment.physicalScreen = context.physicalScreen;
+    report.environment.browserContexts.push(context);
+    await client.detach();
+  } finally {
+    await displayPage.close();
   }
-  for (const group of groups.values()) {
-    browser = await chromium.launch(group.launch);
-    try {
-      const version = browser.version();
-      if (!version.startsWith("153.")) throw new Error(`Expected fixed Chromium 153; got ${version}`);
-      if ((report.browser && report.browser !== version) || (captured && captured.browser !== version))
-        throw new Error("Capture phases and browser contexts must use the same browser version");
-      report.browser = version;
-      const displayPage = await browser.newPage({
-        viewport: DESIGN_BROWSER_SCREEN,
-        screen: DESIGN_BROWSER_SCREEN,
-        deviceScaleFactor: 1,
-      });
-      let context;
-      try {
-        const client = await displayPage.context().newCDPSession(displayPage);
-        const screens = await client.send("Emulation.getScreenInfos");
-        context = { launch: group.launch, physicalScreen: assertDesignBrowserScreen(screens) };
-        report.screenInfos ??= { ...screens, browserContexts: [] };
-        report.screenInfos.browserContexts.push({ launch: group.launch, ...screens });
-        report.environment.physicalScreen ??= context.physicalScreen;
-        report.environment.browserContexts.push(context);
-        await client.detach();
-      } finally {
-        await displayPage.close();
-      }
-      const environment = { browser: version, screen: DESIGN_BROWSER_SCREEN, ...context };
-      for (const job of group.jobs) {
-        const result = captured
-          ? captured.targets.find((target) => target.id === job.target.id)
-          : await captureImplementation(job);
-        if (!result) throw new Error(`Missing implementation capture: ${job.target.id}`);
-        if (captured && JSON.stringify(result.captureEnvironment) !== JSON.stringify(environment))
-          throw new Error(`Capture phases must use the same declared browser conditions: ${job.target.id}`);
-        result.captureEnvironment = environment;
-        report.targets.push(mode === "actual" ? result : await captureReference(job, result));
-      }
-    } finally {
-      await browser.close();
-      browser = undefined;
-    }
+  const environment = { browser: version, screen: DESIGN_BROWSER_SCREEN, ...context };
+  for (const job of jobs) {
+    const result = captured
+      ? captured.targets.find((target) => target.id === job.target.id)
+      : await captureImplementation(job);
+    if (!result) throw new Error(`Missing implementation capture: ${job.target.id}`);
+    if (captured && JSON.stringify(result.captureEnvironment) !== JSON.stringify(environment))
+      throw new Error(`Capture phases must use the same declared browser conditions: ${job.target.id}`);
+    result.captureEnvironment = environment;
+    report.targets.push(mode === "actual" ? result : await captureReference(job, result));
   }
   if (captured && JSON.stringify(captured.environment) !== JSON.stringify(report.environment))
     throw new Error("Capture phases must use the same browser conditions");
-  const order = new Map(jobs.map((job, index) => [job.target.id, index]));
-  report.targets.sort((a, b) => order.get(a.id) - order.get(b.id));
 } finally {
   await writeFile(join(directory, mode === "actual" ? "actual.json" : "browser.json"), JSON.stringify(report));
   await browser?.close();

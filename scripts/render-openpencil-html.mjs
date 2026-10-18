@@ -4,11 +4,11 @@ import { pathToFileURL } from "node:url";
 import { chromium } from "@playwright/test";
 import { captureHome } from "./capture-home.mjs";
 import { initializeDesignPaint } from "./design-paint.mjs";
-import { assertDesignBrowserScreen, DESIGN_BROWSER_SCREEN, designBrowserCapture } from "./verify-design-bindings.mjs";
+import { assertDesignBrowserScreen, DESIGN_BROWSER_LAUNCH, DESIGN_BROWSER_SCREEN } from "./verify-design-bindings.mjs";
 
 const directory = process.argv[2];
 const { width, height, verifyHome } = JSON.parse(await readFile(join(directory, "job.json"), "utf8"));
-const launch = designBrowserCapture();
+const launch = DESIGN_BROWSER_LAUNCH;
 const browser = await chromium.launch(launch);
 try {
   const implementation = verifyHome

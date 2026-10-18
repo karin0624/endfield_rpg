@@ -1,6 +1,6 @@
 import { preview } from "vite";
 import { initializeDesignPaint } from "./design-paint.mjs";
-import { assertDesignBrowserScreen, DESIGN_BROWSER_SCREEN, designBrowserCapture } from "./verify-design-bindings.mjs";
+import { assertDesignBrowserScreen, DESIGN_BROWSER_LAUNCH, DESIGN_BROWSER_SCREEN } from "./verify-design-bindings.mjs";
 
 export async function captureHome(browser, width, height, output) {
   const server = await preview({ preview: { host: "127.0.0.1", port: 4173, strictPort: true } });
@@ -45,7 +45,7 @@ export async function captureHome(browser, width, height, output) {
     return {
       url: page.url(),
       viewport: { width, height, deviceScaleFactor: 1 },
-      environment: { launch: designBrowserCapture(), screen: DESIGN_BROWSER_SCREEN, physicalScreen, screenInfos },
+      environment: { launch: DESIGN_BROWSER_LAUNCH, screen: DESIGN_BROWSER_SCREEN, physicalScreen, screenInfos },
       paintInitialization,
       errors,
     };

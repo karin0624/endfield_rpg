@@ -18,7 +18,6 @@ import {
   captureGeometry,
   clearCaptureBoundary,
   cropPNG,
-  designBrowserCapture,
   emptyViewportReadback,
   nativeAnimationTime,
   nativeCapturePlacement,
@@ -42,20 +41,6 @@ import {
 const temporary = [];
 afterEach(async () => {
   for (const path of temporary.splice(0)) await rm(path, { recursive: true, force: true });
-});
-
-it("uses an OS browser only for the pointer action capability in both capture phases", () => {
-  expect(designBrowserCapture().headless).toBe(true);
-  expect(designBrowserCapture().args).toContain("--disable-partial-raster");
-  expect(designBrowserCapture({ interaction: { type: "pressed", selector: "select" } }).headless).toBe(true);
-  const pointer = { type: "pointer", selector: "select", position: { x: 10, y: 60 } };
-  const source = designBrowserCapture({ interaction: [{ type: "focus", selector: "select" }, pointer] });
-  expect(source).toMatchObject({ channel: "chromium", headless: false });
-  expect(designBrowserCapture({ interaction: pointer })).toEqual(source);
-  expect(designBrowserCapture({ id: "another-control", storyId: "control--default", interaction: pointer })).toEqual(
-    source,
-  );
-  expect(designBrowserCapture({ interaction: { type: "hover", selector: "input" } }).channel).toBeUndefined();
 });
 
 it("rejects a physical display mismatch even when the emulated viewport is correct", () => {
@@ -591,7 +576,7 @@ it("keeps native key input explicit so normal focus and text selection can both 
   const { graph, manifest } = contract();
   manifest.targets[1].interaction = [
     { type: "focus", selector: "input" },
-    { type: "key", key: "ControlOrMeta+A", selector: "input" },
+    { type: "key", key: "ControlOrMeta+A", selector: "input", expectedValue: "42" },
   ];
   expect(validateBindings(manifest, graph)).toEqual([]);
   manifest.targets[1].interaction[1].key = "";
@@ -616,19 +601,19 @@ it("validates explicit paused-animation capture and every side of popup outsets"
   );
 });
 
-it("keeps popup pointer movement and button release explicit native interactions", () => {
+it("keeps button release and the uncommitted popup value explicit native interactions", () => {
   const { graph, manifest } = contract();
   manifest.targets[1].interaction = [
     { type: "pressed", selector: "select" },
     { type: "release", selector: "select" },
-    { type: "pointer", selector: "select", position: { x: 32, y: -44.609375 } },
+    { type: "key", selector: "select", key: "ArrowDown", expectedValue: "original" },
   ];
   expect(validateBindings(manifest, graph)).toEqual([]);
-  manifest.targets[1].interaction[2].position.y = Number.NaN;
+  manifest.targets[1].interaction[2].expectedValue = 42;
   expect(validateBindings(manifest, graph)).toContain("Invalid native interaction: button-default");
 });
 
-it("validates a relative control position and the final pressed value without allowing keyboard or intermediate expectations", () => {
+it("validates a relative press and its final value without allowing keyboard presses or intermediate expectations", () => {
   const { graph, manifest } = contract();
   const press = { type: "pressed", selector: "input", position: { x: 20.5, y: 12.25 }, expectedValue: "2" };
   manifest.targets[1].interaction = [{ type: "hover", selector: "input" }, press];
@@ -1454,14 +1439,4 @@ it("requires actual overlay activation and the full observed Popup window plus a
   expect(() => assertCompositeCoverage(target, [saved], [proof], { identical: false, differentPixels: 1 })).toThrow(
     "enclosing all-RGBA",
   );
-  target.interaction = { type: "pointer", selector: "select", position: { x: 2, y: 13 } };
-  expect(() => assertCompositeCoverage(target, [saved], [proof], comparison)).toThrow("receiving platform window");
-  proof.source.pointer = {
-    origin: { x: 10, y: 20 },
-    point: { x: 35, y: 43 },
-    window: { x: 30, y: 40, width: 20, height: 8 },
-  };
-  expect(assertCompositeCoverage(target, [saved], [proof], comparison)).toHaveLength(1);
-  proof.source.pointer.point.y = 41;
-  expect(() => assertCompositeCoverage(target, [saved], [proof], comparison)).toThrow("requested row");
 });

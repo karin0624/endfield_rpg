@@ -324,7 +324,7 @@
           ]
         }
       ],
-      "requiredStates": ["default", "focus", "open-keyboard", "open-pointer-next"]
+      "requiredStates": ["default", "focus", "open-keyboard", "open-highlight-next"]
     },
     {
       "id": "items/number-input",
@@ -1844,7 +1844,7 @@
           ]
         }
       ],
-      "requiredStates": ["player_default", "player_focus", "player_open-keyboard", "player_open-pointer-next"]
+      "requiredStates": ["player_default", "player_focus", "player_open-keyboard", "player_open-highlight-next"]
     },
     {
       "id": "Battle/ItemTarget",
@@ -1909,7 +1909,7 @@
           ]
         }
       ],
-      "requiredStates": ["1_default", "1_focus", "1_open-keyboard", "1_open-pointer-next"]
+      "requiredStates": ["1_default", "1_focus", "1_open-keyboard", "1_open-highlight-next"]
     },
     {
       "id": "Battle/SequenceSkip",
@@ -4270,10 +4270,10 @@
       "storyId": "utility-equipmentselect--default"
     },
     {
-      "id": "items/equipment-select/open-pointer-next",
+      "id": "items/equipment-select/open-highlight-next",
       "kind": "component",
       "component": "items/equipment-select",
-      "state": "open-pointer-next",
+      "state": "open-highlight-next",
       "source": "src/web/components/EquipmentSelect.svelte",
       "figma": {
         "path": [
@@ -4283,7 +4283,7 @@
           "focusVisible=true, menu=hover-next"
         ],
         "properties": {
-          "selectedLabel": "装備なし",
+          "selectedLabel": "武器 1",
           "focusVisible": "true",
           "menu": "hover-next"
         }
@@ -4313,12 +4313,10 @@
           "selector": ".item-equipment-select[data-slot=\"weapon\"]"
         },
         {
-          "type": "pointer",
+          "type": "key",
           "selector": ".item-equipment-select[data-slot=\"weapon\"]",
-          "position": {
-            "x": 32,
-            "y": 87.890625
-          }
+          "key": "ArrowDown",
+          "expectedValue": ""
         }
       ],
       "storyId": "utility-equipmentselect--default"
@@ -12477,10 +12475,10 @@
       "source": "src/web/components/BattleSequenceSpeed.svelte"
     },
     {
-      "id": "battle/allytarget/player_open-pointer-next",
+      "id": "battle/allytarget/player_open-highlight-next",
       "kind": "component",
       "component": "Battle/AllyTarget",
-      "state": "player_open-pointer-next",
+      "state": "player_open-highlight-next",
       "figma": {
         "path": [
           "Components / DS未対応",
@@ -12489,7 +12487,7 @@
           "state=focus, menu=hover-next"
         ],
         "properties": {
-          "selectedLabel": "ロッシ · HP 10 / 30",
+          "selectedLabel": "ギルベルタ · HP 30 / 30",
           "menu": "hover-next"
         }
       },
@@ -12518,22 +12516,20 @@
           "selector": "[data-ally-target]"
         },
         {
-          "type": "pointer",
+          "type": "key",
           "selector": "[data-ally-target]",
-          "position": {
-            "x": 32,
-            "y": 88.8125
-          }
+          "key": "ArrowDown",
+          "expectedValue": "player"
         }
       ],
       "storyId": "battle-allytarget--default",
       "source": "src/web/components/BattleAllyTarget.svelte"
     },
     {
-      "id": "battle/sequencespeed/1_open-pointer-next",
+      "id": "battle/sequencespeed/1_open-highlight-next",
       "kind": "component",
       "component": "Battle/SequenceSpeed",
-      "state": "1_open-pointer-next",
+      "state": "1_open-highlight-next",
       "figma": {
         "path": [
           "Components / DS未対応",
@@ -12542,7 +12538,7 @@
           "state=focus, menu=hover-next"
         ],
         "properties": {
-          "selectedLabel": "1倍",
+          "selectedLabel": "2倍",
           "menu": "hover-next"
         }
       },
@@ -12571,12 +12567,10 @@
           "selector": "[data-sequence-speed]"
         },
         {
-          "type": "pointer",
+          "type": "key",
           "selector": "[data-sequence-speed]",
-          "position": {
-            "x": 32,
-            "y": 61.09375
-          }
+          "key": "ArrowDown",
+          "expectedValue": "1"
         }
       ],
       "storyId": "battle-sequencespeed--default",

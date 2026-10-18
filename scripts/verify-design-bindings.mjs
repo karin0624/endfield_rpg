@@ -13,18 +13,7 @@ export const DESIGN_BROWSER_ARGS = Object.freeze([
   "--disable-partial-raster",
   `--screen-info={0,0 ${DESIGN_BROWSER_SCREEN.width}x${DESIGN_BROWSER_SCREEN.height}}`,
 ]);
-
-// A native popup owns a platform window, which DevTools mouse routing cannot
-// reach. Ordinary pointer actions require a browser with that OS input path.
-export function designBrowserCapture(target) {
-  const actions = Array.isArray(target?.interaction) ? target.interaction : [target?.interaction];
-  const platformPointer = actions.some((action) => action?.type === "pointer");
-  return {
-    headless: !platformPointer,
-    ...(platformPointer ? { channel: "chromium" } : {}),
-    args: DESIGN_BROWSER_ARGS,
-  };
-}
+export const DESIGN_BROWSER_LAUNCH = Object.freeze({ headless: true, args: DESIGN_BROWSER_ARGS });
 
 export function assertDesignBrowserScreen(result) {
   if (!Array.isArray(result?.screenInfos) || result.screenInfos.length !== 1)
@@ -391,29 +380,6 @@ export function assertCompositeCoverage(target, expected, observed, comparison) 
         JSON.stringify(pose.bounds) !== JSON.stringify(window)
       )
         throw new Error("Popup coverage requires the actual saved overlay activation, main and full window bounds");
-      if (source.pointer) {
-        const { origin, point, window: received } = source.pointer;
-        const expected = {
-          x: received.x - origin.x,
-          y: received.y - origin.y,
-          width: received.width,
-          height: received.height,
-        };
-        const rowTop = received.y + 1 + cover.source.highlightedIndex * bitmaps.capture.rowHeight;
-        if (
-          JSON.stringify(expected) !== JSON.stringify(window) ||
-          point.x <= received.x ||
-          point.x >= received.x + received.width - 1 ||
-          point.y < rowTop ||
-          point.y >= rowTop + bitmaps.capture.rowHeight
-        )
-          throw new Error("OS popup pointer did not reach the observed native window and requested row");
-      } else if (
-        (Array.isArray(target.interaction) ? target.interaction : [target.interaction]).some(
-          (action) => action?.type === "pointer",
-        )
-      )
-        throw new Error("Popup pointer coverage requires its actual receiving platform window");
     }
     if (cover.source.platform === "text-caret") {
       if (
@@ -1010,13 +976,9 @@ export function validateBindings(manifest, graph, { complete = true } = {}) {
     for (const [index, interaction] of interactions.entries())
       if (
         !object(interaction) ||
-        !["hover", "pressed", "focus", "key", "pointer", "release"].includes(interaction.type) ||
+        !["hover", "pressed", "focus", "key", "release"].includes(interaction.type) ||
         !interaction.selector ||
-        (interaction.type === "pointer" &&
-          (!object(interaction.position) ||
-            ![interaction.position.x, interaction.position.y].every(Number.isFinite))) ||
         (interaction.position !== undefined &&
-          interaction.type !== "pointer" &&
           (!["hover", "pressed"].includes(interaction.type) ||
             interaction.method === "keyboard" ||
             !object(interaction.position) ||
@@ -1025,7 +987,7 @@ export function validateBindings(manifest, graph, { complete = true } = {}) {
             ))) ||
         (interaction.expectedValue !== undefined &&
           (typeof interaction.expectedValue !== "string" ||
-            interaction.type !== "pressed" ||
+            !["pressed", "key"].includes(interaction.type) ||
             interaction.method === "keyboard" ||
             index !== interactions.length - 1)) ||
         (interaction.type === "key" && (typeof interaction.key !== "string" || !interaction.key.length)) ||

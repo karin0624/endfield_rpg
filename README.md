@@ -97,7 +97,7 @@ npm run openpencil:verify
 
 参照画像は、原稿のネイティブ部品・標準プロパティから生成するOpenPencilのHTML出力を固定Chromiumで撮影する。CanvasKitの直接PNG exportはこの比較で使わない。実装と原稿を同じviewport／DPRで、部分再描画を無効にして撮影し、部品は外周とfocusを含む整数領域を切り出す。除外領域・許容差・拡縮・色補正はなく、寸法と全画素・全RGBAが一つでも異なれば非0で終了する。原稿内の未登録の部品・variant・画面、比較のない必要状態も全件実行を失敗にする。
 
-出力は`test-results/openpencil/verification/`の実装／原稿PNGと`report.json`。原稿と対応表のSHA256、ブラウザ版・起動条件、各比較の画素数・差分、撮影範囲を記録する。viewportとは別に、ネイティブの選択メニューが参照する実画面も固定し、両方の実測値を検査・保存する。OSの選択メニューへマウスを動かす`pointer`操作では、固定コンテナ内のXvfb上で通常のChromiumを起動する。他の操作はChromiumのheadless shellを使い、比較ごとに実装と原稿の撮影条件が同じことを検査する。
+出力は`test-results/openpencil/verification/`の実装／原稿PNGと`report.json`。原稿と対応表のSHA256、ブラウザ版・起動条件、各比較の画素数・差分、撮影範囲を記録する。viewportとは別に、ネイティブの選択メニューが参照する実画面も固定し、両方の実測値を検査・保存する。全対象をChromiumのheadless shellで撮影し、比較ごとに実装と原稿の撮影条件が同じことを検査する。
 
 通常コマンドは全件を比較する。ローカルでの反復には、変更に依存する対象だけを選ぶ`--changed`、撮影せず選択結果を調べる`--diff`、対象IDを直接指定する`--select`を使う。原稿のノードツリー・部品・色変数・文字スタイル・素材と、Storybookの実部品・CSS・利用素材の依存を判定する。選択の基準は検証に成功した入力のJSON signatureだけで、生成PNGをキャッシュ・コミットする運用は設けない。初回と提出前の確認、signatureの更新条件、CIの失敗画像保存は[テスト設計](docs/testing.md#デザイン原稿と実装の比較)を参照する。
 

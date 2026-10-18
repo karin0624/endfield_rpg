@@ -13,7 +13,6 @@ import {
   clearCaptureBoundary,
   DESIGN_BROWSER_ARGS,
   DESIGN_BROWSER_SCREEN,
-  designBrowserCapture,
   nativeCapturePlacement,
   nativeSizing,
   observeCompositeProperties,
@@ -140,14 +139,7 @@ export async function verifyDesign(
   const capture = async (mode) => {
     await writeFile(join(temporary, "job.json"), JSON.stringify({ mode, jobs }));
     const browserDirectory = posix.join(browserRoot, relative(project, temporary).split(sep).join("/"));
-    const command = [
-      ...(targets.some((target) => !designBrowserCapture(target).headless)
-        ? ["xvfb-run", "-a", "-s", `-screen 0 ${DESIGN_BROWSER_SCREEN.width}x${DESIGN_BROWSER_SCREEN.height}x24`]
-        : []),
-      "node",
-      posix.join(browserRoot, "scripts/verify-design-browser.mjs"),
-      browserDirectory,
-    ];
+    const command = ["node", posix.join(browserRoot, "scripts/verify-design-browser.mjs"), browserDirectory];
     if (inside) {
       const localCommand = command.map((part) =>
         typeof part === "string" ? part.replaceAll(browserRoot, project) : part,
