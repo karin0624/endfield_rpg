@@ -55,7 +55,9 @@ CIは共通の固定Dockerイメージを解決した後、一つの検証jobで
 
 ## デザイン原稿と実装の比較
 
-デザインの正本は[単一の`.fig`](../art-src/openpencil/endfield-rpg.fig)で、部品・variant・画面は編集可能な標準ノードとして保持する。製品部品と同居する`*.stories.ts`の`parameters.design`に原稿ノード・variant・比較条件を定義する。Storybook標準のprepared parametersとindexの`componentPath`から対応一覧を自動集計し、別の手書き対応表は持たない。[原稿設定](../art-src/openpencil/bindings.json)はdocumentと素材だけを保持する。部品はCSFストーリーへ実propsを直接与えて描画する。専用の操作テストと単一部品の`*.stories.fixture.ts`も同じディレクトリに置き、複数部品で共有するfixtureは`.storybook/fixtures/`に置く。共通hostはテーマと利用可能な幅・高さ・paddingを与え、他の画面を描いて隠す方法や親画面の実測座標には依存しない。画面は部品を配置する画面コンポーネントとして別に比較する。
+デザインの正本は、人が編集する[単一の`.fig`](../art-src/openpencil/endfield-rpg.fig)である。AIは原稿を読んで実装・Story・対応設定を更新し、原稿の構成不備は対象ノードと影響を報告する。比較を通すためのFig編集・再生成は行わない。
+
+製品部品と同居する`*.stories.ts`の`parameters.design`に原稿ノード・variant・比較条件を定義する。Storybook標準のprepared parametersとindexの`componentPath`から対応一覧を自動集計し、別の手書き対応表は持たない。[原稿設定](../art-src/openpencil/bindings.json)はdocumentと素材だけを保持する。部品はCSFストーリーへ実propsを直接与えて描画する。専用の操作テストと単一部品の`*.stories.fixture.ts`も同じディレクトリに置き、複数部品で共有するfixtureは`.storybook/fixtures/`に置く。共通hostはテーマと利用可能な幅・高さ・paddingを与え、他の画面を描いて隠す方法や親画面の実測座標には依存しない。画面は部品を配置する画面コンポーネントとして別に比較する。
 
 Storyとテストのデータは、[GoogleのDAMP指針](https://testing.googleblog.com/2019/12/testing-on-toilet-tests-too-dry-make.html)に従い、各ケースの前提・操作・期待結果がその場で読めることを優先する。variantを決める実propsや状態の値は各Storyの`args`へ明記し、基礎データを共有する場合も意味のある差分をそのStoryに残す。部品の入力を得るために画面全体やゲーム状態を生成するhelper、独自の疑似propsから複数部品のvariantを組み立てるfactoryは置かない。画面全体のStoryには公開モデルと投影を使えるが、その画面状態と関連する入力はStoryへ明記する。実コアを通す結合テスト用の整合したシナリオや、HTTP・ファイル・描画環境の機械的な準備は共有し、検証対象に関係する入力・具体的期待値を共有helperへ隠さない。
 
@@ -76,7 +78,7 @@ Storyとテストのデータは、[GoogleのDAMP指針](https://testing.googleb
 
 引数は`npm run openpencil:verify -- --changed`のように渡す。差分判定は、原稿のノードツリーと参照する部品定義・variant・色変数とalias・文字等のスタイル・画像bytes・フォントを辿る。独立した部品の原稿上の配置座標と編集用メタデータは判定から外し、その部品を含む画面内の配置は画面の入力として扱う。実装側はViteの解決済みimport依存にあるSvelte・TS・CSSと、撮影時に利用した公開素材のファイルhashを使う。ファイル単位の依存なので、共通CSSなどの変更ではそのファイルを利用する複数部品を保守的に再比較する。`--diff`でも依存を解決するStorybookのbuildは必要になる。
 
-比較に成功した入力signatureは`.openpencil/design-snapshot.json`へ保存する。全件、または成功済みsignatureから選んだ変更対象の全件が一致した場合だけ更新し、失敗・明示選択・差分表示では更新しない。JSONには入力hashと依存関係を保存し、参照・実装PNGのキャッシュは持たない。選ばれた対象の参照・実装PNGは毎回生成する。削除・破損・未検証・非互換のsignatureは再利用せず、初回と同様に全件を選択する。提出前はこの差分選択にかかわらず全件比較を行う。
+比較に成功した入力signatureは`.openpencil/design-snapshot.json`へ保存する。全件、または成功済みsignatureから選んだ変更対象の全件が一致した場合だけ更新し、失敗・明示選択・差分表示では更新しない。JSONには入力hashと依存関係を保存し、参照・実装PNGのキャッシュは持たない。選ばれた対象の参照・実装PNGは毎回生成する。削除・破損・未検証・非互換のsignatureは再利用せず、初回と同様に全件を選択する。通常の変更と提出前確認には`--changed`を使い、変更に依存する全対象を再比較し、未変更の対象は成功済み入力を再利用する。
 
 デザイン差分判定のCIキャッシュも成功したsignatureのJSON一つだけを対象とし、PNG・HTML・原稿本体は含めない。保存keyはmainとPR番号・検証commitを分ける。同じ検証commitの成功済みkeyがなければ、同じPRの直近成功key、PRのbase main SHAのkey、同じ共通pipelineのmain keyの順に復元する。main実行ではPRのkeyを使わない。共通のexport・撮影・比較・差分判定、Storybook設定、依存lockfileの変更でキャッシュのnamespaceを変え、初回の全件比較へ戻す。全検証scopeが成功したjobだけがsignatureを保存する。ローカルとCIは[scripts/design-pipeline.mjs](../scripts/design-pipeline.mjs)で同じfingerprintを計算する。CI専用のhash定義を持たない。
 
@@ -136,9 +138,9 @@ GPUを含むframe費用は実rAF間隔とtraceを合わせて評価する。Swif
 
 [Playwright画像比較](https://playwright.dev/docs/test-snapshots)の固定環境、既存baselineのpath／bytes／許容差を保つ。画像不一致をsleep・許容差増加・無審査baseline生成で隠さない。必要な字体・画像decode・pointer／keyboard modality・viewport・scrollを撮影前に揃える。レビュー資料の撮影やoverlayはVRT成功を代替せず、旧実行参考画像を新たな承認済みgoldenと扱わない。
 
-デザインマスターと実装の同期には、[デザイン原稿と実装の比較](#デザイン原稿と実装の比較)も使う。提出前は`npm run openpencil:verify`を全件実行し、原稿に登録した部品・variant・画面の全RGBAの差分0を要求する。差分実行や明示選択だけを、全件比較を行った証拠にしない。
+デザインマスターと実装の同期には、[デザイン原稿と実装の比較](#デザイン原稿と実装の比較)も使う。提出前は`npm run openpencil:verify -- --changed`で変更に依存する部品・variant・画面を比較し、寸法一致・全RGBAの差分0と、reportの`complete`・`identical`がともに`true`であることを確認する。有効なsignatureがない場合は自動選択された全件を比較する。再比較した範囲と成功済み入力を再利用した範囲を区別し、`--select`の成功や一覧取得だけを全体の完了と扱わない。
 
-文書だけの変更は、差分が文書に限られること、リンク・見出し、要求・仕様・設計・制作手順の整合を確認する。規則の変更では既知の失敗案を引き続き棄却できるか確かめる。製品source・CSS・素材・golden・テスト設定を変えなければ、ゲーム全suiteや新しい画像承認は不要。
+文書だけの変更は、差分が文書に限られること、リンク・見出し、要求・操作仕様・実装と検証の手順の整合を確認する。規則の変更では既知の失敗案を引き続き棄却できるか確かめる。製品source・CSS・素材・golden・テスト設定を変えなければ、ゲーム全suiteや新しい画像承認は不要。
 
 実装中は必要な短い検証で原因と費用を確認する。提出前はsourceを固定し、check・必要な全直接VRT・資源検証・editorをローカルで完走する。代表数件だけで全件をCIへ委ねない。source／LFS実体／CSS・素材・goldenの前後一致、正確なhead／tree、開始・終了・shutdown、実runnerのworker設定、層別時間、failure／retry別記を残す。GitHub権限・required checks・Actions固有のrunner条件等、ローカルで不可能な条件だけを理由付き例外とする。
 

@@ -8,9 +8,7 @@
 | --- | --- |
 | [AGENTS.md](AGENTS.md) | 作業と文書更新の規約 |
 | [仕様概要](specs/overview.md) | 本編の流れ、責務境界、各ゲーム仕様への入口 |
-| [画面設計](docs/ui-screen-design.md) | 画面の目的・情報・操作と、画面仕様・実装への案内 |
-| [デザインシステム](docs/design-guidelines.md) | 共通の文字・色・部品・状態の規則 |
-| [制作手順](docs/ui-asset-production.md) | Figmaからの実装、素材制作、実画像の確認 |
+| [Figからの実装skill](.agents/skills/endfield-design-to-code/SKILL.md) | 人が変更した原稿の調査、製品・Storyへの反映、不一致の切り分け |
 | [テスト設計](docs/testing.md) | 保証する結果、検証層、実行方法、PRと独立レビュー |
 | [コンテンツ追加](docs/content-authoring.md) | 仲間・会話・既存効果を増やす手順 |
 | [ADR](docs/adr/) | 技術的な選択の理由 |
@@ -60,7 +58,9 @@ node scripts/setup.mjs --cache /workspace/.npm
 
 ## OpenPencilでデザインマスターを編集する
 
-ゲームのデザインマスターは[endfield-rpg.fig](art-src/openpencil/endfield-rpg.fig)。一つのファイルに共通定義と複数の画面を管理する。部品の再利用範囲に合わせ、次のページと区画へ分ける。
+ゲームのデザインマスターは[endfield-rpg.fig](art-src/openpencil/endfield-rpg.fig)。デザイン・素材制作・原稿編集は人が行い、AIは原稿を読んで実装と検証を行う。構成の不備は指摘し、原稿を勝手に修正しない。ゲームや操作の契約は[仕様](specs/overview.md)、AIの作業手順は[実装skill](.agents/skills/endfield-design-to-code/SKILL.md)を参照する。
+
+一つのファイルに共通定義と複数の画面を管理する。現在のページと区画は次のとおり。
 
 | 場所 | 内容 |
 | --- | --- |
@@ -70,7 +70,7 @@ node scripts/setup.mjs --cache /workspace/.npm
 | `Components / DS未対応` | 編成・会話・探索・物品・戦闘UIなど、複数画面で使う既存の独自部品。領域ごとに区分する |
 | `Screens / DS未対応` | タイトル・導入・編成・会話・探索・装備・準備・ショップの画面フレームと、画面専用の`Local Components`区画 |
 
-`Hub`はホーム・街・地図の画面群を指す実装上の名前。部品は再利用する領域に置き、一画面専用の定義はその画面の`Local Components`へ置く。モーダルは画面から開く標準のOverlayフレームで管理する。画面にはインスタンスを配置し、文字・色・図案・状態は標準のテキスト、変数、スタイル、Text／Boolean／Instance swapプロパティとVariantsから編集する。実装の独自フォント・意匠を保つ部品は`DS未対応`で識別する。戦闘はHUDや操作ボタンなどのUI部品だけを管理し、画面フレーム・3D・戦闘エフェクトは含めない。
+`Hub`はホーム・街・地図の画面群を指す実装上の名前。共通部品と画面専用の`Local Components`を分け、画面にはインスタンスを配置している。モーダルは標準のOverlayフレーム、文字・色・図案・状態は標準のテキスト、変数、スタイル、Text／Boolean／Instance swapプロパティとVariantsで保持する。既存の独自フォント・意匠は`DS未対応`で識別する。戦闘はHUDや操作ボタンなどのUI部品だけを管理し、画面フレーム・3D・戦闘エフェクトは含めない。
 
 `npm ci`の`postinstall`で固定版のOpenPencilを準備する。本体はバージョン単位で`.openpencil/`へ保持し、初回または本体のバージョン変更時に取得する。同じ版へのパッチ更新では本体と依存を再利用し、保存済みの旧パッチを戻して新パッチを適用する。適用に失敗した場合は旧パッチへ戻してエラーにする。GUI・CLIともに同じ保存形式の修正と実装と同一のフォントを適用する。
 
@@ -92,13 +92,9 @@ npm run openpencil:verify
 
 `openpencil:render`はOpenPencilのHTML出力を、ゲームのVRTと同じ固定PlaywrightコンテナでPNGにする。Dockerが必要で、編集後も同じコマンドを使う。`--compare <比較先PNG>`を加えると、寸法と全RGBAを比較し、差分0のときだけ成功する。
 
-`openpencil:verify`は各部品と同居する`*.stories.ts`の`parameters.design`から、Figノード・variant・hoverやfocusなどの比較対象を集計する。部品の実装ファイルとStory IDはStorybookの標準indexから解決し、対応表を別ファイルへ手書きしない。比較対象はUI部品全体と意匠が変わるvariant・表示状態とし、文字列・数値・配置の列挙や内部の文字・アイコン単独の比較は作らない。部品のprops・variantは実装と原稿で揃え、Storybookでは同じ製品部品・CSS・素材を単体で描画する。共通hostはテーマと利用可能な寸法を提供し、親画面の描画・非表示化・実測座標の転用は行わない。画面は複数部品を配置する画面コンポーネントとして別に比較する。
+`openpencil:verify`は、製品部品と同居するStoryの`parameters.design`から対応を集計し、Figの部品・variant・画面と実装を比較する。通常の変更確認と提出前には`--changed`を使い、有効な成功済み入力signatureがなければ全件を比較する。対応一覧は`--list`、撮影せず影響対象と理由を調べる場合は`--diff`、指定IDの調査には`--select`を使う。
 
-参照画像は、原稿のネイティブ部品・標準プロパティから生成するOpenPencilのHTML出力を固定Chromiumで撮影する。CanvasKitの直接PNG exportはこの比較で使わない。実装と原稿を同じviewport／DPRで、部分再描画を無効にして撮影し、部品は外周とfocusを含む整数領域を切り出す。除外領域・許容差・拡縮・色補正はなく、寸法と全画素・全RGBAが一つでも異なれば非0で終了する。原稿内の未登録の部品・variant・画面、比較のない必要状態も全件実行を失敗にする。
-
-出力は`test-results/openpencil/verification/`の実装／原稿PNGと`report.json`。原稿と対応表のSHA256、ブラウザ版・起動条件、各比較の画素数・差分、撮影範囲を記録する。viewportとは別に、ネイティブの選択メニューが参照する実画面も固定し、両方の実測値を検査・保存する。全対象をChromiumのheadless shellで撮影し、比較ごとに実装と原稿の撮影条件が同じことを検査する。
-
-通常コマンドは全件を比較する。対応一覧は`--list`で`report.json`へ集計できる。ローカルでの反復には、変更に依存する対象だけを選ぶ`--changed`、撮影せず選択結果を調べる`--diff`、対象IDを直接指定する`--select`を使う。原稿のノードツリー・部品・色変数・文字スタイル・素材と、Storybookの実部品・CSS・利用素材の依存を判定する。選択の基準は検証に成功した入力のJSON signatureだけで、生成PNGをキャッシュ・コミットする運用は設けない。初回と提出前の確認、signatureの更新条件、CIの失敗画像保存は[テスト設計](docs/testing.md#デザイン原稿と実装の比較)を参照する。
+出力は`test-results/openpencil/verification/`。比較範囲・条件、差分判定、signature、完了判定、CI成果物は[テスト設計](docs/testing.md#デザイン原稿と実装の比較)を参照する。
 
 ```sh
 npm run openpencil:verify -- --list
@@ -107,17 +103,15 @@ npm run openpencil:verify -- --changed
 npm run openpencil:verify -- --select items/equipment-select/default --keep-export
 ```
 
-並列数は実行先のCPU割当・メモリ残量から自動で決め、`--workers 1`などで指定できる。exportは各workerが独立したFigを読み、撮影は各workerの独立ブラウザで行う。ローカルのDocker起動にもホストの資源制限を引き継ぐ。段階別時間・実際の並列数は`report.json`へ記録する。
-
-`--select`は部分実行で、成功しても`complete`は`false`になる。標準HTML出力と素材も調べる場合は`--keep-export`を使い、`report.json`の`exportDirectory`を参照する。
+並列数は実行先の資源から自動で決め、`--workers 1`などでも指定できる。標準HTML出力と素材を調べる場合は`--keep-export`を使う。
 
 画像・SVG図案は[原稿設定](art-src/openpencil/bindings.json)の`assets`で管理し、素材単体の画素比較は行わない。UI部品内の素材は通常のインスタンスとして再利用し、その部品全体の比較に含める。SVG図案は原稿で編集可能なベクターとして保持し、`assets`に保存先と標準の書出し設定を登録する。`npm run openpencil:export-assets`は通常のSVG出力を変更せず製品の素材へ保存する。図案を編集した場合は、この出力と使用部品・画面の比較を実行する。
 
 `openpencil:render`と`openpencil:verify`で既存の固定Playwrightコンテナを使う場合は`--container NAME`を指定する。リポジトリのマウント先が`/work`以外なら、`--container-root /path/to/project`も指定する。
 
-部品・画面は`src/web/components/<Name>/`に実装・Story・部品テストをまとめる。画面や部品を追加・改名したときは同じStoryの`parameters.design`を更新する。書式と検証条件は[scripts/verify-design-bindings.mjs](scripts/verify-design-bindings.mjs)、集計は[scripts/storybook-design-manifest.mjs](scripts/storybook-design-manifest.mjs)を参照する。編集した`.fig`を保存した後は同じコマンドで比較でき、原稿の再生成は不要。
+部品・画面の実装とStory・部品テストは`src/web/components/<Name>/`にまとめる。対応設定の書式は[scripts/verify-design-bindings.mjs](scripts/verify-design-bindings.mjs)、集計は[scripts/storybook-design-manifest.mjs](scripts/storybook-design-manifest.mjs)を参照する。編集した`.fig`を保存した後は同じコマンドで比較でき、原稿の再生成は不要。
 
-GUIプレビューと標準のPNG出力はCanvasKitで描画され、ブラウザ描画とは画素差がある。実装との比較用PNGは`openpencil:render`または`openpencil:verify`で作り、完了判定は全件比較スクリプトの差分0に限る。文字・図形・マスク・色変数・部品は原稿のネイティブ構造で管理する。
+GUIプレビューと標準のPNG出力はCanvasKitで描画され、ブラウザ描画とは画素差がある。実装との比較用PNGは`openpencil:render`または`openpencil:verify`で作り、完了判定は[比較スクリプトの結果](docs/testing.md#デザイン原稿と実装の比較)に従う。文字・図形・マスク・色変数・部品は原稿のネイティブ構造で保持する。
 
 ## ソース構成
 
@@ -139,7 +133,7 @@ GUIプレビューと標準のPNG出力はCanvasKitで描画され、ブラウ�
 3. 行き先で「街」を選び、場所・人物との会話、加入、街探索による療養を試す。
 4. ホームのメニューで保存し、タイトルの「続きから」で再開する。リロードはタイトルへ戻るため、未保存の変更は失われる。
 
-詳しい操作は[画面仕様](docs/ui-screen-design.md#現行画面への入口)、試用値と対象外の範囲は[ゲーム仕様](specs/overview.md)を参照する。
+詳しい操作、試用値と対象外の範囲は[ゲーム仕様](specs/overview.md)を参照する。
 
 ## デバッグと配置設定
 

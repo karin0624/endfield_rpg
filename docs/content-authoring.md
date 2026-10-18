@@ -7,7 +7,7 @@
 1. [characters.ts](../src/content/characters.ts)へ一意なID、名前、基礎最大HP・速度・攻撃力を登録する。命中率を指定する場合は`hitRate`（0〜1）。ロッシの論理IDは`player`、画像IDは`rossi`。
 2. [growthRules.ts](../src/content/growthRules.ts)の初期成長と、[skillDefinitions.ts](../src/content/skillDefinitions.ts)のキャラ別profileを確認する。`poolId`と初期技を指定し、保証技があれば解禁レベルを追加する。未決を表す`null`は、習得なしの`[]`と異なり、プレイ可能な名簿には残せない。
 3. 加入会話と[saveDefinitions.ts](../src/content/saveDefinitions.ts)の加入フラグ対応を追加する。保存側は実行側と同じカタログ・成長定義を参照する。
-4. [characterPortrait.ts](../src/presentation/characterPortrait.ts)へ画像を登録する。画像なしでも名前・能力と操作は使える。会話画像は`portraitId`／`expressionId`と会話素材登録を使う。素材追加は[制作手順](ui-asset-production.md)と[素材検査](../scripts/check-assets.mjs)を確認する。
+4. 人が用意した画像を[素材メモ](../art-src/README.md)に従って配置し、[characterPortrait.ts](../src/presentation/characterPortrait.ts)へ登録する。画像なしでも名前・能力と操作は使える。会話画像は`portraitId`／`expressionId`と会話素材登録を使う。[素材検査](../scripts/check-assets.mjs)で登録と実体を確認する。
 
 名簿への登録だけでは加入・PT配置は行われない。初期仲間・編成・帰還時の扱いは[編成](../specs/party.md)、初期技と保証技の制約は[スキル](../specs/skills.md)を参照する。
 
