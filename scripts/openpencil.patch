@@ -23775,3 +23775,158 @@ index 0000000..29ad674
 +  expect(localAutomationToken('serve')).toEqual(expect.any(String))
 +  expect(openPencilAutomationPlugin('serve', undefined)?.name).toBe('open-pencil-automation')
 +})
+diff --git a/packages/core/src/canvaskit.ts b/packages/core/src/canvaskit.ts
+index 839934ec577471cfcd59d54a2f0a506f39d623e0..14197d23927f1471380a2921885ac834f84f7ab3 100644
+--- a/packages/core/src/canvaskit.ts
++++ b/packages/core/src/canvaskit.ts
+@@ -3,7 +3,7 @@ import CanvasKitInit, { type CanvasKit } from 'canvaskit-wasm'
+
+ import { IS_BROWSER } from './constants'
+
+-let instance: CanvasKit | null = null
++let instance: Promise<CanvasKit> | null = null
+
+ export interface CanvasKitOptions {
+   locateFile?: (file: string) => string
+@@ -22,8 +22,13 @@ export async function getCanvasKit(options?: CanvasKitOptions): Promise<CanvasKi
+     return `${prefix}/${file}`
+   }
+
+-  instance = await CanvasKitInit({
++  // Scene and overlay canvases mount together. Cache the pending initialization too:
++  // native resources and their pointers must all belong to the same WASM runtime.
++  instance = CanvasKitInit({
+     locateFile: options?.locateFile ?? defaultLocate
++  }).catch((error: unknown) => {
++    instance = null
++    throw error
+   })
+
+   return instance
+diff --git a/packages/core/tests/canvaskit.test.ts b/packages/core/tests/canvaskit.test.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..b2ca5379d8ef0564840ecf73c0eb7c7fef624d62
+--- /dev/null
++++ b/packages/core/tests/canvaskit.test.ts
+@@ -0,0 +1,35 @@
++import { expect, test } from 'bun:test'
++
++import { expectDefined } from '#core-tests/helpers/assert'
++
++import { getCanvasKit } from '#core/canvaskit'
++
++test('concurrent canvas consumers share native resources from one CanvasKit runtime', async () => {
++  const [sceneKit, overlayKit, exportKit] = await Promise.all([
++    getCanvasKit(),
++    getCanvasKit(),
++    getCanvasKit()
++  ])
++  expect(overlayKit === sceneKit).toBe(true)
++  expect(exportKit === sceneKit).toBe(true)
++
++  const surface = expectDefined(sceneKit.MakeSurface(4, 4))
++  const paint = new overlayKit.Paint()
++  try {
++    paint.setColor(exportKit.Color4f(1, 0, 0, 1))
++    surface.getCanvas().drawRect(exportKit.LTRBRect(0, 0, 4, 4), paint)
++    surface.flush()
++    const pixels = surface.getCanvas().readPixels(0, 0, {
++      width: 1,
++      height: 1,
++      colorType: exportKit.ColorType.RGBA_8888,
++      alphaType: exportKit.AlphaType.Unpremul,
++      colorSpace: exportKit.ColorSpace.SRGB
++    })
++    expect(Array.from(expectDefined(pixels))).toEqual([255, 0, 0, 255])
++    expect((await getCanvasKit()) === sceneKit).toBe(true)
++  } finally {
++    paint.delete()
++    surface.delete()
++  }
++})
+diff --git a/tests/e2e/canvas/runtime.spec.ts b/tests/e2e/canvas/runtime.spec.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..a803ed2d76e47a1e637539f05660e5b1477529ce
+--- /dev/null
++++ b/tests/e2e/canvas/runtime.spec.ts
+@@ -0,0 +1,80 @@
++import { expect, test } from '#tests/e2e/fixtures'
++import { CanvasHelper } from '#tests/helpers/canvas'
++import { emulateWideGamutDisplay } from '#tests/helpers/canvas/color-space'
++
++test.use({
++  storageState: async ({ baseURL }, use) => {
++    if (!baseURL) throw new Error('Canvas runtime tests require a baseURL')
++    await use({
++      cookies: [],
++      origins: [
++        {
++          origin: new URL(baseURL).origin,
++          localStorage: [
++            { name: 'op-online-fonts-enabled', value: 'false' },
++            {
++              name: 'open-pencil:preferences:v1',
++              value: JSON.stringify({ version: 1, onboarding: { aiSetup: 'done' } })
++            }
++          ]
++        }
++      ]
++    })
++  }
++})
++
++test('scene and overlay surfaces keep one CanvasKit runtime through editing and recreation', async ({
++  page
++}) => {
++  await emulateWideGamutDisplay(page)
++  const canvas = new CanvasHelper(page)
++  await page.goto('/?test&no-rulers')
++  await canvas.waitForInit()
++
++  async function expectLiveSharedRuntime() {
++    expect(
++      await page.evaluate(() => {
++        const renderers = window.openPencil?.getStore?.()?.canvasRenderers
++        if (!renderers) throw new Error('Editor renderers unavailable')
++        return {
++          surfaces: renderers.length,
++          runtimes: new Set(renderers.map((renderer) => renderer.ck)).size,
++          live: renderers.every(
++            (renderer) => !renderer.isDestroyed() && !renderer.surface.isDeleted()
++          )
++        }
++      })
++    ).toEqual({ surfaces: 2, runtimes: 1, live: true })
++  }
++
++  await expectLiveSharedRuntime()
++  await canvas.drawRect(100, 100, 120, 80)
++  await page.mouse.wheel(20, 30)
++
++  for (const colorSpace of ['display-p3', 'srgb'] as const) {
++    await page.evaluate((value) => {
++      const store = window.openPencil?.getStore?.()
++      if (!store) throw new Error('Editor unavailable')
++      store.setDocumentColorSpace(value)
++    }, colorSpace)
++    await page.setViewportSize(
++      colorSpace === 'display-p3' ? { width: 1400, height: 900 } : { width: 1280, height: 800 }
++    )
++    await page.waitForFunction(() => {
++      const canvases = document.querySelectorAll<HTMLCanvasElement>(
++        '[data-test-id="scene-canvas-element"], [data-test-id="canvas-element"]'
++      )
++      return (
++        canvases.length === 2 &&
++        [...canvases].every(
++          (element) =>
++            element.width === element.clientWidth * window.devicePixelRatio &&
++            element.height === element.clientHeight * window.devicePixelRatio
++        )
++      )
++    })
++    await canvas.waitForRender()
++    await expectLiveSharedRuntime()
++  }
++  canvas.assertNoErrors()
++})
