@@ -1,7 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/svelte-vite";
 import { fn } from "storybook/test";
 import BattleStoryHost from "../../../../.storybook/fixtures/BattleStoryHost.svelte";
-import { battleStoryFrame } from "../../../../.storybook/fixtures/battle-data";
 import BattleEnemyHitbox from "./BattleEnemyHitbox.svelte";
 
 const dispatch = fn(() => false);
@@ -19,7 +18,21 @@ const meta = {
     },
   },
   decorators: [() => ({ Component: BattleStoryHost, props: { arrangement: "flow", scope: "enemy" } })],
-  args: { member: battleStoryFrame({}, "hitbox").enemies[0], dispatch },
+  args: {
+    member: {
+      id: "slime",
+      name: "スライム A",
+      hp: "10 / 30",
+      fraction: 10 / 30,
+      label: "スライム A、HP 10/30",
+      visible: true,
+      defeated: false,
+      selected: false,
+      pressed: false,
+      disabled: false,
+    },
+    dispatch,
+  },
 } satisfies Meta<typeof BattleEnemyHitbox>;
 export default meta;
 type Story = StoryObj<typeof meta>;

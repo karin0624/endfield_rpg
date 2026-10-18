@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/svelte-vite";
-import { dungeonFrame } from "../../../../.storybook/fixtures/dungeon-data";
+import { branchRecoveryFrame } from "../../../../.storybook/fixtures/dungeon-data";
 import BranchSkillPanel from "./BranchSkillPanel.svelte";
 
 const meta = {
@@ -15,12 +15,34 @@ const meta = {
       capture: { selector: ".branch-skill-dialog", padding: 8, background: "transparent" },
     },
   },
-  args: { frame: dungeonFrame({ panel: "actor" }).branch, send: () => false },
+  args: { frame: branchRecoveryFrame, send: () => false },
 } satisfies Meta<typeof BranchSkillPanel>;
 export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Actor: Story = {
+  args: {
+    frame: {
+      ...branchRecoveryFrame,
+      panel: "skill",
+      title: "使用者を選ぶ",
+      buttons: [
+        {
+          label: "ロッシ",
+          event: {
+            type: "actor",
+            id: "player",
+          },
+          focus: {
+            kind: "actor",
+            id: "player",
+          },
+          description: "",
+        },
+      ],
+      empty: "回復スキルを使える仲間がいません。",
+    },
+  },
   parameters: {
     design: {
       targets: [
@@ -41,7 +63,21 @@ export const Actor: Story = {
   },
 };
 export const ActorEmpty: Story = {
-  args: { frame: dungeonFrame({ panel: "actor", empty: "actors" }).branch },
+  args: {
+    frame: {
+      ...branchRecoveryFrame,
+      buttons: [],
+      panel: "skill",
+      title: "使用者を選ぶ",
+      empty: "回復スキルを使える仲間がいません。",
+      targets: [
+        {
+          id: "player",
+          label: "ロッシ · HP 0/20",
+        },
+      ],
+    },
+  },
   parameters: {
     design: {
       targets: [
@@ -62,7 +98,28 @@ export const ActorEmpty: Story = {
   },
 };
 export const Skill: Story = {
-  args: { frame: dungeonFrame({ panel: "skill" }).branch },
+  args: {
+    frame: {
+      ...branchRecoveryFrame,
+      panel: "skill",
+      title: "ロッシの技を選ぶ",
+      buttons: [
+        {
+          label: "回復 · 精神疲労 +3",
+          event: {
+            type: "skill",
+            id: "test-heal",
+          },
+          focus: {
+            kind: "skill",
+            id: "test-heal",
+          },
+          description:
+            "生存中の味方1体のHPを8＋最大HP×0.5回復。自分も対象。 アクティブ／分岐対応。現在の精神疲労 0。使用前の疲労で回復し、その後に負荷と追加発症を計算します。",
+        },
+      ],
+    },
+  },
   parameters: {
     design: {
       targets: [
@@ -83,7 +140,16 @@ export const Skill: Story = {
   },
 };
 export const SkillEmpty: Story = {
-  args: { frame: dungeonFrame({ panel: "skill", empty: "skills" }).branch },
+  args: {
+    frame: {
+      ...branchRecoveryFrame,
+      buttons: [],
+      empty: "分岐で使える回復スキルを習得していません。",
+
+      panel: "skill",
+      title: "ロッシの技を選ぶ",
+    },
+  },
   parameters: {
     design: {
       targets: [
@@ -104,7 +170,34 @@ export const SkillEmpty: Story = {
   },
 };
 export const Target: Story = {
-  args: { frame: dungeonFrame({ panel: "target", injured: true }).branch },
+  args: {
+    frame: {
+      ...branchRecoveryFrame,
+      title: "回復する味方を選ぶ",
+
+      panel: "skill",
+      buttons: [
+        {
+          label: "ロッシ HP 12/20",
+          event: {
+            type: "target",
+            id: "player",
+          },
+          focus: {
+            kind: "target",
+            id: "player",
+          },
+          description: "",
+        },
+      ],
+      targets: [
+        {
+          id: "player",
+          label: "ロッシ · HP 12/20",
+        },
+      ],
+    },
+  },
   parameters: {
     design: {
       targets: [

@@ -1,6 +1,39 @@
 import type { Meta, StoryObj } from "@storybook/svelte-vite";
-import { routeNode } from "../../../../.storybook/fixtures/dungeon-data";
+import type { DungeonChromeFrame } from "../../../presentation/dungeonProjection";
 import DungeonRouteNode from "./DungeonRouteNode.svelte";
+
+type RouteNode = DungeonChromeFrame["route"]["nodes"][number];
+type NodeContent = Omit<RouteNode, "current" | "resolved" | "enabled" | "past" | "icon" | "status" | "label">;
+
+const battleNode: NodeContent = {
+  id: "battle-a",
+  type: "battle",
+  position: {
+    x: 34,
+    y: 34,
+  },
+  title: "戦闘",
+};
+
+const conversationNode: NodeContent = {
+  id: "conversation-b",
+  type: "conversation",
+  position: {
+    x: 34,
+    y: 66,
+  },
+  title: "思わぬ遭遇",
+};
+
+const bossNode: NodeContent = {
+  id: "boss-c",
+  type: "boss",
+  position: {
+    x: 74,
+    y: 50,
+  },
+  title: "ボス",
+};
 
 const meta = {
   id: "dungeon-route-node",
@@ -14,13 +47,24 @@ const meta = {
       capture: { selector: ".dungeon-route-node", padding: 128, background: "transparent" },
     },
   },
-  args: { node: routeNode("battle", "available"), enter: () => {}, focused: () => {} },
+  args: { enter: () => {}, focused: () => {} },
 } satisfies Meta<typeof DungeonRouteNode>;
 export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const BattleAvailable: Story = {
-  args: { node: routeNode("battle", "available") },
+  args: {
+    node: {
+      ...battleNode,
+      status: "選択可能",
+      label: "戦闘、選択可能",
+      current: false,
+      resolved: false,
+      enabled: true,
+      past: false,
+      icon: "dungeon-nodes/focus/battle.png",
+    },
+  },
   parameters: {
     design: {
       component: "Dungeon/RouteNode/battle",
@@ -84,7 +128,18 @@ export const BattleAvailable: Story = {
   },
 };
 export const BattleCurrent: Story = {
-  args: { node: routeNode("battle", "current") },
+  args: {
+    node: {
+      ...battleNode,
+      status: "現在地",
+      label: "戦闘、現在地",
+      current: true,
+      resolved: false,
+      enabled: false,
+      past: false,
+      icon: "dungeon-nodes/unfocus/battle.png",
+    },
+  },
   parameters: {
     design: {
       component: "Dungeon/RouteNode/battle",
@@ -119,7 +174,18 @@ export const BattleCurrent: Story = {
   },
 };
 export const BattleUnreachable: Story = {
-  args: { node: routeNode("battle", "unreachable") },
+  args: {
+    node: {
+      ...battleNode,
+      status: "未到達",
+      label: "戦闘、未到達",
+      current: false,
+      resolved: false,
+      enabled: false,
+      past: false,
+      icon: "dungeon-nodes/unfocus/battle.png",
+    },
+  },
   parameters: {
     design: {
       component: "Dungeon/RouteNode/battle",
@@ -154,7 +220,19 @@ export const BattleUnreachable: Story = {
   },
 };
 export const BattlePast: Story = {
-  args: { node: routeNode("battle", "past") },
+  args: {
+    node: {
+      ...battleNode,
+      status: "未到達",
+      label: "戦闘、未到達",
+      current: false,
+      resolved: false,
+      enabled: false,
+      past: true,
+      icon: "dungeon-nodes/unfocus/battle.png",
+      title: null,
+    },
+  },
   parameters: {
     design: {
       component: "Dungeon/RouteNode/battle",
@@ -189,7 +267,18 @@ export const BattlePast: Story = {
   },
 };
 export const ConversationAvailable: Story = {
-  args: { node: routeNode("conversation", "available") },
+  args: {
+    node: {
+      ...conversationNode,
+      status: "選択可能",
+      label: "思わぬ遭遇、選択可能",
+      current: false,
+      resolved: false,
+      enabled: true,
+      past: false,
+      icon: "dungeon-nodes/focus/encounter.png",
+    },
+  },
   parameters: {
     design: {
       component: "Dungeon/RouteNode/conversation",
@@ -253,7 +342,18 @@ export const ConversationAvailable: Story = {
   },
 };
 export const ConversationCurrent: Story = {
-  args: { node: routeNode("conversation", "current") },
+  args: {
+    node: {
+      ...conversationNode,
+      status: "現在地",
+      label: "思わぬ遭遇、現在地",
+      current: true,
+      resolved: false,
+      enabled: false,
+      past: false,
+      icon: "dungeon-nodes/unfocus/encounter.png",
+    },
+  },
   parameters: {
     design: {
       component: "Dungeon/RouteNode/conversation",
@@ -288,7 +388,18 @@ export const ConversationCurrent: Story = {
   },
 };
 export const ConversationUnreachable: Story = {
-  args: { node: routeNode("conversation", "unreachable") },
+  args: {
+    node: {
+      ...conversationNode,
+      status: "未到達",
+      label: "思わぬ遭遇、未到達",
+      current: false,
+      resolved: false,
+      enabled: false,
+      past: false,
+      icon: "dungeon-nodes/unfocus/encounter.png",
+    },
+  },
   parameters: {
     design: {
       component: "Dungeon/RouteNode/conversation",
@@ -323,7 +434,19 @@ export const ConversationUnreachable: Story = {
   },
 };
 export const ConversationPast: Story = {
-  args: { node: routeNode("conversation", "past") },
+  args: {
+    node: {
+      ...conversationNode,
+      status: "未到達",
+      label: "思わぬ遭遇、未到達",
+      current: false,
+      resolved: false,
+      enabled: false,
+      past: true,
+      icon: "dungeon-nodes/unfocus/encounter.png",
+      title: null,
+    },
+  },
   parameters: {
     design: {
       component: "Dungeon/RouteNode/conversation",
@@ -358,7 +481,18 @@ export const ConversationPast: Story = {
   },
 };
 export const BossAvailable: Story = {
-  args: { node: routeNode("boss", "available") },
+  args: {
+    node: {
+      ...bossNode,
+      status: "選択可能",
+      label: "ボス、選択可能",
+      current: false,
+      resolved: false,
+      enabled: true,
+      past: false,
+      icon: "dungeon-nodes/focus/boss.png",
+    },
+  },
   parameters: {
     design: {
       component: "Dungeon/RouteNode/boss",
@@ -422,7 +556,18 @@ export const BossAvailable: Story = {
   },
 };
 export const BossCurrent: Story = {
-  args: { node: routeNode("boss", "current") },
+  args: {
+    node: {
+      ...bossNode,
+      status: "現在地",
+      label: "ボス、現在地",
+      current: true,
+      resolved: false,
+      enabled: false,
+      past: false,
+      icon: "dungeon-nodes/unfocus/boss.png",
+    },
+  },
   parameters: {
     design: {
       component: "Dungeon/RouteNode/boss",
@@ -457,7 +602,18 @@ export const BossCurrent: Story = {
   },
 };
 export const BossUnreachable: Story = {
-  args: { node: routeNode("boss", "unreachable") },
+  args: {
+    node: {
+      ...bossNode,
+      status: "未到達",
+      label: "ボス、未到達",
+      current: false,
+      resolved: false,
+      enabled: false,
+      past: false,
+      icon: "dungeon-nodes/unfocus/boss.png",
+    },
+  },
   parameters: {
     design: {
       component: "Dungeon/RouteNode/boss",
@@ -492,7 +648,19 @@ export const BossUnreachable: Story = {
   },
 };
 export const BossPast: Story = {
-  args: { node: routeNode("boss", "past") },
+  args: {
+    node: {
+      ...bossNode,
+      status: "未到達",
+      label: "ボス、未到達",
+      current: false,
+      resolved: false,
+      enabled: false,
+      past: true,
+      icon: "dungeon-nodes/unfocus/boss.png",
+      title: null,
+    },
+  },
   parameters: {
     design: {
       component: "Dungeon/RouteNode/boss",

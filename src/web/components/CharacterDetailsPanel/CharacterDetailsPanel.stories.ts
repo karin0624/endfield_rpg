@@ -1,11 +1,20 @@
 import type { Meta, StoryObj } from "@storybook/svelte-vite";
-import { partyFrame } from "../../../../.storybook/fixtures/party-model";
+import { rossiDetails } from "../../../../.storybook/fixtures/character-details-data";
+import type { CharacterDetailsModel } from "../../../presentation/characterDetails";
 import CharacterDetailsPanel from "./CharacterDetailsPanel.svelte";
+
+const model: CharacterDetailsModel = {
+  active: true,
+  dialog: rossiDetails,
+  generation: 1,
+  focus: null,
+  scrollTop: 0,
+};
 
 const meta = {
   title: "Party/CharacterDetailsPanel",
   component: CharacterDetailsPanel,
-  args: { model: partyFrame({ members: 2 }, "details").details, send: () => false },
+  args: { model, send: () => false },
   parameters: {
     design: {
       host: { className: "ui-screen formation-theme", width: "max-content" },
@@ -20,7 +29,7 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {
-  args: { model: partyFrame({ members: 2 }, "details").details },
+  args: { model },
   parameters: {
     design: {
       targets: [
@@ -55,7 +64,25 @@ export const Default: Story = {
   },
 };
 export const Symptoms: Story = {
-  args: { model: partyFrame({ members: 2, symptoms: true }, "details").details },
+  args: {
+    model: {
+      ...model,
+      dialog: {
+        ...rossiDetails,
+        stats: [
+          ["HP", "13 / 13", "基礎最大HP 20 · 症状前最大HP 20 · 肉体疲労による低下"],
+          ["攻撃力", "8", ""],
+          ["速度", "100", ""],
+          ["命中率", "80%", "基礎 100% · 朦朧による低下"],
+          ["レベル", "1", ""],
+          ["精神疲労", "25（軽度）", ""],
+          ["肉体疲労", "50（中度）", "上限 200 · 街探索1回につき 10 回復"],
+          ["朦朧", "75（重度）", "上限 200 · 街探索1回につき 10 回復"],
+        ],
+        symptoms: "肉体疲労・中度 · 最大HP × 66.67%（あと街探索5回） / 朦朧・重度 · 命中率 × 80%（あと街探索8回）",
+      },
+    },
+  },
   parameters: {
     design: {
       targets: [
@@ -86,7 +113,7 @@ export const Symptoms: Story = {
   },
 };
 export const PortraitFailed: Story = {
-  args: { model: partyFrame({ members: 2, failedPortrait: true }, "details").details },
+  args: { model: { ...model, dialog: { ...rossiDetails, portraitFailed: true } } },
 
   parameters: {
     design: {
@@ -108,7 +135,16 @@ export const PortraitFailed: Story = {
   },
 };
 export const Unavailable: Story = {
-  args: { model: partyFrame({ members: 2, disabled: true }, "details").details },
+  args: {
+    model: {
+      ...model,
+      dialog: {
+        ...rossiDetails,
+        stats: [["HP", "0 / 20", ""], ...rossiDetails.stats.slice(1)],
+        unavailable: "戦闘に参加できません。街探索で回復を進められます。",
+      },
+    },
+  },
   parameters: {
     design: {
       targets: [
@@ -139,7 +175,7 @@ export const Unavailable: Story = {
   },
 };
 export const EmptySkills: Story = {
-  args: { model: partyFrame({ members: 2, skills: "empty" }, "details").details },
+  args: { model: { ...model, dialog: { ...rossiDetails, skills: [], emptySkills: "習得スキルなし" } } },
   parameters: {
     design: {
       targets: [

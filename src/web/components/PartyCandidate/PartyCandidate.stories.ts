@@ -1,11 +1,24 @@
 import type { Meta, StoryObj } from "@storybook/svelte-vite";
-import { partyCandidateMember } from "../../../../.storybook/fixtures/party-model";
+import type { ComponentProps } from "svelte";
 import PartyCandidate from "./PartyCandidate.svelte";
+
+const member = {
+  id: "player",
+  name: "ロッシ",
+  hp: "HP 20/20",
+  ratio: 1,
+  symptoms: "",
+  portrait: "characters/rossi/expressions/neutral.png",
+  number: 1,
+  unavailable: false,
+  reason: "",
+  selectionLabel: "隊列 1",
+} satisfies ComponentProps<typeof PartyCandidate>["member"];
 
 const meta = {
   title: "Party/Candidate",
   component: PartyCandidate,
-  args: { member: partyCandidateMember(), send: () => false },
+  args: { member, send: () => false },
   parameters: {
     design: {
       host: { className: "ui-screen formation-theme", width: "max-content" },
@@ -20,7 +33,7 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Selected: Story = {
-  args: { member: partyCandidateMember() },
+  args: { member: { ...member, number: 1, selectionLabel: "隊列 1" } },
   parameters: {
     design: {
       targets: [
@@ -55,7 +68,7 @@ export const Selected: Story = {
   },
 };
 export const Unselected: Story = {
-  args: { member: partyCandidateMember({ selected: false }) },
+  args: { member: { ...member, number: 0, selectionLabel: "未選択" } },
 
   parameters: {
     design: {
@@ -91,7 +104,13 @@ export const Unselected: Story = {
   },
 };
 export const Symptoms: Story = {
-  args: { member: partyCandidateMember({ symptoms: true }) },
+  args: {
+    member: {
+      ...member,
+      hp: "HP 13/13",
+      symptoms: "肉体疲労・中度　朦朧・重度　精神疲労・軽度",
+    },
+  },
 
   parameters: {
     design: {
@@ -114,7 +133,7 @@ export const Symptoms: Story = {
   },
 };
 export const PortraitFailed: Story = {
-  args: { member: partyCandidateMember({ failedPortrait: true }) },
+  args: { member: { ...member, portrait: undefined } },
 
   parameters: {
     design: {

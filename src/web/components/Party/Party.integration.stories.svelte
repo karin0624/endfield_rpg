@@ -1,12 +1,9 @@
 <script lang="ts">
-import type { ComponentProps } from "svelte";
-import { partyModel } from "../../../../.storybook/fixtures/party-model";
-import { type PartyEvent, reduceParty } from "../../../presentation/partyModel";
+import { type PartyEvent, type PartyModel, reduceParty } from "../../../presentation/partyModel";
 import { projectParty } from "../../../presentation/partyProjection";
 import Party from "./Party.svelte";
 
-let { root, send }: ComponentProps<typeof Party> = $props();
-let model = $state(partyModel({ members: 2, edit: true }));
+let { root, model, send }: { root?: HTMLElement; model: PartyModel; send: (event: PartyEvent) => boolean } = $props();
 function dispatch(event: PartyEvent) {
   const transition = reduceParty(model, event);
   model = transition.state;

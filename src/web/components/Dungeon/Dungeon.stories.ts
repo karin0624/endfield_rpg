@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/svelte-vite";
-import { dungeonFrame } from "../../../../.storybook/fixtures/dungeon-data";
+import { branchRecoveryFrame } from "../../../../.storybook/fixtures/dungeon-data";
+import { conversationChrome, conversationRoute, dungeonFrame, growthChoice } from "./Dungeon.stories.fixture";
 import DungeonStory from "./Dungeon.stories.svelte";
 import Dungeon from "./Dungeon.svelte";
 
@@ -14,7 +15,7 @@ const meta = {
       viewport: { width: 1920, height: 1080 },
     },
   },
-  args: { frame: dungeonFrame(), battleStatus: null, send: () => false },
+  args: { frame: dungeonFrame, battleStatus: null, send: () => false },
   render: (args) => ({ Component: DungeonStory, props: args }),
 } satisfies Meta<typeof Dungeon>;
 export default meta;
@@ -30,7 +31,31 @@ export const Route: Story = {
   },
 };
 export const Conversation: Story = {
-  args: { frame: dungeonFrame({ mode: "conversation" }) },
+  args: {
+    frame: {
+      ...dungeonFrame,
+      kind: "conversation",
+      route: conversationRoute,
+      conversation: {
+        ...conversationChrome,
+        scene: {
+          type: "line",
+          speaker: "ロッシ",
+          text: "道の脇に、遺跡へ続く新しい足跡が残っている。",
+          choices: [],
+          portraits: [
+            {
+              id: "rossi",
+              speaking: true,
+              position: "left",
+              path: "characters/rossi/expressions/neutral.png",
+            },
+          ],
+        },
+      },
+      status: "現在地: 足跡の調査",
+    },
+  },
   parameters: {
     design: {
       targets: [
@@ -44,7 +69,42 @@ export const Conversation: Story = {
   },
 };
 export const ConversationChoice: Story = {
-  args: { frame: dungeonFrame({ mode: "conversation", type: "choice" }) },
+  args: {
+    frame: {
+      ...dungeonFrame,
+      kind: "conversation",
+      route: conversationRoute,
+      conversation: {
+        ...conversationChrome,
+        scene: {
+          type: "choice",
+          speaker: "ロッシ",
+          text: "足跡を記録する？",
+          choices: [
+            {
+              id: "mark-on-map",
+              label: "地図に足跡を記す",
+              number: 1,
+            },
+            {
+              id: "continue-without-marking",
+              label: "記録せずに先へ進む",
+              number: 2,
+            },
+          ],
+          portraits: [
+            {
+              id: "rossi",
+              speaking: true,
+              position: "left",
+              path: "characters/rossi/expressions/neutral.png",
+            },
+          ],
+        },
+      },
+      status: "現在地: 足跡の調査",
+    },
+  },
   parameters: {
     design: {
       targets: [
@@ -58,7 +118,31 @@ export const ConversationChoice: Story = {
   },
 };
 export const RecoveryActor: Story = {
-  args: { frame: dungeonFrame({ panel: "actor" }) },
+  args: {
+    frame: {
+      ...dungeonFrame,
+      branch: {
+        ...branchRecoveryFrame,
+        panel: "skill",
+        title: "使用者を選ぶ",
+        buttons: [
+          {
+            label: "ロッシ",
+            event: {
+              type: "actor",
+              id: "player",
+            },
+            focus: {
+              kind: "actor",
+              id: "player",
+            },
+            description: "",
+          },
+        ],
+        empty: "回復スキルを使える仲間がいません。",
+      },
+    },
+  },
   parameters: {
     design: {
       targets: [
@@ -88,7 +172,24 @@ export const RecoveryActor: Story = {
   },
 };
 export const RecoveryActorEmpty: Story = {
-  args: { frame: dungeonFrame({ panel: "actor", empty: "actors" }) },
+  args: {
+    frame: {
+      ...dungeonFrame,
+      branch: {
+        ...branchRecoveryFrame,
+        buttons: [],
+        panel: "skill",
+        title: "使用者を選ぶ",
+        empty: "回復スキルを使える仲間がいません。",
+        targets: [
+          {
+            id: "player",
+            label: "ロッシ · HP 0/20",
+          },
+        ],
+      },
+    },
+  },
   parameters: {
     design: {
       targets: [
@@ -118,7 +219,31 @@ export const RecoveryActorEmpty: Story = {
   },
 };
 export const RecoverySkill: Story = {
-  args: { frame: dungeonFrame({ panel: "skill" }) },
+  args: {
+    frame: {
+      ...dungeonFrame,
+      branch: {
+        ...branchRecoveryFrame,
+        panel: "skill",
+        title: "ロッシの技を選ぶ",
+        buttons: [
+          {
+            label: "回復 · 精神疲労 +3",
+            event: {
+              type: "skill",
+              id: "test-heal",
+            },
+            focus: {
+              kind: "skill",
+              id: "test-heal",
+            },
+            description:
+              "生存中の味方1体のHPを8＋最大HP×0.5回復。自分も対象。 アクティブ／分岐対応。現在の精神疲労 0。使用前の疲労で回復し、その後に負荷と追加発症を計算します。",
+          },
+        ],
+      },
+    },
+  },
   parameters: {
     design: {
       targets: [
@@ -148,7 +273,19 @@ export const RecoverySkill: Story = {
   },
 };
 export const RecoverySkillEmpty: Story = {
-  args: { frame: dungeonFrame({ panel: "skill", empty: "skills" }) },
+  args: {
+    frame: {
+      ...dungeonFrame,
+      branch: {
+        ...branchRecoveryFrame,
+        buttons: [],
+        empty: "分岐で使える回復スキルを習得していません。",
+
+        panel: "skill",
+        title: "ロッシの技を選ぶ",
+      },
+    },
+  },
   parameters: {
     design: {
       targets: [
@@ -178,7 +315,37 @@ export const RecoverySkillEmpty: Story = {
   },
 };
 export const RecoveryTarget: Story = {
-  args: { frame: dungeonFrame({ panel: "target", injured: true }) },
+  args: {
+    frame: {
+      ...dungeonFrame,
+      branch: {
+        ...branchRecoveryFrame,
+        title: "回復する味方を選ぶ",
+
+        panel: "skill",
+        buttons: [
+          {
+            label: "ロッシ HP 12/20",
+            event: {
+              type: "target",
+              id: "player",
+            },
+            focus: {
+              kind: "target",
+              id: "player",
+            },
+            description: "",
+          },
+        ],
+        targets: [
+          {
+            id: "player",
+            label: "ロッシ · HP 12/20",
+          },
+        ],
+      },
+    },
+  },
   parameters: {
     design: {
       targets: [
@@ -208,7 +375,20 @@ export const RecoveryTarget: Story = {
   },
 };
 export const ItemRecoveryFull: Story = {
-  args: { frame: dungeonFrame({ panel: "item" }) },
+  args: {
+    frame: {
+      ...dungeonFrame,
+      branch: {
+        ...branchRecoveryFrame,
+        targets: [{ id: "player", label: "ロッシ · HP 20/20" }],
+        itemUsable: false,
+
+        panel: "item",
+        itemTargetId: "player",
+        itemPreview: "HPは満タンです。使用できません。",
+      },
+    },
+  },
   parameters: {
     design: {
       targets: [
@@ -238,7 +418,17 @@ export const ItemRecoveryFull: Story = {
   },
 };
 export const OutcomeCleared: Story = {
-  args: { frame: dungeonFrame({ mode: "outcome", outcome: "cleared" }) },
+  args: {
+    frame: {
+      ...dungeonFrame,
+      kind: "outcome",
+      outcome: {
+        title: "探索を完了しました",
+        detail: "遺跡の守り手を倒し、探索を終えました。",
+      },
+      status: "探索を完了しました",
+    },
+  },
   parameters: {
     design: {
       targets: [
@@ -252,7 +442,14 @@ export const OutcomeCleared: Story = {
   },
 };
 export const Growth: Story = {
-  args: { frame: dungeonFrame({ mode: "growth" }) },
+  args: {
+    frame: {
+      ...dungeonFrame,
+      kind: "growth",
+      branch: { ...branchRecoveryFrame, targets: [{ id: "player", label: "ロッシ · HP 24/24" }] },
+      growth: growthChoice,
+    },
+  },
   parameters: {
     design: {
       targets: [
@@ -268,7 +465,14 @@ export const Growth: Story = {
   },
 };
 export const GrowthGuaranteed: Story = {
-  args: { frame: dungeonFrame({ mode: "growth", guaranteed: "習得済みの成長を確認しました。" }) },
+  args: {
+    frame: {
+      ...dungeonFrame,
+      kind: "growth",
+      branch: { ...branchRecoveryFrame, targets: [{ id: "player", label: "ロッシ · HP 24/24" }] },
+      growth: { ...growthChoice, guaranteed: "習得済みの成長を確認しました。" },
+    },
+  },
 
   parameters: {
     design: {
@@ -283,7 +487,14 @@ export const GrowthGuaranteed: Story = {
   },
 };
 export const GrowthError: Story = {
-  args: { frame: dungeonFrame({ mode: "growth", error: "候補から習得するスキルを選んでください。" }) },
+  args: {
+    frame: {
+      ...dungeonFrame,
+      kind: "growth",
+      branch: { ...branchRecoveryFrame, targets: [{ id: "player", label: "ロッシ · HP 24/24" }] },
+      growth: { ...growthChoice, error: "候補から習得するスキルを選んでください。" },
+    },
+  },
 
   parameters: {
     design: {
@@ -299,11 +510,16 @@ export const GrowthError: Story = {
 };
 export const GrowthGuaranteedAndError: Story = {
   args: {
-    frame: dungeonFrame({
-      mode: "growth",
-      guaranteed: "習得済みの成長を確認しました。",
-      error: "候補から習得するスキルを選んでください。",
-    }),
+    frame: {
+      ...dungeonFrame,
+      kind: "growth",
+      branch: { ...branchRecoveryFrame, targets: [{ id: "player", label: "ロッシ · HP 24/24" }] },
+      growth: {
+        ...growthChoice,
+        guaranteed: "習得済みの成長を確認しました。",
+        error: "候補から習得するスキルを選んでください。",
+      },
+    },
   },
 
   parameters: {

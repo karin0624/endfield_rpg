@@ -1,7 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/svelte-vite";
 import { expect, fn, userEvent } from "storybook/test";
 import BattleStoryHost from "../../../../.storybook/fixtures/BattleStoryHost.svelte";
-import { battleStoryFrame } from "../../../../.storybook/fixtures/battle-data";
 import BattleAllyTarget from "./BattleAllyTarget.svelte";
 
 const dispatch = fn(() => false);
@@ -18,7 +17,20 @@ const meta = {
     },
   },
   decorators: [() => ({ Component: BattleStoryHost, props: { arrangement: "flow" } })],
-  args: { value: "player", options: battleStoryFrame({}, "skills").skills.allies, dispatch },
+  args: {
+    value: "player",
+    options: [
+      {
+        id: "player",
+        text: "ロッシ · HP 10 / 30",
+      },
+      {
+        id: "gilberta",
+        text: "ギルベルタ · HP 30 / 30",
+      },
+    ],
+    dispatch,
+  },
 } satisfies Meta<typeof BattleAllyTarget>;
 export default meta;
 type Story = StoryObj<typeof meta>;

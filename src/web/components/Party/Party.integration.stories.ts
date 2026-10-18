@@ -1,16 +1,43 @@
 import type { Meta, StoryObj } from "@storybook/svelte-vite";
 import { expect, fn, within } from "storybook/test";
-import { partyFrame } from "../../../../.storybook/fixtures/party-model";
+import { characters } from "../../../content/characters";
+import { growthRules } from "../../../content/growthRules";
+import { initialGameOptions } from "../../../content/initialGameOptions";
+import { mentalFatigueDefinition } from "../../../content/mentalFatigueDefinition";
+import { skillCatalog } from "../../../content/skillDefinitions";
+import { createInitialGameState } from "../../../game/createInitialGameState";
+import { healthyStatus } from "../../../game/status";
+import { createPartyModel, type PartyInput } from "../../../presentation/partyModel";
 import PartyInteraction from "./Party.integration.stories.svelte";
-import Party from "./Party.svelte";
+
+const input: PartyInput = {
+  game: {
+    adventure: createInitialGameState(initialGameOptions),
+    party: {
+      members: [
+        { id: "player", hp: 20, status: healthyStatus(), mentalFatigue: 0 },
+        { id: "gilberta", hp: 18, status: healthyStatus(), mentalFatigue: 0 },
+      ],
+      slots: ["player", "gilberta", null, null],
+    },
+    dungeon: null,
+  },
+  characters,
+  calendarLabel: "1日目 · 昼",
+  detailsContext: {
+    characters,
+    baseCharacters: characters,
+    growth: undefined,
+    rules: { catalog: skillCatalog, fatigue: mentalFatigueDefinition, growth: { ...growthRules, characters } },
+  },
+};
 
 const meta = {
   title: "Integration/Party",
-  component: Party,
-  args: { frame: partyFrame({ members: 2, edit: true }), send: fn(() => false) },
+  component: PartyInteraction,
+  args: { model: { ...createPartyModel(input, "home"), focus: null }, send: fn(() => false) },
   parameters: { design: { host: { padding: 0 } } },
-  render: (args) => ({ Component: PartyInteraction, props: args }),
-} satisfies Meta<typeof Party>;
+} satisfies Meta<typeof PartyInteraction>;
 export default meta;
 type Story = StoryObj<typeof meta>;
 

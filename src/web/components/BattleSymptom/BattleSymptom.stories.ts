@@ -1,8 +1,16 @@
 import type { Meta, StoryObj } from "@storybook/svelte-vite";
 import { fn } from "storybook/test";
+import type { ComponentProps } from "svelte";
 import BattleStoryHost from "../../../../.storybook/fixtures/BattleStoryHost.svelte";
-import { battleStoryFrame } from "../../../../.storybook/fixtures/battle-data";
 import BattleSymptom from "./BattleSymptom.svelte";
+
+const symptom: ComponentProps<typeof BattleSymptom>["symptom"] = {
+  kind: "mentalFatigue",
+  icon: "精",
+  label: "精神疲労・軽度",
+  detail: "負荷付きスキル効果 × 80%（あと街探索3回）",
+  open: false,
+};
 
 const dispatch = fn(() => false);
 const meta = {
@@ -20,7 +28,7 @@ const meta = {
   },
   decorators: [() => ({ Component: BattleStoryHost, props: { arrangement: "disclosure" } })],
   args: {
-    symptom: battleStoryFrame({ symptom: "mentalFatigue" }, "symptom").allies[0].symptoms[0],
+    symptom,
     allyId: "player",
     dispatch,
   },
@@ -51,7 +59,7 @@ export const Default: Story = {
   },
 };
 export const Open: Story = {
-  args: { symptom: battleStoryFrame({ symptom: "mentalFatigue", open: true }, "symptom").allies[0].symptoms[0] },
+  args: { symptom: { ...symptom, open: true } },
 
   parameters: {
     design: {

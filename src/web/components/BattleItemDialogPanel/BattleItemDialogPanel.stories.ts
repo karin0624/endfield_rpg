@@ -1,7 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/svelte-vite";
 import { fn } from "storybook/test";
 import BattleStoryHost from "../../../../.storybook/fixtures/BattleStoryHost.svelte";
-import { battleStoryFrame } from "../../../../.storybook/fixtures/battle-data";
 import BattleItemDialogPanel from "./BattleItemDialogPanel.svelte";
 
 const dispatch = fn(() => false);
@@ -19,7 +18,24 @@ const meta = {
     },
   },
   decorators: [() => ({ Component: BattleStoryHost, props: { arrangement: "flow" } })],
-  args: { items: battleStoryFrame({}, "item").items, dispatch },
+  args: {
+    items: {
+      visible: true,
+      label: "物品（HP回復品 ×3）",
+      enabled: true,
+      open: true,
+      targets: [
+        {
+          id: "player",
+          text: "ロッシ · HP 10/30",
+        },
+      ],
+      targetId: "player",
+      preview: "回復見込み +20 HP · 残り3個",
+      useEnabled: true,
+    },
+    dispatch,
+  },
 } satisfies Meta<typeof BattleItemDialogPanel>;
 export default meta;
 type Story = StoryObj<typeof meta>;

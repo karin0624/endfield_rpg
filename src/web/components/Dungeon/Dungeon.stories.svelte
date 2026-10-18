@@ -1,19 +1,25 @@
 <script lang="ts">
 import type { ComponentProps } from "svelte";
-import { dungeonPicture } from "../../../../tests/dungeonPictures";
-import { reduceDungeon } from "../../../presentation/dungeonModel";
-import { projectDungeonChrome } from "../../../presentation/dungeonProjection";
+import { createDungeonRoute, projectRouteLayout, reduceDungeonRoute } from "../../../presentation/dungeonRoute";
 import Dungeon from "./Dungeon.svelte";
 
 let { frame, send, ...attributes }: ComponentProps<typeof Dungeon> = $props();
-const picture = dungeonPicture();
-let dungeonState = $state.raw(picture.state);
-let route = $derived(projectDungeonChrome(dungeonState, picture.input, frame?.returnLabel).route);
-let shown = $derived(frame ? { ...frame, route } : null);
+let routeState = $state.raw(createDungeonRoute());
+let accessibleIds = $derived(
+  frame?.route.nodes.filter((node) => node.current || node.enabled).map((node) => node.id) ?? [],
+);
+let shown = $derived(
+  frame
+    ? {
+        ...frame,
+        route: { ...frame.route, ...(routeState.measure ? projectRouteLayout(routeState, accessibleIds) : {}) },
+      }
+    : null,
+);
 const dispatch: ComponentProps<typeof Dungeon>["send"] = (event) => {
   if (event.type !== "route" || event.event.type !== "measured") return send(event);
-  const changed = reduceDungeon(dungeonState, picture.input, event);
-  dungeonState = changed.state;
+  const changed = reduceDungeonRoute(routeState, event.event, accessibleIds);
+  routeState = changed.state;
   return changed.handled;
 };
 </script>

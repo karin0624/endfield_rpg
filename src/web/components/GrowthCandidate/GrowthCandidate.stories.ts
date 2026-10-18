@@ -1,5 +1,4 @@
 import type { Meta, StoryObj } from "@storybook/svelte-vite";
-import { growthFrame } from "../../../../.storybook/fixtures/dungeon-data";
 import GrowthCandidate from "./GrowthCandidate.svelte";
 
 const meta = {
@@ -15,7 +14,15 @@ const meta = {
       capture: { selector: ".growth-candidate", padding: 24, background: "transparent" },
     },
   },
-  args: { candidate: growthFrame().candidates[0], send: () => false },
+  args: {
+    candidate: {
+      skillId: "test-power",
+      name: "威力補正",
+      description: "攻撃力に2／3／5を加算。攻撃スキルにも反映。",
+      detail: "パッシブ 習得 0→1 / 上限3",
+    },
+    send: () => false,
+  },
 } satisfies Meta<typeof GrowthCandidate>;
 export default meta;
 type Story = StoryObj<typeof meta>;

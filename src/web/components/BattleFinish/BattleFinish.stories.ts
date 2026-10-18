@@ -1,7 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/svelte-vite";
 import { fn } from "storybook/test";
 import BattleStoryHost from "../../../../.storybook/fixtures/BattleStoryHost.svelte";
-import { battleStoryFrame } from "../../../../.storybook/fixtures/battle-data";
 import BattleFinish from "./BattleFinish.svelte";
 
 const dispatch = fn(() => false);
@@ -19,7 +18,16 @@ const meta = {
     },
   },
   decorators: [() => ({ Component: BattleStoryHost, props: { arrangement: "finish" } })],
-  args: { result: battleStoryFrame({}, "result").result, dispatch },
+  args: {
+    result: {
+      visible: true,
+      title: "戦闘に勝利しました",
+      detail: "敵をすべて倒しました。",
+      finishLabel: "再戦する",
+      finishAriaLabel: "戦闘を再戦する",
+    },
+    dispatch,
+  },
 } satisfies Meta<typeof BattleFinish>;
 export default meta;
 type Story = StoryObj<typeof meta>;

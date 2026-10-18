@@ -1,7 +1,17 @@
 import type { Meta, StoryObj } from "@storybook/svelte-vite";
+import type { ComponentProps } from "svelte";
 import BattleStoryHost from "../../../../.storybook/fixtures/BattleStoryHost.svelte";
-import { battleStoryFrame } from "../../../../.storybook/fixtures/battle-data";
 import BattleQueueRow from "./BattleQueueRow.svelte";
+
+const member: ComponentProps<typeof BattleQueueRow>["member"] = {
+  id: "player",
+  name: "ロッシ",
+  portrait: "characters/rossi/face.png",
+  current: false,
+  enemy: false,
+  ticks: 5,
+  label: "ロッシ、次の行動まで 5 tick",
+};
 
 const meta = {
   id: "battle-queuerow",
@@ -17,7 +27,7 @@ const meta = {
     },
   },
   decorators: [() => ({ Component: BattleStoryHost, props: { arrangement: "flow" } })],
-  args: { member: battleStoryFrame({ ticks: 5 }, "queue").queue[0] },
+  args: { member: member },
 } satisfies Meta<typeof BattleQueueRow>;
 export default meta;
 type Story = StoryObj<typeof meta>;
@@ -35,7 +45,7 @@ export const Default: Story = {
   },
 };
 export const Current: Story = {
-  args: { member: battleStoryFrame({ ticks: 5, current: true }, "queue").queue[0] },
+  args: { member: { ...member, current: true, label: "ロッシ" } },
   parameters: {
     design: {
       targets: [

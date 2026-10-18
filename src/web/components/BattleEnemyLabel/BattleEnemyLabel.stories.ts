@@ -1,7 +1,20 @@
 import type { Meta, StoryObj } from "@storybook/svelte-vite";
+import type { ComponentProps } from "svelte";
 import BattleStoryHost from "../../../../.storybook/fixtures/BattleStoryHost.svelte";
-import { battleStoryFrame } from "../../../../.storybook/fixtures/battle-data";
 import BattleEnemyLabel from "./BattleEnemyLabel.svelte";
+
+const member: ComponentProps<typeof BattleEnemyLabel>["member"] = {
+  id: "slime",
+  name: "スライム A",
+  hp: "30 / 30",
+  fraction: 1,
+  label: "スライム A、HP 30/30",
+  visible: true,
+  defeated: false,
+  selected: false,
+  pressed: false,
+  disabled: false,
+};
 
 const meta = {
   id: "battle-enemylabel",
@@ -17,7 +30,7 @@ const meta = {
     },
   },
   decorators: [() => ({ Component: BattleStoryHost, props: { arrangement: "flow", scope: "enemy" } })],
-  args: { member: battleStoryFrame({ hp: "full" }, "enemy").enemies[0] },
+  args: { member: member },
 } satisfies Meta<typeof BattleEnemyLabel>;
 export default meta;
 type Story = StoryObj<typeof meta>;
@@ -42,7 +55,7 @@ export const Default: Story = {
   },
 };
 export const Selected: Story = {
-  args: { member: battleStoryFrame({ selected: true, hp: "full" }, "enemy").enemies[0] },
+  args: { member: { ...member, selected: true } },
 
   parameters: {
     design: {
@@ -64,7 +77,7 @@ export const Selected: Story = {
   },
 };
 export const Defeated: Story = {
-  args: { member: battleStoryFrame({ defeated: true, hp: "zero" }, "enemy").enemies[0] },
+  args: { member: { ...member, hp: "0 / 30", fraction: 0, defeated: true, label: "スライム A、HP 0/30、戦闘不能" } },
 
   parameters: {
     design: {

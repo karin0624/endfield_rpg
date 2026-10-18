@@ -1,7 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/svelte-vite";
 import { expect, fn, userEvent } from "storybook/test";
 import UtilityStoryHost from "../../../../.storybook/fixtures/UtilityStoryHost.svelte";
-import { shopStoryFrame } from "../../../../.storybook/fixtures/utility-data";
 import ShopDialogPanel from "./ShopDialogPanel.svelte";
 
 const meta = {
@@ -18,7 +17,19 @@ const meta = {
     },
   },
   decorators: [() => ({ Component: UtilityStoryHost, props: { kind: "dialog" } })],
-  args: { frame: shopStoryFrame(), send: fn(() => false) },
+  args: {
+    frame: {
+      visible: true,
+      open: true,
+      quantity: 1,
+      message: "",
+      focus: null,
+      summary: "所持金 30 · 探索バッグ 0個",
+      offer: "HP回復品 · HP8回復 · 価格10",
+      canBuy: true,
+    },
+    send: fn(() => false),
+  },
 } satisfies Meta<typeof ShopDialogPanel>;
 export default meta;
 type Story = StoryObj<typeof meta>;

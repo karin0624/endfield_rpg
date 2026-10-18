@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/svelte-vite";
-import { dungeonFrame } from "../../../../.storybook/fixtures/dungeon-data";
+import { branchRecoveryFrame } from "../../../../.storybook/fixtures/dungeon-data";
 import BranchItemPanel from "./BranchItemPanel.svelte";
 
 const meta = {
@@ -15,12 +15,22 @@ const meta = {
       capture: { selector: ".item-dialog", padding: 16, background: "transparent" },
     },
   },
-  args: { frame: dungeonFrame({ panel: "item" }).branch, send: () => false },
+  args: { frame: branchRecoveryFrame, send: () => false },
 } satisfies Meta<typeof BranchItemPanel>;
 export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Full: Story = {
+  args: {
+    frame: {
+      ...branchRecoveryFrame,
+      targets: [{ id: "player", label: "ロッシ · HP 20/20" }],
+      itemUsable: false,
+      panel: "item",
+      itemTargetId: "player",
+      itemPreview: "HPは満タンです。使用できません。",
+    },
+  },
   parameters: {
     design: {
       targets: [

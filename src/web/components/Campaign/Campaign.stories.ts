@@ -1,6 +1,9 @@
 import type { Meta, StoryObj } from "@storybook/svelte-vite";
-import { campaignFrame } from "../../../../.storybook/fixtures/hub-model";
+import { campaignMachine, createCampaignModel } from "../../../presentation/campaignModel";
+import { projectCampaign } from "../../../presentation/campaignProjection";
 import Campaign from "./Campaign.svelte";
+
+const context = createCampaignModel().context;
 
 const meta = {
   title: "Screens/Campaign",
@@ -12,13 +15,20 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Town: Story = {
-  args: { frame: campaignFrame("town") },
+  args: {
+    frame: projectCampaign(
+      campaignMachine.resolveState({
+        value: "town",
+        context: { ...context, focus: { kind: "town-place", placeId: context.game.adventure.currentPlaceId } },
+      }),
+    ),
+  },
   parameters: {
     design: { targets: [{ id: "campaign/screen/town", state: "town", figma: { path: ["Screens", "Town"] } }] },
   },
 };
 export const Destinations: Story = {
-  args: { frame: campaignFrame("destinations") },
+  args: { frame: projectCampaign(campaignMachine.resolveState({ value: "destinations", context })) },
   parameters: {
     design: {
       targets: [
@@ -28,7 +38,14 @@ export const Destinations: Story = {
   },
 };
 export const HomeMenu: Story = {
-  args: { frame: campaignFrame("home-menu") },
+  args: {
+    frame: projectCampaign(
+      campaignMachine.resolveState({
+        value: "home",
+        context: { ...context, hubPanel: "menu", focus: { kind: "command", command: "save" } },
+      }),
+    ),
+  },
   parameters: {
     design: {
       targets: [{ id: "campaign/screen/home-menu", state: "home-menu", figma: { path: ["Screens", "Home / menu"] } }],
@@ -36,7 +53,14 @@ export const HomeMenu: Story = {
   },
 };
 export const HomeTitleOptions: Story = {
-  args: { frame: campaignFrame("home-title-options") },
+  args: {
+    frame: projectCampaign(
+      campaignMachine.resolveState({
+        value: "home",
+        context: { ...context, hubPanel: "title-options", focus: { kind: "command", command: "close-panel" } },
+      }),
+    ),
+  },
   parameters: {
     design: {
       targets: [
@@ -50,7 +74,14 @@ export const HomeTitleOptions: Story = {
   },
 };
 export const HomeSaveConfirmation: Story = {
-  args: { frame: campaignFrame("home-save-confirmation") },
+  args: {
+    frame: projectCampaign(
+      campaignMachine.resolveState({
+        value: "confirm",
+        context: { ...context, confirmation: "save", focus: { kind: "command", command: "cancel" } },
+      }),
+    ),
+  },
   parameters: {
     design: {
       targets: [
@@ -64,7 +95,14 @@ export const HomeSaveConfirmation: Story = {
   },
 };
 export const HomeSaving: Story = {
-  args: { frame: campaignFrame("home-saving") },
+  args: {
+    frame: projectCampaign(
+      campaignMachine.resolveState({
+        value: "saving",
+        context: { ...context, confirmation: "save" },
+      }),
+    ),
+  },
   parameters: {
     design: {
       targets: [
@@ -74,7 +112,14 @@ export const HomeSaving: Story = {
   },
 };
 export const TownMenu: Story = {
-  args: { frame: campaignFrame("town-menu") },
+  args: {
+    frame: projectCampaign(
+      campaignMachine.resolveState({
+        value: "town",
+        context: { ...context, hubPanel: "menu", focus: { kind: "command", command: "title-options" } },
+      }),
+    ),
+  },
   parameters: {
     design: {
       targets: [{ id: "campaign/screen/town-menu", state: "town-menu", figma: { path: ["Screens", "Town / menu"] } }],
@@ -82,7 +127,14 @@ export const TownMenu: Story = {
   },
 };
 export const TownTitleOptions: Story = {
-  args: { frame: campaignFrame("town-title-options") },
+  args: {
+    frame: projectCampaign(
+      campaignMachine.resolveState({
+        value: "town",
+        context: { ...context, hubPanel: "title-options", focus: { kind: "command", command: "close-panel" } },
+      }),
+    ),
+  },
   parameters: {
     design: {
       targets: [
@@ -96,7 +148,19 @@ export const TownTitleOptions: Story = {
   },
 };
 export const TownDiscardConfirmation: Story = {
-  args: { frame: campaignFrame("town-discard-confirmation") },
+  args: {
+    frame: projectCampaign(
+      campaignMachine.resolveState({
+        value: "confirm",
+        context: {
+          ...context,
+          confirmation: "title",
+          confirmOrigin: "town",
+          focus: { kind: "command", command: "cancel" },
+        },
+      }),
+    ),
+  },
   parameters: {
     design: {
       targets: [
@@ -110,13 +174,13 @@ export const TownDiscardConfirmation: Story = {
   },
 };
 export const Home: Story = {
-  args: { frame: campaignFrame("home") },
+  args: { frame: projectCampaign(campaignMachine.resolveState({ value: "home", context })) },
   parameters: {
     design: { targets: [{ id: "campaign/screen/home", state: "home", figma: { path: ["Screens", "Home"] } }] },
   },
 };
 export const Title: Story = {
-  args: { frame: campaignFrame("title") },
+  args: { frame: projectCampaign(createCampaignModel()) },
   parameters: {
     design: {
       targets: [{ id: "campaign/screen/title", state: "title", figma: { path: ["Screens / DS未対応", "Title"] } }],
@@ -124,7 +188,7 @@ export const Title: Story = {
   },
 };
 export const TitleLoading: Story = {
-  args: { frame: campaignFrame("title-loading") },
+  args: { frame: projectCampaign(campaignMachine.resolveState({ value: "loading", context })) },
   parameters: {
     design: {
       targets: [
@@ -138,7 +202,7 @@ export const TitleLoading: Story = {
   },
 };
 export const Introduction: Story = {
-  args: { frame: campaignFrame("introduction") },
+  args: { frame: projectCampaign(campaignMachine.resolveState({ value: "intro", context })) },
   parameters: {
     design: {
       targets: [
@@ -152,7 +216,14 @@ export const Introduction: Story = {
   },
 };
 export const NewGameConfirmation: Story = {
-  args: { frame: campaignFrame("new-game-confirmation") },
+  args: {
+    frame: projectCampaign(
+      campaignMachine.resolveState({
+        value: "confirm",
+        context: { ...context, confirmation: "new-game", focus: { kind: "command", command: "cancel" } },
+      }),
+    ),
+  },
   parameters: {
     design: {
       targets: [

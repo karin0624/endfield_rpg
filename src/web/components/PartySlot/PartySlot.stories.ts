@@ -1,11 +1,20 @@
 import type { Meta, StoryObj } from "@storybook/svelte-vite";
-import { partySlotMember } from "../../../../.storybook/fixtures/party-model";
+import type { ComponentProps } from "svelte";
 import PartySlot from "./PartySlot.svelte";
+
+const member = {
+  id: "player",
+  name: "ロッシ",
+  hp: "HP 20/20",
+  ratio: 1,
+  symptoms: "",
+  portrait: "characters/rossi/expressions/neutral.png",
+} satisfies NonNullable<ComponentProps<typeof PartySlot>["member"]>;
 
 const meta = {
   title: "Party/Slot",
   component: PartySlot,
-  args: { slot: 0, member: partySlotMember(), send: () => false },
+  args: { slot: 0, member, send: () => false },
   parameters: {
     design: {
       host: { className: "ui-screen formation-theme", width: 372.046875 },
@@ -19,7 +28,7 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Occupied: Story = {
-  args: { member: partySlotMember() },
+  args: { member },
   parameters: {
     design: {
       component: "party/slot/occupied",
@@ -45,7 +54,7 @@ export const Occupied: Story = {
   },
 };
 export const PortraitFailed: Story = {
-  args: { member: partySlotMember({ failedPortrait: "player" }) },
+  args: { member: { ...member, portrait: undefined } },
 
   parameters: {
     design: {

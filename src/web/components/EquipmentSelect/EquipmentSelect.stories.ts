@@ -1,6 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/svelte-vite";
 import UtilityStoryHost from "../../../../.storybook/fixtures/UtilityStoryHost.svelte";
-import { equipmentStoryField } from "../../../../.storybook/fixtures/utility-data";
 import EquipmentSelect from "./EquipmentSelect.svelte";
 
 const meta = {
@@ -17,8 +16,12 @@ const meta = {
   },
   decorators: [() => ({ Component: UtilityStoryHost, props: { kind: "equipment" } })],
   args: {
-    options: equipmentStoryField().options,
-    value: equipmentStoryField().selected,
+    options: [
+      { value: "", label: "装備なし", disabled: false },
+      { value: "weapon-1", label: "武器 1", disabled: false },
+      { value: "weapon-2", label: "武器 2", disabled: false },
+    ],
+    value: "",
     "data-character": "player",
     "data-slot": "weapon",
   },

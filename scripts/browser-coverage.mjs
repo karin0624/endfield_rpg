@@ -8,7 +8,7 @@ const ownSource = (path) =>
   path.startsWith("src/") &&
   (path.endsWith(".ts") || path.endsWith(".svelte")) &&
   !path.endsWith(".test.ts") &&
-  !/\.stories\.(ts|svelte)$/.test(path) &&
+  !/\.stories(?:\.fixture)?\.(ts|svelte)$/.test(path) &&
   !path.endsWith(".d.ts");
 
 export function browserCoverage(project, config) {
@@ -30,7 +30,7 @@ export function browserCoverage(project, config) {
       filter: (path) =>
         (path.endsWith(".ts") || path.endsWith(".svelte")) &&
         !path.endsWith(".test.ts") &&
-        !/\.stories\.(ts|svelte)$/.test(path) &&
+        !/\.stories(?:\.fixture)?\.(ts|svelte)$/.test(path) &&
         !path.endsWith(".d.ts"),
       async transformer(entry) {
         const transformed = entry.url.endsWith(".svelte")

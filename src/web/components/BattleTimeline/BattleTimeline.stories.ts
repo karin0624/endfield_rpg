@@ -1,6 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/svelte-vite";
 import BattleStoryHost from "../../../../.storybook/fixtures/BattleStoryHost.svelte";
-import { battleStoryFrame } from "../../../../.storybook/fixtures/battle-data";
 import BattleTimeline from "./BattleTimeline.svelte";
 
 const meta = {
@@ -17,7 +16,19 @@ const meta = {
     },
   },
   decorators: [() => ({ Component: BattleStoryHost, props: { arrangement: "flow" } })],
-  args: { queue: battleStoryFrame({}, "queue").queue },
+  args: {
+    queue: [
+      {
+        id: "player",
+        name: "ロッシ",
+        portrait: "characters/rossi/face.png",
+        current: false,
+        enemy: false,
+        ticks: 125,
+        label: "ロッシ、次の行動まで 125 tick",
+      },
+    ],
+  },
 } satisfies Meta<typeof BattleTimeline>;
 export default meta;
 type Story = StoryObj<typeof meta>;

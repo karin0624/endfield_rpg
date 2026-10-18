@@ -1,5 +1,4 @@
 import type { Meta, StoryObj } from "@storybook/svelte-vite";
-import { dungeonFrame } from "../../../../.storybook/fixtures/dungeon-data";
 import BranchItemTrigger from "./BranchItemTrigger.svelte";
 
 const meta = {
@@ -15,7 +14,7 @@ const meta = {
       capture: { selector: ".item-trigger", padding: 24, background: "transparent" },
     },
   },
-  args: { label: dungeonFrame().branch.itemLabel, disabled: false },
+  args: { label: "物品（HP回復品 ×2）", disabled: false },
 } satisfies Meta<typeof BranchItemTrigger>;
 export default meta;
 type Story = StoryObj<typeof meta>;
@@ -104,7 +103,7 @@ export const Default: Story = {
   },
 };
 export const Disabled: Story = {
-  args: { disabled: true, label: dungeonFrame({ itemCount: 0 }).branch.itemLabel },
+  args: { disabled: true, label: "物品（HP回復品 ×0）" },
   parameters: {
     design: {
       targets: [

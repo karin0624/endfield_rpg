@@ -55,7 +55,9 @@ CIは共通の固定Dockerイメージを解決した後、一つの検証jobで
 
 ## デザイン原稿と実装の比較
 
-デザインの正本は[単一の`.fig`](../art-src/openpencil/endfield-rpg.fig)で、部品・variant・画面は編集可能な標準ノードとして保持する。製品部品と同居する`*.stories.ts`の`parameters.design`に原稿ノード・variant・比較条件を定義する。Storybook標準のprepared parametersとindexの`componentPath`から対応一覧を自動集計し、別の手書き対応表は持たない。[原稿設定](../art-src/openpencil/bindings.json)はdocumentと素材だけを保持する。部品はCSFストーリーへ実propsを直接与えて描画する。専用の操作テストも同じディレクトリに置き、複数部品で共有するfixtureは`.storybook/fixtures/`に置く。共通hostはテーマと利用可能な幅・高さ・paddingを与え、他の画面を描いて隠す方法や親画面の実測座標には依存しない。画面は部品を配置する画面コンポーネントとして別に比較する。
+デザインの正本は[単一の`.fig`](../art-src/openpencil/endfield-rpg.fig)で、部品・variant・画面は編集可能な標準ノードとして保持する。製品部品と同居する`*.stories.ts`の`parameters.design`に原稿ノード・variant・比較条件を定義する。Storybook標準のprepared parametersとindexの`componentPath`から対応一覧を自動集計し、別の手書き対応表は持たない。[原稿設定](../art-src/openpencil/bindings.json)はdocumentと素材だけを保持する。部品はCSFストーリーへ実propsを直接与えて描画する。専用の操作テストと単一部品の`*.stories.fixture.ts`も同じディレクトリに置き、複数部品で共有するfixtureは`.storybook/fixtures/`に置く。共通hostはテーマと利用可能な幅・高さ・paddingを与え、他の画面を描いて隠す方法や親画面の実測座標には依存しない。画面は部品を配置する画面コンポーネントとして別に比較する。
+
+Storyとテストのデータは、[GoogleのDAMP指針](https://testing.googleblog.com/2019/12/testing-on-toilet-tests-too-dry-make.html)に従い、各ケースの前提・操作・期待結果がその場で読めることを優先する。variantを決める実propsや状態の値は各Storyの`args`へ明記し、基礎データを共有する場合も意味のある差分をそのStoryに残す。部品の入力を得るために画面全体やゲーム状態を生成するhelper、独自の疑似propsから複数部品のvariantを組み立てるfactoryは置かない。画面全体のStoryには公開モデルと投影を使えるが、その画面状態と関連する入力はStoryへ明記する。実コアを通す結合テスト用の整合したシナリオや、HTTP・ファイル・描画環境の機械的な準備は共有し、検証対象に関係する入力・具体的期待値を共有helperへ隠さない。
 
 画像比較の対象は部品全体と外観が変わるvariant・表示状態で、hover・focus・pressedも通常のブラウザ操作で再現する。任意の文字列・数値・座標の全組合せ、内部の文字・アイコン、素材画像そのものを独立した比較対象にしない。操作結合テスト用のストーリーには、見た目のvariantでない操作手順だけを理由に`.fig`や画像比較を追加しない。戦闘はHUD・操作ボタンなどのUI部品だけを扱い、3D画面全体・戦闘エフェクト・開発エディターをデザイン原稿の比較に含めない。既存のゲーム用VRTとNative WebGLの資源検証は別の保証として維持する。
 
@@ -84,7 +86,7 @@ CIは共通の固定Dockerイメージを解決した後、一つの検証jobで
 
 ## Coverageと実行漏れ
 
-Vitest 5の標準 `@vitest/coverage-v8` で `src/**/*.{ts,svelte}` と `scripts/*.{ts,mjs}` をincludeし、未読込も分母へ含める。部品と同居する`*.stories.ts`とStory専用の`*.stories.svelte`は検証用コードとして除外する。ゲームとpresentationは行97・文95・関数100・分岐93の閾値を適用する。率のために来ない入力・不可能状態・冗長防御を作らない。
+Vitest 5の標準 `@vitest/coverage-v8` で `src/**/*.{ts,svelte}` と `scripts/*.{ts,mjs}` をincludeし、未読込も分母へ含める。部品と同居する`*.stories.ts`、Story専用の`*.stories.svelte`と`*.stories.fixture.ts`は検証用コードとして除外する。ゲームとpresentationは行97・文95・関数100・分岐93の閾値を適用する。率のために来ない入力・不可能状態・冗長防御を作らない。
 
 ブラウザは同じ必要実行へPlaywright native V8を付随させ、Monocartで自前srcへmappingする。buildの[hidden sourcemap](https://vite.dev/config/build-options.html#build-sourcemap)は実行JSへ注釈を加えない。共有fixtureが各chunkの隣接mapを渡す。実HMRのdev sourceだけはinline mapを使う。全srcの未読込を0-hitとして残し、vendor・テスト・CSSを混ぜない。Svelteコンポーネントと`.svelte.ts`もsource集合に含め、`.svelte`の未読込分は公式Svelte compilerのJS／mapから補う。実行分は通常Vite pluginのmapを使う。`coverage/browser/<実project名>/` は由来別のreportであり、同じ分母を合算・平均したりunit率へ統合したりしない。
 
