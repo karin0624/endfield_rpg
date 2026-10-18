@@ -1,5 +1,5 @@
 ---
-name: endfield-git-auth
+name: git-auth
 description: "karin0624/endfield_rpgのCodex workspaceでGit同期・HTTPS認証・Git LFS取得を扱う。現在の環境の正規経路と既存認証を使う。"
 ---
 

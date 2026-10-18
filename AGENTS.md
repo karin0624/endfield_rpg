@@ -4,8 +4,8 @@
 | --- | --- |
 | 仕様・責務境界 | [仕様概要](specs/overview.md) |
 | 環境構築・実行 | [README](README.md) |
-| Git同期・認証・LFS取得 | [Git認証skill](.agents/skills/endfield-git-auth/SKILL.md) |
-| 人が作成したデザインの実装 | [Figからの実装skill](.agents/skills/endfield-design-to-code/SKILL.md) |
+| Git同期・認証・LFS取得 | [Git認証skill](.agents/skills/git-auth/SKILL.md) |
+| 人が作成したデザインの実装 | [Figからの実装skill](.agents/skills/design-to-code/SKILL.md) |
 | 検証・PR・レビュー | [テスト設計](docs/testing.md)、[reviewer定義](.codex/agents/reviewer.toml) |
 
 - 開発段階ではセーブを含む後方互換・旧データ移行は不要。旧形式は明示的に拒否し、既存データを自動削除しない。

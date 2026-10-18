@@ -12,7 +12,7 @@
 
 ## 操作・UIの変更
 
-<!-- 対象がなければ削除。詳細はdocs/testing.mdと.agents/skills/endfield-design-to-code/SKILL.mdを参照。非公開会話・Pageリンク・内部資料は転記しない。 -->
+<!-- 対象がなければ削除。詳細はdocs/testing.mdと.agents/skills/design-to-code/SKILL.mdを参照。非公開会話・Pageリンク・内部資料は転記しない。 -->
 
 - [ ] 通常の往復操作、取消・再入力・focus復帰、失敗時の保持を仕様とテストへ対応付けた。
 - [ ] 不具合修正は修正前の失敗と修正後の成功を確認した。

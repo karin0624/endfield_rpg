@@ -8,7 +8,7 @@
 | --- | --- |
 | [AGENTS.md](AGENTS.md) | 作業と文書更新の規約 |
 | [仕様概要](specs/overview.md) | 本編の流れ、責務境界、各ゲーム仕様への入口 |
-| [Figからの実装skill](.agents/skills/endfield-design-to-code/SKILL.md) | 人が変更した原稿の調査、製品・Storyへの反映、不一致の切り分け |
+| [Figからの実装skill](.agents/skills/design-to-code/SKILL.md) | 人が変更した原稿の調査、製品・Storyへの反映、不一致の切り分け |
 | [テスト設計](docs/testing.md) | 保証する結果、検証層、実行方法、PRと独立レビュー |
 | [コンテンツ追加](docs/content-authoring.md) | 仲間・会話・既存効果を増やす手順 |
 | [ADR](docs/adr/) | 技術的な選択の理由 |
@@ -29,7 +29,7 @@ node scripts/setup.mjs
 npm run dev
 ```
 
-setupは現在のcheckoutでGit LFSと依存を準備し、配布素材の実体を検証して`check`を実行する。Git同期・認証は[Git認証skill](.agents/skills/endfield-git-auth/SKILL.md)を参照する。
+setupは現在のcheckoutでGit LFSと依存を準備し、配布素材の実体を検証して`check`を実行する。Git同期・認証は[Git認証skill](.agents/skills/git-auth/SKILL.md)を参照する。
 
 環境のセットアップコマンドはrepositoryを作業ディレクトリにする。npm cacheを指定する場合は次を使う。
 
@@ -58,7 +58,7 @@ node scripts/setup.mjs --cache /workspace/.npm
 
 ## OpenPencilでデザインマスターを編集する
 
-ゲームのデザインマスターは[endfield-rpg.fig](art-src/openpencil/endfield-rpg.fig)。デザイン・素材制作・原稿編集は人が行い、AIは原稿を読んで実装と検証を行う。構成の不備は指摘し、原稿を勝手に修正しない。ゲームや操作の契約は[仕様](specs/overview.md)、AIの作業手順は[実装skill](.agents/skills/endfield-design-to-code/SKILL.md)を参照する。
+ゲームのデザインマスターは[endfield-rpg.fig](art-src/openpencil/endfield-rpg.fig)。デザイン・素材制作・原稿編集は人が行い、AIは原稿を読んで実装と検証を行う。構成の不備は指摘し、原稿を勝手に修正しない。ゲームや操作の契約は[仕様](specs/overview.md)、AIの作業手順は[実装skill](.agents/skills/design-to-code/SKILL.md)を参照する。
 
 一つのファイルに共通定義と複数の画面を管理する。現在のページと区画は次のとおり。
 

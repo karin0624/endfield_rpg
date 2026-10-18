@@ -1,5 +1,5 @@
 ---
-name: endfield-design-to-code
+name: design-to-code
 description: "人が編集したendfield-rpg.figの部品・variant・画面をSvelte実装とStorybookへ反映し、既存パイプラインで画素差分0まで検証する。Fig変更の実装、Story対応の修復、原稿と実装の不一致調査で使う。"
 ---
 
