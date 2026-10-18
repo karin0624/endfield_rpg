@@ -37,6 +37,14 @@ export const Default: Story = {
           },
         },
         {
+          id: "BranchRecovery/ItemTrigger/components-page/default",
+          state: "default",
+          figma: {
+            path: ["Components/Dungeon", "Dungeon Nodes", "BranchRecovery/ItemTrigger", "state=default"],
+            properties: { focusVisible: false },
+          },
+        },
+        {
           id: "BranchRecovery/ItemTrigger/default+focus",
           state: "default+focus",
           figma: {
@@ -51,6 +59,15 @@ export const Default: Story = {
           interaction: [{ type: "focus", selector: ".item-trigger" }],
         },
         {
+          id: "BranchRecovery/ItemTrigger/components-page/default+focus",
+          state: "default+focus",
+          figma: {
+            path: ["Components/Dungeon", "Dungeon Nodes", "BranchRecovery/ItemTrigger", "state=default"],
+            properties: { focusVisible: true },
+          },
+          interaction: [{ type: "focus", selector: ".item-trigger" }],
+        },
+        {
           id: "BranchRecovery/ItemTrigger/hover",
           state: "hover",
           figma: {
@@ -60,6 +77,15 @@ export const Default: Story = {
               "BranchRecovery/ItemTrigger",
               "state=hover",
             ],
+            properties: { focusVisible: false },
+          },
+          interaction: [{ type: "hover", selector: ".item-trigger" }],
+        },
+        {
+          id: "BranchRecovery/ItemTrigger/components-page/hover",
+          state: "hover",
+          figma: {
+            path: ["Components/Dungeon", "Dungeon Nodes", "BranchRecovery/ItemTrigger", "state=hover"],
             properties: { focusVisible: false },
           },
           interaction: [{ type: "hover", selector: ".item-trigger" }],
@@ -82,6 +108,18 @@ export const Default: Story = {
           ],
         },
         {
+          id: "BranchRecovery/ItemTrigger/components-page/hover+focus",
+          state: "hover+focus",
+          figma: {
+            path: ["Components/Dungeon", "Dungeon Nodes", "BranchRecovery/ItemTrigger", "state=hover"],
+            properties: { focusVisible: true },
+          },
+          interaction: [
+            { type: "focus", selector: ".item-trigger" },
+            { type: "hover", selector: ".item-trigger" },
+          ],
+        },
+        {
           id: "BranchRecovery/ItemTrigger/pressed+focus",
           state: "pressed+focus",
           figma: {
@@ -91,6 +129,18 @@ export const Default: Story = {
               "BranchRecovery/ItemTrigger",
               "state=pressed",
             ],
+            properties: { focusVisible: true },
+          },
+          interaction: [
+            { type: "focus", selector: ".item-trigger" },
+            { type: "pressed", selector: ".item-trigger", method: "keyboard" },
+          ],
+        },
+        {
+          id: "BranchRecovery/ItemTrigger/components-page/pressed+focus",
+          state: "pressed+focus",
+          figma: {
+            path: ["Components/Dungeon", "Dungeon Nodes", "BranchRecovery/ItemTrigger", "state=pressed"],
             properties: { focusVisible: true },
           },
           interaction: [
@@ -121,6 +171,14 @@ export const Disabled: Story = {
           },
         },
         {
+          id: "BranchRecovery/ItemTrigger/components-page/disabled",
+          state: "disabled",
+          figma: {
+            path: ["Components/Dungeon", "Dungeon Nodes", "BranchRecovery/ItemTrigger", "state=disabled"],
+            properties: { focusVisible: false, label: "物品（HP回復品 ×0）" },
+          },
+        },
+        {
           id: "BranchRecovery/ItemTrigger/disabled-hover",
           state: "disabled-hover",
           figma: {
@@ -130,6 +188,15 @@ export const Disabled: Story = {
               "BranchRecovery/ItemTrigger",
               "state=disabled-hover",
             ],
+            properties: { focusVisible: false, label: "物品（HP回復品 ×0）" },
+          },
+          interaction: [{ type: "hover", selector: ".item-trigger" }],
+        },
+        {
+          id: "BranchRecovery/ItemTrigger/components-page/disabled-hover",
+          state: "disabled-hover",
+          figma: {
+            path: ["Components/Dungeon", "Dungeon Nodes", "BranchRecovery/ItemTrigger", "state=disabled-hover"],
             properties: { focusVisible: false, label: "物品（HP回復品 ×0）" },
           },
           interaction: [{ type: "hover", selector: ".item-trigger" }],

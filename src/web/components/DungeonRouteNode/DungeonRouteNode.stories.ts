@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/svelte-vite";
+import { expect, fn } from "storybook/test";
 import type { DungeonChromeFrame } from "../../../presentation/dungeonProjection";
 import DungeonRouteNode from "./DungeonRouteNode.svelte";
 
@@ -37,7 +38,7 @@ const bossNode: NodeContent = {
 
 const meta = {
   id: "dungeon-route-node",
-  title: "DS未対応/Dungeon/RouteNode",
+  title: "Dungeon/RouteNode",
   component: DungeonRouteNode,
   parameters: {
     design: {
@@ -47,12 +48,49 @@ const meta = {
       capture: { selector: ".dungeon-route-node", padding: 128, background: "transparent" },
     },
   },
-  args: { enter: () => {}, focused: () => {} },
+  args: { enter: fn(), focused: fn() },
 } satisfies Meta<typeof DungeonRouteNode>;
 export default meta;
 type Story = StoryObj<typeof meta>;
 
+const availableNodeAcceptsPointerAndKeyboard: NonNullable<Story["play"]> = async ({ canvas, args, userEvent }) => {
+  const button = canvas.getByRole("button", { name: args.node.label });
+  await userEvent.click(button);
+  await expect(button).toHaveFocus();
+  await expect(args.focused).toHaveBeenCalledTimes(1);
+  await expect(args.focused).toHaveBeenLastCalledWith(args.node.id);
+  await expect(args.enter).toHaveBeenCalledTimes(1);
+  await expect(args.enter).toHaveBeenLastCalledWith(args.node.id);
+  button.blur();
+  await userEvent.unhover(button);
+  await userEvent.tab();
+  await expect(button).toHaveFocus();
+  await expect(args.focused).toHaveBeenCalledTimes(2);
+  await expect(args.focused).toHaveBeenLastCalledWith(args.node.id);
+  await expect(args.enter).toHaveBeenCalledTimes(1);
+  await userEvent.keyboard("{Enter}");
+  await expect(args.enter).toHaveBeenCalledTimes(2);
+  await expect(args.enter).toHaveBeenLastCalledWith(args.node.id);
+  button.blur();
+};
+
+const pastNodeIsInert: NonNullable<Story["play"]> = async ({ canvas, args, userEvent }) => {
+  const button = canvas.getByRole("button", { name: args.node.label });
+  await expect(button).toBeDisabled();
+  await userEvent.hover(button);
+  await userEvent.click(button);
+  button.focus();
+  await expect(button).not.toHaveFocus();
+  await userEvent.tab();
+  await expect(button).not.toHaveFocus();
+  await userEvent.keyboard("{Enter} ");
+  await expect(args.enter).not.toHaveBeenCalled();
+  await expect(args.focused).not.toHaveBeenCalled();
+  await userEvent.unhover(button);
+};
+
 export const BattleAvailable: Story = {
+  play: availableNodeAcceptsPointerAndKeyboard,
   args: {
     node: {
       ...battleNode,
@@ -74,10 +112,22 @@ export const BattleAvailable: Story = {
           state: "available/default",
           figma: {
             path: [
+              "Components/Dungeon",
+              "Dungeon Nodes",
+              "Dungeon/RouteNode/battle",
+              "state=available, interaction=default, focus=false",
+            ],
+          },
+        },
+        {
+          id: "Dungeon/RouteNode/battle/screen-components/available/default",
+          state: "available/default",
+          figma: {
+            path: [
               "Screens / DS未対応",
               "Dungeon route / Local Components — DS未対応",
               "Dungeon/RouteNode/battle",
-              "state=available, interaction=default, focusVisible=false",
+              "state=available, interaction=default, focus=false",
             ],
           },
         },
@@ -86,10 +136,31 @@ export const BattleAvailable: Story = {
           state: "available/default+focus",
           figma: {
             path: [
+              "Components/Dungeon",
+              "Dungeon Nodes",
+              "Dungeon/RouteNode/battle",
+              "state=available, interaction=default, focus=true",
+            ],
+          },
+          interaction: [{ type: "focus", selector: ".dungeon-route-node" }],
+        },
+        {
+          id: "Dungeon/RouteNode/battle/standalone/default+focus",
+          state: "available/default+focus",
+          figma: {
+            path: ["Components/Dungeon", "Dungeon Nodes", "state=available, interaction=default, focus=true"],
+          },
+          interaction: [{ type: "focus", selector: ".dungeon-route-node" }],
+        },
+        {
+          id: "Dungeon/RouteNode/battle/screen-components/available/default+focus",
+          state: "available/default+focus",
+          figma: {
+            path: [
               "Screens / DS未対応",
               "Dungeon route / Local Components — DS未対応",
               "Dungeon/RouteNode/battle",
-              "state=available, interaction=default, focusVisible=true",
+              "state=available, interaction=default, focus=true",
             ],
           },
           interaction: [{ type: "focus", selector: ".dungeon-route-node" }],
@@ -99,10 +170,23 @@ export const BattleAvailable: Story = {
           state: "available/hover",
           figma: {
             path: [
+              "Components/Dungeon",
+              "Dungeon Nodes",
+              "Dungeon/RouteNode/battle",
+              "state=available, interaction=hover, focus=false",
+            ],
+          },
+          interaction: [{ type: "hover", selector: ".dungeon-route-node" }],
+        },
+        {
+          id: "Dungeon/RouteNode/battle/screen-components/available/hover",
+          state: "available/hover",
+          figma: {
+            path: [
               "Screens / DS未対応",
               "Dungeon route / Local Components — DS未対応",
               "Dungeon/RouteNode/battle",
-              "state=available, interaction=hover, focusVisible=false",
+              "state=available, interaction=hover, focus=false",
             ],
           },
           interaction: [{ type: "hover", selector: ".dungeon-route-node" }],
@@ -112,15 +196,47 @@ export const BattleAvailable: Story = {
           state: "available/hover+focus",
           figma: {
             path: [
-              "Screens / DS未対応",
-              "Dungeon route / Local Components — DS未対応",
+              "Components/Dungeon",
+              "Dungeon Nodes",
               "Dungeon/RouteNode/battle",
-              "state=available, interaction=hover, focusVisible=true",
+              "state=available, interaction=hover, focus=true",
             ],
           },
           interaction: [
             { type: "focus", selector: ".dungeon-route-node" },
             { type: "hover", selector: ".dungeon-route-node" },
+          ],
+        },
+        {
+          id: "Dungeon/RouteNode/battle/screen-components/available/hover+focus",
+          state: "available/hover+focus",
+          figma: {
+            path: [
+              "Screens / DS未対応",
+              "Dungeon route / Local Components — DS未対応",
+              "Dungeon/RouteNode/battle",
+              "state=available, interaction=hover, focus=true",
+            ],
+          },
+          interaction: [
+            { type: "focus", selector: ".dungeon-route-node" },
+            { type: "hover", selector: ".dungeon-route-node" },
+          ],
+        },
+        {
+          id: "Dungeon/RouteNode/battle/available/hover+pointer-focus",
+          state: "available/hover+pointer-focus",
+          figma: {
+            path: [
+              "Components/Dungeon",
+              "Dungeon Nodes",
+              "Dungeon/RouteNode/battle",
+              "state=available, interaction=hover, focus=true",
+            ],
+          },
+          interaction: [
+            { type: "pressed", selector: ".dungeon-route-node" },
+            { type: "release", selector: ".dungeon-route-node" },
           ],
         },
       ],
@@ -149,10 +265,22 @@ export const BattleCurrent: Story = {
           state: "current/default",
           figma: {
             path: [
+              "Components/Dungeon",
+              "Dungeon Nodes",
+              "Dungeon/RouteNode/battle",
+              "state=current, interaction=default, focus=false",
+            ],
+          },
+        },
+        {
+          id: "Dungeon/RouteNode/battle/screen-components/current/default",
+          state: "current/default",
+          figma: {
+            path: [
               "Screens / DS未対応",
               "Dungeon route / Local Components — DS未対応",
               "Dungeon/RouteNode/battle",
-              "state=current, interaction=default, focusVisible=false",
+              "state=current, interaction=default, focus=false",
             ],
           },
         },
@@ -161,10 +289,23 @@ export const BattleCurrent: Story = {
           state: "current/hover",
           figma: {
             path: [
+              "Components/Dungeon",
+              "Dungeon Nodes",
+              "Dungeon/RouteNode/battle",
+              "state=current, interaction=hover, focus=false",
+            ],
+          },
+          interaction: [{ type: "hover", selector: ".dungeon-route-node" }],
+        },
+        {
+          id: "Dungeon/RouteNode/battle/screen-components/current/hover",
+          state: "current/hover",
+          figma: {
+            path: [
               "Screens / DS未対応",
               "Dungeon route / Local Components — DS未対応",
               "Dungeon/RouteNode/battle",
-              "state=current, interaction=hover, focusVisible=false",
+              "state=current, interaction=hover, focus=false",
             ],
           },
           interaction: [{ type: "hover", selector: ".dungeon-route-node" }],
@@ -195,10 +336,22 @@ export const BattleUnreachable: Story = {
           state: "unreachable/default",
           figma: {
             path: [
+              "Components/Dungeon",
+              "Dungeon Nodes",
+              "Dungeon/RouteNode/battle",
+              "state=unreachable, interaction=default, focus=false",
+            ],
+          },
+        },
+        {
+          id: "Dungeon/RouteNode/battle/screen-components/unreachable/default",
+          state: "unreachable/default",
+          figma: {
+            path: [
               "Screens / DS未対応",
               "Dungeon route / Local Components — DS未対応",
               "Dungeon/RouteNode/battle",
-              "state=unreachable, interaction=default, focusVisible=false",
+              "state=unreachable, interaction=default, focus=false",
             ],
           },
         },
@@ -207,10 +360,23 @@ export const BattleUnreachable: Story = {
           state: "unreachable/hover",
           figma: {
             path: [
+              "Components/Dungeon",
+              "Dungeon Nodes",
+              "Dungeon/RouteNode/battle",
+              "state=unreachable, interaction=hover, focus=false",
+            ],
+          },
+          interaction: [{ type: "hover", selector: ".dungeon-route-node" }],
+        },
+        {
+          id: "Dungeon/RouteNode/battle/screen-components/unreachable/hover",
+          state: "unreachable/hover",
+          figma: {
+            path: [
               "Screens / DS未対応",
               "Dungeon route / Local Components — DS未対応",
               "Dungeon/RouteNode/battle",
-              "state=unreachable, interaction=hover, focusVisible=false",
+              "state=unreachable, interaction=hover, focus=false",
             ],
           },
           interaction: [{ type: "hover", selector: ".dungeon-route-node" }],
@@ -220,6 +386,7 @@ export const BattleUnreachable: Story = {
   },
 };
 export const BattlePast: Story = {
+  play: pastNodeIsInert,
   args: {
     node: {
       ...battleNode,
@@ -242,31 +409,31 @@ export const BattlePast: Story = {
           state: "past/default",
           figma: {
             path: [
-              "Screens / DS未対応",
-              "Dungeon route / Local Components — DS未対応",
+              "Components/Dungeon",
+              "Dungeon Nodes",
               "Dungeon/RouteNode/battle",
-              "state=past, interaction=default, focusVisible=false",
+              "state=past, interaction=default, focus=false",
             ],
           },
         },
         {
-          id: "Dungeon/RouteNode/battle/past/hover",
-          state: "past/hover",
+          id: "Dungeon/RouteNode/battle/screen-components/past/default",
+          state: "past/default",
           figma: {
             path: [
               "Screens / DS未対応",
               "Dungeon route / Local Components — DS未対応",
               "Dungeon/RouteNode/battle",
-              "state=past, interaction=hover, focusVisible=false",
+              "state=past, interaction=default, focus=false",
             ],
           },
-          interaction: [{ type: "hover", selector: ".dungeon-route-node" }],
         },
       ],
     },
   },
 };
 export const ConversationAvailable: Story = {
+  play: availableNodeAcceptsPointerAndKeyboard,
   args: {
     node: {
       ...conversationNode,
@@ -288,10 +455,22 @@ export const ConversationAvailable: Story = {
           state: "available/default",
           figma: {
             path: [
+              "Components/Dungeon",
+              "Dungeon Nodes",
+              "Dungeon/RouteNode/conversation",
+              "state=available, interaction=default, focus=false",
+            ],
+          },
+        },
+        {
+          id: "Dungeon/RouteNode/conversation/screen-components/available/default",
+          state: "available/default",
+          figma: {
+            path: [
               "Screens / DS未対応",
               "Dungeon route / Local Components — DS未対応",
               "Dungeon/RouteNode/conversation",
-              "state=available, interaction=default, focusVisible=false",
+              "state=available, interaction=default, focus=false",
             ],
           },
         },
@@ -300,10 +479,23 @@ export const ConversationAvailable: Story = {
           state: "available/default+focus",
           figma: {
             path: [
+              "Components/Dungeon",
+              "Dungeon Nodes",
+              "Dungeon/RouteNode/conversation",
+              "state=available, interaction=default, focus=true",
+            ],
+          },
+          interaction: [{ type: "focus", selector: ".dungeon-route-node" }],
+        },
+        {
+          id: "Dungeon/RouteNode/conversation/screen-components/available/default+focus",
+          state: "available/default+focus",
+          figma: {
+            path: [
               "Screens / DS未対応",
               "Dungeon route / Local Components — DS未対応",
               "Dungeon/RouteNode/conversation",
-              "state=available, interaction=default, focusVisible=true",
+              "state=available, interaction=default, focus=true",
             ],
           },
           interaction: [{ type: "focus", selector: ".dungeon-route-node" }],
@@ -313,10 +505,23 @@ export const ConversationAvailable: Story = {
           state: "available/hover",
           figma: {
             path: [
+              "Components/Dungeon",
+              "Dungeon Nodes",
+              "Dungeon/RouteNode/conversation",
+              "state=available, interaction=hover, focus=false",
+            ],
+          },
+          interaction: [{ type: "hover", selector: ".dungeon-route-node" }],
+        },
+        {
+          id: "Dungeon/RouteNode/conversation/screen-components/available/hover",
+          state: "available/hover",
+          figma: {
+            path: [
               "Screens / DS未対応",
               "Dungeon route / Local Components — DS未対応",
               "Dungeon/RouteNode/conversation",
-              "state=available, interaction=hover, focusVisible=false",
+              "state=available, interaction=hover, focus=false",
             ],
           },
           interaction: [{ type: "hover", selector: ".dungeon-route-node" }],
@@ -326,15 +531,47 @@ export const ConversationAvailable: Story = {
           state: "available/hover+focus",
           figma: {
             path: [
-              "Screens / DS未対応",
-              "Dungeon route / Local Components — DS未対応",
+              "Components/Dungeon",
+              "Dungeon Nodes",
               "Dungeon/RouteNode/conversation",
-              "state=available, interaction=hover, focusVisible=true",
+              "state=available, interaction=hover, focus=true",
             ],
           },
           interaction: [
             { type: "focus", selector: ".dungeon-route-node" },
             { type: "hover", selector: ".dungeon-route-node" },
+          ],
+        },
+        {
+          id: "Dungeon/RouteNode/conversation/screen-components/available/hover+focus",
+          state: "available/hover+focus",
+          figma: {
+            path: [
+              "Screens / DS未対応",
+              "Dungeon route / Local Components — DS未対応",
+              "Dungeon/RouteNode/conversation",
+              "state=available, interaction=hover, focus=true",
+            ],
+          },
+          interaction: [
+            { type: "focus", selector: ".dungeon-route-node" },
+            { type: "hover", selector: ".dungeon-route-node" },
+          ],
+        },
+        {
+          id: "Dungeon/RouteNode/conversation/available/hover+pointer-focus",
+          state: "available/hover+pointer-focus",
+          figma: {
+            path: [
+              "Components/Dungeon",
+              "Dungeon Nodes",
+              "Dungeon/RouteNode/conversation",
+              "state=available, interaction=hover, focus=true",
+            ],
+          },
+          interaction: [
+            { type: "pressed", selector: ".dungeon-route-node" },
+            { type: "release", selector: ".dungeon-route-node" },
           ],
         },
       ],
@@ -363,10 +600,22 @@ export const ConversationCurrent: Story = {
           state: "current/default",
           figma: {
             path: [
+              "Components/Dungeon",
+              "Dungeon Nodes",
+              "Dungeon/RouteNode/conversation",
+              "state=current, interaction=default, focus=false",
+            ],
+          },
+        },
+        {
+          id: "Dungeon/RouteNode/conversation/screen-components/current/default",
+          state: "current/default",
+          figma: {
+            path: [
               "Screens / DS未対応",
               "Dungeon route / Local Components — DS未対応",
               "Dungeon/RouteNode/conversation",
-              "state=current, interaction=default, focusVisible=false",
+              "state=current, interaction=default, focus=false",
             ],
           },
         },
@@ -375,10 +624,23 @@ export const ConversationCurrent: Story = {
           state: "current/hover",
           figma: {
             path: [
+              "Components/Dungeon",
+              "Dungeon Nodes",
+              "Dungeon/RouteNode/conversation",
+              "state=current, interaction=hover, focus=false",
+            ],
+          },
+          interaction: [{ type: "hover", selector: ".dungeon-route-node" }],
+        },
+        {
+          id: "Dungeon/RouteNode/conversation/screen-components/current/hover",
+          state: "current/hover",
+          figma: {
+            path: [
               "Screens / DS未対応",
               "Dungeon route / Local Components — DS未対応",
               "Dungeon/RouteNode/conversation",
-              "state=current, interaction=hover, focusVisible=false",
+              "state=current, interaction=hover, focus=false",
             ],
           },
           interaction: [{ type: "hover", selector: ".dungeon-route-node" }],
@@ -409,10 +671,22 @@ export const ConversationUnreachable: Story = {
           state: "unreachable/default",
           figma: {
             path: [
+              "Components/Dungeon",
+              "Dungeon Nodes",
+              "Dungeon/RouteNode/conversation",
+              "state=unreachable, interaction=default, focus=false",
+            ],
+          },
+        },
+        {
+          id: "Dungeon/RouteNode/conversation/screen-components/unreachable/default",
+          state: "unreachable/default",
+          figma: {
+            path: [
               "Screens / DS未対応",
               "Dungeon route / Local Components — DS未対応",
               "Dungeon/RouteNode/conversation",
-              "state=unreachable, interaction=default, focusVisible=false",
+              "state=unreachable, interaction=default, focus=false",
             ],
           },
         },
@@ -421,10 +695,23 @@ export const ConversationUnreachable: Story = {
           state: "unreachable/hover",
           figma: {
             path: [
+              "Components/Dungeon",
+              "Dungeon Nodes",
+              "Dungeon/RouteNode/conversation",
+              "state=unreachable, interaction=hover, focus=false",
+            ],
+          },
+          interaction: [{ type: "hover", selector: ".dungeon-route-node" }],
+        },
+        {
+          id: "Dungeon/RouteNode/conversation/screen-components/unreachable/hover",
+          state: "unreachable/hover",
+          figma: {
+            path: [
               "Screens / DS未対応",
               "Dungeon route / Local Components — DS未対応",
               "Dungeon/RouteNode/conversation",
-              "state=unreachable, interaction=hover, focusVisible=false",
+              "state=unreachable, interaction=hover, focus=false",
             ],
           },
           interaction: [{ type: "hover", selector: ".dungeon-route-node" }],
@@ -434,6 +721,7 @@ export const ConversationUnreachable: Story = {
   },
 };
 export const ConversationPast: Story = {
+  play: pastNodeIsInert,
   args: {
     node: {
       ...conversationNode,
@@ -456,31 +744,31 @@ export const ConversationPast: Story = {
           state: "past/default",
           figma: {
             path: [
-              "Screens / DS未対応",
-              "Dungeon route / Local Components — DS未対応",
+              "Components/Dungeon",
+              "Dungeon Nodes",
               "Dungeon/RouteNode/conversation",
-              "state=past, interaction=default, focusVisible=false",
+              "state=past, interaction=default, focus=false",
             ],
           },
         },
         {
-          id: "Dungeon/RouteNode/conversation/past/hover",
-          state: "past/hover",
+          id: "Dungeon/RouteNode/conversation/screen-components/past/default",
+          state: "past/default",
           figma: {
             path: [
               "Screens / DS未対応",
               "Dungeon route / Local Components — DS未対応",
               "Dungeon/RouteNode/conversation",
-              "state=past, interaction=hover, focusVisible=false",
+              "state=past, interaction=default, focus=false",
             ],
           },
-          interaction: [{ type: "hover", selector: ".dungeon-route-node" }],
         },
       ],
     },
   },
 };
 export const BossAvailable: Story = {
+  play: availableNodeAcceptsPointerAndKeyboard,
   args: {
     node: {
       ...bossNode,
@@ -502,10 +790,22 @@ export const BossAvailable: Story = {
           state: "available/default",
           figma: {
             path: [
+              "Components/Dungeon",
+              "Dungeon Nodes",
+              "Dungeon/RouteNode/boss",
+              "state=available, interaction=default, focus=false",
+            ],
+          },
+        },
+        {
+          id: "Dungeon/RouteNode/boss/screen-components/available/default",
+          state: "available/default",
+          figma: {
+            path: [
               "Screens / DS未対応",
               "Dungeon route / Local Components — DS未対応",
               "Dungeon/RouteNode/boss",
-              "state=available, interaction=default, focusVisible=false",
+              "state=available, interaction=default, focus=false",
             ],
           },
         },
@@ -514,10 +814,23 @@ export const BossAvailable: Story = {
           state: "available/default+focus",
           figma: {
             path: [
+              "Components/Dungeon",
+              "Dungeon Nodes",
+              "Dungeon/RouteNode/boss",
+              "state=available, interaction=default, focus=true",
+            ],
+          },
+          interaction: [{ type: "focus", selector: ".dungeon-route-node" }],
+        },
+        {
+          id: "Dungeon/RouteNode/boss/screen-components/available/default+focus",
+          state: "available/default+focus",
+          figma: {
+            path: [
               "Screens / DS未対応",
               "Dungeon route / Local Components — DS未対応",
               "Dungeon/RouteNode/boss",
-              "state=available, interaction=default, focusVisible=true",
+              "state=available, interaction=default, focus=true",
             ],
           },
           interaction: [{ type: "focus", selector: ".dungeon-route-node" }],
@@ -527,10 +840,23 @@ export const BossAvailable: Story = {
           state: "available/hover",
           figma: {
             path: [
+              "Components/Dungeon",
+              "Dungeon Nodes",
+              "Dungeon/RouteNode/boss",
+              "state=available, interaction=hover, focus=false",
+            ],
+          },
+          interaction: [{ type: "hover", selector: ".dungeon-route-node" }],
+        },
+        {
+          id: "Dungeon/RouteNode/boss/screen-components/available/hover",
+          state: "available/hover",
+          figma: {
+            path: [
               "Screens / DS未対応",
               "Dungeon route / Local Components — DS未対応",
               "Dungeon/RouteNode/boss",
-              "state=available, interaction=hover, focusVisible=false",
+              "state=available, interaction=hover, focus=false",
             ],
           },
           interaction: [{ type: "hover", selector: ".dungeon-route-node" }],
@@ -540,15 +866,47 @@ export const BossAvailable: Story = {
           state: "available/hover+focus",
           figma: {
             path: [
-              "Screens / DS未対応",
-              "Dungeon route / Local Components — DS未対応",
+              "Components/Dungeon",
+              "Dungeon Nodes",
               "Dungeon/RouteNode/boss",
-              "state=available, interaction=hover, focusVisible=true",
+              "state=available, interaction=hover, focus=true",
             ],
           },
           interaction: [
             { type: "focus", selector: ".dungeon-route-node" },
             { type: "hover", selector: ".dungeon-route-node" },
+          ],
+        },
+        {
+          id: "Dungeon/RouteNode/boss/screen-components/available/hover+focus",
+          state: "available/hover+focus",
+          figma: {
+            path: [
+              "Screens / DS未対応",
+              "Dungeon route / Local Components — DS未対応",
+              "Dungeon/RouteNode/boss",
+              "state=available, interaction=hover, focus=true",
+            ],
+          },
+          interaction: [
+            { type: "focus", selector: ".dungeon-route-node" },
+            { type: "hover", selector: ".dungeon-route-node" },
+          ],
+        },
+        {
+          id: "Dungeon/RouteNode/boss/available/hover+pointer-focus",
+          state: "available/hover+pointer-focus",
+          figma: {
+            path: [
+              "Components/Dungeon",
+              "Dungeon Nodes",
+              "Dungeon/RouteNode/boss",
+              "state=available, interaction=hover, focus=true",
+            ],
+          },
+          interaction: [
+            { type: "pressed", selector: ".dungeon-route-node" },
+            { type: "release", selector: ".dungeon-route-node" },
           ],
         },
       ],
@@ -577,10 +935,22 @@ export const BossCurrent: Story = {
           state: "current/default",
           figma: {
             path: [
+              "Components/Dungeon",
+              "Dungeon Nodes",
+              "Dungeon/RouteNode/boss",
+              "state=current, interaction=default, focus=false",
+            ],
+          },
+        },
+        {
+          id: "Dungeon/RouteNode/boss/screen-components/current/default",
+          state: "current/default",
+          figma: {
+            path: [
               "Screens / DS未対応",
               "Dungeon route / Local Components — DS未対応",
               "Dungeon/RouteNode/boss",
-              "state=current, interaction=default, focusVisible=false",
+              "state=current, interaction=default, focus=false",
             ],
           },
         },
@@ -589,10 +959,23 @@ export const BossCurrent: Story = {
           state: "current/hover",
           figma: {
             path: [
+              "Components/Dungeon",
+              "Dungeon Nodes",
+              "Dungeon/RouteNode/boss",
+              "state=current, interaction=hover, focus=false",
+            ],
+          },
+          interaction: [{ type: "hover", selector: ".dungeon-route-node" }],
+        },
+        {
+          id: "Dungeon/RouteNode/boss/screen-components/current/hover",
+          state: "current/hover",
+          figma: {
+            path: [
               "Screens / DS未対応",
               "Dungeon route / Local Components — DS未対応",
               "Dungeon/RouteNode/boss",
-              "state=current, interaction=hover, focusVisible=false",
+              "state=current, interaction=hover, focus=false",
             ],
           },
           interaction: [{ type: "hover", selector: ".dungeon-route-node" }],
@@ -623,10 +1006,22 @@ export const BossUnreachable: Story = {
           state: "unreachable/default",
           figma: {
             path: [
+              "Components/Dungeon",
+              "Dungeon Nodes",
+              "Dungeon/RouteNode/boss",
+              "state=unreachable, interaction=default, focus=false",
+            ],
+          },
+        },
+        {
+          id: "Dungeon/RouteNode/boss/screen-components/unreachable/default",
+          state: "unreachable/default",
+          figma: {
+            path: [
               "Screens / DS未対応",
               "Dungeon route / Local Components — DS未対応",
               "Dungeon/RouteNode/boss",
-              "state=unreachable, interaction=default, focusVisible=false",
+              "state=unreachable, interaction=default, focus=false",
             ],
           },
         },
@@ -635,10 +1030,23 @@ export const BossUnreachable: Story = {
           state: "unreachable/hover",
           figma: {
             path: [
+              "Components/Dungeon",
+              "Dungeon Nodes",
+              "Dungeon/RouteNode/boss",
+              "state=unreachable, interaction=hover, focus=false",
+            ],
+          },
+          interaction: [{ type: "hover", selector: ".dungeon-route-node" }],
+        },
+        {
+          id: "Dungeon/RouteNode/boss/screen-components/unreachable/hover",
+          state: "unreachable/hover",
+          figma: {
+            path: [
               "Screens / DS未対応",
               "Dungeon route / Local Components — DS未対応",
               "Dungeon/RouteNode/boss",
-              "state=unreachable, interaction=hover, focusVisible=false",
+              "state=unreachable, interaction=hover, focus=false",
             ],
           },
           interaction: [{ type: "hover", selector: ".dungeon-route-node" }],
@@ -648,6 +1056,7 @@ export const BossUnreachable: Story = {
   },
 };
 export const BossPast: Story = {
+  play: pastNodeIsInert,
   args: {
     node: {
       ...bossNode,
@@ -670,25 +1079,24 @@ export const BossPast: Story = {
           state: "past/default",
           figma: {
             path: [
-              "Screens / DS未対応",
-              "Dungeon route / Local Components — DS未対応",
+              "Components/Dungeon",
+              "Dungeon Nodes",
               "Dungeon/RouteNode/boss",
-              "state=past, interaction=default, focusVisible=false",
+              "state=past, interaction=default, focus=false",
             ],
           },
         },
         {
-          id: "Dungeon/RouteNode/boss/past/hover",
-          state: "past/hover",
+          id: "Dungeon/RouteNode/boss/screen-components/past/default",
+          state: "past/default",
           figma: {
             path: [
               "Screens / DS未対応",
               "Dungeon route / Local Components — DS未対応",
               "Dungeon/RouteNode/boss",
-              "state=past, interaction=hover, focusVisible=false",
+              "state=past, interaction=default, focus=false",
             ],
           },
-          interaction: [{ type: "hover", selector: ".dungeon-route-node" }],
         },
       ],
     },

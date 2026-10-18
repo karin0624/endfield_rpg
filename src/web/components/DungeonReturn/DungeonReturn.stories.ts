@@ -37,6 +37,14 @@ export const Default: Story = {
           },
         },
         {
+          id: "Dungeon/Return/components-page/default",
+          state: "default",
+          figma: {
+            path: ["Components/Dungeon", "Dungeon Nodes", "Dungeon/Return", "state=default"],
+            properties: { focusVisible: false },
+          },
+        },
+        {
           id: "Dungeon/Return/default+focus",
           state: "default+focus",
           figma: {
@@ -46,6 +54,15 @@ export const Default: Story = {
               "Dungeon/Return",
               "state=default",
             ],
+            properties: { focusVisible: true },
+          },
+          interaction: [{ type: "focus", selector: ".dungeon-town-link" }],
+        },
+        {
+          id: "Dungeon/Return/components-page/default+focus",
+          state: "default+focus",
+          figma: {
+            path: ["Components/Dungeon", "Dungeon Nodes", "Dungeon/Return", "state=default"],
             properties: { focusVisible: true },
           },
           interaction: [{ type: "focus", selector: ".dungeon-town-link" }],
@@ -65,6 +82,15 @@ export const Default: Story = {
           interaction: [{ type: "hover", selector: ".dungeon-town-link" }],
         },
         {
+          id: "Dungeon/Return/components-page/hover",
+          state: "hover",
+          figma: {
+            path: ["Components/Dungeon", "Dungeon Nodes", "Dungeon/Return", "state=hover"],
+            properties: { focusVisible: false },
+          },
+          interaction: [{ type: "hover", selector: ".dungeon-town-link" }],
+        },
+        {
           id: "Dungeon/Return/hover+focus",
           state: "hover+focus",
           figma: {
@@ -74,6 +100,18 @@ export const Default: Story = {
               "Dungeon/Return",
               "state=hover",
             ],
+            properties: { focusVisible: true },
+          },
+          interaction: [
+            { type: "focus", selector: ".dungeon-town-link" },
+            { type: "hover", selector: ".dungeon-town-link" },
+          ],
+        },
+        {
+          id: "Dungeon/Return/components-page/hover+focus",
+          state: "hover+focus",
+          figma: {
+            path: ["Components/Dungeon", "Dungeon Nodes", "Dungeon/Return", "state=hover"],
             properties: { focusVisible: true },
           },
           interaction: [

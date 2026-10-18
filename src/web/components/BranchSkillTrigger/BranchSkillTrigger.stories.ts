@@ -37,6 +37,14 @@ export const Default: Story = {
           },
         },
         {
+          id: "BranchRecovery/SkillTrigger/components-page/default",
+          state: "default",
+          figma: {
+            path: ["Components/Dungeon", "Dungeon Nodes", "BranchRecovery/SkillTrigger", "state=default"],
+            properties: { focusVisible: false },
+          },
+        },
+        {
           id: "BranchRecovery/SkillTrigger/default+focus",
           state: "default+focus",
           figma: {
@@ -46,6 +54,15 @@ export const Default: Story = {
               "BranchRecovery/SkillTrigger",
               "state=default",
             ],
+            properties: { focusVisible: true },
+          },
+          interaction: [{ type: "focus", selector: ".branch-skill-trigger" }],
+        },
+        {
+          id: "BranchRecovery/SkillTrigger/components-page/default+focus",
+          state: "default+focus",
+          figma: {
+            path: ["Components/Dungeon", "Dungeon Nodes", "BranchRecovery/SkillTrigger", "state=default"],
             properties: { focusVisible: true },
           },
           interaction: [{ type: "focus", selector: ".branch-skill-trigger" }],
@@ -65,6 +82,15 @@ export const Default: Story = {
           interaction: [{ type: "hover", selector: ".branch-skill-trigger" }],
         },
         {
+          id: "BranchRecovery/SkillTrigger/components-page/hover",
+          state: "hover",
+          figma: {
+            path: ["Components/Dungeon", "Dungeon Nodes", "BranchRecovery/SkillTrigger", "state=hover"],
+            properties: { focusVisible: false },
+          },
+          interaction: [{ type: "hover", selector: ".branch-skill-trigger" }],
+        },
+        {
           id: "BranchRecovery/SkillTrigger/hover+focus",
           state: "hover+focus",
           figma: {
@@ -74,6 +100,18 @@ export const Default: Story = {
               "BranchRecovery/SkillTrigger",
               "state=hover",
             ],
+            properties: { focusVisible: true },
+          },
+          interaction: [
+            { type: "focus", selector: ".branch-skill-trigger" },
+            { type: "hover", selector: ".branch-skill-trigger" },
+          ],
+        },
+        {
+          id: "BranchRecovery/SkillTrigger/components-page/hover+focus",
+          state: "hover+focus",
+          figma: {
+            path: ["Components/Dungeon", "Dungeon Nodes", "BranchRecovery/SkillTrigger", "state=hover"],
             properties: { focusVisible: true },
           },
           interaction: [

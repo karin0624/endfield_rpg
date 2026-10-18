@@ -1,4 +1,5 @@
 <script lang="ts">
+import "../../hub.css";
 import type { DungeonChromeFrame } from "../../../presentation/dungeonProjection";
 
 let {
@@ -22,6 +23,7 @@ const assetUrl = (path: string) => `${import.meta.env.BASE_URL}assets/${path}`;
   class:is-available={node.enabled}
   class:is-past-unselected={node.past}
   class:is-resolved={node.resolved}
+  class:is-unreachable={!node.current && !node.resolved && !node.enabled && !node.past}
   disabled={!node.enabled}
   data-node-id={node.id}
   data-node-type={node.type}
@@ -33,6 +35,6 @@ const assetUrl = (path: string) => `${import.meta.env.BASE_URL}assets/${path}`;
 >
   <img src={assetUrl(node.icon)} alt="" draggable="false" decoding="sync" aria-hidden="true" onload={loaded}>
   {#if node.title !== null}
-    <span class="dungeon-route-node-label">{node.title}</span>
+    <span class="dungeon-route-node-label"><span class="dungeon-route-node-text">{node.title}</span></span>
   {/if}
 </button>
